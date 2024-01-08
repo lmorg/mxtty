@@ -7,7 +7,7 @@ import (
 )
 
 func eventWindow(r types.Renderer, evt *sdl.WindowEvent, term *virtualterm.Term) {
-	switch evt.Type {
+	switch evt.Event {
 	case sdl.WINDOWEVENT_RESIZED:
 		resizeTerm(r, term)
 	}
