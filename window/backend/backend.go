@@ -11,7 +11,7 @@ func Initialise(fontName string, fontSize int) types.Renderer {
 	//return rendererimgui.Initialise(fontName, fontSize)
 }
 
-func Start(term *virtualterm.Term) {
-	rendersdl.Start(term)
+func Start(r types.Renderer, term *virtualterm.Term) {
+	rendersdl.Start(r, term)
 	//rendererimgui.Start(term)
 }

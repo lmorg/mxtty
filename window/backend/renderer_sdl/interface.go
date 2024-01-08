@@ -24,6 +24,17 @@ func (sr *sdlRender) Size() *types.Rect {
 	return sr.termSize
 }
 
+func (sr *sdlRender) Resize() *types.Rect {
+	var err error
+	sr.surface.Free()
+	sr.surface, err = sr.window.GetSurface()
+	if err != nil {
+		panic(err) // TODO: this shouldn't panic!
+	}
+
+	return sr.getTermSize()
+}
+
 func (sr *sdlRender) Close() {
 	typeface.Close()
 	sr.window.Destroy()

@@ -22,5 +22,5 @@ func main() {
 	}
 
 	term.Start(pty, shell)
-	backend.Start(term)
+	backend.Start(renderer, term)
 }
