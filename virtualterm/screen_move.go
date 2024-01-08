@@ -77,17 +77,12 @@ func (term *Term) scrollUp(n int32) {
 		n = bottom - top
 	}
 
-	//log.Printf("DEBUG: top, bottom, n := %d, %d, %d", top, bottom, n)
-
-	var i int32
-	for i = top; i <= bottom-n; i++ {
-		(*term.cells)[i] = (*term.cells)[i+1]
-	}
-
-	//log.Printf("DEBUG: top, bottom, n, i := %d, %d, %d, %d", top, bottom, n, i)
-	for ; i <= bottom; i++ {
-		(*term.cells)[i] = make([]cell, term.size.X)
-		//(*term.cells)[i] = term._debug_FillRowWithDots()
+	for i := top; i <= bottom; i++ {
+		if i+n <= bottom {
+			(*term.cells)[i] = (*term.cells)[i+n]
+		} else {
+			(*term.cells)[i] = make([]cell, term.size.X)
+		}
 	}
 }
 
@@ -102,12 +97,12 @@ func (term *Term) scrollDown(n int32) {
 		n = bottom - top
 	}
 
-	var i int32
-	for i = bottom; i >= n; i-- {
-		(*term.cells)[i] = (*term.cells)[i-1]
-	}
-	for ; i >= top; i-- {
-		(*term.cells)[i] = make([]cell, term.size.X)
+	for i := bottom; i > top; i-- {
+		if i+n <= bottom {
+			(*term.cells)[i] = (*term.cells)[i-n]
+		} else {
+			(*term.cells)[i] = make([]cell, term.size.X)
+		}
 	}
 }
 

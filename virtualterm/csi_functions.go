@@ -1,5 +1,12 @@
 package virtualterm
 
+import (
+	"fmt"
+	"log"
+
+	"github.com/lmorg/mxtty/codes"
+)
+
 func (term *Term) csiCursorPosSave() {
 	term._savedCurPos = term.curPos
 }
@@ -14,6 +21,9 @@ func (term *Term) csiScreenBufferAlternative() {
 
 func (term *Term) csiScreenBufferNormal() {
 	term.cells = &term._normBuf
+	for i := range term._altBuf {
+		term._altBuf[i] = make([]cell, term.size.X)
+	}
 }
 
 func (term *Term) csiCursorHide() {
@@ -39,4 +49,12 @@ func (term *Term) csiWindowTitleStackRestoreFrom() {
 	title := term._windowTitleStack[len(term._windowTitleStack)-1]
 	term.renderer.SetWindowTitle(title)
 	term._windowTitleStack = term._windowTitleStack[:len(term._windowTitleStack)-1]
+}
+
+func (term *Term) csiCallback(format string, v ...any) {
+	msg := fmt.Sprintf(format, v...)
+	_, err := term.Pty.Secondary.WriteString(codes.Csi + msg)
+	if err != nil {
+		log.Printf("ERROR: writing callback message '%s': %s", msg, err.Error())
+	}
 }

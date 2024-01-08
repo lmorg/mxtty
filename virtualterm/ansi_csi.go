@@ -98,7 +98,14 @@ func (term *Term) parseCsiCodes() {
 		case 'm': // SGR
 			lookupSgr(term.sgr, stack[0], stack)
 
-		case 'M': // Delete Ps Line(s) (default = 1) (DL).
+		//case 'M': // Delete Ps Line(s) (default = 1) (DL).
+
+		case 'n': // Device Status Report (DSR).
+			switch *n {
+			case 6:
+				term.csiCallback("%d;%dR", term.curPos.Y+1, term.curPos.X+1)
+			}
+
 		case 'P': // Delete Ps Character(s) (default = 1) (DCH).
 			term.deleteCharacters(*n)
 

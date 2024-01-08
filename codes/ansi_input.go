@@ -52,3 +52,5 @@ var (
 	AnsiShiftF11 = []byte{27, 91, 50, 51, 59, 50, 126}
 	AnsiShiftF12 = []byte{27, 91, 50, 52, 59, 50, 126}
 )
+
+var Csi = string([]byte{27, '['})
