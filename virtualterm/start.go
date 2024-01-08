@@ -5,8 +5,14 @@ import (
 	"os/exec"
 	"syscall"
 
+	"github.com/lmorg/mxtty/app"
 	"github.com/lmorg/mxtty/psuedotty"
 )
+
+var ENV_VARS = []string{
+	"MXTTY=true",
+	"MXTTY_VERSION=" + app.Version(),
+}
 
 func (term *Term) Start(p *psuedotty.PTY, shell string) {
 	term.Pty = p
@@ -18,7 +24,7 @@ func (term *Term) Start(p *psuedotty.PTY, shell string) {
 
 func (term *Term) exec(command string) {
 	cmd := exec.Command(command)
-	cmd.Env = append(os.Environ(), "MXTTY=true")
+	cmd.Env = append(os.Environ(), ENV_VARS...)
 	cmd.Stdin = term.Pty.Primary
 	cmd.Stdout = term.Pty.Primary
 	cmd.Stderr = term.Pty.Primary
