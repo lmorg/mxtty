@@ -3,6 +3,7 @@ package psuedotty
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"log"
 	"os"
 
@@ -50,8 +51,8 @@ func (p *PTY) write() {
 
 	for {
 		n, err := p.Secondary.Read(b)
-		if err != nil {
-			log.Printf("error reading from PTY (%d bytes dropped): %s", n, err.Error())
+		if err != nil && err.Error() != io.EOF.Error() {
+			log.Printf("ERROR: problem reading from PTY (%d bytes dropped): %s", n, err.Error())
 			continue
 		}
 

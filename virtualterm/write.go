@@ -58,7 +58,8 @@ func (term *Term) printLoop() {
 
 		default:
 			if r < 32 {
-				log.Printf("Unexpected ASCII control character: %d", r)
+				log.Printf("Unexpected ASCII control character (ignored): %d", r)
+				continue
 			}
 			term.writeCell(r)
 		}
