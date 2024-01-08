@@ -5,13 +5,8 @@ type Renderer interface {
 	Size() *XY
 	Resize() *XY
 	PrintRuneColour(r rune, posX, posY int32, fg *Colour, bg *Colour, style SgrFlag) error
-	CacheImage(bmp []byte) (Image, error)
+	CacheImage(bmp []byte) (Element, error)
 	SetWindowTitle(string)
 	GetWindowTitle() string
-	Close()
-}
-
-type Image interface {
-	Draw(*XY, *XY)
 	Close()
 }

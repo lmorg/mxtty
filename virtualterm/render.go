@@ -1,6 +1,7 @@
 package virtualterm
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/lmorg/mxtty/types"
@@ -13,12 +14,21 @@ func (term *Term) Render() {
 	var err error
 	for y = 0; int(y) < len(*term.cells); y++ {
 		for x = 0; int(x) < len((*term.cells)[y]); x++ {
-			if (*term.cells)[y][x].char != 0 {
+			switch (*term.cells)[y][x].char {
+			default:
 				fg, bg := term.sgrOpts((*term.cells)[y][x].sgr)
 				err = term.renderer.PrintRuneColour((*term.cells)[y][x].char, x, y, fg, bg, (*term.cells)[y][x].sgr.bitwise)
-			} else {
+			case CELL_NULL:
 				fg, bg := term.sgrOpts(SGR_DEFAULT)
 				err = term.renderer.PrintRuneColour(' ', x, y, fg, bg, 0)
+			case CELL_ELEMENT_START:
+				e := (*term.cells)[y][x].element
+				if e == nil {
+					err = fmt.Errorf("nil pointer to element")
+				}
+				e.Draw(nil) // TODO: this shouldn't be nil
+			case CELL_ELEMENT_FILL:
+				continue
 			}
 			if err != nil {
 				log.Printf("error in %s [x: %d, y: %d, value: '%s']: %s", "(t *Term) Render()", x, y, string((*term.cells)[y][x].char), err.Error())

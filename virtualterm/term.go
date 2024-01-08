@@ -32,8 +32,27 @@ type Term struct {
 
 type cell struct {
 	char rune
-	sgr  *sgr
+	// 0: empty
+	// 1: render element
+	// 2: element child
+
+	sgr *sgr
+
+	element types.Element
 }
+
+const (
+	CELL_NULL          = 0
+	CELL_ELEMENT_START = 1
+	CELL_ELEMENT_FILL  = 2
+)
+
+/*
+Types of elements:
+- image rendering
+- json tree
+- table sorting
+*/
 
 // NewTerminal creates a new virtual term
 func NewTerminal(renderer types.Renderer) *Term {
@@ -69,35 +88,23 @@ func (term *Term) GetSize() *types.XY {
 
 func (term *Term) cell() *cell {
 	if term.curPos.X < 0 {
-		//panic("This shouldn't happen")
 		log.Printf("ERROR: term.curPos.X < 0(returning first cell) TODO fixme")
 		term.curPos.X = 0
-		//return &(*term.cells)[term.size.Y-1][term.curPos.X]
-		//term.wrapCursorForwards()
 	}
 
 	if term.curPos.Y < 0 {
-		//panic("This shouldn't happen")
 		log.Printf("ERROR: term.curPos.Y < 0 (returning first cell) TODO fixme")
 		term.curPos.Y = 0
-		//return &(*term.cells)[term.size.Y-1][term.curPos.X]
-		//term.wrapCursorForwards()
 	}
 
 	if term.curPos.X >= term.size.X {
-		//panic("This shouldn't happen")
 		log.Printf("ERROR: term.curPos.X >= term.size.X (returning last cell) TODO fixme")
 		term.curPos.X = term.size.X - 1
-		//return &(*term.cells)[term.size.Y-1][term.curPos.X]
-		//term.wrapCursorForwards()
 	}
 
 	if term.curPos.Y >= term.size.Y {
-		//panic("This shouldn't happen")
 		log.Printf("ERROR: term.curPos.Y >= term.size.Y (returning last cell) TODO fixme")
 		term.curPos.Y = term.size.Y - 1
-		//return &(*term.cells)[term.size.Y-1][term.curPos.X]
-		//term.wrapCursorForwards()
 	}
 
 	return &(*term.cells)[term.curPos.Y][term.curPos.X]
