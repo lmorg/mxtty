@@ -14,12 +14,13 @@ var (
 	surface   *sdl.Surface
 	font      *ttf.Font
 	glyphSize *types.Rect
+	termSize  *types.Rect
 	border    int32 = 5
 	width     int32 = 1024
 	height    int32 = 768
 )
 
-func Initialise() *types.Renderer {
+func Initialise() types.Renderer {
 	err := sdl.Init(sdl.INIT_VIDEO)
 	if err != nil {
 		panic(err.Error())
@@ -36,12 +37,9 @@ func Initialise() *types.Renderer {
 		panic(err.Error())
 	}
 
-	return &types.Renderer{
-		Close:          close,
-		Size:           setTypeFace(font),
-		PrintRuneColor: printRuneColour,
-		Update:         update,
-	}
+	setTypeFace(font)
+
+	return new(sdlRender)
 }
 
 func createWindow(caption string) error {
@@ -57,21 +55,19 @@ func createWindow(caption string) error {
 	return err
 }
 
-func setTypeFace(f *ttf.Font) *types.Rect {
+func setTypeFace(f *ttf.Font) {
 	font = f
 	glyphSize = typeface.GetSize()
+	termSize = getTermSize()
+}
+
+func getTermSize() *types.Rect {
 	x, y := window.GetSize()
 
 	return &types.Rect{
 		X: (x - (border * 2)) / glyphSize.X,
 		Y: (y - (border * 2)) / glyphSize.Y,
 	}
-}
-
-func close() {
-	typeface.Close()
-	window.Destroy()
-	sdl.Quit()
 }
 
 func Start(term *virtualterm.Term) {

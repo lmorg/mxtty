@@ -12,7 +12,7 @@ type Term struct {
 	curPos   types.Rect
 	sgr      *sgr
 	tabWidth int32
-	renderer *types.Renderer
+	renderer types.Renderer
 	Pty      *psuedotty.PTY
 
 	slowBlinkState bool
@@ -24,16 +24,17 @@ type cell struct {
 }
 
 // NewTerminal creates a new virtual term
-func NewTerminal(renderer *types.Renderer) *Term {
-	cells := make([][]cell, renderer.Size.Y)
+func NewTerminal(renderer types.Renderer) *Term {
+	size := renderer.Size()
+	cells := make([][]cell, size.Y)
 	for i := range cells {
-		cells[i] = make([]cell, renderer.Size.X)
+		cells[i] = make([]cell, size.X)
 	}
 
 	term := &Term{
 		renderer: renderer,
 		cells:    cells,
-		size:     renderer.Size,
+		size:     size,
 		sgr:      SGR_DEFAULT.Copy(),
 		tabWidth: 8,
 	}

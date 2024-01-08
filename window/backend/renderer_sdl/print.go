@@ -6,7 +6,7 @@ import (
 	"github.com/veandco/go-sdl2/ttf"
 )
 
-func printRuneColour(r rune, posX, posY int32, fg *types.Colour, bg *types.Colour, style types.SgrFlag) error {
+func (sr *sdlRender) PrintRuneColour(r rune, posX, posY int32, fg *types.Colour, bg *types.Colour, style types.SgrFlag) error {
 	//log.Printf("debug: r %d pos %d:%d, fg: %v, bg %v", r, posX, posY, *fg, *bg)
 	rect := &sdl.Rect{
 		X: (glyphSize.X * posX) + border,
@@ -57,8 +57,4 @@ func fontStyle(style types.SgrFlag) int {
 	}
 
 	return i
-}
-
-func update() error {
-	return window.UpdateSurface()
 }
