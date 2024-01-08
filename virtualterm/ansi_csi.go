@@ -70,9 +70,16 @@ func (term *Term) parseCsiCodes() {
 		case 'm': // SGR
 			lookupSgr(term.sgr, stack[0], stack)
 
+		case 's': // save cursor pos
+			term.savedCurPos = term.curPos
+
+		case 'u': // restore cursor pos
+			term.curPos = term.savedCurPos
+
 		case '?': // private codes
 			code := term.parsePrivateCodes()
-			log.Printf("CSI private code gobbled: '[?%d%s'", n, string(code))
+			lookupPrivateCsi(term, code)
+			//log.Printf("CSI private code gobbled: '[?%s'", string(code))
 			return
 
 		case ':', ';':
@@ -81,7 +88,7 @@ func (term *Term) parseCsiCodes() {
 			//log.Printf("Unhandled CSI parameter: '%d;'", n)
 
 		default:
-			log.Printf("Unknown CSI code: '%d%s'", n, string(r))
+			log.Printf("Unknown CSI code %d: %v", *n, stack)
 		}
 
 		if isCsiTerminator(r) {
@@ -309,4 +316,29 @@ func _sgrEnhancedColour(n int32, stack []int32) *types.Colour {
 		return nil
 	}
 
+}
+
+func lookupPrivateCsi(term *Term, code []rune) {
+	param := string(code[:len(code)-1])
+	r := code[len(code)-1]
+	switch r {
+	case 'h':
+		switch param {
+		case "47": // alt screen buffer
+			term.cells = &term.altBuf
+		default:
+			log.Printf("Private CSI parameter not implemented in %s: %v", string(r), param)
+		}
+
+	case 'l':
+		switch param {
+		case "47": // normal screen buffer
+			term.cells = &term.normBuf
+		default:
+			log.Printf("Private CSI parameter not implemented in %s: %v", string(r), param)
+		}
+
+	default:
+		log.Printf("Private CSI code not implemented: %s (%s)", string(r), string(code))
+	}
 }

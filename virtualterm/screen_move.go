@@ -63,9 +63,9 @@ func (term *Term) moveCursorDownwards(i int32) (overflow int32) {
 func (term *Term) moveContentsUp() {
 	var i int32
 	for ; i < term.size.Y-1; i++ {
-		term.cells[i] = term.cells[i+1]
+		(*term.cells)[i] = (*term.cells)[i+1]
 	}
-	term.cells[i] = make([]cell, term.size.X, term.size.X)
+	(*term.cells)[i] = make([]cell, term.size.X, term.size.X)
 }
 
 func (term *Term) wrapCursorForwards() {

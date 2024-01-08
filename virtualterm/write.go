@@ -28,19 +28,8 @@ func (term *Term) printLoop() {
 			switch r {
 			case '[': // CSI code
 				term.parseCsiCodes()
-			case ']': // TODO: OSC
-				var text []rune
-				for {
-					r = term.Pty.ReadRune()
-					text = append(text, r)
-					if r == 'S' && term.Pty.ReadRune() == 'T' { // ST  (OSC terminator)
-						break
-					}
-					if r == codes.AsciiCtrlG { // bell (xterm OSC terminator)
-						break
-					}
-				}
-				log.Printf("TODO: OSC sequences: '%s'", string(text))
+			case ']': // OSC code
+				term.parseOscCodes()
 			default:
 				term.writeCell(r)
 			}

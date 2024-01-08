@@ -7,13 +7,16 @@ import (
 
 // Term is the display state of the virtual term
 type Term struct {
-	cells    [][]cell
-	size     *types.Rect
-	curPos   types.Rect
-	sgr      *sgr
-	tabWidth int32
-	renderer types.Renderer
-	Pty      *psuedotty.PTY
+	cells       *[][]cell
+	normBuf     [][]cell
+	altBuf      [][]cell
+	size        *types.Rect
+	curPos      types.Rect
+	savedCurPos types.Rect
+	sgr         *sgr
+	tabWidth    int32
+	renderer    types.Renderer
+	Pty         *psuedotty.PTY
 
 	slowBlinkState bool
 }
@@ -26,18 +29,26 @@ type cell struct {
 // NewTerminal creates a new virtual term
 func NewTerminal(renderer types.Renderer) *Term {
 	size := renderer.Size()
-	cells := make([][]cell, size.Y)
-	for i := range cells {
-		cells[i] = make([]cell, size.X)
+
+	normBuf := make([][]cell, size.Y)
+	for i := range normBuf {
+		normBuf[i] = make([]cell, size.X)
+	}
+	altBuf := make([][]cell, size.Y)
+	for i := range altBuf {
+		altBuf[i] = make([]cell, size.X)
 	}
 
 	term := &Term{
 		renderer: renderer,
-		cells:    cells,
+		normBuf:  normBuf,
+		altBuf:   altBuf,
 		size:     size,
 		sgr:      SGR_DEFAULT.Copy(),
 		tabWidth: 8,
 	}
+
+	term.cells = &term.normBuf
 
 	return term
 }
@@ -52,5 +63,18 @@ func (term *Term) cell() *cell {
 		term.wrapCursorForwards()
 	}
 
-	return &term.cells[term.curPos.Y][term.curPos.X]
+	return &(*term.cells)[term.curPos.Y][term.curPos.X]
+}
+
+func (term *Term) CopyCells(src [][]cell) [][]cell {
+	dst := make([][]cell, len(src))
+	for y := range src {
+		dst[y] = make([]cell, len(src[y]))
+		for x := range src[y] {
+			dst[y][x].char = src[y][x].char
+			dst[y][x].sgr = src[y][x].sgr.Copy()
+		}
+	}
+
+	return dst
 }

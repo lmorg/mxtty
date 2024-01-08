@@ -1,9 +1,6 @@
 package rendersdl
 
 import (
-	"fmt"
-
-	"github.com/lmorg/mxtty/app"
 	"github.com/lmorg/mxtty/types"
 	"github.com/lmorg/mxtty/window/backend/typeface"
 	"github.com/veandco/go-sdl2/sdl"
@@ -26,5 +23,10 @@ func (sr *sdlRender) Close() {
 }
 
 func (sr *sdlRender) SetWindowTitle(title string) {
-	window.SetTitle(fmt.Sprintf("%s - %s", title, app.Name))
+	/*
+		unsupported in SDL due to:
+		NSWindow geometry should only be modified on the main thread!
+	*/
+
+	//window.SetTitle(fmt.Sprintf("%s - %s", title, app.Name))
 }
