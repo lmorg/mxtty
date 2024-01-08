@@ -61,7 +61,7 @@ func (term *Term) ExportMxTTY() {
 }
 
 func sgrOpts(sgr *sgr) (fg *types.Colour, bg *types.Colour) {
-	if sgr.Is(sgrInvert) {
+	if sgr.Is(SGR_INVERT) {
 		bg, fg = &sgr.fg, &sgr.bg
 	} else {
 		fg, bg = &sgr.fg, &sgr.bg

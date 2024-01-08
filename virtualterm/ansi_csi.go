@@ -14,32 +14,29 @@ func parseCsiCodes(term *Term, text []rune) int {
 	i := 2
 
 	var (
-		n     int32 = -1 // default value
-		stack []int32
+		stack = []int32{-1} // default value
+		n     = &stack[0]
 	)
 
 	for {
 		for ; i < len(text); i++ {
 			if text[i] >= '0' && '9' >= text[i] {
-				multiplyN(&n, text[i])
+				multiplyN(n, text[i])
 				continue
 			}
 
 			switch text[i] {
 			case 'A', 'E': // moveCursorUp
-				term.moveCursorUpwards(n)
+				term.moveCursorUpwards(*n)
 
 			case 'B', 'F': // moveCursorDown
-				term.moveCursorDownwards(n)
+				term.moveCursorDownwards(*n)
 
 			case 'C': // moveCursorForwards
-				term.moveCursorForwards(n)
+				term.moveCursorForwards(*n)
 
 			case 'D': // moveCursorBackwards
-				term.moveCursorBackwards(n)
-
-			case 'm': // SGR
-				lookupSgr(term.sgr, n)
+				term.moveCursorBackwards(*n)
 
 			case 'H': // moveCursor
 				if len(stack) != 2 {
@@ -52,7 +49,7 @@ func parseCsiCodes(term *Term, text []rune) int {
 				}
 
 			case 'J': // eraseDisplay...
-				switch n {
+				switch *n {
 				case -1, 0:
 					term.eraseDisplayAfter()
 				case 1:
@@ -62,7 +59,7 @@ func parseCsiCodes(term *Term, text []rune) int {
 				}
 
 			case 'K': // clearLine...
-				switch n {
+				switch *n {
 				case -1, 0:
 					term.eraseLineAfter()
 				case 1:
@@ -71,13 +68,17 @@ func parseCsiCodes(term *Term, text []rune) int {
 					term.eraseLine()
 				}
 
+			case 'm': // SGR
+				lookupSgr(term.sgr, stack[0], stack)
+
 			case '?': // private codes
 				adjust, n, r := parseNumericAlphaCodes(i, text)
 				log.Printf("CSI private code gobbled: '[?%d%s'", n, string(r))
 				return i + adjust - 3
 
 			case ';':
-				stack = append(stack, n)
+				stack = append(stack, -1)
+				n = &stack[len(stack)-1]
 				//log.Printf("Unhandled CSI parameter: '%d;'", n)
 
 			default:
@@ -89,7 +90,6 @@ func parseCsiCodes(term *Term, text []rune) int {
 			}
 		}
 
-		log.Printf("CSI read!!!!!!!!!!!!!!!!!!")
 		p := make([]byte, 10*1024)
 		n, err := term.Pty.Read(p)
 		if err != nil {
@@ -124,23 +124,34 @@ func parseNumericAlphaCodes(i int, text []rune) (int, int32, rune) {
 	return i, n, 0
 }
 
-func lookupSgr(sgr *sgr, n int32) {
+func lookupSgr(sgr *sgr, n int32, stack []int32) {
 	switch n {
 	case 0: // reset / normal
-		sgr.sgrReset()
+		sgr.Reset()
 
 	case 1: // bold
-		sgr.Set(sgrBold)
+		sgr.Set(SGR_BOLD)
 
-	case 4: // underscore
-		sgr.Set(sgrUnderscore)
+	case 3: // italic
+		sgr.Set(SGR_ITALIC)
 
-	case 5: // blink
-		sgr.Set(sgrBlink)
+	case 4: // underline
+		sgr.Set(SGR_UNDERLINE)
+
+	case 5, 6: // blink
+		sgr.Set(SGR_BLINK)
 
 	case 7: // invert
-		sgr.Set(sgrInvert)
+		sgr.Set(SGR_INVERT)
 
+	case 23: // no italic
+		sgr.Unset(SGR_ITALIC)
+
+	case 24: // no underline
+		sgr.Unset(SGR_UNDERLINE)
+
+	case 25: // no blink
+		sgr.Unset(SGR_BLINK)
 	//
 	// 3bit foreground colour:
 	//
@@ -169,6 +180,24 @@ func lookupSgr(sgr *sgr, n int32) {
 	case 37: // fg white
 		sgr.fg = SGR_COLOUR_WHITE
 
+	case 38:
+		log.Printf("colour: %d, %v", n, stack)
+		if len(stack) < 2 {
+			return
+		}
+		switch stack[1] {
+		case 5:
+		case 2:
+			if len(stack) != 5 {
+				return
+			}
+			sgr.fg = types.Colour{
+				Red:   byte(stack[2]),
+				Green: byte(stack[3]),
+				Blue:  byte(stack[4]),
+			}
+		}
+
 	case 39: // fg default
 		sgr.fg = SGR_DEFAULT.fg
 
@@ -179,7 +208,7 @@ func lookupSgr(sgr *sgr, n int32) {
 	case 40: // bg black
 		sgr.bg = SGR_COLOUR_BLACK
 
-	case 41: // bg red
+	case 41: // bg rede
 		sgr.bg = SGR_COLOUR_RED
 
 	case 42: // bg green

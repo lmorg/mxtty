@@ -111,7 +111,7 @@ func (term *Term) write() {
 			default:
 				if text[i] < 32 {
 					log.Printf("Unexpected ASCII control character: %d", text[i])
-				} else {
+					//} else {
 					//log.Printf("Character code %d (%s)", text[i], string(text[i]))
 				}
 				term.writeCell(text[i])
