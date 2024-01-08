@@ -48,7 +48,9 @@ func (term *Term) Write(text []rune) {
 			start := i
 			i += parseCsiCodes(term, text[i-1:])
 			if !rxLazyCsiCheck.MatchString(string(text[start : i+1])) {
-				log.Printf("Invalid CSI code parsed: %v", []byte(string(text[start:i+1])))
+				log.Printf("Invalid CSI code parsed: %v (%s)", []byte(string(text[start:i+1])), string(text[start:i+1]))
+			} else {
+				log.Printf("Valid CSI code parsed: %v (%s)", []byte(string(text[start:i+1])), string(text[start:i+1]))
 			}
 
 		case ']': // TODO: OSC
@@ -81,6 +83,9 @@ func (term *Term) Write(text []rune) {
 			}
 
 		default:
+			if text[i] < 32 {
+				log.Printf("Unexpected ASCII character: %d", text[i])
+			}
 			term.writeCell(text[i])
 		}
 		escape = false

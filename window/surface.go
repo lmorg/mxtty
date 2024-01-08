@@ -101,6 +101,7 @@ func PrintRuneColour(r rune, posX, posY int32, fg *sdl.Color, bg *sdl.Color) err
 	if err != nil {
 		return err
 	}
+
 	err = text.Blit(nil, surface, rect)
 	if err != nil {
 		return err

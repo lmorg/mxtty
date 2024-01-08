@@ -27,6 +27,7 @@ func main() {
 	}
 
 	font, err := typeface.Open("hasklig.ttf", 14)
+	//font, err := typeface.Open("monaco.ttf", 16)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -110,9 +111,9 @@ func main() {
 				case sdl.K_DOWN:
 					pty.Secondary.Write(codes.AnsiDown)
 				case sdl.K_LEFT:
-					pty.Secondary.Write(codes.AnsiForwards)
-				case sdl.K_RIGHT:
 					pty.Secondary.Write(codes.AnsiBackwards)
+				case sdl.K_RIGHT:
+					pty.Secondary.Write(codes.AnsiForwards)
 				case sdl.K_ESCAPE:
 					pty.Secondary.Write([]byte{codes.AsciiEscape})
 				}

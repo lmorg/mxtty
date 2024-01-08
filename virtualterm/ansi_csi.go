@@ -36,6 +36,16 @@ func parseCsiCodes(term *Term, text []rune) int {
 		case 'm': // SGR
 			lookupSgr(term.sgr, n)
 
+		case 'H': // moveCursor
+			if len(stack) != 2 {
+				term.curPos = xy{}
+			} else {
+				term.curPos = xy{
+					X: stack[0] + 1,
+					Y: stack[1] + 1,
+				}
+			}
+
 		case 'J': // eraseDisplay...
 			switch n {
 			case -1, 0:
