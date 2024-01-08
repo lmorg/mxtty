@@ -9,7 +9,11 @@ import (
 
 func (term *Term) writeCell(r rune) {
 	term.cell().char = r
-	term.cell().sgr = term.sgr
+	term.cell().sgr = &sgr{
+		fg:      term.sgr.fg,
+		bg:      term.sgr.bg,
+		bitwise: term.sgr.bitwise,
+	}
 	term.wrapCursorForwards()
 }
 
@@ -48,6 +52,10 @@ func (term *Term) Write(text []rune) {
 			}
 
 		case ']': // TODO: OSC
+			if !escape {
+				term.writeCell(text[i])
+				continue
+			}
 			start := i
 			for ; i < len(text); i++ {
 				if text[i] == 'S' && i < len(text) && text[i+1] == 'T' {

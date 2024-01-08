@@ -94,6 +94,10 @@ func main() {
 				pty.Secondary.WriteString(evt.GetText())
 
 			case *sdl.KeyboardEvent:
+				if evt.State == sdl.RELEASED {
+					break
+				}
+
 				switch evt.Keysym.Sym {
 				case sdl.K_TAB:
 					pty.Secondary.Write([]byte{'\t'})
@@ -101,10 +105,20 @@ func main() {
 					pty.Secondary.Write([]byte{'\n'})
 				case sdl.K_BACKSPACE:
 					pty.Secondary.Write([]byte{codes.AsciiBackspace})
+				case sdl.K_UP:
+					pty.Secondary.Write(codes.AnsiUp)
+				case sdl.K_DOWN:
+					pty.Secondary.Write(codes.AnsiDown)
+				case sdl.K_LEFT:
+					pty.Secondary.Write(codes.AnsiForwards)
+				case sdl.K_RIGHT:
+					pty.Secondary.Write(codes.AnsiBackwards)
+				case sdl.K_ESCAPE:
+					pty.Secondary.Write([]byte{codes.AsciiEscape})
 				}
 			}
 		}
 
-		sdl.Delay(16)
+		sdl.Delay(15)
 	}
 }

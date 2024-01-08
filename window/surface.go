@@ -56,7 +56,7 @@ func Close() {
 	sdl.Quit()
 }
 
-func PrintRune(r rune, posX, posY int32) error {
+/*func PrintRune(r rune, posX, posY int32) error {
 	rect := &sdl.Rect{
 		X: (glyphSize.Width * posX) + border,
 		Y: (glyphSize.Height * posY) + border,
@@ -80,9 +80,9 @@ func PrintRune(r rune, posX, posY int32) error {
 	}
 
 	return nil
-}
+}*/
 
-func PrintRuneColour(r rune, posX, posY int32, colour *sdl.Color) error {
+func PrintRuneColour(r rune, posX, posY int32, fg *sdl.Color, bg *sdl.Color) error {
 	rect := &sdl.Rect{
 		X: (glyphSize.Width * posX) + border,
 		Y: (glyphSize.Height * posY) + border,
@@ -90,13 +90,14 @@ func PrintRuneColour(r rune, posX, posY int32, colour *sdl.Color) error {
 		H: glyphSize.Height,
 	}
 
-	text, err := font.RenderGlyphSolid(r, *colour)
+	text, err := font.RenderGlyphSolid(r, *fg)
 	if err != nil {
 		return err
 	}
 	defer text.Free()
 
-	err = surface.FillRect(rect, 0)
+	pixel := sdl.MapRGBA(surface.Format, bg.R, bg.G, bg.B, bg.A)
+	err = surface.FillRect(rect, pixel)
 	if err != nil {
 		return err
 	}

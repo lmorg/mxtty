@@ -16,7 +16,6 @@ func parseCsiCodes(term *Term, text []rune) int {
 
 	for ; i < len(text); i++ {
 		if text[i] >= '0' && '9' >= text[i] {
-			//n = (n * 10) + (text[i] - 48)
 			multiplyN(&n, text[i])
 			continue
 		}
@@ -35,7 +34,7 @@ func parseCsiCodes(term *Term, text []rune) int {
 			term.moveCursorBackwards(n)
 
 		case 'm': // SGR
-			lookupSgr(term, n)
+			lookupSgr(term.sgr, n)
 
 		case 'J': // eraseDisplay...
 			switch n {
@@ -98,57 +97,49 @@ func parseNumericAlphaCodes(i int, text []rune) (int, int32, rune) {
 	return i, n, 0
 }
 
-func lookupSgr(term *Term, n rune) {
+func lookupSgr(sgr *sgr, n int32) {
 	switch n {
 	case 0: // reset / normal
-		term.sgrReset()
+		sgr.sgrReset()
 
 	case 1: // bold
-		term.sgrEffect(sgrBold)
+		sgr.Set(sgrBold)
 
 	case 4: // underscore
-		term.sgrEffect(sgrUnderscore)
+		sgr.Set(sgrUnderscore)
 
 	case 5: // blink
-		term.sgrEffect(sgrBlink)
+		sgr.Set(sgrBlink)
 
 	case 7: // invert
-		term.sgrEffect(sgrInvert)
+		sgr.Set(sgrInvert)
 
 		//
 		// 4bit foreground colour:
 		//
 
 	case 30: // fg black
-		term.sgrEffect(sgrFgColour4)
-		term.sgr.fg.Red = sgrColour4Black
+		sgr.fg = sgrColour4Black
 
 	case 31: // fg red
-		term.sgrEffect(sgrFgColour4)
-		term.sgr.fg.Red = sgrColour4Red
+		sgr.fg = sgrColour4Red
 
 	case 32: // fg green
-		term.sgrEffect(sgrFgColour4)
-		term.sgr.fg.Red = sgrColour4Green
+		sgr.fg = sgrColour4Green
 
 	case 33: // fg yellow
-		term.sgrEffect(sgrFgColour4)
-		term.sgr.fg.Red = sgrColour4Yellow
+		sgr.fg = sgrColour4Yellow
 
 	case 34: // fg blue
-		term.sgrEffect(sgrFgColour4)
-		term.sgr.fg.Red = sgrColour4Blue
+		sgr.fg = sgrColour4Blue
 
 	case 35: // fg magenta
-		term.sgrEffect(sgrFgColour4)
-		term.sgr.fg.Red = sgrColour4Magenta
+		sgr.fg = sgrColour4Magenta
 
 	case 36: // fg cyan
-		term.sgrEffect(sgrFgColour4)
-		term.sgr.fg.Red = sgrColour4Cyan
+		sgr.fg = sgrColour4Cyan
 
 	case 37: // fg white
-		term.sgrEffect(sgrFgColour4)
-		term.sgr.fg.Red = sgrColour4White
+		sgr.fg = sgrColour4White
 	}
 }
