@@ -1,6 +1,7 @@
 package psuedotty
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"os"
@@ -41,7 +42,11 @@ func NewPTY(size *types.Rect) (*PTY, error) {
 }
 
 func (p *PTY) write() {
-	b := make([]byte, 10*1024)
+	var (
+		b    = make([]byte, 10*1024)
+		utf8 []byte
+		l    int
+	)
 
 	for {
 		n, err := p.Secondary.Read(b)
@@ -50,10 +55,35 @@ func (p *PTY) write() {
 			continue
 		}
 
-		s := string(b[:n])
-		for _, r := range s {
-			p.stream <- r
+		for i := 0; i < n; i++ {
+			if l == 0 {
+				l = runeLength(b[i])
+				utf8 = make([]byte, l)
+			}
+
+			utf8[len(utf8)-l] = b[i]
+
+			if l == 1 {
+				r := bytes.Runes(utf8)
+				p.stream <- r[0]
+			}
+			l--
 		}
+	}
+}
+
+func runeLength(b byte) int {
+	switch {
+	case b&128 == 0:
+		return 1
+	case b&32 == 0:
+		return 2
+	case b&16 == 0:
+		return 3
+	case b&8 == 0:
+		return 4
+	default:
+		return 0
 	}
 }
 
