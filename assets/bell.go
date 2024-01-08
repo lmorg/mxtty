@@ -2,14 +2,14 @@ package assets
 
 import "embed"
 
-const ICON_APP = "icon.bmp"
+const BELL = "bell.mp3"
 
-//go:embed icon.bmp
-var embedFsIcons embed.FS
+//go:embed bell.mp3
+var embedFsBell embed.FS
 
 func init() {
 
-	embedFs := embedFsIcons
+	embedFs := embedFsBell
 
 	dir, err := embedFs.ReadDir(".")
 	if err != nil {
