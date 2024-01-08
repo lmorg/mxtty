@@ -63,9 +63,33 @@ func (term *Term) GetSize() *types.Rect {
 }
 
 func (term *Term) cell() *cell {
+	if term.curPos.X < 0 {
+		//panic("This shouldn't happen")
+		log.Printf("ERROR: term.curPos.X < 0(returning first cell) TODO fixme")
+		term.curPos.X = 0
+		//return &(*term.cells)[term.size.Y-1][term.curPos.X]
+		//term.wrapCursorForwards()
+	}
+
+	if term.curPos.Y < 0 {
+		//panic("This shouldn't happen")
+		log.Printf("ERROR: term.curPos.Y < 0 (returning first cell) TODO fixme")
+		term.curPos.Y = 0
+		//return &(*term.cells)[term.size.Y-1][term.curPos.X]
+		//term.wrapCursorForwards()
+	}
+
+	if term.curPos.X >= term.size.X {
+		//panic("This shouldn't happen")
+		log.Printf("ERROR: term.curPos.X >= term.size.X (returning last cell) TODO fixme")
+		term.curPos.X = term.size.X - 1
+		//return &(*term.cells)[term.size.Y-1][term.curPos.X]
+		//term.wrapCursorForwards()
+	}
+
 	if term.curPos.Y >= term.size.Y {
 		//panic("This shouldn't happen")
-		log.Printf("ERROR: term.curPos.Y >= term.size.Y (returning last cell)")
+		log.Printf("ERROR: term.curPos.Y >= term.size.Y (returning last cell) TODO fixme")
 		term.curPos.Y = term.size.Y - 1
 		//return &(*term.cells)[term.size.Y-1][term.curPos.X]
 		//term.wrapCursorForwards()

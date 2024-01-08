@@ -16,9 +16,9 @@ func (term *Term) parseOscCodes() {
 	for {
 		r = term.Pty.ReadRune()
 		text = append(text, r)
-		if r == 'S' {
+		if r == codes.AsciiEscape {
 			r = term.Pty.ReadRune()
-			if r == 'T' { // ST (OSC terminator)
+			if r == '\\' { // ST (OSC terminator)
 				break
 			}
 			text = append(text, r)

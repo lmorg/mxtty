@@ -71,10 +71,10 @@ func (term *Term) parseCsiCodes() {
 			lookupSgr(term.sgr, stack[0], stack)
 
 		case 's': // save cursor pos
-			term.savedCurPos = term.curPos
+			term._csiCursorPosSave()
 
 		case 'u': // restore cursor pos
-			term.curPos = term.savedCurPos
+			term._csiCursorPosRestore()
 
 		case '?': // private codes
 			code := term.parsePrivateCodes()
@@ -324,16 +324,25 @@ func lookupPrivateCsi(term *Term, code []rune) {
 	switch r {
 	case 'h':
 		switch param {
-		case "47": // alt screen buffer
-			term.cells = &term.altBuf
+		case "47", "1047": // alt screen buffer
+			term._csiScreenBufferAlternative()
+			
 		default:
 			log.Printf("Private CSI parameter not implemented in %s: %v", string(r), param)
 		}
 
 	case 'l':
 		switch param {
-		case "47": // normal screen buffer
-			term.cells = &term.normBuf
+		case "47", "1047": // normal screen buffer
+			term._csiScreenBufferNormal()
+
+		case "1048":
+			term._csiCursorPosRestore()
+
+		case "1049":
+			term._csiScreenBufferNormal()
+			term._csiCursorPosRestore()
+
 		default:
 			log.Printf("Private CSI parameter not implemented in %s: %v", string(r), param)
 		}

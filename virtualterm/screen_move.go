@@ -76,7 +76,7 @@ func (term *Term) moveContentsUp() {
 	//log.Printf("DEBUG: moveContentsUp()")
 }
 
-func (term *Term) wrapCursorForwards() {
+/*func (term *Term) wrapCursorForwards() {
 	term.curPos.X += 1
 
 	if term.curPos.X >= term.size.X {
@@ -88,4 +88,4 @@ func (term *Term) wrapCursorForwards() {
 			term.moveCursorDownwards(1)
 		}
 	}
-}
+}*/

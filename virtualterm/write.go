@@ -7,9 +7,20 @@ import (
 )
 
 func (term *Term) writeCell(r rune) {
+	if term.curPos.X >= term.size.X {
+		overflow := term.curPos.X - (term.size.X - 1)
+		term.curPos.X = 0
+
+		if overflow > 0 && term.moveCursorDownwards(1) > 0 {
+			term.moveContentsUp()
+			term.moveCursorDownwards(1)
+		}
+	}
+
 	term.cell().char = r
 	term.cell().sgr = term.sgr.Copy()
-	term.wrapCursorForwards()
+	term.curPos.X++
+	//term.wrapCursorForwards()
 }
 
 // Write multiple characters to the virtual terminal
@@ -56,7 +67,11 @@ func (term *Term) printLoop() {
 				term.moveContentsUp()
 				term.moveCursorDownwards(1)
 			}
-			term.curPos.X = 0
+			//term.wrapCursorForwards()
+			//.term.curPos.X = 0
+
+		//case ' ':
+		//	term.writeCell('·')
 
 		default:
 			if r < 32 {
