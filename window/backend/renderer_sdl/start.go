@@ -4,6 +4,7 @@ import (
 	"log"
 	"sync/atomic"
 
+	"github.com/lmorg/mxtty/assets"
 	"github.com/lmorg/mxtty/codes"
 	"github.com/lmorg/mxtty/types"
 	"github.com/lmorg/mxtty/virtualterm"
@@ -55,6 +56,18 @@ func (sr *sdlRender) createWindow(caption string) error {
 	if err != nil {
 		return err
 	}
+
+	rwops, err := sdl.RWFromMem(assets.Get(assets.ICON_BMP))
+	if err != nil {
+		return err
+	}
+
+	icon, err := sdl.LoadBMPRW(rwops, true)
+	if err != nil {
+		return err
+	}
+
+	sr.window.SetIcon(icon)
 
 	sr.surface, err = sr.window.GetSurface()
 	return err
