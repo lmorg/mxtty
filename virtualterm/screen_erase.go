@@ -52,6 +52,23 @@ func (term *Term) eraseLine() {
 	}
 }
 
+func (term *Term) eraseCharacters(n int32) {
+	if n < 1 {
+		n = 1
+	}
+	if term.curPos.X+n >= term.size.X {
+		n = term.size.X - term.curPos.X
+	}
+	for x := int32(0); x < n; x++ {
+		(*term.cells)[term.curPos.Y][x].clear()
+	}
+}
+
+func (term *Term) clearTab() {
+	// TODO: this wouldn't actually work!
+	term.eraseCharacters(term._tabWidth)
+}
+
 /*
 	DELETE
 */

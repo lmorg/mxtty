@@ -58,3 +58,13 @@ func (term *Term) csiCallback(format string, v ...any) {
 		log.Printf("ERROR: writing callback message '%s': %s", msg, err.Error())
 	}
 }
+
+func (term *Term) csiRepeatPreceding(n int32) {
+	if n < 1 {
+		n = 1
+	}
+	cell, _ := term.previousCell()
+	for i := int32(0); i < n; i++ {
+		term.writeCell(cell.char)
+	}
+}

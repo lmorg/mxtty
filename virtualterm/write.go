@@ -43,10 +43,7 @@ func (term *Term) printLoop() {
 			_ = term.moveCursorBackwards(1)
 
 		case codes.AsciiTab: // \t (11)
-			indent := int(4 - (term.curPos.X % term.tabWidth))
-			for i := 0; i < indent; i++ {
-				term.writeCell(' ')
-			}
+			term.printTab()
 
 		case codes.AsciiCtrlJ: // \n (12)
 			if term.moveCursorDownwards(1) > 0 {
@@ -68,5 +65,12 @@ func (term *Term) printLoop() {
 		}
 
 		term._mutex.Unlock()
+	}
+}
+
+func (term *Term) printTab() {
+	indent := int(4 - (term.curPos.X % term._tabWidth))
+	for i := 0; i < indent; i++ {
+		term.writeCell(' ')
 	}
 }

@@ -13,7 +13,6 @@ type Term struct {
 	size     *types.Rect
 	curPos   types.Rect
 	sgr      *sgr
-	tabWidth int32
 	renderer types.Renderer
 	Pty      *psuedotty.PTY
 	_mutex   sync.Mutex
@@ -25,6 +24,7 @@ type Term struct {
 	_altBuf  [][]cell
 
 	// CSI states
+	_tabWidth         int32
 	_hideCursor       bool
 	_savedCurPos      types.Rect
 	_scrollRegion     *scrollRegionT
@@ -50,12 +50,12 @@ func NewTerminal(renderer types.Renderer) *Term {
 	}
 
 	term := &Term{
-		renderer: renderer,
-		_normBuf: normBuf,
-		_altBuf:  altBuf,
-		size:     size,
-		sgr:      SGR_DEFAULT.Copy(),
-		tabWidth: 8,
+		renderer:  renderer,
+		_normBuf:  normBuf,
+		_altBuf:   altBuf,
+		size:      size,
+		sgr:       SGR_DEFAULT.Copy(),
+		_tabWidth: 8,
 	}
 
 	term.cells = &term._normBuf
@@ -102,6 +102,22 @@ func (term *Term) cell() *cell {
 	}
 
 	return &(*term.cells)[term.curPos.Y][term.curPos.X]
+}
+
+func (term *Term) previousCell() (*cell, *types.Rect) {
+	pos := term.curPos
+	pos.X--
+
+	if pos.X < 0 {
+		pos.X = 0
+		pos.Y--
+	}
+
+	if pos.Y < 0 {
+		pos.Y = 0
+	}
+
+	return &(*term.cells)[pos.Y][pos.X], &pos
 }
 
 func (term *Term) CopyCells(src [][]cell) [][]cell {

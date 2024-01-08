@@ -19,7 +19,7 @@ func multiplyN(n *int32, r rune) {
 func (term *Term) parseCsiCodes() {
 	var (
 		r       rune
-		stack   = []int32{-1} // default value
+		stack   = []int32{-1} // default value is -1
 		n       = &stack[0]
 		cache   []rune
 		unknown bool
@@ -34,16 +34,30 @@ func (term *Term) parseCsiCodes() {
 		}
 
 		switch r {
-		case 'A', 'E': // moveCursorUp
+		case 'a':
+			//Character Position Relative  [columns] (default = [row,col+1]) (HPR).
+			term.moveCursorForwards(*n)
+
+		case 'A', 'F':
+			// Cursor Up Ps Times (default = 1) (CUU).
+			// Cursor Preceding Line Ps Times (default = 1) (CPL).
 			term.moveCursorUpwards(*n)
 
-		case 'B', 'F': // moveCursorDown
+		case 'b':
+			// Repeat the preceding graphic character Ps times (REP).
+			term.csiRepeatPreceding(*n)
+
+		case 'B', 'E':
+			// Cursor Down Ps Times (default = 1) (CUD).
+			// Cursor Next Line Ps Times (default = 1) (CNL).
 			term.moveCursorDownwards(*n)
 
-		case 'C': // moveCursorForwards
+		case 'C':
+			// Cursor Forward Ps Times (default = 1) (CUF).
 			term.moveCursorForwards(*n)
 
 		case 'd':
+			// Line Position Absolute  [row] (default = [1,column]) (VPA).
 			switch len(stack) {
 			case 0:
 				term.moveCursorToPos(-1, 0)
@@ -53,13 +67,34 @@ func (term *Term) parseCsiCodes() {
 				term.moveCursorToPos(stack[1]-1, stack[0]-1)
 			default:
 				term.moveCursorToPos(stack[1]-1, stack[0]-1)
-				log.Printf("more parameters than expected for %s: %v (%s)", string(r), stack, string(cache))
+				log.Printf("WARNING: more parameters than expected for %s: %v (%s)", string(r), stack, string(cache))
 			}
 
-		case 'D': // moveCursorBackwards
+		case 'D':
+			// Cursor Backward Ps Times (default = 1) (CUB).
 			term.moveCursorBackwards(*n)
 
+		case 'e':
+			// Line Position Relative  [rows] (default = [row+1,column]) (VPR).
+			term.moveCursorDownwards(*n)
+
+		case 'g':
+			// Tab Clear (TBC).  ECMA-48 defines additional codes, but the
+			/*
+				VT100 user manual notes that it ignores other codes.  DEC's
+				later terminals (and xterm) do the same, for compatibility.
+				Ps = 0  ⇒  Clear Current Column (default).
+				Ps = 3  ⇒  Clear All.
+			*/
+			switch *n {
+			case -1, 0:
+				term.clearTab()
+			default:
+				log.Printf("WARNING: Unhandled parameter for %s: %v (%s)", string(r), stack, string(cache))
+			}
+
 		case 'G':
+			// Cursor Character Absolute  [column] (default = [row,1]) (CHA).
 			switch len(stack) {
 			case 0:
 				term.moveCursorToPos(0, -1)
@@ -72,14 +107,34 @@ func (term *Term) parseCsiCodes() {
 				log.Printf("more parameters than expected for %s: %v (%s)", string(r), stack, string(cache))
 			}
 
-		case 'H': // moveCursor
+		//case 'h':
+		// Set Mode (SM).
+		/*
+			Ps = 2  ⇒  Keyboard Action Mode (KAM).
+			Ps = 4  ⇒  Insert Mode (IRM).
+			Ps = 1 2  ⇒  Send/receive (SRM).
+			Ps = 2 0  ⇒  Automatic Newline (LNM).
+		*/
+		case 'H':
+			// Cursor Position [row;column] (default = [1,1]) (CUP).
 			if len(stack) != 2 {
 				term.moveCursorToPos(0, 0)
 			} else {
 				term.moveCursorToPos(stack[1]-1, stack[0]-1)
 			}
 
-		case 'J': // eraseDisplay...
+		//case 'i':
+		// CSI Ps i  Media Copy (MC).
+		/*
+			Ps = 0  ⇒  Print screen (default).
+			Ps = 4  ⇒  Turn off printer controller mode.
+			Ps = 5  ⇒  Turn on printer controller mode.
+			Ps = 1 0  ⇒  HTML screen dump, xterm.
+			Ps = 1 1  ⇒  SVG screen dump, xterm.
+		*/
+
+		case 'J':
+			// Erase in Display (ED), VT100.
 			switch *n {
 			case -1, 0:
 				term.eraseDisplayAfter()
@@ -89,7 +144,8 @@ func (term *Term) parseCsiCodes() {
 				term.eraseDisplay() // TODO: 3 should also erase scrollback buffer
 			}
 
-		case 'K': // clearLine...
+		case 'K':
+			// Erase in Line (EL), VT100.
 			switch *n {
 			case -1, 0:
 				term.eraseLineAfter()
@@ -99,35 +155,69 @@ func (term *Term) parseCsiCodes() {
 				term.eraseLine()
 			}
 
-		case 'm': // SGR
+		//case 'l':
+		// Reset Mode (RM).
+		/*
+			Ps = 2  ⇒  Keyboard Action Mode (KAM).
+			Ps = 4  ⇒  Replace Mode (IRM).
+			Ps = 1 2  ⇒  Send/receive (SRM).
+			Ps = 2 0  ⇒  Normal Linefeed (LNM).
+		*/
+
+		//case 'L':
+		// Insert Ps Line(s) (default = 1) (IL).
+
+		case 'm': // Character Attributes (SGR).
 			lookupSgr(term.sgr, stack[0], stack)
 
-		//case 'M': // Delete Ps Line(s) (default = 1) (DL).
+		//case 'M':
+		// Delete Ps Line(s) (default = 1) (DL).
 
-		case 'n': // Device Status Report (DSR).
+		case 'n':
+			// Device Status Report (DSR).
+			/*
+				Ps = 5  ⇒  Status Report.
+					Result ("OK") is CSI 0 n
+				Ps = 6  ⇒  Report Cursor Position (CPR) [row;column].
+					Result is CSI r ; c R
+			*/
 			switch *n {
 			case 6:
 				term.csiCallback("%d;%dR", term.curPos.Y+1, term.curPos.X+1)
 			}
 
-		case 'P': // Delete Ps Character(s) (default = 1) (DCH).
+		case 'P':
+			// Delete Ps Character(s) (default = 1) (DCH).
 			term.deleteCharacters(*n)
 
-		case 'r': // Set Scrolling Region [top;bottom] (default = full size of window) (DECSTBM)
+		case 'q':
+			// Load LEDs (DECLL), VT100.
+			// Ignored by mxtty
+
+		case 'r':
+			// Set Scrolling Region [top;bottom] (default = full size of window) (DECSTBM), VT100.
 			if len(stack) != 2 {
 				log.Printf("Unexpected number of parameters in CSI r (%s): %v", string(cache), stack)
 			} else {
 				term.csiSetScrollingRegion(stack)
 			}
 
-		case 's': // save cursor pos
+		case 's':
+			// Save cursor, available only when DECLRMM is disabled (SCOSC, also ANSI.SYS).
+			/*
+				TODO: this conditional could break the following sequence:
+				CSI Pl ; Pr s
+					Set left and right margins (DECSLRM), VT420 and up.  This is
+					available only when DECLRMM is enabled.
+			*/
 			term.csiCursorPosSave()
 
-		case 'S': // scroll up
+		case 'S':
+			// Scroll up Ps lines (default = 1) (SU), VT420, ECMA-48.
 			term.scrollUp(*n)
-			//term.moveCursorUpwards(*n)
 
-		case 't': // Window manipulation (XTWINOPS)
+		case 't':
+			// Window manipulation (XTWINOPS)
 			var p2 int32
 			if len(stack) > 1 {
 				p2 = stack[1]
@@ -144,14 +234,35 @@ func (term *Term) parseCsiCodes() {
 					term.csiWindowTitleStackRestoreFrom()
 				}
 			default:
-				log.Printf("Unknown CSI code %d: %v (%s)", *n, stack, string(cache))
+				log.Printf("WARNING: Unknown CSI code %d: %v (%s)", *n, stack, string(cache))
 			}
 
-		case 'T': // scroll down
+		case 'T':
+			// Scroll down Ps lines (default = 1) (SD), VT420.
 			term.scrollDown(*n)
 
-		case 'u': // restore cursor pos
+		case 'u':
+			// Restore cursor (SCORC, also ANSI.SYS).
 			term.csiCursorPosRestore()
+
+		case 'X':
+			// Erase Ps Character(s) (default = 1) (ECH).
+			term.eraseCharacters(*n)
+
+		case 'Z':
+			// Cursor Backward Tabulation Ps tab stops (default = 1) (CBT).
+
+		case '^':
+			// Scroll down Ps lines (default = 1) (SD), ECMA-48.
+			// This was a publication error in the original ECMA-48 5th edition (1991) corrected in 2003.
+			term.scrollDown(*n)
+
+		case '`':
+			// Character Position Absolute  [column] (default = [row,1]) (HPA).
+			term.moveCursorToPos(*n-1, -1)
+
+		//case '!':
+		// CSI ! p: Soft terminal reset (DECSTR), VT220 and up.
 
 		case '?': // private codes
 			code := term.parseCsiExtendedCodes()
@@ -167,8 +278,6 @@ func (term *Term) parseCsiCodes() {
 			code := term.parseCsiExtendedCodes()
 			log.Printf("TODO: Tertiary CSI code ignored: '%s%s'", string(cache), string(code))
 			return
-
-		//case '!': //
 
 		case ':', ';':
 			stack = append(stack, -1)
