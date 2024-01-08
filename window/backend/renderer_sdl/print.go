@@ -15,6 +15,13 @@ func (sr *sdlRender) PrintRuneColour(r rune, posX, posY int32, fg *types.Colour,
 		H: sr.glyphSize.Y,
 	}
 
+	/*rect2 := &sdl.Rect{
+		X: (sr.glyphSize.X * posX) + sr.border + 1,
+		Y: (sr.glyphSize.Y * posY) + sr.border + 1,
+		W: sr.glyphSize.X,
+		H: sr.glyphSize.Y,
+	}*/
+
 	sr.font.SetStyle(fontStyle(style))
 
 	text, err := sr.font.RenderGlyphBlended(r, sdl.Color{R: fg.Red, G: fg.Green, B: fg.Blue, A: 255})
@@ -23,11 +30,24 @@ func (sr *sdlRender) PrintRuneColour(r rune, posX, posY int32, fg *types.Colour,
 	}
 	defer text.Free()
 
-	pixel := sdl.MapRGBA(sr.surface.Format, bg.Red, bg.Green, bg.Blue, 255)
+	/*sr.font.SetStyle(ttf.STYLE_BOLD | fontStyle(style))
+
+	text2, err := sr.font.RenderGlyphBlended(r, sdl.Color{R: 0, G: 0, B: 0, A: 255})
+	if err != nil {
+		return err
+	}
+	defer text2.Free()*/
+
+	pixel := sdl.MapRGBA(sr.surface.Format, bg.Red, bg.Green, bg.Blue, 1)
 	err = sr.surface.FillRect(rect, pixel)
 	if err != nil {
 		return err
 	}
+
+	/*err = text2.Blit(nil, sr.surface, rect2)
+	if err != nil {
+		return err
+	}*/
 
 	err = text.Blit(nil, sr.surface, rect)
 	if err != nil {

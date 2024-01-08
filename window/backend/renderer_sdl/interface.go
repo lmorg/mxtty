@@ -23,7 +23,16 @@ type sdlRender struct {
 
 	// audio
 	bell *mix.Music
+
+	// events
+	_quit   chan bool
+	_event  chan bool
+	_redraw chan bool
 }
+
+func (sr *sdlRender) triggerQuit()   { sr._quit <- true }
+func (sr *sdlRender) triggerEvent()  { sr._event <- true }
+func (sr *sdlRender) TriggerRedraw() { sr._event <- true }
 
 func (sr *sdlRender) Size() *types.XY {
 	return sr.termSize

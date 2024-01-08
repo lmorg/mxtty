@@ -1,16 +1,19 @@
 package assets
 
-import "embed"
+import (
+	"embed"
+	"fmt"
+)
 
 const (
 	BELL     = "bell.mp3"
 	ICON_APP = "icon.bmp"
-	TYPEFACE = "Hasklig-Medium.ttf"
+	TYPEFACE = "Hasklig-Regular.ttf"
 )
 
 //go:embed bell.mp3
 //go:embed icon.bmp
-//go:embed Hasklig-Medium.ttf
+//go:embed *.ttf
 var embedFs embed.FS
 
 var assets map[string][]byte
@@ -37,5 +40,9 @@ func init() {
 }
 
 func Get(name string) []byte {
-	return assets[name]
+	b, ok := assets[name]
+	if !ok {
+		panic(fmt.Sprintf("no asset found named '%s'", name))
+	}
+	return b
 }

@@ -6,8 +6,9 @@ type Renderer interface {
 	Resize() *XY
 	PrintRuneColour(r rune, posX, posY int32, fg *Colour, bg *Colour, style SgrFlag) error
 	CacheImage(bmp []byte) (Element, error)
-	SetWindowTitle(string)
 	GetWindowTitle() string
+	SetWindowTitle(string)
 	Bell()
+	TriggerRedraw()
 	Close()
 }

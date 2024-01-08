@@ -3,6 +3,7 @@ package rendersdl
 import (
 	"log"
 	"sync/atomic"
+	"time"
 
 	"github.com/lmorg/mxtty/assets"
 	"github.com/lmorg/mxtty/types"
@@ -37,6 +38,10 @@ func Initialise(fontName string, fontSize int) types.Renderer {
 	sr.setTypeFace(font)
 
 	sr.border = 5
+
+	sr._quit = make(chan bool)
+	sr._event = make(chan bool)
+	sr._redraw = make(chan bool)
 
 	return sr
 }
@@ -92,8 +97,8 @@ func (sr *sdlRender) getTermSize() *types.XY {
 	x, y := sr.window.GetSize()
 
 	return &types.XY{
-		X: (x - (sr.border * 2)) / sr.glyphSize.X,
-		Y: (y - (sr.border * 2)) / sr.glyphSize.Y,
+		X: ((x - (sr.border * 2)) / sr.glyphSize.X),
+		Y: ((y - (sr.border * 2)) / sr.glyphSize.Y),
 	}
 }
 
@@ -105,36 +110,58 @@ func (sr *sdlRender) Start(term types.Term) {
 		log.Printf("error drawing background: %s", err.Error())
 	}
 
-	running := true
-	for running {
+	for {
+		slowPoll := time.After(250 * time.Millisecond)
+
+	checkEvent:
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
 			switch evt := event.(type) {
 
 			case *sdl.QuitEvent:
-				running = false
+				go sr.triggerQuit()
 
 			case *sdl.WindowEvent:
 				eventWindow(sr, evt, term)
+				go sr.triggerEvent()
 
 			case *sdl.TextInputEvent:
 				eventTextInput(evt, term)
+				go sr.triggerEvent()
 
 			case *sdl.KeyboardEvent:
 				eventKeyPress(evt, term)
-
+				go sr.triggerEvent()
 			}
 		}
 
-		sdl.Delay(15)
-		term.Render()
+		select {
+		case <-sr._quit:
+			return
 
-		if atomic.CompareAndSwapInt32(&sr.updateTitle, 1, 0) {
-			sr.window.SetTitle(sr.title)
+		case <-sr._event:
+			update(sr, term)
+
+		case <-slowPoll:
+			update(sr, term)
+
+		case <-time.After(15 * time.Millisecond):
+			goto checkEvent
 		}
 
-		err = sr.window.UpdateSurface()
-		if err != nil {
-			log.Printf("error in renderer: %s", err.Error())
-		}
+		//sdl.Delay(250)
+
+	}
+}
+
+func update(sr *sdlRender, term types.Term) {
+	term.Render()
+
+	if atomic.CompareAndSwapInt32(&sr.updateTitle, 1, 0) {
+		sr.window.SetTitle(sr.title)
+	}
+
+	err := sr.window.UpdateSurface()
+	if err != nil {
+		log.Printf("error in renderer: %s", err.Error())
 	}
 }

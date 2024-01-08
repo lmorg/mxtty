@@ -13,7 +13,7 @@ func main() {
 	shell := "/bin/bash"
 	//shell :="/opt/homebrew/bin/murex"
 
-	renderer := backend.Initialise(fontName, 14)
+	renderer := backend.Initialise(fontName, 15)
 	defer renderer.Close()
 
 	term := virtualterm.NewTerminal(renderer)
