@@ -7,7 +7,7 @@ import (
 )
 
 func (term *Term) Render() {
-	term.mutex.Lock()
+	term._mutex.Lock()
 
 	var x, y int32
 	var err error
@@ -28,7 +28,7 @@ func (term *Term) Render() {
 
 	term._blinkCursor()
 
-	term.mutex.Unlock()
+	term._mutex.Unlock()
 }
 
 func (term *Term) sgrOpts(sgr *sgr) (fg *types.Colour, bg *types.Colour) {
@@ -42,7 +42,7 @@ func (term *Term) sgrOpts(sgr *sgr) (fg *types.Colour, bg *types.Colour) {
 }
 
 func (term *Term) _blinkCursor() {
-	if term.hideCursor {
+	if term._hideCursor {
 		return
 	}
 
@@ -61,7 +61,7 @@ func (term *Term) _blinkCursor() {
 		style = term.cell().sgr.bitwise
 	}
 
-	if term.slowBlinkState {
+	if term._slowBlinkState {
 		fg, bg = bg, fg
 	}
 

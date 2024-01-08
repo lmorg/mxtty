@@ -99,10 +99,10 @@ func (term *Term) parseCsiCodes() {
 			lookupSgr(term.sgr, stack[0], stack)
 
 		case 's': // save cursor pos
-			term._csiCursorPosSave()
+			term.csiCursorPosSave()
 
 		case 'u': // restore cursor pos
-			term._csiCursorPosRestore()
+			term.csiCursorPosRestore()
 
 		case '?': // private codes
 			code := term.parsePrivateCodes()

@@ -28,10 +28,10 @@ func (term *Term) printLoop() {
 
 	for {
 		r = term.Pty.ReadRune()
-		term.slowBlinkState = true
+		term._slowBlinkState = true
 		//log.Printf("DEBUG: read rune %d [pos: %d:%d] [size: %d:%d]", r, term.curPos.X, term.curPos.Y, term.size.X, term.size.Y)
 
-		term.mutex.Lock()
+		term._mutex.Lock()
 
 		switch r {
 
@@ -72,7 +72,7 @@ func (term *Term) printLoop() {
 			term.writeCell(r)
 		}
 
-		term.mutex.Unlock()
+		term._mutex.Unlock()
 	}
 
 }

@@ -1,25 +1,25 @@
 package virtualterm
 
-func (term *Term) _csiCursorPosSave() {
-	term.savedCurPos = term.curPos
+func (term *Term) csiCursorPosSave() {
+	term._savedCurPos = term.curPos
 }
 
-func (term *Term) _csiCursorPosRestore() {
-	term.curPos = term.savedCurPos
+func (term *Term) csiCursorPosRestore() {
+	term.curPos = term._savedCurPos
 }
 
-func (term *Term) _csiScreenBufferAlternative() {
-	term.cells = &term.altBuf
+func (term *Term) csiScreenBufferAlternative() {
+	term.cells = &term._altBuf
 }
 
-func (term *Term) _csiScreenBufferNormal() {
-	term.cells = &term.normBuf
+func (term *Term) csiScreenBufferNormal() {
+	term.cells = &term._normBuf
 }
 
-func (term *Term) _csiCursorHide() {
-	term.hideCursor = true
+func (term *Term) csiCursorHide() {
+	term._hideCursor = true
 }
 
-func (term *Term) _csiCursorShow() {
-	term.hideCursor = false
+func (term *Term) csiCursorShow() {
+	term._hideCursor = false
 }

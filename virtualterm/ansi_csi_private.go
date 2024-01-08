@@ -24,17 +24,17 @@ func lookupPrivateCsi(term *Term, code []rune) {
 	case 'h':
 		switch param {
 		case "12", "25": // Stop Blinking Cursor (att610) / Hide Cursor (DECTCEM)
-			term._csiCursorShow()
+			term.csiCursorShow()
 
 		case "47", "1047": // alt screen buffer
-			term._csiScreenBufferAlternative()
+			term.csiScreenBufferAlternative()
 
 		case "1048":
-			term._csiCursorPosSave()
+			term.csiCursorPosSave()
 
 		case "1049":
-			term._csiCursorPosSave()
-			term._csiScreenBufferAlternative()
+			term.csiCursorPosSave()
+			term.csiScreenBufferAlternative()
 
 		default:
 			log.Printf("Private CSI parameter not implemented in %s: %v [param: %s]", string(r), string(code), param)
@@ -43,17 +43,17 @@ func lookupPrivateCsi(term *Term, code []rune) {
 	case 'l':
 		switch param {
 		case "12", "25": // Start Blinking Cursor (att610) / Show Cursor (DECTCEM)
-			term._csiCursorShow()
+			term.csiCursorShow()
 
 		case "47", "1047": // normal screen buffer
-			term._csiScreenBufferNormal()
+			term.csiScreenBufferNormal()
 
 		case "1048":
-			term._csiCursorPosRestore()
+			term.csiCursorPosRestore()
 
 		case "1049":
-			term._csiScreenBufferNormal()
-			term._csiCursorPosRestore()
+			term.csiScreenBufferNormal()
+			term.csiCursorPosRestore()
 
 		default:
 			log.Printf("Private CSI parameter not implemented in %s: %v [param: %s]", string(r), string(code), param)

@@ -16,17 +16,17 @@ type Term struct {
 	tabWidth int32
 	renderer types.Renderer
 	Pty      *psuedotty.PTY
-	mutex    sync.Mutex
+	_mutex   sync.Mutex
 
-	slowBlinkState bool
+	_slowBlinkState bool
 
-	cells   *[][]cell
-	normBuf [][]cell
-	altBuf  [][]cell
+	cells    *[][]cell
+	_normBuf [][]cell
+	_altBuf  [][]cell
 
 	// CSI states
-	hideCursor  bool
-	savedCurPos types.Rect
+	_hideCursor  bool
+	_savedCurPos types.Rect
 }
 
 type cell struct {
@@ -49,14 +49,14 @@ func NewTerminal(renderer types.Renderer) *Term {
 
 	term := &Term{
 		renderer: renderer,
-		normBuf:  normBuf,
-		altBuf:   altBuf,
+		_normBuf: normBuf,
+		_altBuf:  altBuf,
 		size:     size,
 		sgr:      SGR_DEFAULT.Copy(),
 		tabWidth: 8,
 	}
 
-	term.cells = &term.normBuf
+	term.cells = &term._normBuf
 
 	return term
 }
