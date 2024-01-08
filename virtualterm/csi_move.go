@@ -1,5 +1,32 @@
 package virtualterm
 
+// basic TTY operations
+
+func (term *Term) printTab() {
+	indent := int(4 - (term.curPos.X % term._tabWidth))
+	for i := 0; i < indent; i++ {
+		term.writeCell(' ')
+	}
+}
+
+func (term *Term) carriageReturn() {
+	term.curPos.X = 0
+}
+
+func (term *Term) lineFeed() {
+	if term.csiMoveCursorDownwards(1) > 0 {
+		term.csiScrollUp(1)
+		term.csiMoveCursorDownwards(1)
+	}
+}
+
+func (term *Term) ReverseLineFeed() {
+	if term.csiMoveCursorUpwards(1) > 0 {
+		term.csiScrollDown(1)
+		term.csiMoveCursorUpwards(1)
+	}
+}
+
 // moveCursor functions DON'T affect other contents in the grid
 
 func (term *Term) csiMoveCursorBackwards(i int32) (overflow int32) {
@@ -39,10 +66,12 @@ func (term *Term) csiMoveCursorUpwards(i int32) (overflow int32) {
 		i = 1
 	}
 
+	top, _ := term.getScrollRegion()
+
 	term.curPos.Y -= i
-	if term.curPos.Y < 0 {
+	if term.curPos.Y <= top {
 		overflow = term.curPos.Y * -1
-		term.curPos.Y = 0
+		term.curPos.Y = top
 	}
 
 	//log.Printf("DEBUG: csiMoveCursorUpwards(%d) == %d [pos: %d]", i, overflow, term.curPos.Y)
@@ -56,9 +85,12 @@ func (term *Term) csiMoveCursorDownwards(i int32) (overflow int32) {
 	}
 
 	term.curPos.Y += i
-	if term.curPos.Y >= term.size.Y {
-		overflow = term.curPos.Y - (term.size.Y - 1)
-		term.curPos.Y = term.size.Y - 1
+
+	_, bottom := term.getScrollRegion()
+
+	if term.curPos.Y > bottom {
+		overflow = term.curPos.Y - (bottom)
+		term.curPos.Y = bottom
 	}
 
 	//log.Printf("DEBUG: csiMoveCursorDownwards(%d) == %d [pos: %d]", i, overflow, term.curPos.Y)

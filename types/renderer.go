@@ -8,5 +8,6 @@ type Renderer interface {
 	CacheImage(bmp []byte) (Element, error)
 	SetWindowTitle(string)
 	GetWindowTitle() string
+	Bell()
 	Close()
 }

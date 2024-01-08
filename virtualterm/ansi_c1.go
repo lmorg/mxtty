@@ -4,7 +4,7 @@ import "log"
 
 /*
 	Documentation:
-	- https://en.wikipedia.org/wiki/C0_and_C1_control_codes
+	* https://en.wikipedia.org/wiki/C0_and_C1_control_codes
 */
 
 func (term *Term) parseC1Codes() {
