@@ -10,11 +10,12 @@ import (
 
 // Term is the display state of the virtual term
 type Term struct {
-	cells  [][]cell
-	size   xy
-	curPos xy
-	sgr    *sgr
-	mutex  sync.Mutex
+	cells    [][]cell
+	size     xy
+	curPos   xy
+	sgr      *sgr
+	mutex    sync.Mutex
+	tabWidth int32
 }
 
 type cell struct {
@@ -41,6 +42,7 @@ func NewTerminal(x, y int32) *Term {
 			fg: SGR_DEFAULT.fg,
 			bg: SGR_DEFAULT.bg,
 		},
+		tabWidth: 8,
 	}
 
 	go term.blink()

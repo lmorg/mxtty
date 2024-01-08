@@ -28,8 +28,10 @@ func NewPTY(width, height int32) (*PTY, error) {
 		return nil, fmt.Errorf("unable to set pty size: %s", err.Error())
 	}
 
+	//_, err = term.MakeRaw(int(primary.Fd()))
+
 	p := new(PTY)
 	p.Primary = primary
 	p.Secondary = secondary
-	return p, nil
+	return p, err
 }

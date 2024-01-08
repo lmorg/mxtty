@@ -68,7 +68,7 @@ func (term *Term) Write(text []rune) {
 			log.Printf("TODO: OSC sequences: '%s'", string(text[start:i]))
 
 		case '\t':
-			indent := int(4 - (term.curPos.X % 4))
+			indent := int(4 - (term.curPos.X % term.tabWidth))
 			for i := 0; i < indent; i++ {
 				term.writeCell(' ')
 			}
@@ -81,10 +81,16 @@ func (term *Term) Write(text []rune) {
 				term.moveContentsUp()
 				term.moveCursorDownwards(1)
 			}
+			term.curPos.X = 0
+
+		case ' ':
+			term.writeCell('·')
 
 		default:
 			if text[i] < 32 {
 				log.Printf("Unexpected ASCII character: %d", text[i])
+			} else {
+				log.Printf("Character code %d (%s)", text[i], string(text[i]))
 			}
 			term.writeCell(text[i])
 		}

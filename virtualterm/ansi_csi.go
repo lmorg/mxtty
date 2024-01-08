@@ -56,7 +56,7 @@ func parseCsiCodes(term *Term, text []rune) int {
 				term.eraseDisplay() // TODO: 3 should erase scrollback buffer
 			}
 
-		case 'k', 'K': // clearLine...
+		case 'K': // clearLine...
 			switch n {
 			case -1, 0:
 				term.eraseLineAfter()
@@ -151,5 +151,8 @@ func lookupSgr(sgr *sgr, n int32) {
 
 	case 37: // fg white
 		sgr.fg = sgrColour4White
+
+	default:
+		log.Printf("Unknown SGR code: %d", n)
 	}
 }

@@ -71,7 +71,7 @@ func (term *Term) moveContentsUp() {
 func (term *Term) wrapCursorForwards() {
 	term.curPos.X += 1
 
-	if term.curPos.X >= term.size.X {
+	if term.curPos.X > term.size.X {
 		overflow := term.curPos.X - (term.size.X - 1)
 		term.curPos.X = 0
 

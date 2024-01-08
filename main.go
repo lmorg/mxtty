@@ -68,6 +68,7 @@ func main() {
 	go func() {
 		//cmd := exec.Command("/opt/homebrew/bin/murex")
 		cmd := exec.Command("/bin/zsh")
+		//cmd.Env = append(os.Environ(), "TERM=mxtty")
 		cmd.Stdin = pty.Primary
 		cmd.Stdout = pty.Primary
 		cmd.Stderr = pty.Primary
@@ -105,7 +106,7 @@ func main() {
 				case sdl.K_RETURN:
 					pty.Secondary.Write([]byte{'\n'})
 				case sdl.K_BACKSPACE:
-					pty.Secondary.Write([]byte{codes.AsciiBackspace})
+					pty.Secondary.Write([]byte{codes.IsoBackspace})
 				case sdl.K_UP:
 					pty.Secondary.Write(codes.AnsiUp)
 				case sdl.K_DOWN:

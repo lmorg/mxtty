@@ -7,5 +7,6 @@ require (
 	github.com/flopp/go-findfont v0.1.0 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/veandco/go-sdl2 v0.4.36 // indirect
-	golang.org/x/sys v0.8.0 // indirect
+	golang.org/x/sys v0.15.0 // indirect
+	golang.org/x/term v0.15.0 // indirect
 )
