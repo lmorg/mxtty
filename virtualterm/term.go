@@ -10,20 +10,23 @@ import (
 
 // Term is the display state of the virtual term
 type Term struct {
-	cells       *[][]cell
-	normBuf     [][]cell
-	altBuf      [][]cell
-	size        *types.Rect
-	curPos      types.Rect
-	savedCurPos types.Rect
-	sgr         *sgr
-	tabWidth    int32
-	renderer    types.Renderer
-	Pty         *psuedotty.PTY
-	mutex       sync.Mutex
+	size     *types.Rect
+	curPos   types.Rect
+	sgr      *sgr
+	tabWidth int32
+	renderer types.Renderer
+	Pty      *psuedotty.PTY
+	mutex    sync.Mutex
 
 	slowBlinkState bool
-	hideCursor     bool
+
+	cells   *[][]cell
+	normBuf [][]cell
+	altBuf  [][]cell
+
+	// CSI states
+	hideCursor  bool
+	savedCurPos types.Rect
 }
 
 type cell struct {

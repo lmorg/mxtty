@@ -32,8 +32,12 @@ func (term *Term) parseOscCodes() {
 	stack := strings.Split(string(text[:len(text)-1]), ";")
 
 	switch stack[0] {
-	case "2":
+	case "0": // change icon and window title
 		term.renderer.SetWindowTitle(stack[1])
+
+	case "2": // change window title
+		term.renderer.SetWindowTitle(stack[1])
+
 	default:
 		log.Printf("Unknown OSC code %s: %s", stack[0], string(text[:len(text)-1]))
 	}

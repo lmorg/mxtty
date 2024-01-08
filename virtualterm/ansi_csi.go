@@ -39,9 +39,9 @@ func (term *Term) parseCsiCodes() {
 		case 'd':
 			switch len(stack) {
 			case 0:
-				term.moveCursorToPos(0, 0)
+				term.moveCursorToPos(-1, 0)
 			case 1:
-				term.moveCursorToPos(0, *n)
+				term.moveCursorToPos(-1, *n)
 			case 2:
 				term.moveCursorToPos(stack[1], stack[0])
 			default:
@@ -51,6 +51,19 @@ func (term *Term) parseCsiCodes() {
 
 		case 'D': // moveCursorBackwards
 			term.moveCursorBackwards(*n)
+
+		case 'G':
+			switch len(stack) {
+			case 0:
+				term.moveCursorToPos(0, -1)
+			case 1:
+				term.moveCursorToPos(*n, -1)
+			case 2:
+				term.moveCursorToPos(stack[0], stack[1])
+			default:
+				term.moveCursorToPos(stack[0], stack[1])
+				log.Printf("more parameters than expected for %s: %v (%s)", string(r), stack, string(cache))
+			}
 
 		case 'H': // moveCursor
 			if len(stack) != 2 {
