@@ -164,3 +164,28 @@ func (term *Term) csiSetScrollingRegion(region []int32) {
 		Bottom: region[1],
 	}
 }
+
+/*
+	INSERTING
+*/
+
+func (term *Term) csiInsertLines(n int32) {
+	if n < 1 {
+		n = 1
+	}
+
+	_, bottom := term.getScrollRegion()
+
+	if term.curPos.Y+n > bottom {
+		n = bottom - term.curPos.Y
+	}
+
+	for y, i := bottom, int32(0); y > term.curPos.Y; y-- {
+		if i < n {
+			(*term.cells)[y] = (*term.cells)[y-1]
+			i++
+		} else {
+			(*term.cells)[y] = make([]cell, term.size.X)
+		}
+	}
+}

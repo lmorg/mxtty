@@ -31,7 +31,7 @@ func (sr *sdlRender) initBell() {
 		return
 	}
 
-	sr.bell, err = mix.LoadMUSRW(rwops, 1)
+	sr.bell, err = mix.LoadMUSRW(rwops, 0)
 	if err != nil {
 		log.Printf("ERROR: could not load %s from memory: %s", assets.BELL, err.Error())
 		return

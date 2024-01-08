@@ -7,12 +7,13 @@ import (
 )
 
 func main() {
-	fontName := "hasklig.ttf"
+	//fontName := "hasklig.ttf"
 	//fontName := "monaco.ttf"
+	fontName := ""
 	shell := "/bin/bash"
 	//shell :="/opt/homebrew/bin/murex"
 
-	renderer := backend.Initialise(fontName, 15)
+	renderer := backend.Initialise(fontName, 14)
 	defer renderer.Close()
 
 	term := virtualterm.NewTerminal(renderer)

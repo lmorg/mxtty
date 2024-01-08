@@ -2,12 +2,15 @@ package typeface
 
 import (
 	"github.com/flopp/go-findfont"
+	"github.com/lmorg/mxtty/assets"
 	"github.com/lmorg/mxtty/types"
 	"github.com/veandco/go-sdl2/sdl"
 	"github.com/veandco/go-sdl2/ttf"
 )
 
-var fontSize *types.XY
+var (
+	fontSize *types.XY
+)
 
 func init() {
 	err := ttf.Init()
@@ -20,15 +23,28 @@ func Close() {
 	ttf.Quit()
 }
 
-func Open(name string, size int) (*ttf.Font, error) {
-	path, err := findfont.Find(name)
-	if err != nil {
-		panic(err)
-	}
+func Open(name string, size int) (font *ttf.Font, err error) {
+	if name != "" {
+		var path string
+		path, err = findfont.Find(name)
+		if err != nil {
+			panic(err)
+		}
 
-	font, err := ttf.OpenFont(path, size)
-	if err != nil {
-		return nil, err
+		font, err = ttf.OpenFont(path, size)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		rwops, err := sdl.RWFromMem([]byte(assets.TYPEFACE))
+		if err != nil {
+			return nil, err
+		}
+
+		font, err = ttf.OpenFontRW(rwops, 0, size)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	font.SetHinting(ttf.HINTING_MONO)

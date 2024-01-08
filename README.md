@@ -1,4 +1,15 @@
-# mxtty
+<h1>mxtty</h1>
+
+- [Multimedia Terminal Emulator](#multimedia-terminal-emulator)
+- [How It Works](#how-it-works)
+- [Whats Left To Do](#whats-left-to-do)
+  - [Compatibility Guide](#compatibility-guide)
+    - [xterm compatibility](#xterm-compatibility)
+    - [extended features](#extended-features)
+    - [unique features](#unique-features)
+    - [application customisation](#application-customisation)
+    - [supported platforms](#supported-platforms)
+- [How To Support](#how-to-support)
 
 ## Multimedia Terminal Emulator
 
@@ -11,7 +22,7 @@ Currently the project is _very_ alpha.
 The idea behind this terminal emulator is that is can be used by any $SHELL,
 however hooks will be built into [Murex](https://github.com/lmorg/murex) so
 the terminal will be instantly usable even before wider support across other
-shells is adopted.
+shells and command line applications is adopted.
 
 At its heart, `mxtty` is a regular terminal emulator. Like Kitty, iTerm2, and
 PuTTY (to name a few). But where `mxtty` differs is that it also supports
@@ -50,6 +61,90 @@ without breaking compatibility for legacy terminal emulators.
 
 In short, pretty much everything. Most of what has been detailed above is still
 only aspirational.
+
+### Compatibility Guide
+
+#### xterm compatibility
+
+- C0 codes
+  - [x] common: can run most CLI applications
+  - [ ] broad: can run more older or more CLI applications
+  - [ ] xterm compatibility
+- C1 codes
+  - [x] common: can run most CLI applications
+  - [ ] broad: can run older or more CLI applications
+  - [ ] xterm compatible
+- CSI codes
+  - [ ] common: can run most CLI applications
+  - [ ] broad: can run more older or more CLI applications
+  - [ ] xterm compatible
+- SGR codes
+  - [x] common: can run most CLI applications
+  - [x] broad: can run more older or more CLI applications
+  - [ ] xterm compatible
+- OSC codes
+  - [x] common: can run most CLI applications
+  - [x] broad: can run more older or more CLI applications
+  - [ ] xterm compatible
+- DCS codes
+  - [ ] common: can run most CLI applications
+  - [ ] broad: can run more older or more CLI applications
+  - [ ] xterm compatible
+- PM codes (out of scope)
+  - [x] common: can run most CLI applications
+  - [x] broad: can run more older or more CLI applications
+  - [x] xterm` compatible
+- [x] Able to run `tmux` glitch-free
+- [ ] Able to render `vim` glitch-free
+- Mouse support
+  - [ ] common: can run most CLI applications
+  - [ ] broad: can run more older or more CLI applications
+  - [ ] xterm compatible
+- [ ] Alt character sets
+- [ ] Resize support
+- [ ] Scrollback history
+
+#### extended features
+
+- Inlining images
+  - [ ] iterm2 compatible
+  - [ ] sixel compatible
+- [ ] hyperlink support
+- [ ] extended SGR (eg "standardised" features not found in xterm)
+
+#### unique features
+
+- code folding
+  - [ ] alpha: available but expect changes to the API
+  - [ ] stable: available to use in Murex
+- table sorting
+  - [ ] alpha: available but expect changes to the API
+  - [ ] stable: available to use in Murex
+
+#### application customisation
+
+- [ ] default typeface
+- [ ] default colour scheme
+- [ ] default bell sound
+- [ ] default term size
+- [ ] default command / shell
+
+#### supported platforms
+
+Support for the following platforms is planned:
+
+- Linux
+  - [x] ArchLinux
+  - [ ] Ubuntu
+  - [ ] Rocky
+- BSD
+  - [ ] FreeBSD
+  - [ ] NetBSD
+  - [ ] OpenBSD
+  - [ ] DragonflyBSD
+- [x] macOS
+- [ ] Windows
+
 
 ## How To Support
 

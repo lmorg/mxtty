@@ -164,10 +164,12 @@ func (term *Term) parseCsiCodes() {
 			Ps = 2 0  ⇒  Normal Linefeed (LNM).
 		*/
 
-		//case 'L':
-		// Insert Ps Line(s) (default = 1) (IL).
+		case 'L':
+			// Insert Ps Line(s) (default = 1) (IL).
+			term.csiInsertLines(*n)
 
-		case 'm': // Character Attributes (SGR).
+		case 'm':
+			// Character Attributes (SGR).
 			lookupSgr(term.sgr, stack[0], stack)
 
 		//case 'M':
