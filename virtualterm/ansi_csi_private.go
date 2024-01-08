@@ -2,21 +2,6 @@ package virtualterm
 
 import "log"
 
-func (term *Term) parsePrivateCodes() []rune {
-	var (
-		r    rune
-		code []rune
-	)
-
-	for {
-		r = term.Pty.ReadRune()
-		code = append(code, r)
-		if isCsiTerminator(r) {
-			return code
-		}
-	}
-}
-
 func lookupPrivateCsi(term *Term, code []rune) {
 	param := string(code[:len(code)-1])
 	r := code[len(code)-1]

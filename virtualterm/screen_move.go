@@ -108,13 +108,13 @@ func (term *Term) scrollDown(n int32) {
 
 func (term *Term) moveCursorToPos(x, y int32) {
 	if x < 0 {
-		x = 0 //term.curPos.X
+		x = term.curPos.X
 	} else if x >= term.size.X {
 		x = term.size.X - 1
 	}
 
 	if y < 0 {
-		y = 0 //term.curPos.Y
+		y = term.curPos.Y
 	} else if y >= term.size.Y {
 		y = term.size.Y - 1
 	}

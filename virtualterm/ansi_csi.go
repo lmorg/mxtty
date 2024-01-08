@@ -2,8 +2,6 @@ package virtualterm
 
 import (
 	"log"
-
-	"github.com/lmorg/mxtty/types"
 )
 
 func isCsiTerminator(r rune) bool {
@@ -12,10 +10,11 @@ func isCsiTerminator(r rune) bool {
 
 func (term *Term) parseCsiCodes() {
 	var (
-		r     rune
-		stack = []int32{-1} // default value
-		n     = &stack[0]
-		cache []rune
+		r       rune
+		stack   = []int32{-1} // default value
+		n       = &stack[0]
+		cache   []rune
+		unknown bool
 	)
 
 	for {
@@ -41,11 +40,11 @@ func (term *Term) parseCsiCodes() {
 			case 0:
 				term.moveCursorToPos(-1, 0)
 			case 1:
-				term.moveCursorToPos(-1, *n)
+				term.moveCursorToPos(-1, *n-1)
 			case 2:
-				term.moveCursorToPos(stack[1], stack[0])
+				term.moveCursorToPos(stack[1]-1, stack[0]-1)
 			default:
-				term.moveCursorToPos(stack[1], stack[0])
+				term.moveCursorToPos(stack[1]-1, stack[0]-1)
 				log.Printf("more parameters than expected for %s: %v (%s)", string(r), stack, string(cache))
 			}
 
@@ -57,22 +56,19 @@ func (term *Term) parseCsiCodes() {
 			case 0:
 				term.moveCursorToPos(0, -1)
 			case 1:
-				term.moveCursorToPos(*n, -1)
+				term.moveCursorToPos(*n-1, -1)
 			case 2:
-				term.moveCursorToPos(stack[0], stack[1])
+				term.moveCursorToPos(stack[0]-1, stack[1]-1)
 			default:
-				term.moveCursorToPos(stack[0], stack[1])
+				term.moveCursorToPos(stack[0]-1, stack[1]-1)
 				log.Printf("more parameters than expected for %s: %v (%s)", string(r), stack, string(cache))
 			}
 
 		case 'H': // moveCursor
 			if len(stack) != 2 {
-				term.curPos = types.Rect{}
+				term.moveCursorToPos(0, 0)
 			} else {
-				term.curPos = types.Rect{
-					X: stack[0] + 1,
-					Y: stack[1] + 1,
-				}
+				term.moveCursorToPos(stack[1]-1, stack[0]-1)
 			}
 
 		case 'J': // eraseDisplay...
@@ -150,22 +146,50 @@ func (term *Term) parseCsiCodes() {
 			term.csiCursorPosRestore()
 
 		case '?': // private codes
-			code := term.parsePrivateCodes()
+			code := term.parseCsiExtendedCodes()
 			lookupPrivateCsi(term, code)
-			//log.Printf("CSI private code gobbled: '[?%s'", string(code))
 			return
+
+		case '>': // secondary codes
+			code := term.parseCsiExtendedCodes()
+			log.Printf("TODO: Secondary CSI code ignored: '%s%s'", string(cache), string(code))
+			return
+
+		case '=': // tertiary codes
+			code := term.parseCsiExtendedCodes()
+			log.Printf("TODO: Tertiary CSI code ignored: '%s%s'", string(cache), string(code))
+			return
+
+		//case '!': //
 
 		case ':', ';':
 			stack = append(stack, -1)
 			n = &stack[len(stack)-1]
-			//log.Printf("Unhandled CSI parameter: '%d;'", n)
 
 		default:
-			log.Printf("Unknown CSI code %d: %v (%s)", *n, stack, string(cache))
+			unknown = true
 		}
 
 		if isCsiTerminator(r) {
+			if unknown {
+				log.Printf("Unknown CSI code %s: %v [string: %s]", string(r), cache, string(cache))
+			}
 			return
+		}
+	}
+}
+
+func (term *Term) parseCsiExtendedCodes() []rune {
+	var (
+		r    rune
+		code []rune
+	)
+
+	for {
+		r = term.Pty.ReadRune()
+		code = append(code, r)
+		if isCsiTerminator(r) {
+			return code
 		}
 	}
 }
