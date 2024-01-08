@@ -33,7 +33,7 @@ func (term *Term) ExportString() string {
 
 // ExportString returns a character map of the virtual terminal
 func (term *Term) ExportMxTTY() {
-	term.mutex.Lock()
+	//term.mutex.Lock()
 
 	var x, y int32
 	var err error
@@ -52,7 +52,7 @@ func (term *Term) ExportMxTTY() {
 		}
 	}
 
-	term.mutex.Unlock()
+	//term.mutex.Unlock()
 
 	err = term.renderer.Update()
 	if err != nil {
@@ -62,9 +62,9 @@ func (term *Term) ExportMxTTY() {
 
 func sgrOpts(sgr *sgr) (fg *types.Colour, bg *types.Colour) {
 	if sgr.Is(sgrInvert) {
-		bg, fg = sgr.fg, sgr.bg
+		bg, fg = &sgr.fg, &sgr.bg
 	} else {
-		fg, bg = sgr.fg, sgr.bg
+		fg, bg = &sgr.fg, &sgr.bg
 	}
 
 	return fg, bg

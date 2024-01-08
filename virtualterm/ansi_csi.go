@@ -18,76 +18,89 @@ func parseCsiCodes(term *Term, text []rune) int {
 		stack []int32
 	)
 
-	for ; i < len(text); i++ {
-		if text[i] >= '0' && '9' >= text[i] {
-			multiplyN(&n, text[i])
+	for {
+		for ; i < len(text); i++ {
+			if text[i] >= '0' && '9' >= text[i] {
+				multiplyN(&n, text[i])
+				continue
+			}
+
+			switch text[i] {
+			case 'A', 'E': // moveCursorUp
+				term.moveCursorUpwards(n)
+
+			case 'B', 'F': // moveCursorDown
+				term.moveCursorDownwards(n)
+
+			case 'C': // moveCursorForwards
+				term.moveCursorForwards(n)
+
+			case 'D': // moveCursorBackwards
+				term.moveCursorBackwards(n)
+
+			case 'm': // SGR
+				lookupSgr(term.sgr, n)
+
+			case 'H': // moveCursor
+				if len(stack) != 2 {
+					term.curPos = types.Rect{}
+				} else {
+					term.curPos = types.Rect{
+						X: stack[0] + 1,
+						Y: stack[1] + 1,
+					}
+				}
+
+			case 'J': // eraseDisplay...
+				switch n {
+				case -1, 0:
+					term.eraseDisplayAfter()
+				case 1:
+					term.eraseDisplayBefore()
+				case 2, 3:
+					term.eraseDisplay() // TODO: 3 should erase scrollback buffer
+				}
+
+			case 'K': // clearLine...
+				switch n {
+				case -1, 0:
+					term.eraseLineAfter()
+				case 1:
+					term.eraseLineBefore()
+				case 2:
+					term.eraseLine()
+				}
+
+			case '?': // private codes
+				adjust, n, r := parseNumericAlphaCodes(i, text)
+				log.Printf("CSI private code gobbled: '[?%d%s'", n, string(r))
+				return i + adjust - 3
+
+			case ';':
+				stack = append(stack, n)
+				//log.Printf("Unhandled CSI parameter: '%d;'", n)
+
+			default:
+				log.Printf("Unknown CSI code: '%d%s'", n, string(text[i]))
+			}
+
+			if isCsiTerminator(text[i]) {
+				return i - 1
+			}
+		}
+
+		log.Printf("CSI read!!!!!!!!!!!!!!!!!!")
+		p := make([]byte, 10*1024)
+		n, err := term.Pty.Read(p)
+		if err != nil {
+			log.Printf("error reading from buffer (%d bytes dropped): %s", n, err.Error())
 			continue
 		}
-
-		switch text[i] {
-		case 'A', 'E': // moveCursorUp
-			term.moveCursorUpwards(n)
-
-		case 'B', 'F': // moveCursorDown
-			term.moveCursorDownwards(n)
-
-		case 'C': // moveCursorForwards
-			term.moveCursorForwards(n)
-
-		case 'D': // moveCursorBackwards
-			term.moveCursorBackwards(n)
-
-		case 'm': // SGR
-			lookupSgr(term.sgr, n)
-
-		case 'H': // moveCursor
-			if len(stack) != 2 {
-				term.curPos = types.Rect{}
-			} else {
-				term.curPos = types.Rect{
-					X: stack[0] + 1,
-					Y: stack[1] + 1,
-				}
-			}
-
-		case 'J': // eraseDisplay...
-			switch n {
-			case -1, 0:
-				term.eraseDisplayAfter()
-			case 1:
-				term.eraseDisplayBefore()
-			case 2, 3:
-				term.eraseDisplay() // TODO: 3 should erase scrollback buffer
-			}
-
-		case 'K': // clearLine...
-			switch n {
-			case -1, 0:
-				term.eraseLineAfter()
-			case 1:
-				term.eraseLineBefore()
-			case 2:
-				term.eraseLine()
-			}
-
-		case '?': // private codes
-			adjust, n, r := parseNumericAlphaCodes(i, text)
-			log.Printf("CSI private code gobbled: '[?%d%s'", n, string(r))
-			return i + adjust - 3
-
-		case ';':
-			stack = append(stack, n)
-			//log.Printf("Unhandled CSI parameter: '%d;'", n)
-
-		default:
-			log.Printf("Unknown CSI code: '%d%s'", n, string(text[i]))
-		}
-
-		if isCsiTerminator(text[i]) {
-			return i - 1
-		}
+		r := []rune(string(p[:n]))
+		text = append(text, r...)
 	}
-	return i
+
+	//return i - 1
 }
 
 func parseNumericAlphaCodes(i int, text []rune) (int, int32, rune) {
@@ -129,66 +142,122 @@ func lookupSgr(sgr *sgr, n int32) {
 		sgr.Set(sgrInvert)
 
 	//
-	// 4bit foreground colour:
+	// 3bit foreground colour:
 	//
 
 	case 30: // fg black
-		sgr.fg = sgrColour4Black
+		sgr.fg = SGR_COLOUR_BLACK
 
 	case 31: // fg red
-		sgr.fg = sgrColour4Red
+		sgr.fg = SGR_COLOUR_RED
 
 	case 32: // fg green
-		sgr.fg = sgrColour4Green
+		sgr.fg = SGR_COLOUR_GREEN
 
 	case 33: // fg yellow
-		sgr.fg = sgrColour4Yellow
+		sgr.fg = SGR_COLOUR_YELLOW
 
 	case 34: // fg blue
-		sgr.fg = sgrColour4Blue
+		sgr.fg = SGR_COLOUR_BLUE
 
 	case 35: // fg magenta
-		sgr.fg = sgrColour4Magenta
+		sgr.fg = SGR_COLOUR_MAGENTA
 
 	case 36: // fg cyan
-		sgr.fg = sgrColour4Cyan
+		sgr.fg = SGR_COLOUR_CYAN
 
 	case 37: // fg white
-		sgr.fg = sgrColour4White
+		sgr.fg = SGR_COLOUR_WHITE
 
 	case 39: // fg default
 		sgr.fg = SGR_DEFAULT.fg
 
 		//
-		// 4bit background colour:
+		// 3bit background colour:
 		//
 
 	case 40: // bg black
-		sgr.bg = sgrColour4Black
+		sgr.bg = SGR_COLOUR_BLACK
 
 	case 41: // bg red
-		sgr.bg = sgrColour4Red
+		sgr.bg = SGR_COLOUR_RED
 
 	case 42: // bg green
-		sgr.bg = sgrColour4Green
+		sgr.bg = SGR_COLOUR_GREEN
 
 	case 43: // bg yellow
-		sgr.bg = sgrColour4Yellow
+		sgr.bg = SGR_COLOUR_YELLOW
 
 	case 44: // bg blue
-		sgr.bg = sgrColour4Blue
+		sgr.bg = SGR_COLOUR_BLUE
 
 	case 45: // bg magenta
-		sgr.bg = sgrColour4Magenta
+		sgr.bg = SGR_COLOUR_MAGENTA
 
 	case 46: // bg cyan
-		sgr.bg = sgrColour4Cyan
+		sgr.bg = SGR_COLOUR_CYAN
 
 	case 47: // bg white
-		sgr.bg = sgrColour4White
+		sgr.bg = SGR_COLOUR_WHITE
 
 	case 49: // bg default
 		sgr.bg = SGR_DEFAULT.bg
+
+		//
+	// 4bit foreground colour:
+	//
+
+	case 90: // fg black
+		sgr.fg = SGR_COLOUR_BLACK_BRIGHT
+
+	case 91: // fg red
+		sgr.fg = SGR_COLOUR_RED_BRIGHT
+
+	case 92: // fg green
+		sgr.fg = SGR_COLOUR_GREEN_BRIGHT
+
+	case 93: // fg yellow
+		sgr.fg = SGR_COLOUR_YELLOW_BRIGHT
+
+	case 94: // fg blue
+		sgr.fg = SGR_COLOUR_BLUE_BRIGHT
+
+	case 95: // fg magenta
+		sgr.fg = SGR_COLOUR_MAGENTA_BRIGHT
+
+	case 96: // fg cyan
+		sgr.fg = SGR_COLOUR_CYAN_BRIGHT
+
+	case 97: // fg white
+		sgr.fg = SGR_COLOUR_WHITE_BRIGHT
+
+		//
+		// 4bit background colour:
+		//
+
+	case 100: // bg black
+		sgr.bg = SGR_COLOUR_BLACK_BRIGHT
+
+	case 101: // bg red
+		sgr.bg = SGR_COLOUR_RED_BRIGHT
+
+	case 102: // bg green
+		sgr.bg = SGR_COLOUR_GREEN_BRIGHT
+
+	case 103: // bg yellow
+		sgr.bg = SGR_COLOUR_YELLOW_BRIGHT
+
+	case 104: // bg blue
+		sgr.bg = SGR_COLOUR_BLUE_BRIGHT
+
+	case 105: // bg magenta
+		sgr.bg = SGR_COLOUR_MAGENTA_BRIGHT
+
+	case 106: // bg cyan
+		sgr.bg = SGR_COLOUR_CYAN_BRIGHT
+
+	case 107: // bg white
+		sgr.bg = SGR_COLOUR_WHITE_BRIGHT
 
 	default:
 		log.Printf("Unknown SGR code: %d", n)

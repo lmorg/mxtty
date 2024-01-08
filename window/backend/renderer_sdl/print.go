@@ -14,8 +14,7 @@ func printRuneColour(r rune, posX, posY int32, fg *types.Colour, bg *types.Colou
 		H: glyphSize.Y,
 	}
 
-	//text, err := font.RenderGlyphSolid(r, sdl.Color{R: fg.Red, G: fg.Green, B: fg.Blue, A: 255})
-	text, err := font.RenderGlyphSolid(r, sdl.Color{R: 255, G: 255, B: 255, A: 255})
+	text, err := font.RenderGlyphSolid(r, sdl.Color{R: fg.Red, G: fg.Green, B: fg.Blue, A: 255})
 	if err != nil {
 		return err
 	}

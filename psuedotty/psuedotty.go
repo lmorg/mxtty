@@ -2,7 +2,6 @@ package psuedotty
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/creack/pty"
@@ -42,20 +41,7 @@ func NewPTY(term *virtualterm.Term) (*PTY, error) {
 		virtTerm:  term,
 	}
 
-	go p.listener()
+	term.Pty = p.Secondary
 
 	return p, err
-}
-
-func (pty *PTY) listener() {
-	p := make([]byte, 1024)
-	for {
-		i, err := pty.Secondary.Read(p)
-		if err != nil {
-			log.Panicf("error reading from PTY (%d bytes dropped): %s", i, err.Error())
-			continue
-		}
-		pty.virtTerm.Write([]rune(string(p[:i])))
-		pty.virtTerm.ExportMxTTY()
-	}
 }
