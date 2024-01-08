@@ -10,6 +10,7 @@ const (
 	sgrItalic
 	sgrUnderscore
 	sgrBlink
+	sgrInvert
 
 	// colour bit pallets
 	sgrFgColour4
@@ -20,13 +21,6 @@ const (
 	sgrBgColour8
 	sgrBgColour24
 )
-
-var sgrHtmlClassNames = map[sgrFlag]string{
-	sgrBold:       "sgr-bold",
-	sgrItalic:     "sgr-italic",
-	sgrUnderscore: "sgr-underscore",
-	sgrBlink:      "sgr-blink",
-}
 
 const (
 	sgrColour4Black = 0
@@ -47,23 +41,3 @@ const (
 	sgrColour4CyanBright
 	sgrColour4WhiteBright
 )
-
-var sgrColourHtmlClassNames = []string{
-	"sgr-black",
-	"sgr-red",
-	"sgr-green",
-	"sgr-yellow",
-	"sgr-blue",
-	"sgr-magenta",
-	"sgr-cyan",
-	"sgr-white",
-
-	"sgr-black-bright",
-	"sgr-red-bright",
-	"sgr-green-bright",
-	"sgr-yellow-bright",
-	"sgr-blue-bright",
-	"sgr-magenta-bright",
-	"sgr-cyan-bright",
-	"sgr-white-bright",
-}

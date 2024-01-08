@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 
+	"github.com/lmorg/mxtty/codes"
 	"github.com/lmorg/mxtty/psuedotty"
 	"github.com/lmorg/mxtty/typeface"
 	"github.com/lmorg/mxtty/virtualterm"
@@ -91,10 +92,15 @@ func main() {
 				running = false
 			case *sdl.TextInputEvent:
 				pty.Secondary.WriteString(evt.GetText())
+
 			case *sdl.KeyboardEvent:
 				switch evt.Keysym.Sym {
+				case sdl.K_TAB:
+					pty.Secondary.Write([]byte{'\t'})
 				case sdl.K_RETURN:
-					pty.Secondary.WriteString("\n")
+					pty.Secondary.Write([]byte{'\n'})
+				case sdl.K_BACKSPACE:
+					pty.Secondary.Write([]byte{codes.AsciiBackspace})
 				}
 			}
 		}

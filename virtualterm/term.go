@@ -1,6 +1,7 @@
 package virtualterm
 
 import (
+	"log"
 	"sync"
 	"time"
 
@@ -12,7 +13,7 @@ type Term struct {
 	cells  [][]cell
 	size   xy
 	curPos xy
-	sgr    sgr
+	sgr    *sgr
 	mutex  sync.Mutex
 }
 
@@ -74,6 +75,7 @@ func NewTerminal(x, y int32) *Term {
 	term := &Term{
 		cells: cells,
 		size:  xy{x, y},
+		sgr:   new(sgr),
 	}
 
 	go term.blink()
@@ -81,13 +83,24 @@ func NewTerminal(x, y int32) *Term {
 }
 
 func (term *Term) blink() {
-	var state bool
+	var (
+		state bool
+		err   error
+	)
+
 	for {
 		time.Sleep(500 * time.Millisecond)
-		//term.mutex.Lock()
-		window.PrintBlink(state, int32(term.curPos.X), int32(term.curPos.Y))
-		window.Update()
-		//term.mutex.Unlock()
+
+		err = window.PrintBlink(state, int32(term.curPos.X), int32(term.curPos.Y))
+		if err != nil {
+			log.Printf("error in %s: %s", "window.PrintBlink()", err.Error())
+		}
+
+		err = window.Update()
+		if err != nil {
+			log.Printf("error in %s: %s", "window.Update()", err.Error())
+		}
+
 		state = !state
 	}
 }
@@ -117,6 +130,10 @@ func (c *cell) clear() {
 // moveCursor functions DON'T effect other contents in the grid
 
 func (term *Term) moveCursorBackwards(i int32) (overflow int32) {
+	if i < 0 {
+		i = 1
+	}
+
 	term.curPos.X -= i
 	if term.curPos.X < 0 {
 		overflow = term.curPos.X * -1
@@ -127,6 +144,10 @@ func (term *Term) moveCursorBackwards(i int32) (overflow int32) {
 }
 
 func (term *Term) moveCursorForwards(i int32) (overflow int32) {
+	if i < 0 {
+		i = 1
+	}
+
 	term.curPos.X += i
 	if term.curPos.X >= term.size.X {
 		overflow = term.curPos.X - (term.size.X - 1)
@@ -137,6 +158,10 @@ func (term *Term) moveCursorForwards(i int32) (overflow int32) {
 }
 
 func (term *Term) moveCursorUpwards(i int32) (overflow int32) {
+	if i < 0 {
+		i = 1
+	}
+
 	term.curPos.Y -= i
 	if term.curPos.Y < 0 {
 		overflow = term.curPos.Y * -1
@@ -147,6 +172,10 @@ func (term *Term) moveCursorUpwards(i int32) (overflow int32) {
 }
 
 func (term *Term) moveCursorDownwards(i int32) (overflow int32) {
+	if i < 0 {
+		i = 1
+	}
+
 	term.curPos.Y += i
 	if term.curPos.Y >= term.size.Y {
 		overflow = term.curPos.Y - (term.size.Y - 1)
@@ -178,14 +207,6 @@ func (term *Term) wrapCursorForwards() {
 		if overflow > 0 && term.moveCursorDownwards(1) > 0 {
 			term.moveContentsUp()
 			term.moveCursorDownwards(1)
-		}
-	}
-}
-
-func (term *Term) eraseDisplayAfter() {
-	for y := term.curPos.Y; y < term.size.Y; y++ {
-		for x := term.curPos.X; x < term.size.X; x++ {
-			term.cells[y][x].clear()
 		}
 	}
 }

@@ -28,11 +28,6 @@ func NewPTY(width, height int32) (*PTY, error) {
 		return nil, fmt.Errorf("unable to set pty size: %s", err.Error())
 	}
 
-	/*_, err = readline.MakeRaw(int(tty.Fd()))
-	if err != nil {
-		return nil, fmt.Errorf("unable to set pty state: %s", err.Error())
-	}*/
-
 	p := new(PTY)
 	p.Primary = primary
 	p.Secondary = secondary

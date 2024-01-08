@@ -53,7 +53,7 @@ only aspirational.
 
 ## How To Support
 
-Regardless of your time and skillset, there are multiple ways you can support
+Regardless of your time and skill set, there are multiple ways you can support
 this project:
 
 - **contributing code**: This could be bug fixes, new features, or even just

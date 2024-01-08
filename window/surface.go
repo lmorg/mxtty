@@ -82,6 +82,32 @@ func PrintRune(r rune, posX, posY int32) error {
 	return nil
 }
 
+func PrintRuneColour(r rune, posX, posY int32, colour *sdl.Color) error {
+	rect := &sdl.Rect{
+		X: (glyphSize.Width * posX) + border,
+		Y: (glyphSize.Height * posY) + border,
+		W: glyphSize.Width,
+		H: glyphSize.Height,
+	}
+
+	text, err := font.RenderGlyphSolid(r, *colour)
+	if err != nil {
+		return err
+	}
+	defer text.Free()
+
+	err = surface.FillRect(rect, 0)
+	if err != nil {
+		return err
+	}
+	err = text.Blit(nil, surface, rect)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 var blinkColour = map[bool]sdl.Color{
 	true:  {R: 255, G: 255, B: 255, A: 255},
 	false: {R: 0, G: 0, B: 0, A: 255},

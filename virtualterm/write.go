@@ -1,16 +1,19 @@
 package virtualterm
 
-const (
-	charEsc           = 27
-	charBackspaceIso  = 8
-	charBackspaceAnsi = 127
+import (
+	"log"
+	"regexp"
+
+	"github.com/lmorg/mxtty/codes"
 )
 
 func (term *Term) writeCell(r rune) {
 	term.cell().char = r
-	term.cell().sgr = &term.sgr
+	term.cell().sgr = term.sgr
 	term.wrapCursorForwards()
 }
+
+var rxLazyCsiCheck = regexp.MustCompile(`\[[;\?a-zA-Z0-9]+`)
 
 // Write multiple characters to the virtual terminal
 func (term *Term) Write(text []rune) {
@@ -22,18 +25,37 @@ func (term *Term) Write(text []rune) {
 
 	for i := 0; i < len(text); i++ {
 		switch text[i] {
-		case charBackspaceIso, charBackspaceAnsi:
+		case codes.AsciiEscape:
+			escape = true
+			continue
+
+		case codes.AsciiBackspace, codes.IsoBackspace:
 			_ = term.moveCursorBackwards(1)
 
-		case charEsc:
-			escape = true
+		case codes.AsciiCtrlG: // bell
+			// TODO: beep
 
 		case '[':
-			if escape {
-				i += parseSgr(term, text[i-1:])
+			if !escape {
+				term.writeCell(text[i])
 				continue
 			}
-			term.writeCell(text[i])
+			escape = false
+			start := i
+			i += parseCsiCodes(term, text[i-1:])
+			if !rxLazyCsiCheck.MatchString(string(text[start : i+1])) {
+				log.Printf("Invalid CSI code parsed: %v", []byte(string(text[start:i+1])))
+			}
+
+		case ']': // TODO: OSC
+			start := i
+			for ; i < len(text); i++ {
+				if text[i] == 'S' && i < len(text) && text[i+1] == 'T' {
+					i += 2
+					break
+				}
+			}
+			log.Printf("TODO: OSC sequences: '%s'", string(text[start:i]))
 
 		case '\t':
 			indent := int(4 - (term.curPos.X % 4))
@@ -52,103 +74,17 @@ func (term *Term) Write(text []rune) {
 
 		default:
 			term.writeCell(text[i])
-
 		}
+		escape = false
 	}
 
 	term.mutex.Unlock()
 }
 
-func parseSgr(term *Term, text []rune) int {
-	i := 2
-
-	var n rune
-
-	for ; i < len(text); i++ {
-		switch {
-		case text[i] >= '0' && '9' >= text[i]:
-			n = (n * 10) + (text[i] - 48)
-
-		case text[i] == 'm': // SGR
-			lookupSgr(term, n)
-			return i - 1
-
-		case text[i] == 'A': // moveCursorUp
-			term.moveCursorUpwards(int32(n))
-			return i - 1
-
-		case text[i] == 'B': // moveCursorDown
-			term.moveCursorDownwards(int32(n))
-			return i - 1
-
-		case text[i] == 'C': // moveCursorForwards
-			term.moveCursorForwards(int32(n))
-			return i - 1
-
-		case text[i] == 'D': // moveCursorBackwards
-			term.moveCursorBackwards(int32(n))
-			return i - 1
-
-		case text[i] == 'J': // eraseDisplay...
-			if n == 0 {
-				term.eraseDisplayAfter()
-			}
-
-		default:
-			return i - 1
-		}
+func multiplyN(n *int32, r rune) {
+	if *n < 0 {
+		*n = 0
 	}
-	return i
-}
 
-func lookupSgr(term *Term, n rune) {
-	switch n {
-	case 0: // reset / normal
-		term.sgrReset()
-
-	case 1: // bold
-		term.sgrEffect(sgrBold)
-
-	case 4: // underscore
-		term.sgrEffect(sgrUnderscore)
-
-	case 5: // blink
-		term.sgrEffect(sgrBlink)
-
-		//
-		// 4bit foreground colour:
-		//
-
-	case 30: // fg black
-		term.sgrEffect(sgrFgColour4)
-		term.sgr.fg.Red = sgrColour4Black
-
-	case 31: // fg red
-		term.sgrEffect(sgrFgColour4)
-		term.sgr.fg.Red = sgrColour4Red
-
-	case 32: // fg green
-		term.sgrEffect(sgrFgColour4)
-		term.sgr.fg.Red = sgrColour4Green
-
-	case 33: // fg yellow
-		term.sgrEffect(sgrFgColour4)
-		term.sgr.fg.Red = sgrColour4Yellow
-
-	case 34: // fg blue
-		term.sgrEffect(sgrFgColour4)
-		term.sgr.fg.Red = sgrColour4Blue
-
-	case 35: // fg magenta
-		term.sgrEffect(sgrFgColour4)
-		term.sgr.fg.Red = sgrColour4Magenta
-
-	case 36: // fg cyan
-		term.sgrEffect(sgrFgColour4)
-		term.sgr.fg.Red = sgrColour4Cyan
-
-	case 37: // fg white
-		term.sgrEffect(sgrFgColour4)
-		term.sgr.fg.Red = sgrColour4White
-	}
+	*n = (*n * 10) + (r - 48)
 }

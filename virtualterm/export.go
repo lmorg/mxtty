@@ -40,6 +40,7 @@ func (t *Term) ExportMxTTY() {
 	for y = 0; int(y) < len(t.cells); y++ {
 		for x = 0; int(x) < len(t.cells[y]); x++ {
 			if t.cells[y][x].char != 0 {
+				//t.cells[y][x].
 				err = window.PrintRune(t.cells[y][x].char, x, y)
 			} else {
 				err = window.PrintRune(' ', x, y)
