@@ -20,7 +20,6 @@ func (term *Term) writeCell(r rune) {
 	term.cell().char = r
 	term.cell().sgr = term.sgr.Copy()
 	term.curPos.X++
-	//term.wrapCursorForwards()
 }
 
 // Write multiple characters to the virtual terminal
@@ -35,16 +34,9 @@ func (term *Term) printLoop() {
 		term.mutex.Lock()
 
 		switch r {
+
 		case codes.AsciiEscape:
-			r = term.Pty.ReadRune()
-			switch r {
-			case '[': // CSI code
-				term.parseCsiCodes()
-			case ']': // OSC code
-				term.parseOscCodes()
-			default:
-				term.writeCell(r)
-			}
+			term.parseC1Codes()
 
 		case codes.AsciiBackspace, codes.IsoBackspace:
 			_ = term.moveCursorBackwards(1)
