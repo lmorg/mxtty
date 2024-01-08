@@ -26,7 +26,7 @@ func (term *Term) parseCsiCodes() {
 	)
 
 	for {
-		r = term.Pty.ReadRune()
+		r = term.Pty.Read()
 		cache = append(cache, r)
 		if r >= '0' && '9' >= r {
 			multiplyN(n, r)
@@ -303,7 +303,7 @@ func (term *Term) parseCsiExtendedCodes() []rune {
 	)
 
 	for {
-		r = term.Pty.ReadRune()
+		r = term.Pty.Read()
 		code = append(code, r)
 		if isCsiTerminator(r) {
 			return code

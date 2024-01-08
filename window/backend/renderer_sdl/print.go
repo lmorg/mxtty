@@ -9,8 +9,8 @@ import (
 func (sr *sdlRender) PrintRuneColour(r rune, posX, posY int32, fg *types.Colour, bg *types.Colour, style types.SgrFlag) error {
 	//log.Printf("debug: r %d pos %d:%d, fg: %v, bg %v", r, posX, posY, *fg, *bg)
 	rect := &sdl.Rect{
-		X: (sr.glyphSize.X * posX) + border,
-		Y: (sr.glyphSize.Y * posY) + border,
+		X: (sr.glyphSize.X * posX) + sr.border,
+		Y: (sr.glyphSize.Y * posY) + sr.border,
 		W: sr.glyphSize.X,
 		H: sr.glyphSize.Y,
 	}

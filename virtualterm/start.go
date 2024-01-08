@@ -6,7 +6,7 @@ import (
 	"syscall"
 
 	"github.com/lmorg/mxtty/app"
-	"github.com/lmorg/mxtty/psuedotty"
+	"github.com/lmorg/mxtty/types"
 )
 
 var ENV_VARS = []string{
@@ -14,8 +14,8 @@ var ENV_VARS = []string{
 	"MXTTY_VERSION=" + app.Version(),
 }
 
-func (term *Term) Start(p *psuedotty.PTY, shell string) {
-	term.Pty = p
+func (term *Term) Start(pty types.Pty, shell string) {
+	term.Pty = pty
 
 	go term.exec(shell)
 	go term.printLoop()
@@ -25,9 +25,9 @@ func (term *Term) Start(p *psuedotty.PTY, shell string) {
 func (term *Term) exec(command string) {
 	cmd := exec.Command(command)
 	cmd.Env = append(os.Environ(), ENV_VARS...)
-	cmd.Stdin = term.Pty.Primary
-	cmd.Stdout = term.Pty.Primary
-	cmd.Stderr = term.Pty.Primary
+	cmd.Stdin = term.Pty.File()
+	cmd.Stdout = term.Pty.File()
+	cmd.Stderr = term.Pty.File()
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Noctty:  false,
 		Setctty: true,

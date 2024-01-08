@@ -14,10 +14,10 @@ func (term *Term) parseOscCodes() {
 	)
 
 	for {
-		r = term.Pty.ReadRune()
+		r = term.Pty.Read()
 		text = append(text, r)
 		if r == codes.AsciiEscape {
-			r = term.Pty.ReadRune()
+			r = term.Pty.Read()
 			if r == '\\' { // ST (OSC terminator)
 				break
 			}
@@ -37,6 +37,9 @@ func (term *Term) parseOscCodes() {
 
 	case "2": // change window title
 		term.renderer.SetWindowTitle(stack[1])
+
+	case "1337":
+		//$(osc)1337;File=inline=1:${base64 -i $file -o -}
 
 	default:
 		log.Printf("Unknown OSC code %s: %s", stack[0], string(text[:len(text)-1]))

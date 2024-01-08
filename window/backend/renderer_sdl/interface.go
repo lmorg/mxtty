@@ -15,6 +15,7 @@ type sdlRender struct {
 	font      *ttf.Font
 	glyphSize *types.Rect
 	termSize  *types.Rect
+	border    int32
 
 	title       string
 	updateTitle int32

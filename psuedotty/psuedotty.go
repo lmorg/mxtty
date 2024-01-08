@@ -12,12 +12,12 @@ import (
 )
 
 type PTY struct {
-	Primary   *os.File
-	Secondary *os.File
+	primary   *os.File
+	secondary *os.File
 	stream    chan rune
 }
 
-func NewPTY(size *types.Rect) (*PTY, error) {
+func NewPTY(size *types.Rect) (types.Pty, error) {
 	secondary, primary, err := pty.Open()
 	if err != nil {
 		return nil, fmt.Errorf("unable to open pty: %s", err.Error())
@@ -32,14 +32,23 @@ func NewPTY(size *types.Rect) (*PTY, error) {
 	}
 
 	p := &PTY{
-		Primary:   primary,
-		Secondary: secondary,
+		primary:   primary,
+		secondary: secondary,
 		stream:    make(chan rune),
 	}
 
 	go p.write()
 
 	return p, err
+}
+
+func (p *PTY) File() *os.File {
+	return p.primary
+}
+
+func (p *PTY) Write(b []byte) error {
+	_, err := p.secondary.Write(b)
+	return err
 }
 
 func (p *PTY) write() {
@@ -50,7 +59,7 @@ func (p *PTY) write() {
 	)
 
 	for {
-		n, err := p.Secondary.Read(b)
+		n, err := p.secondary.Read(b)
 		if err != nil && err.Error() != io.EOF.Error() {
 			log.Printf("ERROR: problem reading from PTY (%d bytes dropped): %s", n, err.Error())
 			continue
@@ -88,6 +97,6 @@ func runeLength(b byte) int {
 	}
 }
 
-func (p *PTY) ReadRune() rune {
+func (p *PTY) Read() rune {
 	return <-p.stream
 }

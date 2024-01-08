@@ -13,10 +13,10 @@ func (term *Term) parsePmCodes() {
 	)
 
 	for {
-		r = term.Pty.ReadRune()
+		r = term.Pty.Read()
 		text = append(text, r)
 		if r == codes.AsciiEscape {
-			r = term.Pty.ReadRune()
+			r = term.Pty.Read()
 			if r == '\\' { // ST (PM terminator)
 				break
 			}

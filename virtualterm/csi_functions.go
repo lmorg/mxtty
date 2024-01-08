@@ -46,7 +46,7 @@ func (term *Term) csiWindowTitleStackRestoreFrom() {
 
 func (term *Term) csiCallback(format string, v ...any) {
 	msg := fmt.Sprintf(format, v...)
-	_, err := term.Pty.Secondary.WriteString(codes.Csi + msg)
+	err := term.Pty.Write([]byte(codes.Csi + msg))
 	if err != nil {
 		log.Printf("ERROR: writing callback message '%s': %s", msg, err.Error())
 	}

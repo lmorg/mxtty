@@ -4,7 +4,6 @@ import (
 	"log"
 	"sync"
 
-	"github.com/lmorg/mxtty/psuedotty"
 	"github.com/lmorg/mxtty/types"
 )
 
@@ -14,7 +13,7 @@ type Term struct {
 	curPos   types.Rect
 	sgr      *sgr
 	renderer types.Renderer
-	Pty      *psuedotty.PTY
+	Pty      types.Pty
 	_mutex   sync.Mutex
 
 	_slowBlinkState bool
@@ -120,7 +119,7 @@ func (term *Term) previousCell() (*cell, *types.Rect) {
 	return &(*term.cells)[pos.Y][pos.X], &pos
 }
 
-func (term *Term) CopyCells(src [][]cell) [][]cell {
+/*func (term *Term) CopyCells(src [][]cell) [][]cell {
 	dst := make([][]cell, len(src))
 	for y := range src {
 		dst[y] = make([]cell, len(src[y]))
@@ -131,7 +130,7 @@ func (term *Term) CopyCells(src [][]cell) [][]cell {
 	}
 
 	return dst
-}
+}*/
 
 type scrollRegionT struct {
 	Top    int32
@@ -148,4 +147,8 @@ func (term *Term) getScrollRegion() (top int32, bottom int32) {
 	}
 
 	return
+}
+
+func (term *Term) Return(b []byte) error {
+	return term.Pty.Write(b)
 }

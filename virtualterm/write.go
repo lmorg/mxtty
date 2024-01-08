@@ -27,7 +27,7 @@ func (term *Term) printLoop() {
 	var r rune
 
 	for {
-		r = term.Pty.ReadRune()
+		r = term.Pty.Read()
 		term._slowBlinkState = true
 		//log.Printf("DEBUG: read rune %d [pos: %d:%d] [size: %d:%d]", r, term.curPos.X, term.curPos.Y, term.size.X, term.size.Y)
 

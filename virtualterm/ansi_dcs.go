@@ -13,10 +13,10 @@ func (term *Term) parseDcsCodes() {
 	)
 
 	for {
-		r = term.Pty.ReadRune()
+		r = term.Pty.Read()
 		text = append(text, r)
 		if r == codes.AsciiEscape {
-			r = term.Pty.ReadRune()
+			r = term.Pty.Read()
 			if r == '\\' { // ST (DCS terminator)
 				break
 			}

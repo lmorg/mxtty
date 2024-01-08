@@ -3,7 +3,7 @@ package virtualterm
 import "log"
 
 func (term *Term) parseC1Codes() {
-	r := term.Pty.ReadRune()
+	r := term.Pty.Read()
 	switch r {
 	case '[': // CSI code
 		term.parseCsiCodes()
@@ -21,31 +21,31 @@ func (term *Term) parseC1Codes() {
 		term.parseApcCodes()
 
 	case ' ', '#', '%': // 7/8bit controls / ANSI conformance level / character set
-		param := term.Pty.ReadRune() // ignore these sequences
+		param := term.Pty.Read() // ignore these sequences
 		log.Printf("DEBUG: Ignored '{ESC}%s%s' sequence", string(r), string(param))
 
 	case '(': // Designate G0 Character Set (ISO 2022)
-		param := term.Pty.ReadRune()
+		param := term.Pty.Read()
 		log.Printf("TODO: Unhandled escape sequence: {ESC}%s%s", string(r), string(param))
 
 	case ')': // Designate G1 Character Set (ISO 2022)
-		param := term.Pty.ReadRune()
+		param := term.Pty.Read()
 		log.Printf("TODO: Unhandled escape sequence: {ESC}%s%s", string(r), string(param))
 
 	case '*': // Designate G2 Character Set (ISO 2022)
-		param := term.Pty.ReadRune()
+		param := term.Pty.Read()
 		log.Printf("TODO: Unhandled escape sequence: {ESC}%s%s", string(r), string(param))
 
 	case '+': // Designate G3 Character Set (ISO 2022)
-		param := term.Pty.ReadRune()
+		param := term.Pty.Read()
 		log.Printf("TODO: Unhandled escape sequence: {ESC}%s%s", string(r), string(param))
 
 	case '.': // Designate G2 Character Set, VT300.
-		param := term.Pty.ReadRune()
+		param := term.Pty.Read()
 		log.Printf("TODO: Unhandled escape sequence: {ESC}%s%s", string(r), string(param))
 
 	case '/': // Designate G3 Character Set, VT300.
-		param := term.Pty.ReadRune()
+		param := term.Pty.Read()
 		log.Printf("TODO: Unhandled escape sequence: {ESC}%s%s", string(r), string(param))
 
 	case '=': // Application Keypad (DECPAM)
