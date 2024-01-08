@@ -50,13 +50,10 @@ func (term *Term) readChar(r rune) {
 		term.printTab()
 
 	case codes.AsciiCtrlJ: // \n (12)
-		if term.csiMoveCursorDownwards(1) > 0 {
-			term.csiScrollUp(1)
-			term.csiMoveCursorDownwards(1)
-		}
+		term.lineFeed()
 
 	case codes.AsciiCtrlM: // \r (13)
-		term.curPos.X = 0
+		term.carriageReturn()
 
 	case codes.AsciiEscape: // (27)
 		term.parseC1Codes()
@@ -74,5 +71,23 @@ func (term *Term) printTab() {
 	indent := int(4 - (term.curPos.X % term._tabWidth))
 	for i := 0; i < indent; i++ {
 		term.writeCell(' ')
+	}
+}
+
+func (term *Term) carriageReturn() {
+	term.curPos.X = 0
+}
+
+func (term *Term) lineFeed() {
+	if term.csiMoveCursorDownwards(1) > 0 {
+		term.csiScrollUp(1)
+		term.csiMoveCursorDownwards(1)
+	}
+}
+
+func (term *Term) ReverseLineFeed() {
+	if term.csiMoveCursorUpwards(1) > 0 {
+		term.csiScrollDown(1)
+		term.csiMoveCursorUpwards(1)
 	}
 }
