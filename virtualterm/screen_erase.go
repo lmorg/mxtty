@@ -51,3 +51,25 @@ func (term *Term) eraseLine() {
 		(*term.cells)[term.curPos.Y][x].clear()
 	}
 }
+
+/*
+	DELETE
+*/
+
+func (term *Term) deleteCharacters(n int32) {
+	if n < 1 {
+		n = 1
+	}
+
+	if term.curPos.X+n >= term.size.X {
+		n = term.size.X - term.curPos.X
+	}
+
+	for i := int32(0); i < term.size.X-term.curPos.X; i++ {
+		if term.curPos.X+i+n < term.size.X {
+			(*term.cells)[term.curPos.Y][term.curPos.X+i] = (*term.cells)[term.curPos.Y][term.curPos.X+i+n]
+		} else {
+			(*term.cells)[term.curPos.Y][term.curPos.X+i].clear()
+		}
+	}
+}

@@ -111,19 +111,6 @@ func (term *Term) scrollDown(n int32) {
 	}
 }
 
-func (term *Term) _debug_FillRowWithDots() []cell {
-	row := make([]cell, term.size.X)
-	for i := range row {
-		row[i].char = '·'
-		row[i].sgr = &sgr{
-			fg: SGR_COLOUR_BLACK_BRIGHT,
-			bg: SGR_DEFAULT.bg,
-		}
-	}
-
-	return row
-}
-
 func (term *Term) moveCursorToPos(x, y int32) {
 	if x < 0 {
 		x = 0 //term.curPos.X

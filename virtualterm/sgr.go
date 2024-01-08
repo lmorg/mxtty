@@ -15,8 +15,8 @@ func (s *sgr) Reset() {
 }
 
 func (c *cell) clear() {
-	c.char = 0
-	c.sgr = &sgr{}
+	c.char = _DEBUG_CHAR //0
+	c.sgr = _DEBUG_SGR   //&sgr{}
 }
 
 func (s *sgr) Copy() *sgr {

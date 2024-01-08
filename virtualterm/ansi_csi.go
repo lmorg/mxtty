@@ -98,6 +98,10 @@ func (term *Term) parseCsiCodes() {
 		case 'm': // SGR
 			lookupSgr(term.sgr, stack[0], stack)
 
+		case 'M': // Delete Ps Line(s) (default = 1) (DL).
+		case 'P': // Delete Ps Character(s) (default = 1) (DCH).
+			term.deleteCharacters(*n)
+
 		case 'r': // Set Scrolling Region [top;bottom] (default = full size of window) (DECSTBM)
 			if len(stack) != 2 {
 				log.Printf("Unexpected number of parameters in CSI r (%s): %v", string(cache), stack)
