@@ -20,6 +20,7 @@ func (term *Term) printLoop() {
 
 	for {
 		r = term.Pty.ReadRune()
+		term.slowBlinkState = true
 
 		switch r {
 		case codes.AsciiEscape:

@@ -1,10 +1,8 @@
 package virtualterm
 
 import (
-	"sync"
-
 	"github.com/lmorg/mxtty/psuedotty"
-	"github.com/lmorg/mxtty/virtualterm/types"
+	"github.com/lmorg/mxtty/types"
 )
 
 // Term is the display state of the virtual term
@@ -13,7 +11,6 @@ type Term struct {
 	size     *types.Rect
 	curPos   types.Rect
 	sgr      *sgr
-	mutex    sync.Mutex
 	tabWidth int32
 	renderer *types.Renderer
 	Pty      *psuedotty.PTY
@@ -51,13 +48,8 @@ func (term *Term) GetSize() *types.Rect {
 
 func (term *Term) cell() *cell {
 	if term.curPos.X >= term.size.X {
-		//log.Printf("out of bounds caught: term.curPos.X >= term.size.X")
-		//term.curPos.X = term.size.X - 1
 		term.wrapCursorForwards()
 	}
-	//if term.curPos.Y >= term.size.Y {
-	//	log.Printf("out of bounds caught: term.curPos.Y >= term.size.Y")
-	//	term.curPos.Y = term.size.Y - 1
-	//}
+
 	return &term.cells[term.curPos.Y][term.curPos.X]
 }

@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/creack/pty"
-	"github.com/lmorg/mxtty/virtualterm/types"
+	"github.com/lmorg/mxtty/types"
 )
 
 type PTY struct {

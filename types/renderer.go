@@ -4,8 +4,7 @@ type Renderer struct {
 	Size           *Rect
 	Close          func()
 	Update         func() error
-	PrintRuneColor func(r rune, posX, posY int32, fg *Colour, bg *Colour) error
-	PrintBlink     func(state bool, posX, posY int32) error
+	PrintRuneColor func(r rune, posX, posY int32, fg *Colour, bg *Colour, style SgrFlag) error
 }
 
 type Colour struct {

@@ -1,11 +1,12 @@
 package rendersdl
 
 import (
-	"github.com/lmorg/mxtty/virtualterm/types"
+	"github.com/lmorg/mxtty/types"
 	"github.com/veandco/go-sdl2/sdl"
+	"github.com/veandco/go-sdl2/ttf"
 )
 
-func printRuneColour(r rune, posX, posY int32, fg *types.Colour, bg *types.Colour) error {
+func printRuneColour(r rune, posX, posY int32, fg *types.Colour, bg *types.Colour, style types.SgrFlag) error {
 	//log.Printf("debug: r %d pos %d:%d, fg: %v, bg %v", r, posX, posY, *fg, *bg)
 	rect := &sdl.Rect{
 		X: (glyphSize.X * posX) + border,
@@ -13,6 +14,8 @@ func printRuneColour(r rune, posX, posY int32, fg *types.Colour, bg *types.Colou
 		W: glyphSize.X,
 		H: glyphSize.Y,
 	}
+
+	font.SetStyle(fontStyle(style))
 
 	text, err := font.RenderGlyphSolid(r, sdl.Color{R: fg.Red, G: fg.Green, B: fg.Blue, A: 255})
 	if err != nil {
@@ -34,32 +37,26 @@ func printRuneColour(r rune, posX, posY int32, fg *types.Colour, bg *types.Colou
 	return nil
 }
 
-var blinkColour = map[bool]sdl.Color{
-	true:  {R: 255, G: 255, B: 255, A: 255},
-	false: {R: 0, G: 0, B: 0, A: 255},
-}
+func fontStyle(style types.SgrFlag) int {
+	var i int
 
-func printBlink(state bool, posX, posY int32) error {
-	text, err := font.RenderGlyphSolid('_', blinkColour[state])
-	if err != nil {
-		return err
-	}
-	defer text.Free()
-
-	rect := &sdl.Rect{
-		X: (glyphSize.X * posX) + border,
-		Y: (glyphSize.Y * posY) + border,
-		//W: glyphSize.Width,
-		//H: glyphSize.Height,
+	if style.Is(types.SGR_BOLD) {
+		i |= ttf.STYLE_BOLD
 	}
 
-	// Draw the text around the center of the window
-	err = text.Blit(nil, surface, rect)
-	if err != nil {
-		return err
+	if style.Is(types.SGR_ITALIC) {
+		i |= ttf.STYLE_ITALIC
 	}
 
-	return nil
+	if style.Is(types.SGR_UNDERLINE) {
+		i |= ttf.STYLE_UNDERLINE
+	}
+
+	if style.Is(types.SGR_STRIKETHROUGH) {
+		i |= ttf.STYLE_STRIKETHROUGH
+	}
+
+	return i
 }
 
 func update() error {

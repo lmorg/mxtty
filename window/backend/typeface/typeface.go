@@ -2,7 +2,7 @@ package typeface
 
 import (
 	"github.com/flopp/go-findfont"
-	"github.com/lmorg/mxtty/virtualterm/types"
+	"github.com/lmorg/mxtty/types"
 	"github.com/veandco/go-sdl2/sdl"
 	"github.com/veandco/go-sdl2/ttf"
 )
@@ -30,6 +30,8 @@ func Open(name string, size int) (*ttf.Font, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	font.SetHinting(ttf.HINTING_MONO)
 
 	fontSize, err = getSize(font)
 	return font, err

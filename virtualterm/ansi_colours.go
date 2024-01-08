@@ -1,6 +1,6 @@
 package virtualterm
 
-import "github.com/lmorg/mxtty/virtualterm/types"
+import "github.com/lmorg/mxtty/types"
 
 var (
 	SGR_COLOUR_BLACK   = &types.Colour{}
