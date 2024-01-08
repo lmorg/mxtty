@@ -5,6 +5,7 @@ import (
 
 	"github.com/lmorg/mxtty/types"
 	"github.com/lmorg/mxtty/window/backend/typeface"
+	"github.com/veandco/go-sdl2/mix"
 	"github.com/veandco/go-sdl2/sdl"
 	"github.com/veandco/go-sdl2/ttf"
 )
@@ -19,6 +20,9 @@ type sdlRender struct {
 
 	title       string
 	updateTitle int32
+
+	// audio
+	bell *mix.Music
 }
 
 func (sr *sdlRender) Size() *types.XY {
@@ -39,6 +43,13 @@ func (sr *sdlRender) Resize() *types.XY {
 func (sr *sdlRender) Close() {
 	typeface.Close()
 	sr.window.Destroy()
+
+	if sr.bell != nil {
+		sr.bell.Free()
+		mix.CloseAudio()
+		mix.Quit()
+	}
+
 	sdl.Quit()
 }
 

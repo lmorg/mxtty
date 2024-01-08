@@ -60,12 +60,14 @@ func (sr *sdlRender) createWindow(caption string) error {
 		return err
 	}
 
+	sr.initBell()
+
 	sr.surface, err = sr.window.GetSurface()
 	return err
 }
 
 func (sr *sdlRender) setIcon() error {
-	rwops, err := sdl.RWFromMem(assets.Get(assets.ICON_BMP))
+	rwops, err := sdl.RWFromMem(assets.Get(assets.ICON_APP))
 	if err != nil {
 		return err
 	}
