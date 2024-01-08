@@ -188,7 +188,7 @@ func lookupSgr(sgr *sgr, n int32) {
 		sgr.bg = sgrColour4White
 
 	case 49: // bg default
-		sgr.fg = SGR_DEFAULT.bg
+		sgr.bg = SGR_DEFAULT.bg
 
 	default:
 		log.Printf("Unknown SGR code: %d", n)

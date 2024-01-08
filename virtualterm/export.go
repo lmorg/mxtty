@@ -41,11 +41,9 @@ func (term *Term) ExportMxTTY() {
 		for x = 0; int(x) < len(term.cells[y]); x++ {
 			if term.cells[y][x].char != 0 {
 				fg, bg := sgrOpts(term.cells[y][x].sgr)
-				//err = window.PrintRuneColour(term.cells[y][x].char, x, y, fg, bg)
 				err = term.renderer.PrintRuneColor(term.cells[y][x].char, x, y, fg, bg)
 			} else {
 				fg, bg := sgrOpts(SGR_DEFAULT)
-				//err = window.PrintRuneColour(' ', x, y, fg, bg)
 				err = term.renderer.PrintRuneColor(' ', x, y, fg, bg)
 			}
 			if err != nil {
@@ -56,7 +54,6 @@ func (term *Term) ExportMxTTY() {
 
 	term.mutex.Unlock()
 
-	//err = window.Update()
 	err = term.renderer.Update()
 	if err != nil {
 		log.Printf("error in %s [x: %d, y: %d]: %s", "(t *Term) ExportMxTTY()", x, y, err.Error())
