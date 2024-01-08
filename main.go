@@ -15,8 +15,8 @@ func main() {
 	renderer := backend.Start()
 	defer renderer.Close()
 
-	virtTerm := virtualterm.NewTerminal(renderer)
-	pty, err := psuedotty.NewPTY(virtTerm)
+	term := virtualterm.NewTerminal(renderer)
+	pty, err := psuedotty.NewPTY(term.GetSize())
 	if err != nil {
 		panic(err.Error())
 	}

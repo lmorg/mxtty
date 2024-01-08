@@ -2,10 +2,10 @@ package virtualterm
 
 import (
 	"log"
-	"os"
 	"sync"
 	"time"
 
+	"github.com/lmorg/mxtty/psuedotty"
 	"github.com/lmorg/mxtty/virtualterm/types"
 )
 
@@ -18,7 +18,7 @@ type Term struct {
 	mutex    sync.Mutex
 	tabWidth int32
 	renderer *types.Renderer
-	Pty      *os.File
+	Pty      *psuedotty.PTY
 }
 
 type cell struct {
@@ -70,8 +70,8 @@ func (term *Term) blink() {
 }
 
 // GetSize outputs mirror those from terminal and readline packages
-func (term *Term) GetSize() (int32, int32, error) {
-	return term.size.X, term.size.Y, nil
+func (term *Term) GetSize() *types.Rect {
+	return term.size
 }
 
 func (term *Term) cell() *cell {

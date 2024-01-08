@@ -94,6 +94,7 @@ func parseCsiCodes(term *Term, text []rune) int {
 		n, err := term.Pty.Read(p)
 		if err != nil {
 			log.Printf("error reading from buffer (%d bytes dropped): %s", n, err.Error())
+			i--
 			continue
 		}
 		r := []rune(string(p[:n]))
