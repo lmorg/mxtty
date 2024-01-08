@@ -6,8 +6,8 @@ import (
 	rendersdl "github.com/lmorg/mxtty/window/backend/renderer_sdl"
 )
 
-func Initialise() types.Renderer {
-	return rendersdl.Initialise()
+func Initialise(fontName string, fontSize int) types.Renderer {
+	return rendersdl.Initialise(fontName, fontSize)
 }
 
 func Start(term *virtualterm.Term) {

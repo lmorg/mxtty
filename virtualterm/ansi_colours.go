@@ -3,28 +3,54 @@ package virtualterm
 import "github.com/lmorg/mxtty/types"
 
 var (
-	SGR_COLOUR_BLACK   = &types.Colour{}
-	SGR_COLOUR_RED     = &types.Colour{Red: 200}
-	SGR_COLOUR_GREEN   = &types.Colour{Green: 200}
-	SGR_COLOUR_YELLOW  = &types.Colour{Red: 200, Green: 200}
-	SGR_COLOUR_BLUE    = &types.Colour{Blue: 200}
-	SGR_COLOUR_MAGENTA = &types.Colour{Red: 200, Blue: 200}
-	SGR_COLOUR_CYAN    = &types.Colour{Green: 200, Blue: 200}
-	SGR_COLOUR_WHITE   = &types.Colour{Red: 200, Green: 200, Blue: 200}
+	/*
+		SGR_COLOUR_BLACK   = &types.Colour{}
+		SGR_COLOUR_RED     = &types.Colour{Red: 200}
+		SGR_COLOUR_GREEN   = &types.Colour{Green: 200}
+		SGR_COLOUR_YELLOW  = &types.Colour{Red: 200, Green: 200}
+		SGR_COLOUR_BLUE    = &types.Colour{Blue: 200}
+		SGR_COLOUR_MAGENTA = &types.Colour{Red: 200, Blue: 200}
+		SGR_COLOUR_CYAN    = &types.Colour{Green: 200, Blue: 200}
+		SGR_COLOUR_WHITE   = &types.Colour{Red: 200, Green: 200, Blue: 200}
 
-	SGR_COLOUR_BLACK_BRIGHT   = &types.Colour{Red: 100, Green: 100, Blue: 100}
-	SGR_COLOUR_RED_BRIGHT     = &types.Colour{Red: 255}
-	SGR_COLOUR_GREEN_BRIGHT   = &types.Colour{Green: 255}
-	SGR_COLOUR_YELLOW_BRIGHT  = &types.Colour{Red: 255, Green: 255}
-	SGR_COLOUR_BLUE_BRIGHT    = &types.Colour{Blue: 255}
-	SGR_COLOUR_MAGENTA_BRIGHT = &types.Colour{Red: 255, Blue: 255}
-	SGR_COLOUR_CYAN_BRIGHT    = &types.Colour{Green: 255, Blue: 255}
-	SGR_COLOUR_WHITE_BRIGHT   = &types.Colour{Red: 255, Green: 255, Blue: 255}
+		SGR_COLOUR_BLACK_BRIGHT   = &types.Colour{Red: 100, Green: 100, Blue: 100}
+		SGR_COLOUR_RED_BRIGHT     = &types.Colour{Red: 255}
+		SGR_COLOUR_GREEN_BRIGHT   = &types.Colour{Green: 255}
+		SGR_COLOUR_YELLOW_BRIGHT  = &types.Colour{Red: 255, Green: 255}
+		SGR_COLOUR_BLUE_BRIGHT    = &types.Colour{Blue: 255}
+		SGR_COLOUR_MAGENTA_BRIGHT = &types.Colour{Red: 255, Blue: 255}
+		SGR_COLOUR_CYAN_BRIGHT    = &types.Colour{Green: 255, Blue: 255}
+		SGR_COLOUR_WHITE_BRIGHT   = &types.Colour{Red: 255, Green: 255, Blue: 255}
+	*/
+
+	// solarized dark
+	SGR_COLOUR_BLACK   = &types.Colour{7, 54, 66}
+	SGR_COLOUR_RED     = &types.Colour{220, 50, 47}
+	SGR_COLOUR_GREEN   = &types.Colour{133, 153, 0}
+	SGR_COLOUR_YELLOW  = &types.Colour{181, 137, 0}
+	SGR_COLOUR_BLUE    = &types.Colour{38, 139, 210}
+	SGR_COLOUR_MAGENTA = &types.Colour{211, 54, 130}
+	SGR_COLOUR_CYAN    = &types.Colour{42, 161, 152}
+	SGR_COLOUR_WHITE   = &types.Colour{238, 232, 213}
+
+	SGR_COLOUR_BLACK_BRIGHT   = &types.Colour{0, 43, 54}
+	SGR_COLOUR_RED_BRIGHT     = &types.Colour{203, 75, 22}
+	SGR_COLOUR_GREEN_BRIGHT   = &types.Colour{88, 110, 117}
+	SGR_COLOUR_YELLOW_BRIGHT  = &types.Colour{101, 123, 131}
+	SGR_COLOUR_BLUE_BRIGHT    = &types.Colour{131, 148, 150}
+	SGR_COLOUR_MAGENTA_BRIGHT = &types.Colour{108, 113, 196}
+	SGR_COLOUR_CYAN_BRIGHT    = &types.Colour{147, 161, 161}
+	SGR_COLOUR_WHITE_BRIGHT   = &types.Colour{253, 246, 227}
 )
 
 var SGR_DEFAULT = &sgr{
 	fg: SGR_COLOUR_WHITE,
 	bg: SGR_COLOUR_BLACK,
+}
+
+var blinkColour = map[bool]*types.Colour{
+	true:  SGR_COLOUR_BLACK,
+	false: SGR_COLOUR_WHITE,
 }
 
 var SGR_COLOUR_256 = map[int32]*types.Colour{

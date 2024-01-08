@@ -1,6 +1,8 @@
 package rendersdl
 
 import (
+	"log"
+
 	"github.com/lmorg/mxtty/codes"
 	"github.com/lmorg/mxtty/types"
 	"github.com/lmorg/mxtty/virtualterm"
@@ -20,7 +22,7 @@ var (
 	height    int32 = 768
 )
 
-func Initialise() types.Renderer {
+func Initialise(fontName string, fontSize int) types.Renderer {
 	err := sdl.Init(sdl.INIT_VIDEO)
 	if err != nil {
 		panic(err.Error())
@@ -31,8 +33,7 @@ func Initialise() types.Renderer {
 		panic(err.Error())
 	}
 
-	font, err := typeface.Open("hasklig.ttf", 14)
-	//font, err := typeface.Open("monaco.ttf", 16)
+	font, err := typeface.Open(fontName, fontSize)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -46,7 +47,12 @@ func createWindow(caption string) error {
 	var err error
 
 	// Create a window for us to draw the text on
-	window, err = sdl.CreateWindow(caption, sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED, width, height, sdl.WINDOW_SHOWN|sdl.WINDOW_RESIZABLE)
+	window, err = sdl.CreateWindow(
+		caption,                                          // window title
+		sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED, // window pos
+		width, height, // window dimensions
+		sdl.WINDOW_SHOWN|sdl.WINDOW_RESIZABLE, // window properties
+	)
 	if err != nil {
 		return err
 	}
@@ -71,6 +77,13 @@ func getTermSize() *types.Rect {
 }
 
 func Start(term *virtualterm.Term) {
+	c := virtualterm.SGR_COLOUR_BLACK
+	pixel := sdl.MapRGBA(surface.Format, c.Red, c.Green, c.Blue, 255)
+	err := surface.FillRect(&sdl.Rect{W: surface.W, H: surface.H}, pixel)
+	if err != nil {
+		log.Printf("error drawing background: %s", err.Error())
+	}
+
 	running := true
 	for running {
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {

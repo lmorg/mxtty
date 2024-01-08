@@ -7,7 +7,12 @@ import (
 )
 
 func main() {
-	renderer := backend.Initialise()
+	fontName := "hasklig.ttf"
+	//fontName := "monaco.ttf"
+	shell := "/bin/zsh"
+	//shell :="/opt/homebrew/bin/murex"
+
+	renderer := backend.Initialise(fontName, 16)
 	defer renderer.Close()
 
 	term := virtualterm.NewTerminal(renderer)
@@ -16,6 +21,6 @@ func main() {
 		panic(err.Error())
 	}
 
-	term.Start(pty)
+	term.Start(pty, shell)
 	backend.Start(term)
 }

@@ -115,7 +115,7 @@ func (term *Term) parsePrivateCodes() []rune {
 func lookupSgr(sgr *sgr, n int32, stack []int32) {
 	for _, i := range stack {
 		switch i {
-		case 0: // reset / normal
+		case -1, 0: // reset / normal
 			sgr.Reset()
 
 		case 1: // bold

@@ -6,11 +6,6 @@ import (
 	"github.com/lmorg/mxtty/types"
 )
 
-var blinkColour = map[bool]*types.Colour{
-	true:  {Red: 128, Green: 128, Blue: 255},
-	false: {Red: 0, Green: 0, Blue: 0},
-}
-
 func (term *Term) Render() {
 	var x, y int32
 	var err error
