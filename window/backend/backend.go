@@ -8,8 +8,10 @@ import (
 
 func Initialise(fontName string, fontSize int) types.Renderer {
 	return rendersdl.Initialise(fontName, fontSize)
+	//return rendererimgui.Initialise(fontName, fontSize)
 }
 
 func Start(term *virtualterm.Term) {
 	rendersdl.Start(term)
+	//rendererimgui.Start(term)
 }

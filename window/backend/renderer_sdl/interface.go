@@ -1,32 +1,36 @@
 package rendersdl
 
 import (
+	"sync/atomic"
+
 	"github.com/lmorg/mxtty/types"
 	"github.com/lmorg/mxtty/window/backend/typeface"
 	"github.com/veandco/go-sdl2/sdl"
+	"github.com/veandco/go-sdl2/ttf"
 )
 
-type sdlRender struct{}
+type sdlRender struct {
+	window    *sdl.Window
+	surface   *sdl.Surface
+	font      *ttf.Font
+	glyphSize *types.Rect
+	termSize  *types.Rect
 
-func (sr *sdlRender) Size() *types.Rect {
-	return termSize
+	title       string
+	updateTitle int32
 }
 
-func (sr *sdlRender) Update() error {
-	return window.UpdateSurface()
+func (sr *sdlRender) Size() *types.Rect {
+	return sr.termSize
 }
 
 func (sr *sdlRender) Close() {
 	typeface.Close()
-	window.Destroy()
+	sr.window.Destroy()
 	sdl.Quit()
 }
 
 func (sr *sdlRender) SetWindowTitle(title string) {
-	/*
-		unsupported in SDL due to:
-		NSWindow geometry should only be modified on the main thread!
-	*/
-
-	//window.SetTitle(fmt.Sprintf("%s - %s", title, app.Name))
+	sr.title = title
+	atomic.CompareAndSwapInt32(&sr.updateTitle, 0, 1)
 }

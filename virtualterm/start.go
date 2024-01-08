@@ -1,11 +1,9 @@
 package virtualterm
 
 import (
-	"log"
 	"os"
 	"os/exec"
 	"syscall"
-	"time"
 
 	"github.com/lmorg/mxtty/psuedotty"
 )
@@ -15,7 +13,6 @@ func (term *Term) Start(p *psuedotty.PTY, shell string) {
 
 	go term.exec(shell)
 	go term.printLoop()
-	go term.renderLoop()
 	go term.slowBlink()
 }
 
@@ -47,15 +44,4 @@ func (term *Term) exec(command string) {
 		panic(err.Error())
 	}
 	os.Exit(0)
-}
-
-func (term *Term) renderLoop() {
-	for {
-		time.Sleep(5 * time.Millisecond)
-		term.Render()
-		err := term.renderer.Update()
-		if err != nil {
-			log.Printf("error in renderer: %s", err.Error())
-		}
-	}
 }

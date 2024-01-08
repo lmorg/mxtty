@@ -9,7 +9,7 @@ import (
 func main() {
 	fontName := "hasklig.ttf"
 	//fontName := "monaco.ttf"
-	shell := "/bin/zsh"
+	shell := "/bin/bash"
 	//shell :="/opt/homebrew/bin/murex"
 
 	renderer := backend.Initialise(fontName, 16)

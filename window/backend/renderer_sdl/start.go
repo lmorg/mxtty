@@ -2,6 +2,7 @@ package rendersdl
 
 import (
 	"log"
+	"sync/atomic"
 
 	"github.com/lmorg/mxtty/codes"
 	"github.com/lmorg/mxtty/types"
@@ -11,16 +12,13 @@ import (
 	"github.com/veandco/go-sdl2/ttf"
 )
 
-var (
-	window    *sdl.Window
-	surface   *sdl.Surface
-	font      *ttf.Font
-	glyphSize *types.Rect
-	termSize  *types.Rect
-	border    int32 = 5
-	width     int32 = 1024
-	height    int32 = 768
+const (
+	border int32 = 5
+	width  int32 = 1024
+	height int32 = 768
 )
+
+var focused *sdlRender
 
 func Initialise(fontName string, fontSize int) types.Renderer {
 	err := sdl.Init(sdl.INIT_VIDEO)
@@ -28,7 +26,8 @@ func Initialise(fontName string, fontSize int) types.Renderer {
 		panic(err.Error())
 	}
 
-	err = createWindow("mxtty - Multimedia Terminal Emulator")
+	focused = new(sdlRender)
+	err = focused.createWindow("mxtty - Multimedia Terminal Emulator")
 	if err != nil {
 		panic(err.Error())
 	}
@@ -38,16 +37,16 @@ func Initialise(fontName string, fontSize int) types.Renderer {
 		panic(err.Error())
 	}
 
-	setTypeFace(font)
+	focused.setTypeFace(font)
 
-	return new(sdlRender)
+	return focused
 }
 
-func createWindow(caption string) error {
+func (sr *sdlRender) createWindow(caption string) error {
 	var err error
 
 	// Create a window for us to draw the text on
-	window, err = sdl.CreateWindow(
+	sr.window, err = sdl.CreateWindow(
 		caption,                                          // window title
 		sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED, // window pos
 		width, height, // window dimensions
@@ -57,29 +56,29 @@ func createWindow(caption string) error {
 		return err
 	}
 
-	surface, err = window.GetSurface()
+	sr.surface, err = sr.window.GetSurface()
 	return err
 }
 
-func setTypeFace(f *ttf.Font) {
-	font = f
-	glyphSize = typeface.GetSize()
-	termSize = getTermSize()
+func (sr *sdlRender) setTypeFace(f *ttf.Font) {
+	sr.font = f
+	sr.glyphSize = typeface.GetSize()
+	sr.termSize = sr.getTermSize()
 }
 
-func getTermSize() *types.Rect {
-	x, y := window.GetSize()
+func (sr *sdlRender) getTermSize() *types.Rect {
+	x, y := sr.window.GetSize()
 
 	return &types.Rect{
-		X: (x - (border * 2)) / glyphSize.X,
-		Y: (y - (border * 2)) / glyphSize.Y,
+		X: (x - (border * 2)) / sr.glyphSize.X,
+		Y: (y - (border * 2)) / sr.glyphSize.Y,
 	}
 }
 
 func Start(term *virtualterm.Term) {
 	c := virtualterm.SGR_COLOUR_BLACK
-	pixel := sdl.MapRGBA(surface.Format, c.Red, c.Green, c.Blue, 255)
-	err := surface.FillRect(&sdl.Rect{W: surface.W, H: surface.H}, pixel)
+	pixel := sdl.MapRGBA(focused.surface.Format, c.Red, c.Green, c.Blue, 255)
+	err := focused.surface.FillRect(&sdl.Rect{W: focused.surface.W, H: focused.surface.H}, pixel)
 	if err != nil {
 		log.Printf("error drawing background: %s", err.Error())
 	}
@@ -153,6 +152,16 @@ func Start(term *virtualterm.Term) {
 			}
 		}
 
-		sdl.Delay(15)
+		sdl.Delay(5)
+		term.Render()
+
+		if atomic.CompareAndSwapInt32(&focused.updateTitle, 1, 0) {
+			focused.window.SetTitle(focused.title)
+		}
+
+		err = focused.window.UpdateSurface()
+		if err != nil {
+			log.Printf("error in renderer: %s", err.Error())
+		}
 	}
 }
