@@ -12,10 +12,10 @@ func (term *Term) Render() {
 	for y = 0; int(y) < len(*term.cells); y++ {
 		for x = 0; int(x) < len((*term.cells)[y]); x++ {
 			if (*term.cells)[y][x].char != 0 {
-				fg, bg := sgrOpts((*term.cells)[y][x].sgr)
+				fg, bg := term.sgrOpts((*term.cells)[y][x].sgr)
 				err = term.renderer.PrintRuneColour((*term.cells)[y][x].char, x, y, fg, bg, (*term.cells)[y][x].sgr.bitwise)
 			} else {
-				fg, bg := sgrOpts(SGR_DEFAULT)
+				fg, bg := term.sgrOpts(SGR_DEFAULT)
 				err = term.renderer.PrintRuneColour(' ', x, y, fg, bg, 0)
 			}
 			if err != nil {
@@ -27,7 +27,12 @@ func (term *Term) Render() {
 	term._blinkCursor()
 }
 
-func sgrOpts(sgr *sgr) (fg *types.Colour, bg *types.Colour) {
+func (term *Term) sgrOpts(sgr *sgr) (fg *types.Colour, bg *types.Colour) {
+	if sgr == nil {
+		log.Printf("DEBUG: nil *sgr in term.sgrOpts()")
+		return term.sgrOpts(term.sgr)
+	}
+
 	if sgr.bitwise.Is(types.SGR_INVERT) {
 		bg, fg = sgr.fg, sgr.bg
 	} else {

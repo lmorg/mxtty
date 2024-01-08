@@ -17,7 +17,7 @@ func (sr *sdlRender) PrintRuneColour(r rune, posX, posY int32, fg *types.Colour,
 
 	sr.font.SetStyle(fontStyle(style))
 
-	text, err := sr.font.RenderGlyphSolid(r, sdl.Color{R: fg.Red, G: fg.Green, B: fg.Blue, A: 255})
+	text, err := sr.font.RenderGlyphBlended(r, sdl.Color{R: fg.Red, G: fg.Green, B: fg.Blue, A: 255})
 	if err != nil {
 		return err
 	}
