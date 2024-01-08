@@ -32,11 +32,6 @@ func (term *Term) Render() {
 }
 
 func (term *Term) sgrOpts(sgr *sgr) (fg *types.Colour, bg *types.Colour) {
-	if sgr == nil {
-		log.Printf("DEBUG: nil *sgr in term.sgrOpts()")
-		return term.sgrOpts(term.sgr)
-	}
-
 	if sgr.bitwise.Is(types.SGR_INVERT) {
 		bg, fg = sgr.fg, sgr.bg
 	} else {
@@ -52,7 +47,12 @@ func (term *Term) _blinkCursor() {
 		style  types.SgrFlag
 	)
 
-	r := term.cell().char
+	cell := term.cell()
+	if cell == nil {
+		return
+	}
+
+	r := cell.char
 	if r == 0 {
 		r = ' '
 		fg, bg = blinkColour[true], blinkColour[false]

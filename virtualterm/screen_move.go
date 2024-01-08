@@ -13,6 +13,8 @@ func (term *Term) moveCursorBackwards(i int32) (overflow int32) {
 		term.curPos.X = 0
 	}
 
+	//log.Printf("DEBUG: moveCursorBackwards(%d) == %d [pos: %d]", i, overflow, term.curPos.X)
+
 	return
 }
 
@@ -26,6 +28,8 @@ func (term *Term) moveCursorForwards(i int32) (overflow int32) {
 		overflow = term.curPos.X - (term.size.X - 1)
 		term.curPos.X = term.size.X - 1
 	}
+
+	//log.Printf("DEBUG: moveCursorForwards(%d) == %d [pos: %d]", i, overflow, term.curPos.X)
 
 	return
 }
@@ -41,6 +45,8 @@ func (term *Term) moveCursorUpwards(i int32) (overflow int32) {
 		term.curPos.Y = 0
 	}
 
+	//log.Printf("DEBUG: moveCursorUpwards(%d) == %d [pos: %d]", i, overflow, term.curPos.Y)
+
 	return
 }
 
@@ -55,23 +61,25 @@ func (term *Term) moveCursorDownwards(i int32) (overflow int32) {
 		term.curPos.Y = term.size.Y - 1
 	}
 
+	//log.Printf("DEBUG: moveCursorDownwards(%d) == %d [pos: %d]", i, overflow, term.curPos.Y)
+
 	return
 }
-
-// moveGridPos functions DO affect other contents in the grid
 
 func (term *Term) moveContentsUp() {
 	var i int32
 	for ; i < term.size.Y-1; i++ {
 		(*term.cells)[i] = (*term.cells)[i+1]
 	}
-	(*term.cells)[i] = make([]cell, term.size.X, term.size.X)
+	(*term.cells)[i] = make([]cell, term.size.X)
+
+	//log.Printf("DEBUG: moveContentsUp()")
 }
 
 func (term *Term) wrapCursorForwards() {
 	term.curPos.X += 1
 
-	if term.curPos.X > term.size.X {
+	if term.curPos.X >= term.size.X {
 		overflow := term.curPos.X - (term.size.X - 1)
 		term.curPos.X = 0
 

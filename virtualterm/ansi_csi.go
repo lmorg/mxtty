@@ -54,7 +54,7 @@ func (term *Term) parseCsiCodes() {
 			case 1:
 				term.eraseDisplayBefore()
 			case 2, 3:
-				term.eraseDisplay() // TODO: 3 should erase scrollback buffer
+				term.eraseDisplay() // TODO: 3 should also erase scrollback buffer
 			}
 
 		case 'K': // clearLine...

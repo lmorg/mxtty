@@ -1,6 +1,7 @@
 package virtualterm
 
 import (
+	"log"
 	"sync"
 
 	"github.com/lmorg/mxtty/psuedotty"
@@ -62,8 +63,12 @@ func (term *Term) GetSize() *types.Rect {
 }
 
 func (term *Term) cell() *cell {
-	if term.curPos.X >= term.size.X {
-		term.wrapCursorForwards()
+	if term.curPos.Y >= term.size.Y {
+		//panic("This shouldn't happen")
+		log.Printf("ERROR: term.curPos.Y >= term.size.Y (returning last cell)")
+		term.curPos.Y = term.size.Y - 1
+		//return &(*term.cells)[term.size.Y-1][term.curPos.X]
+		//term.wrapCursorForwards()
 	}
 
 	return &(*term.cells)[term.curPos.Y][term.curPos.X]

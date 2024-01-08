@@ -19,6 +19,7 @@ func (term *Term) printLoop() {
 	for {
 		r = term.Pty.ReadRune()
 		term.slowBlinkState = true
+		//log.Printf("DEBUG: read rune %d [pos: %d:%d] [size: %d:%d]", r, term.curPos.X, term.curPos.Y, term.size.X, term.size.Y)
 
 		term.mutex.Lock()
 
@@ -50,20 +51,16 @@ func (term *Term) printLoop() {
 			term.curPos.X = 0
 
 		case '\n':
+			//log.Printf("DEBUG: new line char")
 			if term.moveCursorDownwards(1) > 0 {
 				term.moveContentsUp()
 				term.moveCursorDownwards(1)
 			}
 			term.curPos.X = 0
 
-		//case ' ':
-		//	term.writeCell('·')
-
 		default:
 			if r < 32 {
 				log.Printf("Unexpected ASCII control character: %d", r)
-				//} else {
-				//log.Printf("Character code %d (%s)", text[i], string(text[i]))
 			}
 			term.writeCell(r)
 		}
