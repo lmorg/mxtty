@@ -1,6 +1,10 @@
 package virtualterm
 
-import "log"
+import (
+	"log"
+
+	"github.com/lmorg/mxtty/virtualterm/types"
+)
 
 func isCsiTerminator(r rune) bool {
 	return r >= 0x40 && r <= 0x7E
@@ -38,9 +42,9 @@ func parseCsiCodes(term *Term, text []rune) int {
 
 		case 'H': // moveCursor
 			if len(stack) != 2 {
-				term.curPos = xy{}
+				term.curPos = types.Rect{}
 			} else {
-				term.curPos = xy{
+				term.curPos = types.Rect{
 					X: stack[0] + 1,
 					Y: stack[1] + 1,
 				}
@@ -124,9 +128,9 @@ func lookupSgr(sgr *sgr, n int32) {
 	case 7: // invert
 		sgr.Set(sgrInvert)
 
-		//
-		// 4bit foreground colour:
-		//
+	//
+	// 4bit foreground colour:
+	//
 
 	case 30: // fg black
 		sgr.fg = sgrColour4Black
@@ -151,6 +155,40 @@ func lookupSgr(sgr *sgr, n int32) {
 
 	case 37: // fg white
 		sgr.fg = sgrColour4White
+
+	case 39: // fg default
+		sgr.fg = SGR_DEFAULT.fg
+
+		//
+		// 4bit background colour:
+		//
+
+	case 40: // bg black
+		sgr.bg = sgrColour4Black
+
+	case 41: // bg red
+		sgr.bg = sgrColour4Red
+
+	case 42: // bg green
+		sgr.bg = sgrColour4Green
+
+	case 43: // bg yellow
+		sgr.bg = sgrColour4Yellow
+
+	case 44: // bg blue
+		sgr.bg = sgrColour4Blue
+
+	case 45: // bg magenta
+		sgr.bg = sgrColour4Magenta
+
+	case 46: // bg cyan
+		sgr.bg = sgrColour4Cyan
+
+	case 47: // bg white
+		sgr.bg = sgrColour4White
+
+	case 49: // bg default
+		sgr.fg = SGR_DEFAULT.bg
 
 	default:
 		log.Printf("Unknown SGR code: %d", n)

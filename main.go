@@ -6,64 +6,20 @@ import (
 
 	"github.com/lmorg/mxtty/codes"
 	"github.com/lmorg/mxtty/psuedotty"
-	"github.com/lmorg/mxtty/typeface"
 	"github.com/lmorg/mxtty/virtualterm"
-	"github.com/lmorg/mxtty/window"
+	"github.com/lmorg/mxtty/window/backend"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
-var (
-	x int32 = 80
-	y int32 = 25
-)
-
 func main() {
-	defer typeface.Close()
-	defer window.Close()
+	renderer := backend.Start()
+	defer renderer.Close()
 
-	err := window.Create("mxtty - Multimedia Terminal Emulator")
+	virtTerm := virtualterm.NewTerminal(renderer)
+	pty, err := psuedotty.NewPTY(virtTerm)
 	if err != nil {
 		panic(err.Error())
 	}
-
-	font, err := typeface.Open("hasklig.ttf", 14)
-	//font, err := typeface.Open("monaco.ttf", 16)
-	if err != nil {
-		panic(err.Error())
-	}
-
-	x, y = window.SetTypeFace(font)
-
-	virtTerm := virtualterm.NewTerminal(x, y)
-	//virtTerm.Write([]rune(stuff))
-	//virtTerm.ExportMxTTY()
-	pty, err := psuedotty.NewPTY(x, y)
-	if err != nil {
-		panic(err.Error())
-	}
-
-	go func() {
-		p := make([]byte, 2048)
-		for {
-			i, err := pty.Secondary.Read(p)
-			if err != nil {
-				panic(err.Error())
-				continue
-			}
-			virtTerm.Write([]rune(string(p[:i])))
-			virtTerm.ExportMxTTY()
-		}
-	}()
-
-	/*go func() {
-		for {
-			time.Sleep(10 * time.Millisecond)
-			_ = window.Update()
-			//if err != nil {
-			//	panic(err)
-			//}
-		}
-	}()*/
 
 	go func() {
 		//cmd := exec.Command("/opt/homebrew/bin/murex")

@@ -1,13 +1,11 @@
 package virtualterm
 
+import "github.com/lmorg/mxtty/virtualterm/types"
+
 type sgr struct {
 	bitwise sgrFlag
-	fg      *rgb
-	bg      *rgb
-}
-
-type rgb struct {
-	Red, Green, Blue byte
+	fg      *types.Colour
+	bg      *types.Colour
 }
 
 func (sgr *sgr) Is(flag sgrFlag) bool {

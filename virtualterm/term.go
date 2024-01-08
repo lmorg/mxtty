@@ -5,17 +5,18 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lmorg/mxtty/window"
+	"github.com/lmorg/mxtty/virtualterm/types"
 )
 
 // Term is the display state of the virtual term
 type Term struct {
 	cells    [][]cell
-	size     xy
-	curPos   xy
+	size     *types.Rect
+	curPos   types.Rect
 	sgr      *sgr
 	mutex    sync.Mutex
 	tabWidth int32
+	renderer *types.Renderer
 }
 
 type cell struct {
@@ -23,21 +24,17 @@ type cell struct {
 	sgr  *sgr
 }
 
-type xy struct {
-	X int32
-	Y int32
-}
-
 // NewTerminal creates a new virtual term
-func NewTerminal(x, y int32) *Term {
-	cells := make([][]cell, y, y)
+func NewTerminal(renderer *types.Renderer) *Term {
+	cells := make([][]cell, renderer.Size.Y)
 	for i := range cells {
-		cells[i] = make([]cell, x, x)
+		cells[i] = make([]cell, renderer.Size.X)
 	}
 
 	term := &Term{
-		cells: cells,
-		size:  xy{x, y},
+		renderer: renderer,
+		cells:    cells,
+		size:     renderer.Size,
 		sgr: &sgr{
 			fg: SGR_DEFAULT.fg,
 			bg: SGR_DEFAULT.bg,
@@ -58,12 +55,12 @@ func (term *Term) blink() {
 	for {
 		time.Sleep(500 * time.Millisecond)
 
-		err = window.PrintBlink(state, int32(term.curPos.X), int32(term.curPos.Y))
+		err = term.renderer.PrintBlink(state, int32(term.curPos.X), int32(term.curPos.Y))
 		if err != nil {
 			log.Printf("error in %s: %s", "window.PrintBlink()", err.Error())
 		}
 
-		err = window.Update()
+		err = term.renderer.Update()
 		if err != nil {
 			log.Printf("error in %s: %s", "window.Update()", err.Error())
 		}
@@ -77,4 +74,12 @@ func (term *Term) GetSize() (int32, int32, error) {
 	return term.size.X, term.size.Y, nil
 }
 
-func (term *Term) cell() *cell { return &term.cells[term.curPos.Y][term.curPos.X] }
+func (term *Term) cell() *cell {
+	if term.curPos.X >= term.size.X {
+		term.curPos.X = term.size.X - 1
+	}
+	if term.curPos.Y >= term.size.Y {
+		term.curPos.Y = term.size.Y - 1
+	}
+	return &term.cells[term.curPos.Y][term.curPos.X]
+}
