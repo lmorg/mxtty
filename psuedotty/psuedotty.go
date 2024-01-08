@@ -17,7 +17,7 @@ type PTY struct {
 	stream    chan rune
 }
 
-func NewPTY(size *types.Rect) (types.Pty, error) {
+func NewPTY(size *types.XY) (types.Pty, error) {
 	secondary, primary, err := pty.Open()
 	if err != nil {
 		return nil, fmt.Errorf("unable to open pty: %s", err.Error())

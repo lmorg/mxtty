@@ -86,10 +86,10 @@ func (sr *sdlRender) setTypeFace(f *ttf.Font) {
 	sr.termSize = sr.getTermSize()
 }
 
-func (sr *sdlRender) getTermSize() *types.Rect {
+func (sr *sdlRender) getTermSize() *types.XY {
 	x, y := sr.window.GetSize()
 
-	return &types.Rect{
+	return &types.XY{
 		X: (x - (sr.border * 2)) / sr.glyphSize.X,
 		Y: (y - (sr.border * 2)) / sr.glyphSize.Y,
 	}
@@ -123,7 +123,7 @@ func (sr *sdlRender) Start(term types.Term) {
 			}
 		}
 
-		sdl.Delay(5)
+		sdl.Delay(15)
 		term.Render()
 
 		if atomic.CompareAndSwapInt32(&sr.updateTitle, 1, 0) {

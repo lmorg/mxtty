@@ -1,6 +1,6 @@
 package types
 
-type Rect struct {
+type XY struct {
 	X int32
 	Y int32
 }

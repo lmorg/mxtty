@@ -7,7 +7,7 @@ import (
 	"github.com/veandco/go-sdl2/ttf"
 )
 
-var fontSize *types.Rect
+var fontSize *types.XY
 
 func init() {
 	err := ttf.Init()
@@ -37,16 +37,16 @@ func Open(name string, size int) (*ttf.Font, error) {
 	return font, err
 }
 
-func GetSize() *types.Rect {
+func GetSize() *types.XY {
 	return fontSize
 }
 
-func getSize(font *ttf.Font) (*types.Rect, error) {
+func getSize(font *ttf.Font) (*types.XY, error) {
 	surface, err := font.RenderGlyphSolid('W', sdl.Color{R: 0, G: 0, B: 0, A: 255})
 	if err != nil {
 		return nil, err
 	}
-	return &types.Rect{
+	return &types.XY{
 		X: surface.W,
 		Y: surface.H,
 	}, nil

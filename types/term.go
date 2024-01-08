@@ -4,8 +4,8 @@ import "os"
 
 type Term interface {
 	Start(Pty, string)
-	GetSize() *Rect
-	Resize(*Rect)
+	GetSize() *XY
+	Resize(*XY)
 	Render()
 	Return([]byte) error
 }

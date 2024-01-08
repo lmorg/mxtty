@@ -9,8 +9,8 @@ import (
 
 // Term is the display state of the virtual term
 type Term struct {
-	size     *types.Rect
-	curPos   types.Rect
+	size     *types.XY
+	curPos   types.XY
 	sgr      *sgr
 	renderer types.Renderer
 	Pty      types.Pty
@@ -25,7 +25,7 @@ type Term struct {
 	// CSI states
 	_tabWidth         int32
 	_hideCursor       bool
-	_savedCurPos      types.Rect
+	_savedCurPos      types.XY
 	_scrollRegion     *scrollRegionT
 	_windowTitleStack []string
 }
@@ -63,7 +63,7 @@ func NewTerminal(renderer types.Renderer) *Term {
 }
 
 // GetSize outputs mirror those from terminal and readline packages
-func (term *Term) GetSize() *types.Rect {
+func (term *Term) GetSize() *types.XY {
 	return term.size
 }
 
@@ -103,7 +103,7 @@ func (term *Term) cell() *cell {
 	return &(*term.cells)[term.curPos.Y][term.curPos.X]
 }
 
-func (term *Term) previousCell() (*cell, *types.Rect) {
+func (term *Term) previousCell() (*cell, *types.XY) {
 	pos := term.curPos
 	pos.X--
 

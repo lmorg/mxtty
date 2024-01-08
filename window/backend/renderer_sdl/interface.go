@@ -13,19 +13,19 @@ type sdlRender struct {
 	window    *sdl.Window
 	surface   *sdl.Surface
 	font      *ttf.Font
-	glyphSize *types.Rect
-	termSize  *types.Rect
+	glyphSize *types.XY
+	termSize  *types.XY
 	border    int32
 
 	title       string
 	updateTitle int32
 }
 
-func (sr *sdlRender) Size() *types.Rect {
+func (sr *sdlRender) Size() *types.XY {
 	return sr.termSize
 }
 
-func (sr *sdlRender) Resize() *types.Rect {
+func (sr *sdlRender) Resize() *types.XY {
 	var err error
 	sr.surface.Free()
 	sr.surface, err = sr.window.GetSurface()

@@ -34,17 +34,17 @@ func (img *image) Close() {
 	img.surface.Free()
 }
 
-func (img *image) Draw(rect *types.Rect) {
+func (img *image) Draw(topLeft, bottomRight *types.XY) {
 	srcRect := sdl.Rect{
 		H: img.surface.H,
 		W: img.surface.W,
 	}
 
 	dstRect := sdl.Rect{
-		X: img.renderer.border,
-		Y: img.renderer.border,
-		W: img.renderer.surface.W,
-		H: img.renderer.surface.H,
+		X: img.renderer.border + (topLeft.X * img.renderer.glyphSize.X),
+		Y: img.renderer.border + (topLeft.Y * img.renderer.glyphSize.Y),
+		W: img.renderer.border + (bottomRight.X * img.renderer.glyphSize.X),
+		H: img.renderer.border + (bottomRight.Y * img.renderer.glyphSize.Y),
 	}
 
 	err := img.surface.BlitScaled(&srcRect, img.renderer.surface, &dstRect)
