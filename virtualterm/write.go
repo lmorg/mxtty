@@ -11,10 +11,9 @@ func (term *Term) writeCell(r rune) {
 		overflow := term.curPos.X - (term.size.X - 1)
 		term.curPos.X = 0
 
-		if overflow > 0 && term.moveCursorDownwards(1) > 0 {
-			//term.moveContentsUp()
-			term.scrollUp(1)
-			term.moveCursorDownwards(1)
+		if overflow > 0 && term.csiMoveCursorDownwards(1) > 0 {
+			term.csiScrollUp(1)
+			term.csiMoveCursorDownwards(1)
 		}
 	}
 
@@ -40,15 +39,15 @@ func (term *Term) printLoop() {
 			// TODO: beep
 
 		case codes.AsciiBackspace, codes.IsoBackspace: // (10) / (127)
-			_ = term.moveCursorBackwards(1)
+			_ = term.csiMoveCursorBackwards(1)
 
 		case codes.AsciiTab: // \t (11)
 			term.printTab()
 
 		case codes.AsciiCtrlJ: // \n (12)
-			if term.moveCursorDownwards(1) > 0 {
-				term.scrollUp(1)
-				term.moveCursorDownwards(1)
+			if term.csiMoveCursorDownwards(1) > 0 {
+				term.csiScrollUp(1)
+				term.csiMoveCursorDownwards(1)
 			}
 
 		case codes.AsciiCtrlM: // \r (13)

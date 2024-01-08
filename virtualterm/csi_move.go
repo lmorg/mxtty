@@ -2,7 +2,7 @@ package virtualterm
 
 // moveCursor functions DON'T affect other contents in the grid
 
-func (term *Term) moveCursorBackwards(i int32) (overflow int32) {
+func (term *Term) csiMoveCursorBackwards(i int32) (overflow int32) {
 	if i < 0 {
 		i = 1
 	}
@@ -13,12 +13,12 @@ func (term *Term) moveCursorBackwards(i int32) (overflow int32) {
 		term.curPos.X = 0
 	}
 
-	//log.Printf("DEBUG: moveCursorBackwards(%d) == %d [pos: %d]", i, overflow, term.curPos.X)
+	//log.Printf("DEBUG: csiMoveCursorBackwards(%d) == %d [pos: %d]", i, overflow, term.curPos.X)
 
 	return
 }
 
-func (term *Term) moveCursorForwards(i int32) (overflow int32) {
+func (term *Term) csiMoveCursorForwards(i int32) (overflow int32) {
 	if i < 0 {
 		i = 1
 	}
@@ -29,12 +29,12 @@ func (term *Term) moveCursorForwards(i int32) (overflow int32) {
 		term.curPos.X = term.size.X - 1
 	}
 
-	//log.Printf("DEBUG: moveCursorForwards(%d) == %d [pos: %d]", i, overflow, term.curPos.X)
+	//log.Printf("DEBUG: csiMoveCursorForwards(%d) == %d [pos: %d]", i, overflow, term.curPos.X)
 
 	return
 }
 
-func (term *Term) moveCursorUpwards(i int32) (overflow int32) {
+func (term *Term) csiMoveCursorUpwards(i int32) (overflow int32) {
 	if i < 0 {
 		i = 1
 	}
@@ -45,12 +45,12 @@ func (term *Term) moveCursorUpwards(i int32) (overflow int32) {
 		term.curPos.Y = 0
 	}
 
-	//log.Printf("DEBUG: moveCursorUpwards(%d) == %d [pos: %d]", i, overflow, term.curPos.Y)
+	//log.Printf("DEBUG: csiMoveCursorUpwards(%d) == %d [pos: %d]", i, overflow, term.curPos.Y)
 
 	return
 }
 
-func (term *Term) moveCursorDownwards(i int32) (overflow int32) {
+func (term *Term) csiMoveCursorDownwards(i int32) (overflow int32) {
 	if i < 0 {
 		i = 1
 	}
@@ -61,12 +61,32 @@ func (term *Term) moveCursorDownwards(i int32) (overflow int32) {
 		term.curPos.Y = term.size.Y - 1
 	}
 
-	//log.Printf("DEBUG: moveCursorDownwards(%d) == %d [pos: %d]", i, overflow, term.curPos.Y)
+	//log.Printf("DEBUG: csiMoveCursorDownwards(%d) == %d [pos: %d]", i, overflow, term.curPos.Y)
 
 	return
 }
 
-func (term *Term) scrollUp(n int32) {
+func (term *Term) csiMoveCursorToPos(x, y int32) {
+	if x < 0 {
+		x = term.curPos.X
+	} else if x >= term.size.X {
+		x = term.size.X - 1
+	}
+
+	if y < 0 {
+		y = term.curPos.Y
+	} else if y >= term.size.Y {
+		y = term.size.Y - 1
+	}
+
+	term.curPos.X, term.curPos.Y = x, y
+}
+
+/*
+	SCROLLING
+*/
+
+func (term *Term) csiScrollUp(n int32) {
 	if n < 1 {
 		n = 1
 	}
@@ -86,7 +106,7 @@ func (term *Term) scrollUp(n int32) {
 	}
 }
 
-func (term *Term) scrollDown(n int32) {
+func (term *Term) csiScrollDown(n int32) {
 	if n < 0 {
 		n = 1
 	}
@@ -106,18 +126,9 @@ func (term *Term) scrollDown(n int32) {
 	}
 }
 
-func (term *Term) moveCursorToPos(x, y int32) {
-	if x < 0 {
-		x = term.curPos.X
-	} else if x >= term.size.X {
-		x = term.size.X - 1
+func (term *Term) csiSetScrollingRegion(region []int32) {
+	term._scrollRegion = &scrollRegionT{
+		Top:    region[0],
+		Bottom: region[1],
 	}
-
-	if y < 0 {
-		y = term.curPos.Y
-	} else if y >= term.size.Y {
-		y = term.size.Y - 1
-	}
-
-	term.curPos.X, term.curPos.Y = x, y
 }

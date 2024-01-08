@@ -34,13 +34,6 @@ func (term *Term) csiCursorShow() {
 	term._hideCursor = false
 }
 
-func (term *Term) csiSetScrollingRegion(region []int32) {
-	term._scrollRegion = &scrollRegionT{
-		Top:    region[0],
-		Bottom: region[1],
-	}
-}
-
 func (term *Term) csiWindowTitleStackSaveTo() {
 	term._windowTitleStack = append(term._windowTitleStack, term.renderer.GetWindowTitle())
 }

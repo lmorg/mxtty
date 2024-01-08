@@ -4,7 +4,7 @@ package virtualterm
 	ERASE DISPLAY
 */
 
-func (term *Term) eraseDisplayAfter() {
+func (term *Term) csiEraseDisplayAfter() {
 	for y := term.curPos.Y; y < term.size.Y; y++ {
 		for x := term.curPos.X; x < term.size.X; x++ {
 			(*term.cells)[y][x].clear()
@@ -12,7 +12,7 @@ func (term *Term) eraseDisplayAfter() {
 	}
 }
 
-func (term *Term) eraseDisplayBefore() {
+func (term *Term) csiEraseDisplayBefore() {
 	for y := term.curPos.Y; y >= 0; y-- {
 		for x := term.curPos.X; x >= 0; x-- {
 			(*term.cells)[y][x].clear()
@@ -20,7 +20,7 @@ func (term *Term) eraseDisplayBefore() {
 	}
 }
 
-func (term *Term) eraseDisplay() {
+func (term *Term) csiEraseDisplay() {
 	var x, y int32
 	for ; y < term.size.Y; y++ {
 		for ; x < term.size.X; x++ {
@@ -33,26 +33,26 @@ func (term *Term) eraseDisplay() {
 	ERASE LINE
 */
 
-func (term *Term) eraseLineAfter() {
+func (term *Term) csiEraseLineAfter() {
 	for x := term.curPos.X; x < term.size.X; x++ {
 		(*term.cells)[term.curPos.Y][x].clear()
 	}
 }
 
-func (term *Term) eraseLineBefore() {
+func (term *Term) csiEraseLineBefore() {
 	for x := term.curPos.X; x >= 0; x-- {
 		(*term.cells)[term.curPos.Y][x].clear()
 	}
 }
 
-func (term *Term) eraseLine() {
+func (term *Term) csiEraseLine() {
 	var x int32
 	for ; x < term.size.X; x++ {
 		(*term.cells)[term.curPos.Y][x].clear()
 	}
 }
 
-func (term *Term) eraseCharacters(n int32) {
+func (term *Term) csiEraseCharacters(n int32) {
 	if n < 1 {
 		n = 1
 	}
@@ -64,16 +64,16 @@ func (term *Term) eraseCharacters(n int32) {
 	}
 }
 
-func (term *Term) clearTab() {
+func (term *Term) csiClearTab() {
 	// TODO: this wouldn't actually work!
-	term.eraseCharacters(term._tabWidth)
+	term.csiEraseCharacters(term._tabWidth)
 }
 
 /*
 	DELETE
 */
 
-func (term *Term) deleteCharacters(n int32) {
+func (term *Term) csiDeleteCharacters(n int32) {
 	if n < 1 {
 		n = 1
 	}
