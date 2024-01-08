@@ -12,7 +12,8 @@ func (term *Term) writeCell(r rune) {
 		term.curPos.X = 0
 
 		if overflow > 0 && term.moveCursorDownwards(1) > 0 {
-			term.moveContentsUp()
+			//term.moveContentsUp()
+			term.scrollUp(1)
 			term.moveCursorDownwards(1)
 		}
 	}
@@ -56,7 +57,8 @@ func (term *Term) printLoop() {
 		case '\n':
 			//log.Printf("DEBUG: new line char")
 			if term.moveCursorDownwards(1) > 0 {
-				term.moveContentsUp()
+				//term.moveContentsUp()
+				term.scrollUp(1)
 				term.moveCursorDownwards(1)
 			}
 			//term.wrapCursorForwards()

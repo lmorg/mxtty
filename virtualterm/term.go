@@ -25,8 +25,10 @@ type Term struct {
 	_altBuf  [][]cell
 
 	// CSI states
-	_hideCursor  bool
-	_savedCurPos types.Rect
+	_hideCursor       bool
+	_savedCurPos      types.Rect
+	_scrollRegion     *scrollRegionT
+	_windowTitleStack []string
 }
 
 type cell struct {
@@ -113,4 +115,21 @@ func (term *Term) CopyCells(src [][]cell) [][]cell {
 	}
 
 	return dst
+}
+
+type scrollRegionT struct {
+	Top    int32
+	Bottom int32
+}
+
+func (term *Term) getScrollRegion() (top int32, bottom int32) {
+	if term._scrollRegion == nil {
+		top = 0
+		bottom = term.size.Y - 1
+	} else {
+		top = term._scrollRegion.Top - 1
+		bottom = term._scrollRegion.Bottom - 1
+	}
+
+	return
 }

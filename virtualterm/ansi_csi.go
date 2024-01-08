@@ -98,8 +98,42 @@ func (term *Term) parseCsiCodes() {
 		case 'm': // SGR
 			lookupSgr(term.sgr, stack[0], stack)
 
+		case 'r': // Set Scrolling Region [top;bottom] (default = full size of window) (DECSTBM)
+			if len(stack) != 2 {
+				log.Printf("Unexpected number of parameters in CSI r (%s): %v", string(cache), stack)
+			} else {
+				term.csiSetScrollingRegion(stack)
+			}
+
 		case 's': // save cursor pos
 			term.csiCursorPosSave()
+
+		case 'S': // scroll up
+			term.scrollUp(*n)
+			//term.moveCursorUpwards(*n)
+
+		case 't': // Window manipulation (XTWINOPS)
+			var p2 int32
+			if len(stack) > 1 {
+				p2 = stack[1]
+			}
+			switch stack[0] {
+			case 22:
+				switch p2 {
+				case 0, 2:
+					term.csiWindowTitleStackSaveTo()
+				}
+			case 23:
+				switch p2 {
+				case 0, 2:
+					term.csiWindowTitleStackRestoreFrom()
+				}
+			default:
+				log.Printf("Unknown CSI code %d: %v (%s)", *n, stack, string(cache))
+			}
+
+		case 'T': // scroll down
+			term.scrollDown(*n)
 
 		case 'u': // restore cursor pos
 			term.csiCursorPosRestore()

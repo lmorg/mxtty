@@ -24,7 +24,7 @@ func lookupPrivateCsi(term *Term, code []rune) {
 	case 'h':
 		switch param {
 		case "12", "25": // Stop Blinking Cursor (att610) / Hide Cursor (DECTCEM)
-			term.csiCursorShow()
+			term.csiCursorHide()
 
 		case "47", "1047": // alt screen buffer
 			term.csiScreenBufferAlternative()
@@ -35,6 +35,9 @@ func lookupPrivateCsi(term *Term, code []rune) {
 		case "1049":
 			term.csiCursorPosSave()
 			term.csiScreenBufferAlternative()
+
+		case "2004": // Set bracketed paste mode
+			log.Printf("TODO: Set bracketed paste mode")
 
 		default:
 			log.Printf("Private CSI parameter not implemented in %s: %v [param: %s]", string(r), string(code), param)
@@ -54,6 +57,9 @@ func lookupPrivateCsi(term *Term, code []rune) {
 		case "1049":
 			term.csiScreenBufferNormal()
 			term.csiCursorPosRestore()
+
+		case "2004": // Reset bracketed paste mode
+			log.Printf("TODO: Reset bracketed paste mode")
 
 		default:
 			log.Printf("Private CSI parameter not implemented in %s: %v [param: %s]", string(r), string(code), param)

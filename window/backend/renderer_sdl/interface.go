@@ -34,3 +34,7 @@ func (sr *sdlRender) SetWindowTitle(title string) {
 	sr.title = title
 	atomic.CompareAndSwapInt32(&sr.updateTitle, 0, 1)
 }
+
+func (sr *sdlRender) GetWindowTitle() string {
+	return sr.window.GetTitle()
+}

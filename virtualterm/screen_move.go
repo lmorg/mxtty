@@ -66,14 +66,62 @@ func (term *Term) moveCursorDownwards(i int32) (overflow int32) {
 	return
 }
 
-func (term *Term) moveContentsUp() {
+func (term *Term) scrollUp(n int32) {
+	if n < 1 {
+		n = 1
+	}
+
+	top, bottom := term.getScrollRegion()
+
+	if n > bottom-top {
+		n = bottom - top
+	}
+
+	//log.Printf("DEBUG: top, bottom, n := %d, %d, %d", top, bottom, n)
+
 	var i int32
-	for ; i < term.size.Y-1; i++ {
+	for i = top; i <= bottom-n; i++ {
 		(*term.cells)[i] = (*term.cells)[i+1]
 	}
-	(*term.cells)[i] = make([]cell, term.size.X)
 
-	//log.Printf("DEBUG: moveContentsUp()")
+	//log.Printf("DEBUG: top, bottom, n, i := %d, %d, %d, %d", top, bottom, n, i)
+	for ; i <= bottom; i++ {
+		(*term.cells)[i] = make([]cell, term.size.X)
+		//(*term.cells)[i] = term._debug_FillRowWithDots()
+	}
+}
+
+func (term *Term) scrollDown(n int32) {
+	if n < 0 {
+		n = 1
+	}
+
+	top, bottom := term.getScrollRegion()
+
+	if n > bottom-top {
+		n = bottom - top
+	}
+
+	var i int32
+	for i = bottom; i >= n; i-- {
+		(*term.cells)[i] = (*term.cells)[i-1]
+	}
+	for ; i >= top; i-- {
+		(*term.cells)[i] = make([]cell, term.size.X)
+	}
+}
+
+func (term *Term) _debug_FillRowWithDots() []cell {
+	row := make([]cell, term.size.X)
+	for i := range row {
+		row[i].char = '·'
+		row[i].sgr = &sgr{
+			fg: SGR_COLOUR_BLACK_BRIGHT,
+			bg: SGR_DEFAULT.bg,
+		}
+	}
+
+	return row
 }
 
 func (term *Term) moveCursorToPos(x, y int32) {
