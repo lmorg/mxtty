@@ -1,9 +1,7 @@
 package virtualterm
 
 import (
-	"log"
 	"sync"
-	"time"
 
 	"github.com/lmorg/mxtty/psuedotty"
 	"github.com/lmorg/mxtty/virtualterm/types"
@@ -19,6 +17,8 @@ type Term struct {
 	tabWidth int32
 	renderer *types.Renderer
 	Pty      *psuedotty.PTY
+
+	slowBlinkState bool
 }
 
 type cell struct {
@@ -41,32 +41,7 @@ func NewTerminal(renderer *types.Renderer) *Term {
 		tabWidth: 8,
 	}
 
-	go term.write()
-	go term.blink()
 	return term
-}
-
-func (term *Term) blink() {
-	var (
-		state bool
-		err   error
-	)
-
-	for {
-		time.Sleep(500 * time.Millisecond)
-
-		err = term.renderer.PrintBlink(state, int32(term.curPos.X), int32(term.curPos.Y))
-		if err != nil {
-			log.Printf("error in %s: %s", "window.PrintBlink()", err.Error())
-		}
-
-		err = term.renderer.Update()
-		if err != nil {
-			log.Printf("error in %s: %s", "window.Update()", err.Error())
-		}
-
-		state = !state
-	}
 }
 
 // GetSize outputs mirror those from terminal and readline packages

@@ -7,31 +7,6 @@ import (
 )
 
 // ExportString returns a character map of the virtual terminal
-func (term *Term) ExportString() string {
-	term.mutex.Lock()
-
-	gridLen := (term.size.X + 1) * term.size.Y
-	r := make([]rune, gridLen, gridLen)
-	var i int
-	for y := range term.cells {
-		for x := range term.cells[y] {
-			if term.cells[y][x].char != 0 { // if cell contains no data then lets assume it's a space character
-				r[i] = term.cells[y][x].char
-			} else {
-				r[i] = ' '
-			}
-			i++
-		}
-		r[i] = '\n'
-		i++
-	}
-
-	term.mutex.Unlock()
-
-	return string(r)
-}
-
-// ExportString returns a character map of the virtual terminal
 func (term *Term) ExportMxTTY() {
 	//term.mutex.Lock()
 
@@ -52,12 +27,12 @@ func (term *Term) ExportMxTTY() {
 		}
 	}
 
-	//term.mutex.Unlock()
-
-	err = term.renderer.Update()
+	err = term.renderer.PrintBlink(term.slowBlinkState, int32(term.curPos.X), int32(term.curPos.Y))
 	if err != nil {
-		log.Printf("error in %s [x: %d, y: %d]: %s", "(t *Term) ExportMxTTY()", x, y, err.Error())
+		log.Printf("error in %s [cursorBlink]: %s", "(t *Term) ExportMxTTY()", err.Error())
 	}
+
+	//term.mutex.Unlock()
 }
 
 func sgrOpts(sgr *sgr) (fg *types.Colour, bg *types.Colour) {

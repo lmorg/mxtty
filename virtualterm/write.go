@@ -2,7 +2,6 @@ package virtualterm
 
 import (
 	"log"
-	"regexp"
 
 	"github.com/lmorg/mxtty/codes"
 )
@@ -13,14 +12,9 @@ func (term *Term) writeCell(r rune) {
 	term.wrapCursorForwards()
 }
 
-var rxLazyCsiCheck = regexp.MustCompile(`\[[;\?a-zA-Z0-9]+`)
-
 // Write multiple characters to the virtual terminal
-func (term *Term) write() {
-	var (
-		r      rune
-		escape bool
-	)
+func (term *Term) printLoop() {
+	var r rune
 
 	//term.mutex.Lock()
 
@@ -29,50 +23,32 @@ func (term *Term) write() {
 
 		switch r {
 		case codes.AsciiEscape:
-			escape = true
-			continue
+			r = term.Pty.ReadRune()
+			switch r {
+			case '[': // CSI code
+				term.parseCsiCodes()
+			case ']': // TODO: OSC
+				var text []rune
+				for {
+					r = term.Pty.ReadRune()
+					text = append(text, r)
+					if r == 'S' && term.Pty.ReadRune() == 'T' { // ST  (OSC terminator)
+						break
+					}
+					if r == codes.AsciiCtrlG { // bell (xterm OSC terminator)
+						break
+					}
+				}
+				log.Printf("TODO: OSC sequences: '%s'", string(text))
+			default:
+				term.writeCell(r)
+			}
 
 		case codes.AsciiBackspace, codes.IsoBackspace:
 			_ = term.moveCursorBackwards(1)
 
 		case codes.AsciiCtrlG: // bell
 			// TODO: beep
-
-		case '[':
-			if !escape {
-				term.writeCell(r)
-				continue
-			}
-			escape = false
-			/*start := i
-			i += parseCsiCodes(term, text[i-1:])
-			if i >= len(text) {
-				i = len(text) - 1
-				log.Printf("Parsing error: i>len(text)")
-			}
-			if !rxLazyCsiCheck.MatchString(string(text[start : i+1])) {
-				log.Printf("Invalid CSI code parsed: %v (%s)", []byte(string(text[start:i+1])), string(text[start:i+1]))
-				//} else {
-				//	log.Printf("Valid CSI code parsed: %v (%s)", []byte(string(text[start:i+1])), string(text[start:i+1]))
-			}*/
-
-		case ']': // TODO: OSC
-			if !escape {
-				term.writeCell(text[i])
-				continue
-			}
-			start := i
-			for ; i < len(text); i++ {
-				if text[i] == 'S' && i < len(text) && text[i+1] == 'T' { // ST  (OSC terminator)
-					i += 2
-					break
-				}
-				if text[i] == codes.AsciiCtrlG { // bell (xterm OSC terminator)
-					i++
-					break
-				}
-			}
-			log.Printf("TODO: OSC sequences: '%s'", string(text[start:i]))
 
 		case '\t':
 			indent := int(4 - (term.curPos.X % term.tabWidth))
@@ -94,19 +70,16 @@ func (term *Term) write() {
 		//	term.writeCell('·')
 
 		default:
-			if text[i] < 32 {
-				log.Printf("Unexpected ASCII control character: %d", text[i])
+			if r < 32 {
+				log.Printf("Unexpected ASCII control character: %d", r)
 				//} else {
 				//log.Printf("Character code %d (%s)", text[i], string(text[i]))
 			}
-			term.writeCell(text[i])
+			term.writeCell(r)
 		}
-
-		escape = false
 	}
 
 	//term.mutex.Unlock()
-	term.ExportMxTTY()
 }
 
 func multiplyN(n *int32, r rune) {

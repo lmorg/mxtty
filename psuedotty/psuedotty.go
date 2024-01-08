@@ -1,7 +1,6 @@
 package psuedotty
 
 import (
-	"bytes"
 	"fmt"
 	"log"
 	"os"
@@ -13,8 +12,7 @@ import (
 type PTY struct {
 	Primary   *os.File
 	Secondary *os.File
-	buf       *bytes.Buffer
-	b         []byte
+	stream    chan rune
 }
 
 func NewPTY(size *types.Rect) (*PTY, error) {
@@ -34,6 +32,7 @@ func NewPTY(size *types.Rect) (*PTY, error) {
 	p := &PTY{
 		Primary:   primary,
 		Secondary: secondary,
+		stream:    make(chan rune),
 	}
 
 	go p.write()
@@ -42,35 +41,22 @@ func NewPTY(size *types.Rect) (*PTY, error) {
 }
 
 func (p *PTY) write() {
-	p.buf = bytes.NewBuffer(p.b)
 	b := make([]byte, 10*1024)
 
 	for {
-		read, err := p.Secondary.Read(b)
+		n, err := p.Secondary.Read(b)
 		if err != nil {
-			log.Printf("error reading from PTY (%d bytes dropped): %s", read, err.Error())
+			log.Printf("error reading from PTY (%d bytes dropped): %s", n, err.Error())
 			continue
 		}
 
-		written, err := p.buf.Write(b[:read])
-		if err != nil {
-			log.Printf("error writing to buffer (%d bytes dropped): %s", written, err.Error())
-			continue
-		}
-
-		if read != written {
-			log.Printf("read and write buffer mismatch: read %d, written %d", read, written)
-			continue
+		s := string(b[:n])
+		for _, r := range s {
+			p.stream <- r
 		}
 	}
 }
 
 func (p *PTY) ReadRune() rune {
-	for {
-		r, _, err := p.buf.ReadRune()
-		if err != nil {
-			log.Printf("error reading from buffer: %s", err.Error())
-		}
-		return r
-	}
+	return <-p.stream
 }

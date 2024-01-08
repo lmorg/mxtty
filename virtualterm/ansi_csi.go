@@ -10,119 +10,99 @@ func isCsiTerminator(r rune) bool {
 	return r >= 0x40 && r <= 0x7E
 }
 
-func parseCsiCodes(term *Term, text []rune) int {
-	i := 2
-
+func (term *Term) parseCsiCodes() {
 	var (
+		r     rune
 		stack = []int32{-1} // default value
 		n     = &stack[0]
 	)
 
 	for {
-		for ; i < len(text); i++ {
-			if text[i] >= '0' && '9' >= text[i] {
-				multiplyN(n, text[i])
-				continue
-			}
-
-			switch text[i] {
-			case 'A', 'E': // moveCursorUp
-				term.moveCursorUpwards(*n)
-
-			case 'B', 'F': // moveCursorDown
-				term.moveCursorDownwards(*n)
-
-			case 'C': // moveCursorForwards
-				term.moveCursorForwards(*n)
-
-			case 'D': // moveCursorBackwards
-				term.moveCursorBackwards(*n)
-
-			case 'H': // moveCursor
-				if len(stack) != 2 {
-					term.curPos = types.Rect{}
-				} else {
-					term.curPos = types.Rect{
-						X: stack[0] + 1,
-						Y: stack[1] + 1,
-					}
-				}
-
-			case 'J': // eraseDisplay...
-				switch *n {
-				case -1, 0:
-					term.eraseDisplayAfter()
-				case 1:
-					term.eraseDisplayBefore()
-				case 2, 3:
-					term.eraseDisplay() // TODO: 3 should erase scrollback buffer
-				}
-
-			case 'K': // clearLine...
-				switch *n {
-				case -1, 0:
-					term.eraseLineAfter()
-				case 1:
-					term.eraseLineBefore()
-				case 2:
-					term.eraseLine()
-				}
-
-			case 'm': // SGR
-				lookupSgr(term.sgr, stack[0], stack)
-
-			case '?': // private codes
-				adjust, n, r := parseNumericAlphaCodes(i, text)
-				log.Printf("CSI private code gobbled: '[?%d%s'", n, string(r))
-				return i + adjust - 3
-
-			case ':', ';':
-				stack = append(stack, -1)
-				n = &stack[len(stack)-1]
-				//log.Printf("Unhandled CSI parameter: '%d;'", n)
-
-			default:
-				log.Printf("Unknown CSI code: '%d%s'", n, string(text[i]))
-			}
-
-			if isCsiTerminator(text[i]) {
-				return i - 1
-			}
-		}
-
-		p := make([]byte, 10*1024)
-		n, err := term.Pty.Read(p)
-		if err != nil {
-			log.Printf("error reading from buffer (%d bytes dropped): %s", n, err.Error())
-			i--
+		r = term.Pty.ReadRune()
+		if r >= '0' && '9' >= r {
+			multiplyN(n, r)
 			continue
 		}
-		r := []rune(string(p[:n]))
-		text = append(text, r...)
-	}
 
-	//return i - 1
+		switch r {
+		case 'A', 'E': // moveCursorUp
+			term.moveCursorUpwards(*n)
+
+		case 'B', 'F': // moveCursorDown
+			term.moveCursorDownwards(*n)
+
+		case 'C': // moveCursorForwards
+			term.moveCursorForwards(*n)
+
+		case 'D': // moveCursorBackwards
+			term.moveCursorBackwards(*n)
+
+		case 'H': // moveCursor
+			if len(stack) != 2 {
+				term.curPos = types.Rect{}
+			} else {
+				term.curPos = types.Rect{
+					X: stack[0] + 1,
+					Y: stack[1] + 1,
+				}
+			}
+
+		case 'J': // eraseDisplay...
+			switch *n {
+			case -1, 0:
+				term.eraseDisplayAfter()
+			case 1:
+				term.eraseDisplayBefore()
+			case 2, 3:
+				term.eraseDisplay() // TODO: 3 should erase scrollback buffer
+			}
+
+		case 'K': // clearLine...
+			switch *n {
+			case -1, 0:
+				term.eraseLineAfter()
+			case 1:
+				term.eraseLineBefore()
+			case 2:
+				term.eraseLine()
+			}
+
+		case 'm': // SGR
+			lookupSgr(term.sgr, stack[0], stack)
+
+		case '?': // private codes
+			code := term.parsePrivateCodes()
+			log.Printf("CSI private code gobbled: '[?%d%s'", n, string(code))
+			return
+
+		case ':', ';':
+			stack = append(stack, -1)
+			n = &stack[len(stack)-1]
+			//log.Printf("Unhandled CSI parameter: '%d;'", n)
+
+		default:
+			log.Printf("Unknown CSI code: '%d%s'", n, string(r))
+		}
+
+		if isCsiTerminator(r) {
+			return
+		}
+	}
 }
 
-func parseNumericAlphaCodes(i int, text []rune) (int, int32, rune) {
-	i++
-	var n int32 = -1 // default value
+func (term *Term) parsePrivateCodes() []rune {
+	var (
+		r    rune
+		code []rune
+	)
 
-	for ; i < len(text); i++ {
-		if text[i] >= '0' && '9' >= text[i] {
-			//n = (n * 10) + (text[i] - 48)
-			multiplyN(&n, text[i])
-			continue
+	for {
+		r = term.Pty.ReadRune()
+		code = append(code, r)
+		if isCsiTerminator(r) {
+			return code
 		}
-
-		if isCsiTerminator(text[i]) {
-			return i, n, text[i]
-		}
-
-		log.Printf("Unexpected character in private CSI sequence: %s", string(text[i]))
-		return i, n, text[i]
 	}
-	return i, n, 0
 }
 
 func lookupSgr(sgr *sgr, n int32, stack []int32) {
