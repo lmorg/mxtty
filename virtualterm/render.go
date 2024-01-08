@@ -42,17 +42,16 @@ func (term *Term) sgrOpts(sgr *sgr) (fg *types.Colour, bg *types.Colour) {
 }
 
 func (term *Term) _blinkCursor() {
+	if term.hideCursor {
+		return
+	}
+
 	var (
 		fg, bg *types.Colour
 		style  types.SgrFlag
 	)
 
-	cell := term.cell()
-	if cell == nil {
-		return
-	}
-
-	r := cell.char
+	r := term.cell().char
 	if r == 0 {
 		r = ' '
 		fg, bg = blinkColour[true], blinkColour[false]

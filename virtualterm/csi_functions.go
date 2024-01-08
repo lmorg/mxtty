@@ -15,3 +15,11 @@ func (term *Term) _csiScreenBufferAlternative() {
 func (term *Term) _csiScreenBufferNormal() {
 	term.cells = &term.normBuf
 }
+
+func (term *Term) _csiCursorHide() {
+	term.hideCursor = true
+}
+
+func (term *Term) _csiCursorShow() {
+	term.hideCursor = false
+}

@@ -23,6 +23,7 @@ type Term struct {
 	mutex       sync.Mutex
 
 	slowBlinkState bool
+	hideCursor     bool
 }
 
 type cell struct {
