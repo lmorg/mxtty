@@ -16,11 +16,11 @@ func (term *Term) writeCell(r rune) {
 func (term *Term) printLoop() {
 	var r rune
 
-	//term.mutex.Lock()
-
 	for {
 		r = term.Pty.ReadRune()
 		term.slowBlinkState = true
+
+		term.mutex.Lock()
 
 		switch r {
 		case codes.AsciiEscape:
@@ -67,9 +67,10 @@ func (term *Term) printLoop() {
 			}
 			term.writeCell(r)
 		}
+
+		term.mutex.Unlock()
 	}
 
-	//term.mutex.Unlock()
 }
 
 func multiplyN(n *int32, r rune) {

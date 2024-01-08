@@ -1,6 +1,8 @@
 package virtualterm
 
 import (
+	"sync"
+
 	"github.com/lmorg/mxtty/psuedotty"
 	"github.com/lmorg/mxtty/types"
 )
@@ -17,6 +19,7 @@ type Term struct {
 	tabWidth    int32
 	renderer    types.Renderer
 	Pty         *psuedotty.PTY
+	mutex       sync.Mutex
 
 	slowBlinkState bool
 }

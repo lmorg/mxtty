@@ -7,6 +7,8 @@ import (
 )
 
 func (term *Term) Render() {
+	term.mutex.Lock()
+
 	var x, y int32
 	var err error
 	for y = 0; int(y) < len(*term.cells); y++ {
@@ -25,6 +27,8 @@ func (term *Term) Render() {
 	}
 
 	term._blinkCursor()
+
+	term.mutex.Unlock()
 }
 
 func (term *Term) sgrOpts(sgr *sgr) (fg *types.Colour, bg *types.Colour) {
