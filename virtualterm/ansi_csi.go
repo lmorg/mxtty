@@ -8,6 +8,14 @@ func isCsiTerminator(r rune) bool {
 	return r >= 0x40 && r <= 0x7E
 }
 
+func multiplyN(n *int32, r rune) {
+	if *n < 0 {
+		*n = 0
+	}
+
+	*n = (*n * 10) + (r - 48)
+}
+
 func (term *Term) parseCsiCodes() {
 	var (
 		r       rune

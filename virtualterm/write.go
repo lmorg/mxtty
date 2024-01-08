@@ -36,36 +36,29 @@ func (term *Term) printLoop() {
 
 		switch r {
 
-		case codes.AsciiEscape:
-			term.parseC1Codes()
-
-		case codes.AsciiBackspace, codes.IsoBackspace:
-			_ = term.moveCursorBackwards(1)
-
-		case codes.AsciiCtrlG: // bell
+		case codes.AsciiCtrlG: // bell (7)
 			// TODO: beep
 
-		case '\t':
+		case codes.AsciiBackspace, codes.IsoBackspace: // (10) / (127)
+			_ = term.moveCursorBackwards(1)
+
+		case codes.AsciiTab: // \t (11)
 			indent := int(4 - (term.curPos.X % term.tabWidth))
 			for i := 0; i < indent; i++ {
 				term.writeCell(' ')
 			}
 
-		case '\r':
-			term.curPos.X = 0
-
-		case '\n':
-			//log.Printf("DEBUG: new line char")
+		case codes.AsciiCtrlJ: // \n (12)
 			if term.moveCursorDownwards(1) > 0 {
-				//term.moveContentsUp()
 				term.scrollUp(1)
 				term.moveCursorDownwards(1)
 			}
-			//term.wrapCursorForwards()
-			//.term.curPos.X = 0
 
-		//case ' ':
-		//	term.writeCell('·')
+		case codes.AsciiCtrlM: // \r (13)
+			term.curPos.X = 0
+
+		case codes.AsciiEscape: // (27)
+			term.parseC1Codes()
 
 		default:
 			if r < 32 {
@@ -76,13 +69,4 @@ func (term *Term) printLoop() {
 
 		term._mutex.Unlock()
 	}
-
-}
-
-func multiplyN(n *int32, r rune) {
-	if *n < 0 {
-		*n = 0
-	}
-
-	*n = (*n * 10) + (r - 48)
 }
