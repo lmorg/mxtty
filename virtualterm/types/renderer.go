@@ -13,3 +13,11 @@ type Colour struct {
 	Green byte
 	Blue  byte
 }
+
+func (c *Colour) Copy() *Colour {
+	return &Colour{
+		Red:   c.Red,
+		Green: c.Green,
+		Blue:  c.Blue,
+	}
+}

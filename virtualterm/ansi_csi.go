@@ -76,7 +76,7 @@ func parseCsiCodes(term *Term, text []rune) int {
 				log.Printf("CSI private code gobbled: '[?%d%s'", n, string(r))
 				return i + adjust - 3
 
-			case ';':
+			case ':', ';':
 				stack = append(stack, -1)
 				n = &stack[len(stack)-1]
 				//log.Printf("Unhandled CSI parameter: '%d;'", n)
@@ -152,6 +152,7 @@ func lookupSgr(sgr *sgr, n int32, stack []int32) {
 
 	case 25: // no blink
 		sgr.Unset(SGR_BLINK)
+
 	//
 	// 3bit foreground colour:
 	//
@@ -181,17 +182,24 @@ func lookupSgr(sgr *sgr, n int32, stack []int32) {
 		sgr.fg = SGR_COLOUR_WHITE
 
 	case 38:
-		log.Printf("colour: %d, %v", n, stack)
 		if len(stack) < 2 {
+			log.Printf("SGR error: too few parameters in %d: %v", n, stack)
 			return
 		}
 		switch stack[1] {
 		case 5:
-		case 2:
-			if len(stack) != 5 {
+			colour, ok := SGR_COLOUR_256[stack[2]]
+			if !ok {
+				log.Printf("SGR error: 256 value does not exist in %d: %v", n, stack)
 				return
 			}
-			sgr.fg = types.Colour{
+			sgr.fg = colour
+		case 2:
+			if len(stack) != 5 {
+				log.Printf("SGR error: too few parameters in %d (24bit): %v", n, stack)
+				return
+			}
+			sgr.fg = &types.Colour{
 				Red:   byte(stack[2]),
 				Green: byte(stack[3]),
 				Blue:  byte(stack[4]),
@@ -201,9 +209,9 @@ func lookupSgr(sgr *sgr, n int32, stack []int32) {
 	case 39: // fg default
 		sgr.fg = SGR_DEFAULT.fg
 
-		//
-		// 3bit background colour:
-		//
+	//
+	// 3bit background colour:
+	//
 
 	case 40: // bg black
 		sgr.bg = SGR_COLOUR_BLACK
@@ -229,10 +237,28 @@ func lookupSgr(sgr *sgr, n int32, stack []int32) {
 	case 47: // bg white
 		sgr.bg = SGR_COLOUR_WHITE
 
+	case 48:
+		if len(stack) < 2 {
+			return
+		}
+		switch stack[1] {
+		case 5:
+			//sgr.bg = sgr256ToRgb(stack[2])
+		case 2:
+			if len(stack) != 5 {
+				return
+			}
+			sgr.bg = &types.Colour{
+				Red:   byte(stack[2]),
+				Green: byte(stack[3]),
+				Blue:  byte(stack[4]),
+			}
+		}
+
 	case 49: // bg default
 		sgr.bg = SGR_DEFAULT.bg
 
-		//
+	//
 	// 4bit foreground colour:
 	//
 
@@ -260,9 +286,9 @@ func lookupSgr(sgr *sgr, n int32, stack []int32) {
 	case 97: // fg white
 		sgr.fg = SGR_COLOUR_WHITE_BRIGHT
 
-		//
-		// 4bit background colour:
-		//
+	//
+	// 4bit background colour:
+	//
 
 	case 100: // bg black
 		sgr.bg = SGR_COLOUR_BLACK_BRIGHT

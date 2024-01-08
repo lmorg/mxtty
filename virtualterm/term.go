@@ -37,10 +37,7 @@ func NewTerminal(renderer *types.Renderer) *Term {
 		renderer: renderer,
 		cells:    cells,
 		size:     renderer.Size,
-		sgr: &sgr{
-			fg: SGR_DEFAULT.fg,
-			bg: SGR_DEFAULT.bg,
-		},
+		sgr:      SGR_DEFAULT.Copy(),
 		tabWidth: 8,
 	}
 

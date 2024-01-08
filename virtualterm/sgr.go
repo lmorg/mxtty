@@ -17,8 +17,8 @@ const (
 
 type sgr struct {
 	bitwise sgrFlag
-	fg      types.Colour
-	bg      types.Colour
+	fg      *types.Colour
+	bg      *types.Colour
 }
 
 func (s *sgr) Is(flag sgrFlag) bool {
@@ -46,8 +46,8 @@ func (c *cell) clear() {
 
 func (s *sgr) Copy() *sgr {
 	return &sgr{
-		fg:      s.fg,
-		bg:      s.bg,
+		fg:      s.fg.Copy(),
+		bg:      s.bg.Copy(),
 		bitwise: s.bitwise,
 	}
 }
