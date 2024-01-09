@@ -35,13 +35,12 @@ func Initialise(fontName string, fontSize int) types.Renderer {
 		panic(err.Error())
 	}
 
-	sr.setTypeFace(font)
-
-	sr.border = 5
-
 	sr._quit = make(chan bool)
-	sr._event = make(chan bool)
 	sr._redraw = make(chan bool)
+
+	sr.setTypeFace(font)
+	sr.border = 5
+	sr.dropShadow = true
 
 	return sr
 }
@@ -111,7 +110,7 @@ func (sr *sdlRender) Start(term types.Term) {
 	}
 
 	for {
-		slowPoll := time.After(250 * time.Millisecond)
+		//slowPoll := time.After(250 * time.Millisecond)
 
 	checkEvent:
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
@@ -122,15 +121,15 @@ func (sr *sdlRender) Start(term types.Term) {
 
 			case *sdl.WindowEvent:
 				eventWindow(sr, evt, term)
-				go sr.triggerEvent()
+				go sr.TriggerRedraw()
 
 			case *sdl.TextInputEvent:
 				eventTextInput(evt, term)
-				go sr.triggerEvent()
+				go sr.TriggerRedraw()
 
 			case *sdl.KeyboardEvent:
 				eventKeyPress(evt, term)
-				go sr.triggerEvent()
+				go sr.TriggerRedraw()
 			}
 		}
 
@@ -138,29 +137,34 @@ func (sr *sdlRender) Start(term types.Term) {
 		case <-sr._quit:
 			return
 
-		case <-sr._event:
+		case <-sr._redraw:
 			update(sr, term)
 
-		case <-slowPoll:
-			update(sr, term)
+		//case <-slowPoll:
+		//	update(sr, term)
 
 		case <-time.After(15 * time.Millisecond):
 			goto checkEvent
 		}
 
-		//sdl.Delay(250)
-
 	}
 }
 
 func update(sr *sdlRender, term types.Term) {
+	bg := term.Bg()
+	pixel := sdl.MapRGBA(sr.surface.Format, bg.Red, bg.Green, bg.Blue, 255)
+	err := sr.surface.FillRect(&sdl.Rect{W: sr.surface.W, H: sr.surface.H}, pixel)
+	if err != nil {
+		log.Printf("error in renderer: %s", err.Error())
+	}
+
 	term.Render()
 
 	if atomic.CompareAndSwapInt32(&sr.updateTitle, 1, 0) {
 		sr.window.SetTitle(sr.title)
 	}
 
-	err := sr.window.UpdateSurface()
+	err = sr.window.UpdateSurface()
 	if err != nil {
 		log.Printf("error in renderer: %s", err.Error())
 	}

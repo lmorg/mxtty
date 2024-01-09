@@ -18,7 +18,8 @@ func (term *Term) lineFeed() {
 		term.csiScrollUp(1)
 		term.csiMoveCursorDownwards(1)
 	}
-	go term.renderer.TriggerRedraw()
+
+	go term.lfRedraw()
 }
 
 func (term *Term) ReverseLineFeed() {

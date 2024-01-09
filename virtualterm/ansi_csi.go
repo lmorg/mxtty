@@ -34,6 +34,9 @@ func (term *Term) parseCsiCodes() {
 		}
 
 		switch r {
+		//case '@':
+		// Insert Ps (Blank) Character(s) (default = 1) (ICH)
+
 		case 'a':
 			//Character Position Relative  [columns] (default = [row,col+1]) (HPR).
 			term.csiMoveCursorForwards(*n)
@@ -172,8 +175,9 @@ func (term *Term) parseCsiCodes() {
 			// Character Attributes (SGR).
 			lookupSgr(term.sgr, stack[0], stack)
 
-		//case 'M':
-		// Delete Ps Line(s) (default = 1) (DL).
+		case 'M':
+			// Delete Ps Line(s) (default = 1) (DL).
+			term.csiDeleteLines(*n)
 
 		case 'n':
 			// Device Status Report (DSR).
@@ -278,7 +282,7 @@ func (term *Term) parseCsiCodes() {
 
 		case '=': // tertiary codes
 			code := term.parseCsiExtendedCodes()
-			log.Printf("TODO: Tertiary CSI code ignored: '%s%s'", string(cache), string(code))
+			lookupTertiaryCsi(term, code)
 			return
 
 		case ':', ';':

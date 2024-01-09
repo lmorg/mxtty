@@ -90,3 +90,21 @@ func (term *Term) csiDeleteCharacters(n int32) {
 		}
 	}
 }
+
+func (term *Term) csiDeleteLines(n int32) {
+	if n < 1 {
+		n = 1
+	}
+
+	if term.curPos.Y+n >= term.size.Y {
+		n = term.size.Y - term.curPos.Y
+	}
+
+	for i := int32(0); i < term.size.Y-term.curPos.Y; i++ {
+		if term.curPos.Y+i+n < term.size.Y {
+			(*term.cells)[term.curPos.Y+i] = (*term.cells)[term.curPos.Y]
+		} else {
+			(*term.cells)[term.curPos.Y] = make([]cell, term.size.X)
+		}
+	}
+}

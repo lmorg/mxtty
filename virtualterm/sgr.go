@@ -21,8 +21,8 @@ func (c *cell) clear() {
 
 func (s *sgr) Copy() *sgr {
 	return &sgr{
-		fg:      s.fg.Copy(),
-		bg:      s.bg.Copy(),
+		fg:      s.fg, //.Copy(),
+		bg:      s.bg, //.Copy(),
 		bitwise: s.bitwise,
 	}
 }

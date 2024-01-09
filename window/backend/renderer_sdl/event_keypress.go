@@ -7,7 +7,7 @@ import (
 )
 
 func eventTextInput(evt *sdl.TextInputEvent, term types.Term) {
-	term.Return([]byte(evt.GetText()))
+	term.Reply([]byte(evt.GetText()))
 }
 
 func eventKeyPress(evt *sdl.KeyboardEvent, term types.Term) {
@@ -17,54 +17,54 @@ func eventKeyPress(evt *sdl.KeyboardEvent, term types.Term) {
 
 	switch evt.Keysym.Sym {
 	case sdl.K_ESCAPE:
-		term.Return([]byte{codes.AsciiEscape})
+		term.Reply([]byte{codes.AsciiEscape})
 	case sdl.K_TAB:
-		term.Return([]byte{'\t'})
+		term.Reply([]byte{'\t'})
 	case sdl.K_RETURN:
-		term.Return([]byte{'\n'})
+		term.Reply([]byte{'\n'})
 	case sdl.K_BACKSPACE:
-		term.Return([]byte{codes.IsoBackspace})
+		term.Reply([]byte{codes.IsoBackspace})
 
 	case sdl.K_UP:
-		term.Return(codes.AnsiUp)
+		term.Reply(codes.AnsiUp)
 	case sdl.K_DOWN:
-		term.Return(codes.AnsiDown)
+		term.Reply(codes.AnsiDown)
 	case sdl.K_LEFT:
-		term.Return(codes.AnsiBackwards)
+		term.Reply(codes.AnsiBackwards)
 	case sdl.K_RIGHT:
-		term.Return(codes.AnsiForwards)
+		term.Reply(codes.AnsiForwards)
 
 	case sdl.K_PAGEDOWN:
-		term.Return(codes.AnsiPageDown)
+		term.Reply(codes.AnsiPageDown)
 	case sdl.K_PAGEUP:
-		term.Return(codes.AnsiPageUp)
+		term.Reply(codes.AnsiPageUp)
 
 	// F-Keys
 
 	case sdl.K_F1:
-		term.Return(codes.AnsiF1VT100)
+		term.Reply(codes.AnsiF1VT100)
 	case sdl.K_F2:
-		term.Return(codes.AnsiF2VT100)
+		term.Reply(codes.AnsiF2VT100)
 	case sdl.K_F3:
-		term.Return(codes.AnsiF3VT100)
+		term.Reply(codes.AnsiF3VT100)
 	case sdl.K_F4:
-		term.Return(codes.AnsiF4VT100)
+		term.Reply(codes.AnsiF4VT100)
 	case sdl.K_F5:
-		term.Return(codes.AnsiF5)
+		term.Reply(codes.AnsiF5)
 	case sdl.K_F6:
-		term.Return(codes.AnsiF6)
+		term.Reply(codes.AnsiF6)
 	case sdl.K_F7:
-		term.Return(codes.AnsiF7)
+		term.Reply(codes.AnsiF7)
 	case sdl.K_F8:
-		term.Return(codes.AnsiF8)
+		term.Reply(codes.AnsiF8)
 	case sdl.K_F9:
-		term.Return(codes.AnsiF9)
+		term.Reply(codes.AnsiF9)
 	case sdl.K_F10:
-		term.Return(codes.AnsiF10)
+		term.Reply(codes.AnsiF10)
 	case sdl.K_F11:
-		term.Return(codes.AnsiF11)
+		term.Reply(codes.AnsiF11)
 	case sdl.K_F12:
-		term.Return(codes.AnsiF12)
+		term.Reply(codes.AnsiF12)
 
 	}
 }

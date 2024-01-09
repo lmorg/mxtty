@@ -28,6 +28,23 @@ type Term struct {
 	_savedCurPos      types.XY
 	_scrollRegion     *scrollRegionT
 	_windowTitleStack []string
+
+	// line feed redraw
+	_lfEnabled   bool
+	_lfNum       int32
+	_lfFrequency int32
+}
+
+func (term *Term) lfRedraw() {
+	if !term._lfEnabled {
+		return
+	}
+
+	term._lfNum++
+	if term._lfNum >= term._lfFrequency {
+		term._lfNum = 0
+		term.renderer.TriggerRedraw()
+	}
 }
 
 type cell struct {
@@ -78,6 +95,9 @@ func NewTerminal(renderer types.Renderer) *Term {
 
 	term.cells = &term._normBuf
 
+	term._lfFrequency = 2
+	term._lfEnabled = true
+
 	return term
 }
 
@@ -126,19 +146,6 @@ func (term *Term) previousCell() (*cell, *types.XY) {
 	return &(*term.cells)[pos.Y][pos.X], &pos
 }
 
-/*func (term *Term) CopyCells(src [][]cell) [][]cell {
-	dst := make([][]cell, len(src))
-	for y := range src {
-		dst[y] = make([]cell, len(src[y]))
-		for x := range src[y] {
-			dst[y][x].char = src[y][x].char
-			dst[y][x].sgr = src[y][x].sgr.Copy()
-		}
-	}
-
-	return dst
-}*/
-
 type scrollRegionT struct {
 	Top    int32
 	Bottom int32
@@ -156,6 +163,10 @@ func (term *Term) getScrollRegion() (top int32, bottom int32) {
 	return
 }
 
-func (term *Term) Return(b []byte) error {
+func (term *Term) Reply(b []byte) error {
 	return term.Pty.Write(b)
+}
+
+func (term *Term) Bg() *types.Colour {
+	return SGR_DEFAULT.bg
 }

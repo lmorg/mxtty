@@ -93,20 +93,22 @@ only aspirational.
 - PM codes (out of scope)
   - [x] common: can run most CLI applications
   - [x] broad: can run more older or more CLI applications
-  - [x] xterm` compatible
-- [x] Able to run `tmux` glitch-free
-- [ ] Able to render `vim` glitch-free
-- Mouse support
+  - [x] xterm compatible
+- [x] runs `tmux` glitch-free
+- [ ] runs `vim` glitch-free
+- mouse support
   - [ ] common: can run most CLI applications
   - [ ] broad: can run more older or more CLI applications
   - [ ] xterm compatible
-- [ ] Alt character sets
-- [ ] Resize support
-- [ ] Scrollback history
+- [ ] alt character sets
+- [ ] wide characters
+- [ ] resize support
+- [ ] scrollback history
 
 #### extended features
 
-- Inlining images
+- inlining images
+  - [ ] own API?
   - [ ] iterm2 compatible
   - [ ] sixel compatible
 - [ ] hyperlink support

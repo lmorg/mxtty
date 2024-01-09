@@ -7,7 +7,8 @@ type Term interface {
 	GetSize() *XY
 	Resize(*XY)
 	Render()
-	Return([]byte) error
+	Bg() *Colour
+	Reply([]byte) error
 }
 
 type Pty interface {

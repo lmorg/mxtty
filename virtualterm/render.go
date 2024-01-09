@@ -1,8 +1,8 @@
 package virtualterm
 
 import (
-	"fmt"
 	"log"
+	"unsafe"
 
 	"github.com/lmorg/mxtty/types"
 )
@@ -19,14 +19,10 @@ func (term *Term) Render() {
 				fg, bg := term.sgrOpts((*term.cells)[y][x].sgr)
 				err = term.renderer.PrintRuneColour((*term.cells)[y][x].char, x, y, fg, bg, (*term.cells)[y][x].sgr.bitwise)
 			case CELL_NULL:
-				fg, bg := term.sgrOpts(SGR_DEFAULT)
-				err = term.renderer.PrintRuneColour(' ', x, y, fg, bg, 0)
+				//fg, bg := term.sgrOpts(SGR_DEFAULT)
+				//err = term.renderer.PrintRuneColour(' ', x, y, fg, bg, 0)
 			case CELL_ELEMENT_START:
-				e := (*term.cells)[y][x].element
-				if e == nil {
-					err = fmt.Errorf("nil pointer to element")
-				}
-				e.Draw(nil) // TODO: this shouldn't be nil
+				err = term.drawElement(&(*term.cells)[y][x])
 			case CELL_ELEMENT_FILL:
 				continue
 			}
@@ -46,6 +42,10 @@ func (term *Term) sgrOpts(sgr *sgr) (fg *types.Colour, bg *types.Colour) {
 		bg, fg = sgr.fg, sgr.bg
 	} else {
 		fg, bg = sgr.fg, sgr.bg
+	}
+
+	if unsafe.Pointer(bg) == unsafe.Pointer(SGR_DEFAULT.bg) {
+		bg = nil
 	}
 
 	return fg, bg

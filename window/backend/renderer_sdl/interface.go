@@ -13,11 +13,16 @@ import (
 type sdlRender struct {
 	window    *sdl.Window
 	surface   *sdl.Surface
-	font      *ttf.Font
 	glyphSize *types.XY
 	termSize  *types.XY
-	border    int32
 
+	// preferences
+	font       *ttf.Font
+	_fontStyle types.SgrFlag
+	border     int32
+	dropShadow bool
+
+	// title
 	title       string
 	updateTitle int32
 
@@ -26,13 +31,11 @@ type sdlRender struct {
 
 	// events
 	_quit   chan bool
-	_event  chan bool
 	_redraw chan bool
 }
 
 func (sr *sdlRender) triggerQuit()   { sr._quit <- true }
-func (sr *sdlRender) triggerEvent()  { sr._event <- true }
-func (sr *sdlRender) TriggerRedraw() { sr._event <- true }
+func (sr *sdlRender) TriggerRedraw() { sr._redraw <- true }
 
 func (sr *sdlRender) Size() *types.XY {
 	return sr.termSize
