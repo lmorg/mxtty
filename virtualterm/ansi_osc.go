@@ -32,10 +32,12 @@ func (term *Term) parseOscCodes() {
 	stack := strings.Split(string(text[:len(text)-1]), ";")
 
 	switch stack[0] {
-	case "0": // change icon and window title
+	case "0":
+		// change icon and window title
 		term.renderer.SetWindowTitle(stack[1])
 
-	case "2": // change window title
+	case "2":
+		// change window title
 		term.renderer.SetWindowTitle(stack[1])
 
 	case "1337":

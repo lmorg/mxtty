@@ -33,6 +33,10 @@ type Term struct {
 	_lfEnabled   bool
 	_lfNum       int32
 	_lfFrequency int32
+
+	// state
+	//_altBufActive bool
+	_activeElement mxapc
 }
 
 func (term *Term) lfRedraw() {
@@ -101,7 +105,6 @@ func NewTerminal(renderer types.Renderer) *Term {
 	return term
 }
 
-// GetSize outputs mirror those from terminal and readline packages
 func (term *Term) GetSize() *types.XY {
 	return term.size
 }
