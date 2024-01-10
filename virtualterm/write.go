@@ -17,8 +17,8 @@ func (term *Term) writeCell(r rune) {
 		}
 	}
 
-	term.cell().char = r
-	term.cell().sgr = term.sgr.Copy()
+	term.cell().Char = r
+	term.cell().Sgr = term.sgr.Copy()
 	term.curPos.X++
 }
 

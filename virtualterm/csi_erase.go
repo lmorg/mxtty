@@ -7,7 +7,7 @@ package virtualterm
 func (term *Term) csiEraseDisplayAfter() {
 	for y := term.curPos.Y; y < term.size.Y; y++ {
 		for x := term.curPos.X; x < term.size.X; x++ {
-			(*term.cells)[y][x].clear()
+			(*term.cells)[y][x].Clear()
 		}
 	}
 }
@@ -15,7 +15,7 @@ func (term *Term) csiEraseDisplayAfter() {
 func (term *Term) csiEraseDisplayBefore() {
 	for y := term.curPos.Y; y >= 0; y-- {
 		for x := term.curPos.X; x >= 0; x-- {
-			(*term.cells)[y][x].clear()
+			(*term.cells)[y][x].Clear()
 		}
 	}
 }
@@ -24,7 +24,7 @@ func (term *Term) csiEraseDisplay() {
 	var x, y int32
 	for ; y < term.size.Y; y++ {
 		for ; x < term.size.X; x++ {
-			(*term.cells)[y][x].clear()
+			(*term.cells)[y][x].Clear()
 		}
 	}
 }
@@ -35,20 +35,20 @@ func (term *Term) csiEraseDisplay() {
 
 func (term *Term) csiEraseLineAfter() {
 	for x := term.curPos.X; x < term.size.X; x++ {
-		(*term.cells)[term.curPos.Y][x].clear()
+		(*term.cells)[term.curPos.Y][x].Clear()
 	}
 }
 
 func (term *Term) csiEraseLineBefore() {
 	for x := term.curPos.X; x >= 0; x-- {
-		(*term.cells)[term.curPos.Y][x].clear()
+		(*term.cells)[term.curPos.Y][x].Clear()
 	}
 }
 
 func (term *Term) csiEraseLine() {
 	var x int32
 	for ; x < term.size.X; x++ {
-		(*term.cells)[term.curPos.Y][x].clear()
+		(*term.cells)[term.curPos.Y][x].Clear()
 	}
 }
 
@@ -60,7 +60,7 @@ func (term *Term) csiEraseCharacters(n int32) {
 		n = term.size.X - term.curPos.X
 	}
 	for x := int32(0); x < n; x++ {
-		(*term.cells)[term.curPos.Y][x].clear()
+		(*term.cells)[term.curPos.Y][x].Clear()
 	}
 }
 
@@ -86,7 +86,7 @@ func (term *Term) csiDeleteCharacters(n int32) {
 		if term.curPos.X+i+n < term.size.X {
 			(*term.cells)[term.curPos.Y][term.curPos.X+i] = (*term.cells)[term.curPos.Y][term.curPos.X+i+n]
 		} else {
-			(*term.cells)[term.curPos.Y][term.curPos.X+i].clear()
+			(*term.cells)[term.curPos.Y][term.curPos.X+i].Clear()
 		}
 	}
 }
@@ -104,7 +104,7 @@ func (term *Term) csiDeleteLines(n int32) {
 		if term.curPos.Y+i+n < term.size.Y {
 			(*term.cells)[term.curPos.Y+i] = (*term.cells)[term.curPos.Y]
 		} else {
-			(*term.cells)[term.curPos.Y] = make([]cell, term.size.X)
+			(*term.cells)[term.curPos.Y] = term.newRow()
 		}
 	}
 }

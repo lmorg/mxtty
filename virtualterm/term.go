@@ -5,22 +5,23 @@ import (
 	"sync"
 
 	"github.com/lmorg/mxtty/types"
+	"github.com/lmorg/mxtty/virtualterm/cell"
 )
 
 // Term is the display state of the virtual term
 type Term struct {
 	size     *types.XY
 	curPos   types.XY
-	sgr      *sgr
+	sgr      *cell.Sgr
 	renderer types.Renderer
 	Pty      types.Pty
 	_mutex   sync.Mutex
 
 	_slowBlinkState bool
 
-	cells    *[][]cell
-	_normBuf [][]cell
-	_altBuf  [][]cell
+	cells    *[][]cell.Cell
+	_normBuf [][]cell.Cell
+	_altBuf  [][]cell.Cell
 
 	// CSI states
 	_tabWidth         int32
@@ -36,7 +37,7 @@ type Term struct {
 
 	// state
 	//_altBufActive bool
-	_activeElement mxapc
+	_activeElement types.Element
 }
 
 func (term *Term) lfRedraw() {
@@ -51,23 +52,6 @@ func (term *Term) lfRedraw() {
 	}
 }
 
-type cell struct {
-	char rune
-	// 0: empty
-	// 1: render element
-	// 2: element child
-
-	sgr *sgr
-
-	element types.Element
-}
-
-const (
-	CELL_NULL          = 0
-	CELL_ELEMENT_START = 1
-	CELL_ELEMENT_FILL  = 2
-)
-
 /*
 Types of elements:
 - image rendering
@@ -79,13 +63,13 @@ Types of elements:
 func NewTerminal(renderer types.Renderer) *Term {
 	size := renderer.Size()
 
-	normBuf := make([][]cell, size.Y)
+	normBuf := make([][]cell.Cell, size.Y)
 	for i := range normBuf {
-		normBuf[i] = make([]cell, size.X)
+		normBuf[i] = make([]cell.Cell, size.X)
 	}
-	altBuf := make([][]cell, size.Y)
+	altBuf := make([][]cell.Cell, size.Y)
 	for i := range altBuf {
-		altBuf[i] = make([]cell, size.X)
+		altBuf[i] = make([]cell.Cell, size.X)
 	}
 
 	term := &Term{
@@ -93,7 +77,7 @@ func NewTerminal(renderer types.Renderer) *Term {
 		_normBuf:  normBuf,
 		_altBuf:   altBuf,
 		size:      size,
-		sgr:       SGR_DEFAULT.Copy(),
+		sgr:       cell.SGR_DEFAULT.Copy(),
 		_tabWidth: 8,
 	}
 
@@ -105,11 +89,14 @@ func NewTerminal(renderer types.Renderer) *Term {
 	return term
 }
 
+func (term *Term) newRow() []cell.Cell {
+	return make([]cell.Cell, term.size.X)
+}
 func (term *Term) GetSize() *types.XY {
 	return term.size
 }
 
-func (term *Term) cell() *cell {
+func (term *Term) cell() *cell.Cell {
 	if term.curPos.X < 0 {
 		log.Printf("ERROR: term.curPos.X < 0(returning first cell) TODO fixme")
 		term.curPos.X = 0
@@ -133,7 +120,7 @@ func (term *Term) cell() *cell {
 	return &(*term.cells)[term.curPos.Y][term.curPos.X]
 }
 
-func (term *Term) previousCell() (*cell, *types.XY) {
+func (term *Term) previousCell() (*cell.Cell, *types.XY) {
 	pos := term.curPos
 	pos.X--
 
@@ -171,5 +158,5 @@ func (term *Term) Reply(b []byte) error {
 }
 
 func (term *Term) Bg() *types.Colour {
-	return SGR_DEFAULT.bg
+	return cell.SGR_DEFAULT.Bg
 }

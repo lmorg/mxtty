@@ -7,7 +7,7 @@ import (
 
 	"github.com/lmorg/mxtty/assets"
 	"github.com/lmorg/mxtty/types"
-	"github.com/lmorg/mxtty/virtualterm"
+	"github.com/lmorg/mxtty/virtualterm/cell"
 	"github.com/lmorg/mxtty/window/backend/typeface"
 	"github.com/veandco/go-sdl2/sdl"
 	"github.com/veandco/go-sdl2/ttf"
@@ -102,7 +102,7 @@ func (sr *sdlRender) getTermSize() *types.XY {
 }
 
 func (sr *sdlRender) Start(term types.Term) {
-	c := virtualterm.SGR_COLOUR_BLACK
+	c := cell.SGR_COLOUR_BLACK
 	pixel := sdl.MapRGBA(sr.surface.Format, c.Red, c.Green, c.Blue, 255)
 	err := sr.surface.FillRect(&sdl.Rect{W: sr.surface.W, H: sr.surface.H}, pixel)
 	if err != nil {

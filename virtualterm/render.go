@@ -5,6 +5,7 @@ import (
 	"unsafe"
 
 	"github.com/lmorg/mxtty/types"
+	"github.com/lmorg/mxtty/virtualterm/cell"
 )
 
 func (term *Term) Render() {
@@ -14,20 +15,20 @@ func (term *Term) Render() {
 	var err error
 	for y = 0; int(y) < len(*term.cells); y++ {
 		for x = 0; int(x) < len((*term.cells)[y]); x++ {
-			switch (*term.cells)[y][x].char {
+			switch (*term.cells)[y][x].Char {
 			default:
-				fg, bg := term.sgrOpts((*term.cells)[y][x].sgr)
-				err = term.renderer.PrintRuneColour((*term.cells)[y][x].char, x, y, fg, bg, (*term.cells)[y][x].sgr.bitwise)
-			case CELL_NULL:
+				fg, bg := term.sgrOpts((*term.cells)[y][x].Sgr)
+				err = term.renderer.PrintRuneColour((*term.cells)[y][x].Char, x, y, fg, bg, (*term.cells)[y][x].Sgr.Bitwise)
+			case cell.CELL_NULL:
 				//fg, bg := term.sgrOpts(SGR_DEFAULT)
 				//err = term.renderer.PrintRuneColour(' ', x, y, fg, bg, 0)
-			case CELL_ELEMENT_START:
+			case cell.CELL_ELEMENT_BEGIN:
 				err = term.drawElement(&(*term.cells)[y][x])
-			case CELL_ELEMENT_FILL:
+			case cell.CELL_ELEMENT_FILL:
 				continue
 			}
 			if err != nil {
-				log.Printf("error in %s [x: %d, y: %d, value: '%s']: %s", "(t *Term) Render()", x, y, string((*term.cells)[y][x].char), err.Error())
+				log.Printf("error in %s [x: %d, y: %d, value: '%s']: %s", "(t *Term) Render()", x, y, string((*term.cells)[y][x].Char), err.Error())
 			}
 		}
 	}
@@ -37,14 +38,14 @@ func (term *Term) Render() {
 	term._mutex.Unlock()
 }
 
-func (term *Term) sgrOpts(sgr *sgr) (fg *types.Colour, bg *types.Colour) {
-	if sgr.bitwise.Is(types.SGR_INVERT) {
-		bg, fg = sgr.fg, sgr.bg
+func (term *Term) sgrOpts(sgr *cell.Sgr) (fg *types.Colour, bg *types.Colour) {
+	if sgr.Bitwise.Is(types.SGR_INVERT) {
+		bg, fg = sgr.Fg, sgr.Bg
 	} else {
-		fg, bg = sgr.fg, sgr.bg
+		fg, bg = sgr.Fg, sgr.Bg
 	}
 
-	if unsafe.Pointer(bg) == unsafe.Pointer(SGR_DEFAULT.bg) {
+	if unsafe.Pointer(bg) == unsafe.Pointer(cell.SGR_DEFAULT.Bg) {
 		bg = nil
 	}
 
@@ -61,14 +62,14 @@ func (term *Term) _blinkCursor() {
 		style  types.SgrFlag
 	)
 
-	r := term.cell().char
+	r := term.cell().Char
 	if r == 0 {
 		r = ' '
-		fg, bg = blinkColour[true], blinkColour[false]
+		fg, bg = cell.BlinkColour[true], cell.BlinkColour[false]
 		style = 0
 	} else {
-		fg, bg = term.cell().sgr.fg, term.sgr.bg
-		style = term.cell().sgr.bitwise
+		fg, bg = term.cell().Sgr.Fg, term.sgr.Bg
+		style = term.cell().Sgr.Bitwise
 	}
 
 	if term._slowBlinkState {

@@ -13,7 +13,7 @@ func (term *Term) csiRepeatPreceding(n int32) {
 	}
 	cell, _ := term.previousCell()
 	for i := int32(0); i < n; i++ {
-		term.writeCell(cell.char)
+		term.writeCell(cell.Char)
 	}
 }
 
@@ -36,7 +36,7 @@ func (term *Term) csiScreenBufferAlternative() {
 func (term *Term) csiScreenBufferNormal() {
 	term.cells = &term._normBuf
 	for i := range term._altBuf {
-		term._altBuf[i] = make([]cell, term.size.X)
+		term._altBuf[i] = term.newRow()
 	}
 }
 

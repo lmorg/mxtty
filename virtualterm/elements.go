@@ -1,10 +1,14 @@
 package virtualterm
 
-import "fmt"
+import (
+	"fmt"
 
-func (term *Term) drawElement(cell *cell) error {
+	"github.com/lmorg/mxtty/virtualterm/cell"
+)
+
+func (term *Term) drawElement(cell *cell.Cell) error {
 	//e :=cell.element
-	switch cell.element.(type) {
+	switch cell.Element.(type) {
 	case nil:
 		return fmt.Errorf("nil pointer to element")
 

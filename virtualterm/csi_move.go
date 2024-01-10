@@ -135,7 +135,7 @@ func (term *Term) csiScrollUp(n int32) {
 		if i+n <= bottom {
 			(*term.cells)[i] = (*term.cells)[i+n]
 		} else {
-			(*term.cells)[i] = make([]cell, term.size.X)
+			(*term.cells)[i] = term.newRow()
 		}
 	}
 }
@@ -155,7 +155,7 @@ func (term *Term) csiScrollDown(n int32) {
 		if i+n <= bottom {
 			(*term.cells)[i] = (*term.cells)[i-n]
 		} else {
-			(*term.cells)[i] = make([]cell, term.size.X)
+			(*term.cells)[i] = term.newRow()
 		}
 	}
 }
@@ -187,7 +187,7 @@ func (term *Term) csiInsertLines(n int32) {
 			(*term.cells)[y] = (*term.cells)[y-1]
 			i++
 		} else {
-			(*term.cells)[y] = make([]cell, term.size.X)
+			(*term.cells)[y] = term.newRow()
 		}
 	}
 }

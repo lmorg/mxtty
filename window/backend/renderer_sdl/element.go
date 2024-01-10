@@ -25,6 +25,10 @@ func (el *ElementTable) Close() {
 	// do nothing
 }
 
-func (el *ElementTable) EventCallback() {
+func (el *ElementTable) fgh() {
 
+}
+
+func (el *ElementTable) Start() {
+	
 }
