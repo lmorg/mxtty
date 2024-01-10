@@ -1,8 +1,8 @@
 package types
 
 type Element interface {
-	//Size() *XY
-	//Draw(*XY)
+	Draw()
+	ReadCell(*Cell)
 	Close()
 }
 
@@ -16,5 +16,5 @@ const (
 
 type ELEMENT_TABLE interface {
 	Element
-	EventCallback()
+	//EventCallback()
 }

@@ -3,10 +3,10 @@ package virtualterm
 import (
 	"fmt"
 
-	"github.com/lmorg/mxtty/virtualterm/cell"
+	"github.com/lmorg/mxtty/types"
 )
 
-func (term *Term) drawElement(cell *cell.Cell) error {
+func (term *Term) drawElement(cell *types.Cell) error {
 	//e :=cell.element
 	switch cell.Element.(type) {
 	case nil:

@@ -1,6 +1,8 @@
 package rendersdl
 
-import "github.com/lmorg/mxtty/types"
+import (
+	"github.com/lmorg/mxtty/types"
+)
 
 func (sr *sdlRender) NewElement(id types.ElementID, size *types.XY, data []byte) types.Element {
 	switch id {
@@ -25,10 +27,10 @@ func (el *ElementTable) Close() {
 	// do nothing
 }
 
-func (el *ElementTable) fgh() {
+func (el *ElementTable) ReadCell(cell *types.Cell) {
 
 }
 
-func (el *ElementTable) Start() {
-	
+func (el *ElementTable) Draw() {
+	// do nothing
 }

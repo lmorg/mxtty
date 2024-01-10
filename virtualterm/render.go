@@ -5,7 +5,6 @@ import (
 	"unsafe"
 
 	"github.com/lmorg/mxtty/types"
-	"github.com/lmorg/mxtty/virtualterm/cell"
 )
 
 func (term *Term) Render() {
@@ -19,12 +18,12 @@ func (term *Term) Render() {
 			default:
 				fg, bg := term.sgrOpts((*term.cells)[y][x].Sgr)
 				err = term.renderer.PrintRuneColour((*term.cells)[y][x].Char, x, y, fg, bg, (*term.cells)[y][x].Sgr.Bitwise)
-			case cell.CELL_NULL:
+			case types.CELL_NULL:
 				//fg, bg := term.sgrOpts(SGR_DEFAULT)
 				//err = term.renderer.PrintRuneColour(' ', x, y, fg, bg, 0)
-			case cell.CELL_ELEMENT_BEGIN:
+			case types.CELL_ELEMENT_BEGIN:
 				err = term.drawElement(&(*term.cells)[y][x])
-			case cell.CELL_ELEMENT_FILL:
+			case types.CELL_ELEMENT_FILL:
 				continue
 			}
 			if err != nil {
@@ -38,14 +37,14 @@ func (term *Term) Render() {
 	term._mutex.Unlock()
 }
 
-func (term *Term) sgrOpts(sgr *cell.Sgr) (fg *types.Colour, bg *types.Colour) {
+func (term *Term) sgrOpts(sgr *types.Sgr) (fg *types.Colour, bg *types.Colour) {
 	if sgr.Bitwise.Is(types.SGR_INVERT) {
 		bg, fg = sgr.Fg, sgr.Bg
 	} else {
 		fg, bg = sgr.Fg, sgr.Bg
 	}
 
-	if unsafe.Pointer(bg) == unsafe.Pointer(cell.SGR_DEFAULT.Bg) {
+	if unsafe.Pointer(bg) == unsafe.Pointer(types.SGR_DEFAULT.Bg) {
 		bg = nil
 	}
 
@@ -65,7 +64,7 @@ func (term *Term) _blinkCursor() {
 	r := term.cell().Char
 	if r == 0 {
 		r = ' '
-		fg, bg = cell.BlinkColour[true], cell.BlinkColour[false]
+		fg, bg = types.BlinkColour[true], types.BlinkColour[false]
 		style = 0
 	} else {
 		fg, bg = term.cell().Sgr.Fg, term.sgr.Bg

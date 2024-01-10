@@ -1,13 +1,17 @@
+//go:build ignore
+// +build ignore
+
 package rendersdl
 
 import (
 	"log"
 
 	"github.com/lmorg/mxtty/types"
+	"github.com/lmorg/mxtty/types/cell"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
-func (sr *sdlRender) CacheImage(bmp []byte) (types.Element, error) {
+func (sr *sdlRender) CacheImage(bmp []byte) (cell.Element, error) {
 	rwops, err := sdl.RWFromMem(bmp)
 	if err != nil {
 		return nil, err

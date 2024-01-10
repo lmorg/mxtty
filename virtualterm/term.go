@@ -5,23 +5,22 @@ import (
 	"sync"
 
 	"github.com/lmorg/mxtty/types"
-	"github.com/lmorg/mxtty/virtualterm/cell"
 )
 
 // Term is the display state of the virtual term
 type Term struct {
 	size     *types.XY
 	curPos   types.XY
-	sgr      *cell.Sgr
+	sgr      *types.Sgr
 	renderer types.Renderer
 	Pty      types.Pty
 	_mutex   sync.Mutex
 
 	_slowBlinkState bool
 
-	cells    *[][]cell.Cell
-	_normBuf [][]cell.Cell
-	_altBuf  [][]cell.Cell
+	cells    *[][]types.Cell
+	_normBuf [][]types.Cell
+	_altBuf  [][]types.Cell
 
 	// CSI states
 	_tabWidth         int32
@@ -63,13 +62,13 @@ Types of elements:
 func NewTerminal(renderer types.Renderer) *Term {
 	size := renderer.Size()
 
-	normBuf := make([][]cell.Cell, size.Y)
+	normBuf := make([][]types.Cell, size.Y)
 	for i := range normBuf {
-		normBuf[i] = make([]cell.Cell, size.X)
+		normBuf[i] = make([]types.Cell, size.X)
 	}
-	altBuf := make([][]cell.Cell, size.Y)
+	altBuf := make([][]types.Cell, size.Y)
 	for i := range altBuf {
-		altBuf[i] = make([]cell.Cell, size.X)
+		altBuf[i] = make([]types.Cell, size.X)
 	}
 
 	term := &Term{
@@ -77,7 +76,7 @@ func NewTerminal(renderer types.Renderer) *Term {
 		_normBuf:  normBuf,
 		_altBuf:   altBuf,
 		size:      size,
-		sgr:       cell.SGR_DEFAULT.Copy(),
+		sgr:       types.SGR_DEFAULT.Copy(),
 		_tabWidth: 8,
 	}
 
@@ -89,14 +88,14 @@ func NewTerminal(renderer types.Renderer) *Term {
 	return term
 }
 
-func (term *Term) newRow() []cell.Cell {
-	return make([]cell.Cell, term.size.X)
+func (term *Term) newRow() []types.Cell {
+	return make([]types.Cell, term.size.X)
 }
 func (term *Term) GetSize() *types.XY {
 	return term.size
 }
 
-func (term *Term) cell() *cell.Cell {
+func (term *Term) cell() *types.Cell {
 	if term.curPos.X < 0 {
 		log.Printf("ERROR: term.curPos.X < 0(returning first cell) TODO fixme")
 		term.curPos.X = 0
@@ -120,7 +119,7 @@ func (term *Term) cell() *cell.Cell {
 	return &(*term.cells)[term.curPos.Y][term.curPos.X]
 }
 
-func (term *Term) previousCell() (*cell.Cell, *types.XY) {
+func (term *Term) previousCell() (*types.Cell, *types.XY) {
 	pos := term.curPos
 	pos.X--
 
@@ -158,5 +157,5 @@ func (term *Term) Reply(b []byte) error {
 }
 
 func (term *Term) Bg() *types.Colour {
-	return cell.SGR_DEFAULT.Bg
+	return types.SGR_DEFAULT.Bg
 }
