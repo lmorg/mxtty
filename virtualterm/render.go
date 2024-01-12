@@ -14,20 +14,26 @@ func (term *Term) Render() {
 	var err error
 	for y = 0; int(y) < len(*term.cells); y++ {
 		for x = 0; int(x) < len((*term.cells)[y]); x++ {
-			switch (*term.cells)[y][x].Char {
+			switch {
+			case (*term.cells)[y][x].Sgr == nil:
+				continue
+
+			case (*term.cells)[y][x].Sgr.Bitwise.Is(types.APC_BEGIN_ELEMENT):
+				(*term.cells)[y][x].Element.Draw(&types.XY{X: x, Y: y})
+				continue
+
+			case (*term.cells)[y][x].Sgr.Bitwise.Is(types.APC_ELEMENT):
+				continue
+
+			case (*term.cells)[y][x].Char == 0:
+				continue
+
 			default:
 				fg, bg := term.sgrOpts((*term.cells)[y][x].Sgr)
 				err = term.renderer.PrintRuneColour((*term.cells)[y][x].Char, x, y, fg, bg, (*term.cells)[y][x].Sgr.Bitwise)
-			case types.CELL_NULL:
-				//fg, bg := term.sgrOpts(SGR_DEFAULT)
-				//err = term.renderer.PrintRuneColour(' ', x, y, fg, bg, 0)
-			case types.CELL_ELEMENT_BEGIN:
-				err = term.drawElement(&(*term.cells)[y][x])
-			case types.CELL_ELEMENT_FILL:
-				continue
-			}
-			if err != nil {
-				log.Printf("error in %s [x: %d, y: %d, value: '%s']: %s", "(t *Term) Render()", x, y, string((*term.cells)[y][x].Char), err.Error())
+				if err != nil {
+					log.Printf("error in %s [x: %d, y: %d, value: '%s']: %s", "(t *Term) Render()", x, y, string((*term.cells)[y][x].Char), err.Error())
+				}
 			}
 		}
 	}

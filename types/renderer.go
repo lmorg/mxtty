@@ -2,7 +2,7 @@ package types
 
 type Renderer interface {
 	Start(Term)
-	Size() *XY
+	TermSize() *XY
 	Resize() *XY
 	PrintRuneColour(r rune, posX, posY int32, fg *Colour, bg *Colour, style SgrFlag) error
 	GetWindowTitle() string

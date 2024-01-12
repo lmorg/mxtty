@@ -5,16 +5,8 @@ import (
 	"strings"
 
 	"github.com/lmorg/mxtty/codes"
+	"github.com/lmorg/mxtty/types"
 )
-
-type apcSlice []string
-
-func (as *apcSlice) Value(i int) string {
-	if len(*as) <= i {
-		return ""
-	}
-	return (*as)[i]
-}
 
 func (term *Term) parseApcCodes() {
 	var (
@@ -35,24 +27,24 @@ func (term *Term) parseApcCodes() {
 		}
 	}
 
-	stack := apcSlice(strings.Split(string(text[:len(text)-1]), ";"))
+	parameters := types.ApcSlice(strings.Split(string(text[:len(text)-1]), ";"))
 
-	switch stack.Value(0) {
+	switch parameters.Value(0) {
 	case "BEGIN":
-		switch stack.Value(1) {
-		case "table":
-			term.mxapcTableBegin(stack)
+		switch parameters.Value(1) {
+		case "TABLE":
+			term.mxapcTableBegin(parameters)
 		default:
-			log.Printf("Unknown mxASC code %s: %s", stack[1], string(text[:len(text)-1]))
+			log.Printf("Unknown mxASC code %s: %s", parameters[1], string(text[:len(text)-1]))
 		}
 	case "END":
-		switch stack.Value(1) {
-		case "table":
-			term.mxapcTableEnd(stack)
+		switch parameters.Value(1) {
+		case "TABLE":
+			term.mxapcTableEnd(parameters)
 		default:
-			log.Printf("Unknown mxASC code %s: %s", stack[1], string(text[:len(text)-1]))
+			log.Printf("Unknown mxASC code %s: %s", parameters[1], string(text[:len(text)-1]))
 		}
 	default:
-		log.Printf("Unknown ASC code %s: %s", stack[0], string(text[:len(text)-1]))
+		log.Printf("Unknown ASC code %s: %s", parameters[0], string(text[:len(text)-1]))
 	}
 }

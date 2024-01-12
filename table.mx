@@ -1,0 +1,7 @@
+#!/usr/bin/env murex
+
+tout str '{ESC}_BEGIN;TABLE{ESC}\'
+ps -fe | head -n15 | left 100
+tout str '{ESC}_END;TABLE{ESC}\'
+
+ps -fe | head -n15 | left 100

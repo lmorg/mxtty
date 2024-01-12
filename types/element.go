@@ -1,8 +1,10 @@
 package types
 
 type Element interface {
-	Draw()
+	Begin(ApcSlice)
 	ReadCell(*Cell)
+	End()
+	Draw(*XY)
 	Close()
 }
 

@@ -37,7 +37,7 @@ type sdlRender struct {
 func (sr *sdlRender) triggerQuit()   { sr._quit <- true }
 func (sr *sdlRender) TriggerRedraw() { sr._redraw <- true }
 
-func (sr *sdlRender) Size() *types.XY {
+func (sr *sdlRender) TermSize() *types.XY {
 	return sr.termSize
 }
 

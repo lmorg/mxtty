@@ -60,7 +60,7 @@ Types of elements:
 
 // NewTerminal creates a new virtual term
 func NewTerminal(renderer types.Renderer) *Term {
-	size := renderer.Size()
+	size := renderer.TermSize()
 
 	normBuf := make([][]types.Cell, size.Y)
 	for i := range normBuf {

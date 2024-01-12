@@ -109,9 +109,7 @@ func (sr *sdlRender) Start(term types.Term) {
 	}
 
 	for {
-		//slowPoll := time.After(250 * time.Millisecond)
 
-	checkEvent:
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
 			switch evt := event.(type) {
 
@@ -139,11 +137,8 @@ func (sr *sdlRender) Start(term types.Term) {
 		case <-sr._redraw:
 			update(sr, term)
 
-		//case <-slowPoll:
-		//	update(sr, term)
-
 		case <-time.After(15 * time.Millisecond):
-			goto checkEvent
+			continue
 		}
 
 	}

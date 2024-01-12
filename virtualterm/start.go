@@ -18,7 +18,7 @@ func (term *Term) Start(pty types.Pty, shell string) {
 	term.Pty = pty
 
 	go term.exec(shell)
-	go term.printLoop()
+	go term.readLoop()
 	go term.slowBlink()
 }
 

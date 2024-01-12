@@ -12,6 +12,9 @@ const (
 	SGR_STRIKETHROUGH
 	SGR_SLOW_BLINK
 	SGR_INVERT
+
+	APC_ELEMENT
+	APC_BEGIN_ELEMENT
 )
 
 func (f SgrFlag) Is(flag SgrFlag) bool {

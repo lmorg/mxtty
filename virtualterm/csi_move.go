@@ -19,6 +19,10 @@ func (term *Term) lineFeed() {
 		term.csiMoveCursorDownwards(1)
 	}
 
+	if term._activeElement != nil {
+		term._activeElement.ReadCell(nil)
+	}
+
 	go term.lfRedraw()
 }
 

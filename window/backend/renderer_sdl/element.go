@@ -2,6 +2,7 @@ package rendersdl
 
 import (
 	"github.com/lmorg/mxtty/types"
+	elementTable "github.com/lmorg/mxtty/window/backend/renderer_sdl/element_table"
 )
 
 func (sr *sdlRender) NewElement(id types.ElementID, size *types.XY, data []byte) types.Element {
@@ -10,27 +11,9 @@ func (sr *sdlRender) NewElement(id types.ElementID, size *types.XY, data []byte)
 		return nil
 
 	case types.ELEMENT_ID_TABLE:
-		return &ElementTable{
-			size: size,
-		}
+		return elementTable.New(sr)
 
 	default:
 		return nil
 	}
-}
-
-type ElementTable struct {
-	size *types.XY
-}
-
-func (el *ElementTable) Close() {
-	// do nothing
-}
-
-func (el *ElementTable) ReadCell(cell *types.Cell) {
-
-}
-
-func (el *ElementTable) Draw() {
-	// do nothing
 }
