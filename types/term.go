@@ -9,6 +9,7 @@ type Term interface {
 	Render()
 	Bg() *Colour
 	Reply([]byte) error
+	MouseClick(uint8, *XY)
 }
 
 type Pty interface {

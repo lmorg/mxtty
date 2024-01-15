@@ -159,3 +159,15 @@ func (term *Term) Reply(b []byte) error {
 func (term *Term) Bg() *types.Colour {
 	return types.SGR_DEFAULT.Bg
 }
+
+func (term *Term) copyCell(cell *types.Cell) *types.Cell {
+	copy := new(types.Cell)
+	copy.Char = cell.Char
+	if term.cell().Sgr == nil {
+		copy.Sgr = term.sgr.Copy()
+	} else {
+		copy.Sgr = cell.Sgr.Copy()
+	}
+
+	return copy
+}

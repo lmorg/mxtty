@@ -1,10 +1,11 @@
 package types
 
 type Element interface {
-	Begin(ApcSlice)
+	Begin(*ApcSlice)
 	ReadCell(*Cell)
 	End()
-	Draw(*XY)
+	Draw(*Rect)
+	MouseClick(uint8, *XY)
 	Close()
 }
 
@@ -15,8 +16,3 @@ const (
 	ELEMENT_ID_TABLE
 	ELEMENT_ID_FOLDABLE
 )
-
-type ELEMENT_TABLE interface {
-	Element
-	//EventCallback()
-}

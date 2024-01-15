@@ -3,9 +3,11 @@ package elementTable
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"strconv"
 
 	"github.com/lmorg/murex/utils/humannumbers"
+	"github.com/lmorg/murex/utils/json"
 )
 
 func (el *ElementTable) createTable(confFailColMismatch, confMergeTrailingColumns, confTableIncHeadings bool) error {
@@ -97,8 +99,15 @@ func (el *ElementTable) _createTable_SliceSliceString(confFailColMismatch, confM
 	return nil
 }
 
-func (el *ElementTable) runQuery(parameters string) ([]int, error) {
+func (el *ElementTable) runQuery() ([]int, error) {
 	query := fmt.Sprintf(sqlSelect, el.name)
+	if el.orderBy > -1 {
+		query += fmt.Sprintf("ORDER BY %s %s;", el._stack[0][el.orderBy].String, orderByStr[el.orderAsc])
+	} else {
+		query += ";"
+	}
+
+	log.Printf("DEBUG: SQL query = %s", query)
 
 	rows, err := el.db.Query(query)
 	if err != nil {
@@ -112,7 +121,6 @@ func (el *ElementTable) runQuery(parameters string) ([]int, error) {
 	)
 
 	for rows.Next() {
-
 		err = rows.Scan(&s)
 		if err != nil {
 			return nil, fmt.Errorf("cannot retrieve rows: %s", err.Error())
@@ -128,6 +136,10 @@ func (el *ElementTable) runQuery(parameters string) ([]int, error) {
 	if err = rows.Err(); err != nil {
 		return nil, fmt.Errorf("cannot retrieve rows: %s", err.Error())
 	}
+
+	log.Printf("DEBUG: %s", json.LazyLogging(table))
+
+	rows.Close()
 
 	return table, nil
 }

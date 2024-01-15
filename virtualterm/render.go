@@ -2,7 +2,6 @@ package virtualterm
 
 import (
 	"log"
-	"unsafe"
 
 	"github.com/lmorg/mxtty/types"
 )
@@ -10,32 +9,41 @@ import (
 func (term *Term) Render() {
 	term._mutex.Lock()
 
-	var x, y int32
 	var err error
-	for y = 0; int(y) < len(*term.cells); y++ {
-		for x = 0; int(x) < len((*term.cells)[y]); x++ {
+	elementLookup := make(map[types.Element]*types.Rect)
+	pos := new(types.XY)
+
+	for ; int(pos.Y) < len(*term.cells); pos.Y++ {
+		for pos.X = 0; int(pos.X) < len((*term.cells)[pos.Y]); pos.X++ {
 			switch {
-			case (*term.cells)[y][x].Sgr == nil:
+			case (*term.cells)[pos.Y][pos.X].Sgr == nil:
 				continue
 
-			case (*term.cells)[y][x].Sgr.Bitwise.Is(types.APC_BEGIN_ELEMENT):
-				(*term.cells)[y][x].Element.Draw(&types.XY{X: x, Y: y})
-				continue
+			case (*term.cells)[pos.Y][pos.X].Element != nil:
+				rect, ok := elementLookup[(*term.cells)[pos.Y][pos.X].Element]
+				if ok {
+					rect.End.X, rect.End.Y = pos.X, pos.Y
+				} else {
+					elementLookup[(*term.cells)[pos.Y][pos.X].Element] = &types.Rect{
+						Start: &types.XY{X: pos.X, Y: pos.Y},
+						End:   &types.XY{X: pos.X, Y: pos.Y},
+					}
+				}
 
-			case (*term.cells)[y][x].Sgr.Bitwise.Is(types.APC_ELEMENT):
-				continue
-
-			case (*term.cells)[y][x].Char == 0:
+			case (*term.cells)[pos.Y][pos.X].Char == 0:
 				continue
 
 			default:
-				fg, bg := term.sgrOpts((*term.cells)[y][x].Sgr)
-				err = term.renderer.PrintRuneColour((*term.cells)[y][x].Char, x, y, fg, bg, (*term.cells)[y][x].Sgr.Bitwise)
+				err = term.renderer.PrintCell(&(*term.cells)[pos.Y][pos.X], pos)
 				if err != nil {
-					log.Printf("error in %s [x: %d, y: %d, value: '%s']: %s", "(t *Term) Render()", x, y, string((*term.cells)[y][x].Char), err.Error())
+					log.Printf("error in %s [x: %d, y: %d, value: '%s']: %s", "(t *Term) Render()", pos.X, pos.Y, string((*term.cells)[pos.Y][pos.X].Char), err.Error())
 				}
 			}
 		}
+	}
+
+	for el, rect := range elementLookup {
+		el.Draw(rect)
 	}
 
 	term._blinkCursor()
@@ -43,46 +51,30 @@ func (term *Term) Render() {
 	term._mutex.Unlock()
 }
 
-func (term *Term) sgrOpts(sgr *types.Sgr) (fg *types.Colour, bg *types.Colour) {
-	if sgr.Bitwise.Is(types.SGR_INVERT) {
-		bg, fg = sgr.Fg, sgr.Bg
-	} else {
-		fg, bg = sgr.Fg, sgr.Bg
-	}
-
-	if unsafe.Pointer(bg) == unsafe.Pointer(types.SGR_DEFAULT.Bg) {
-		bg = nil
-	}
-
-	return fg, bg
-}
-
 func (term *Term) _blinkCursor() {
 	if term._hideCursor {
 		return
 	}
 
-	var (
-		fg, bg *types.Colour
-		style  types.SgrFlag
-	)
+	// copy cell
+	cell := term.copyCell(term.cell())
 
-	r := term.cell().Char
-	if r == 0 {
-		r = ' '
-		fg, bg = types.BlinkColour[true], types.BlinkColour[false]
-		style = 0
+	// format cell
+	if cell.Char == 0 {
+		cell.Char = ' '
+		cell.Sgr.Fg, cell.Sgr.Bg = types.BlinkColour[true], types.BlinkColour[false]
+		cell.Sgr.Bitwise = 0
 	} else {
-		fg, bg = term.cell().Sgr.Fg, term.sgr.Bg
-		style = term.cell().Sgr.Bitwise
+		cell.Sgr.Bg = term.sgr.Bg
 	}
 
 	if term._slowBlinkState {
-		fg, bg = bg, fg
+		cell.Sgr.Fg, cell.Sgr.Bg = cell.Sgr.Bg, cell.Sgr.Fg
 	}
 
-	err := term.renderer.PrintRuneColour(r, term.curPos.X, term.curPos.Y, fg, bg, style)
+	// print cell
+	err := term.renderer.PrintCell(cell, &term.curPos)
 	if err != nil {
-		log.Printf("error in %s [cursorBlink]: %s", "(t *Term) _blink()", err.Error())
+		log.Printf("error in %s [cursorBlink]: %s", "(t *Term) _blinkCursor()", err.Error())
 	}
 }

@@ -2,10 +2,8 @@ package elementTable
 
 import (
 	"database/sql"
-	"fmt"
 	"strconv"
 
-	"github.com/lmorg/murex/utils/json"
 	"github.com/lmorg/mxtty/types"
 )
 
@@ -22,32 +20,37 @@ func (rec *elTableRecordT) append(cell *types.Cell) {
 
 type ElementTable struct {
 	renderer    types.Renderer
-	size        *types.XY
 	name        string
+	size        *types.XY
+	apc         *types.ApcSlice
 	db          *sql.DB
-	colOffset   []int32             // [column]
-	recOffset   []int32             // [column]
+	colOffset   [][]int32           // [row][column]
 	_colOffset  int32               // counter
 	headOffset  int32               // row
 	_headOffset int32               // counter
 	_stack      [][]*elTableRecordT // [row][column][cell]
 	_tableCache [][]string          // [row][column]
 	_sqlResult  []int               // [row]
+	orderBy     int                 // row
+	orderAsc    bool                // ASC or DESC
 }
 
 func New(renderer types.Renderer) *ElementTable {
 	return &ElementTable{renderer: renderer}
 }
 
-func (el *ElementTable) Begin(parameters types.ApcSlice) {
-	// initialise table
-	el.name = "TODO"
-	el.hashName()
+func (el *ElementTable) Begin(apc *types.ApcSlice) {
+	el.apc = apc
 
+	// initialise table
+	el.setName()
+
+	el.colOffset = make([][]int32, 1)
 	el._colOffset = -1
 	el._stack = make([][]*elTableRecordT, 1)
 	el._stack[0] = make([]*elTableRecordT, 1)
 	el._stack[0][0] = new(elTableRecordT)
+	el.orderBy = -1
 
 	err := el.createDb()
 	if err != nil {
@@ -62,15 +65,10 @@ func (el *ElementTable) ReadCell(cell *types.Cell) {
 	x := len(el._stack[y]) - 1
 
 	if cell == nil {
-		//switch {
-		//case len(el._stack[y]) == 1 && len(el._stack[y][0].cells) == 0:
-		//	return
-
-		//default:
 		el._stack = append(el._stack, []*elTableRecordT{new(elTableRecordT)})
+		el.colOffset = append(el.colOffset, []int32{})
 		el._colOffset = -1
 		return
-		//}
 	}
 
 	if cell.Char == ' ' /* || cell.Char == '\t' */ {
@@ -84,15 +82,8 @@ func (el *ElementTable) ReadCell(cell *types.Cell) {
 		return
 	}
 
-	switch y {
-	case 0:
-		if len(el._stack[y][x].cells) == 0 {
-			el.colOffset = append(el.colOffset, el._colOffset)
-		}
-	case 1:
-		if len(el._stack[y][x].cells) == 0 {
-			el.recOffset = append(el.recOffset, el._colOffset)
-		}
+	if len(el._stack[y][x].cells) == 0 {
+		el.colOffset[len(el.colOffset)-1] = append(el.colOffset[len(el.colOffset)-1], el._colOffset)
 	}
 
 	el._stack[y][x].append(cell)
@@ -113,7 +104,7 @@ func (el *ElementTable) End() {
 
 	// initialise cache
 	el._tableCache = append(el._tableCache, make([]string, len(el._stack[0])+1))
-	el._tableCache[0][0] = "ROW_ID"
+	el._tableCache[0][0] = "___mxapc_row_id"
 	for x := range el._stack[0] {
 		el._tableCache[0][x+1] = el._stack[0][x].String
 	}
@@ -128,10 +119,6 @@ func (el *ElementTable) End() {
 			el._tableCache[y][x+1] = el._stack[y][x].String
 
 		}
-
-		fmt.Printf("---\n")
-		fmt.Printf("%s (%d)\n", json.LazyLogging(el._stack[y]), len(el._stack[y][0].cells))
-		fmt.Printf("%s\n", json.LazyLogging(el._tableCache[y]))
 	}
 
 	// initialise db
@@ -145,29 +132,27 @@ func (el *ElementTable) End() {
 		panic(err)
 	}
 
-	el._sqlResult, err = el.runQuery("")
+	el._sqlResult, err = el.runQuery()
 	if err != nil {
 		panic(err)
 	}
-
 }
 
-func (el *ElementTable) Draw(offset *types.XY) {
+func (el *ElementTable) Draw(rect *types.Rect) {
 	if el.size == nil {
 		return
 	}
 
+	//fmt.Printf("%s\n", json.LazyLogging(el._sqlResult))
+
 	var err error
+	pos := new(types.XY)
+	pos.Y = rect.Start.Y
 	for x := range el._stack[el._sqlResult[0]] {
 		for i, cell := range el._stack[0][x].cells {
-			err = el.renderer.PrintRuneColour(
-				cell.Char,
-				offset.X+el.colOffset[x]+int32(i),
-				offset.Y,
-				types.SGR_COLOUR_CYAN,
-				nil,
-				cell.Sgr.Bitwise,
-			)
+			pos.X = rect.Start.X + el.colOffset[0][x] + int32(i)
+
+			err = el.renderer.PrintCell(cell, pos)
 			if err != nil {
 				panic(err)
 			}
@@ -176,23 +161,29 @@ func (el *ElementTable) Draw(offset *types.XY) {
 
 	for i := 0; i < len(el._sqlResult); i++ {
 		y := el._sqlResult[i]
+		pos.Y = rect.Start.Y + int32(i) + 1
+		if pos.Y > rect.End.Y {
+			break
+		}
+
 		for x := range el._stack[y] {
+
 			for col, cell := range el._stack[y][x].cells {
-				err = el.renderer.PrintRuneColour(
-					cell.Char,
-					offset.X+el.recOffset[x]+int32(col),
-					offset.Y+int32(i)+1,
-					types.SGR_COLOUR_CYAN,
-					nil,
-					cell.Sgr.Bitwise,
-				)
+				pos.X = rect.Start.X + el.colOffset[y][x] + int32(col)
+
+				//if pos.X > rect.End.X {
+				//	break
+				//}
+
+				err = el.renderer.PrintCell(cell, pos)
 				if err != nil {
 					panic(err)
 				}
 			}
 		}
 	}
-
+	rect.Start.X = pos.X
+	rect.Start.Y = pos.Y
 }
 
 func (el *ElementTable) Close() {

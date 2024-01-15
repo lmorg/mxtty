@@ -2,24 +2,19 @@ package elementTable
 
 import (
 	"database/sql"
-	"encoding/hex"
 	"fmt"
 	"strings"
-	"time"
 )
 
 const (
 	sqlCreateTable  = `CREATE TABLE IF NOT EXISTS '%s' (%s);`
 	sqlInsertRecord = `INSERT INTO '%s' VALUES (%s);`
-	sqlSelect       = `SELECT ROW_ID from '%s';`
+	sqlSelect       = `SELECT ___mxapc_row_id from '%s'`
 )
 
-func (el *ElementTable) hashName() {
-	if el.name == "" {
-		el.name = time.Now().String()
-	}
-
-	el.name = hex.EncodeToString([]byte(el.name))
+var orderByStr = map[bool]string{
+	true:  "ASC",
+	false: "DESC",
 }
 
 func (el *ElementTable) createDb() error {

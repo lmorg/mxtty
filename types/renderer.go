@@ -4,7 +4,7 @@ type Renderer interface {
 	Start(Term)
 	TermSize() *XY
 	Resize() *XY
-	PrintRuneColour(r rune, posX, posY int32, fg *Colour, bg *Colour, style SgrFlag) error
+	PrintCell(*Cell, *XY) error
 	GetWindowTitle() string
 	SetWindowTitle(string)
 	Bell()

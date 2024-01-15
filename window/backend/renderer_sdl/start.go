@@ -127,6 +127,10 @@ func (sr *sdlRender) Start(term types.Term) {
 			case *sdl.KeyboardEvent:
 				eventKeyPress(evt, term)
 				go sr.TriggerRedraw()
+
+			case *sdl.MouseButtonEvent:
+				eventMouseButton(evt, term, sr)
+				go sr.TriggerRedraw()
 			}
 		}
 

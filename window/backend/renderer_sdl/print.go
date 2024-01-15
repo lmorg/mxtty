@@ -1,24 +1,30 @@
 package rendersdl
 
 import (
+	"unsafe"
+
 	"github.com/lmorg/mxtty/types"
 	"github.com/veandco/go-sdl2/sdl"
 	"github.com/veandco/go-sdl2/ttf"
 )
 
-func (sr *sdlRender) PrintRuneColour(r rune, posX, posY int32, fg *types.Colour, bg *types.Colour, style types.SgrFlag) error {
-	//log.Printf("debug: r %d pos %d:%d, fg: %v, bg %v", r, posX, posY, *fg, *bg)
+func (sr *sdlRender) PrintCell(cell *types.Cell, pos *types.XY) error {
+	fg, bg := sgrOpts(cell.Sgr)
 
-	sr.setFontStyle(style)
-
-	// render background colour
+	sr.setFontStyle(cell.Sgr.Bitwise)
+	r := cell.Char
+	if r == 0 {
+		r = ' '
+	}
 
 	rect := &sdl.Rect{
-		X: (sr.glyphSize.X * posX) + sr.border,
-		Y: (sr.glyphSize.Y * posY) + sr.border,
+		X: (sr.glyphSize.X * pos.X) + sr.border,
+		Y: (sr.glyphSize.Y * pos.Y) + sr.border,
 		W: sr.glyphSize.X,
 		H: sr.glyphSize.Y,
 	}
+
+	// render background colour
 
 	if bg != nil {
 		pixel := sdl.MapRGBA(sr.surface.Format, bg.Red, bg.Green, bg.Blue, 255)
@@ -33,8 +39,8 @@ func (sr *sdlRender) PrintRuneColour(r rune, posX, posY int32, fg *types.Colour,
 	var rect2 *sdl.Rect
 	if sr.dropShadow && bg == nil {
 		rect2 = &sdl.Rect{
-			X: (sr.glyphSize.X * posX) + sr.border + 3,
-			Y: (sr.glyphSize.Y * posY) + sr.border + 3,
+			X: (sr.glyphSize.X * pos.X) + sr.border + 3,
+			Y: (sr.glyphSize.Y * pos.Y) + sr.border + 3,
 			W: sr.glyphSize.X,
 			H: sr.glyphSize.Y,
 		}
@@ -96,4 +102,18 @@ func fontStyle(style types.SgrFlag) int {
 	}
 
 	return i
+}
+
+func sgrOpts(sgr *types.Sgr) (fg *types.Colour, bg *types.Colour) {
+	if sgr.Bitwise.Is(types.SGR_INVERT) {
+		bg, fg = sgr.Fg, sgr.Bg
+	} else {
+		fg, bg = sgr.Fg, sgr.Bg
+	}
+
+	if unsafe.Pointer(bg) == unsafe.Pointer(types.SGR_DEFAULT.Bg) {
+		bg = nil
+	}
+
+	return fg, bg
 }
