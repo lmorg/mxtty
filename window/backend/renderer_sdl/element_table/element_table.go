@@ -2,6 +2,7 @@ package elementTable
 
 import (
 	"database/sql"
+	"log"
 	"strconv"
 
 	"github.com/lmorg/mxtty/types"
@@ -180,9 +181,12 @@ func (el *ElementTable) Draw(rect *types.Rect) {
 		})
 	}
 
+	var lineWrapping types.XY
+
 	for i := 0; i < len(el._sqlResult); i++ {
 		y := el._sqlResult[i]
-		pos.Y = rect.Start.Y + int32(i) + 1
+		lineWrapping.X = 0
+		pos.Y = rect.Start.Y + int32(i) + 1 + lineWrapping.Y
 		if pos.Y > rect.End.Y {
 			break
 		}
@@ -190,21 +194,26 @@ func (el *ElementTable) Draw(rect *types.Rect) {
 		for x := range el._stack[y] {
 
 			for col, cell := range el._stack[y][x].cells {
-				pos.X = rect.Start.X + el.colOffset[y][x] + int32(col)
+				pos.X = rect.Start.X + el.colOffset[y][x] + int32(col) - lineWrapping.X
 
-				//if pos.X > rect.End.X {
-				//	break
-				//}
+				if pos.X >= el.renderer.TermSize().X {
+					lineWrapping.X += el.renderer.TermSize().X
+					pos.X = 0
+					lineWrapping.Y++
+					pos.Y++
+				}
+
+				if pos.Y > rect.End.Y {
+					return
+				}
 
 				err = el.renderer.PrintCell(cell, pos)
 				if err != nil {
-					panic(err)
+					log.Printf("ERROR: cannot write cell: %s", err.Error())
 				}
 			}
 		}
 	}
-	rect.Start.X = pos.X
-	rect.Start.Y = pos.Y
 }
 
 func (el *ElementTable) Close() {

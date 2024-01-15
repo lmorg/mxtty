@@ -12,6 +12,7 @@ import (
 var ENV_VARS = []string{
 	"MXTTY=true",
 	"MXTTY_VERSION=" + app.Version(),
+	"TERM=xterm-256color",
 }
 
 func (term *Term) Start(pty types.Pty, shell string) {

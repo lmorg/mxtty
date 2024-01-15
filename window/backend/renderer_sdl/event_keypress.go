@@ -1,6 +1,8 @@
 package rendersdl
 
 import (
+	"log"
+
 	"github.com/lmorg/mxtty/codes"
 	"github.com/lmorg/mxtty/types"
 	"github.com/veandco/go-sdl2/sdl"
@@ -11,11 +13,16 @@ func eventTextInput(evt *sdl.TextInputEvent, term types.Term) {
 }
 
 func eventKeyPress(evt *sdl.KeyboardEvent, term types.Term) {
-	if evt.State == sdl.RELEASED {
+	if evt.State != sdl.PRESSED {
 		return
 	}
 
 	switch evt.Keysym.Sym {
+	default:
+		if evt.Keysym.Sym < 10000 {
+			eventKeyPressMod(evt, term)
+		}
+
 	case sdl.K_ESCAPE:
 		term.Reply([]byte{codes.AsciiEscape})
 	case sdl.K_TAB:
@@ -66,5 +73,16 @@ func eventKeyPress(evt *sdl.KeyboardEvent, term types.Term) {
 	case sdl.K_F12:
 		term.Reply(codes.AnsiF12)
 
+	}
+}
+
+func eventKeyPressMod(evt *sdl.KeyboardEvent, term types.Term) {
+	log.Printf("DEBUG: keycode %s", string(evt.Keysym.Sym))
+
+	switch evt.Keysym.Mod {
+	case sdl.KMOD_CTRL, sdl.KMOD_LCTRL, sdl.KMOD_RCTRL:
+		if evt.Keysym.Sym > '`' && evt.Keysym.Sym < 'z' {
+			term.Reply([]byte{byte(evt.Keysym.Sym) - 0x60})
+		}
 	}
 }

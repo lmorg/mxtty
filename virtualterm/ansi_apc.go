@@ -25,6 +25,10 @@ func (term *Term) parseApcCodes() {
 			text = append(text, r)
 			continue
 		}
+		if r == codes.AsciiCtrlG { // bell (xterm OSC terminator)
+			text = text[:len(text)-1]
+			break
+		}
 	}
 
 	apc := types.NewApcSlice(text)
