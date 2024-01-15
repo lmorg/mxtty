@@ -22,7 +22,8 @@ func (term *Term) parseC1Codes() {
 		// DCS code
 		term.parseDcsCodes()
 
-	case '^': // PM code
+	case '^':
+		// PM code
 		term.parsePmCodes()
 
 	case '_':
@@ -222,7 +223,7 @@ func (term *Term) parseC1Codes() {
 
 	case '\\':
 		// String Terminator
-		log.Printf("TODO: Unhandled C1 code: %s", string(r))
+		term.Pty.TmuxPassthrough(false)
 
 	/////
 

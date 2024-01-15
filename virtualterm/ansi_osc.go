@@ -16,20 +16,26 @@ func (term *Term) parseOscCodes() {
 	for {
 		r = term.Pty.Read()
 		text = append(text, r)
-		if r == codes.AsciiEscape {
+		switch r {
+
+		case codes.AsciiEscape:
 			r = term.Pty.Read()
 			if r == '\\' { // ST (OSC terminator)
-				break
+				goto parsed
 			}
 			text = append(text, r)
 			continue
-		}
-		if r == codes.AsciiCtrlG { // bell (xterm OSC terminator)
-			break
-		}
-	}
 
-	stack := strings.Split(string(text[:len(text)-1]), ";")
+		case codes.AsciiCtrlG: // bell (xterm OSC terminator)
+			goto parsed
+
+		}
+
+	}
+parsed:
+	text = text[:len(text)-1]
+
+	stack := strings.Split(string(text), ";")
 
 	switch stack[0] {
 	case "0":

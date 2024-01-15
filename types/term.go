@@ -16,4 +16,5 @@ type Pty interface {
 	File() *os.File
 	Read() rune
 	Write([]byte) error
+	TmuxPassthrough(bool)
 }

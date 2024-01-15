@@ -8,13 +8,16 @@ import (
 	"os"
 
 	"github.com/creack/pty"
+	"github.com/lmorg/mxtty/codes"
 	"github.com/lmorg/mxtty/types"
 )
 
 type PTY struct {
-	primary   *os.File
-	secondary *os.File
-	stream    chan rune
+	primary         *os.File
+	secondary       *os.File
+	stream          chan rune
+	tmuxPassthrough bool
+	lastRune        rune
 }
 
 func NewPTY(size *types.XY) (types.Pty, error) {
@@ -98,5 +101,20 @@ func runeLength(b byte) int {
 }
 
 func (p *PTY) Read() rune {
-	return <-p.stream
+start:
+	r := <-p.stream
+	if !p.tmuxPassthrough {
+		return r
+	}
+
+	if r == codes.AsciiEscape && p.lastRune == codes.AsciiEscape {
+		p.lastRune = 0
+		goto start
+	}
+	p.lastRune = r
+	return r
+}
+
+func (p *PTY) TmuxPassthrough(v bool) {
+	p.tmuxPassthrough = v
 }
