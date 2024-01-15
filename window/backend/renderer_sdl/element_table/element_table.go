@@ -32,7 +32,17 @@ type ElementTable struct {
 	_tableCache [][]string          // [row][column]
 	_sqlResult  []int               // [row]
 	orderBy     int                 // row
-	orderAsc    bool                // ASC or DESC
+	orderDesc   bool                // ASC or DESC
+}
+
+/*var arrowGlyph = map[bool]rune{
+	false: 'ˇ',
+	true:  '^',
+}*/
+
+var arrowGlyph = map[bool]rune{
+	false: '↓',
+	true:  '↑',
 }
 
 func New(renderer types.Renderer) *ElementTable {
@@ -157,6 +167,17 @@ func (el *ElementTable) Draw(rect *types.Rect) {
 				panic(err)
 			}
 		}
+	}
+
+	if el.orderBy > -1 {
+		var orderGlyph = types.Cell{
+			Sgr:  types.SGR_DEFAULT.Copy(),
+			Char: arrowGlyph[el.orderDesc],
+		}
+		el.renderer.PrintCell(&orderGlyph, &types.XY{
+			X: rect.Start.X + el.colOffset[0][el.orderBy] - 1,
+			Y: rect.Start.Y,
+		})
 	}
 
 	for i := 0; i < len(el._sqlResult); i++ {

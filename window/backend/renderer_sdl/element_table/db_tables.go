@@ -3,11 +3,9 @@ package elementTable
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"strconv"
 
 	"github.com/lmorg/murex/utils/humannumbers"
-	"github.com/lmorg/murex/utils/json"
 )
 
 func (el *ElementTable) createTable(confFailColMismatch, confMergeTrailingColumns, confTableIncHeadings bool) error {
@@ -100,14 +98,13 @@ func (el *ElementTable) _createTable_SliceSliceString(confFailColMismatch, confM
 }
 
 func (el *ElementTable) runQuery() ([]int, error) {
-	query := fmt.Sprintf(sqlSelect, el.name)
+	orderBy := "___mxapc_row_id"
 	if el.orderBy > -1 {
-		query += fmt.Sprintf("ORDER BY %s %s;", el._stack[0][el.orderBy].String, orderByStr[el.orderAsc])
-	} else {
-		query += ";"
+		orderBy = el._stack[0][el.orderBy].String
 	}
+	query := fmt.Sprintf(sqlSelect, el.name, orderBy, orderByStr[el.orderDesc])
 
-	log.Printf("DEBUG: SQL query = %s", query)
+	//log.Printf("DEBUG: SQL query = %s", query)
 
 	rows, err := el.db.Query(query)
 	if err != nil {
@@ -137,7 +134,7 @@ func (el *ElementTable) runQuery() ([]int, error) {
 		return nil, fmt.Errorf("cannot retrieve rows: %s", err.Error())
 	}
 
-	log.Printf("DEBUG: %s", json.LazyLogging(table))
+	//log.Printf("DEBUG: %s", json.LazyLogging(table))
 
 	rows.Close()
 
