@@ -21,9 +21,9 @@ func (term *Term) Render() {
 
 			case (*term.cells)[pos.Y][pos.X].Element != nil:
 				rect, ok := elementLookup[(*term.cells)[pos.Y][pos.X].Element]
-				if ok {
+				if ok { // update rect
 					rect.End.X, rect.End.Y = pos.X, pos.Y
-				} else {
+				} else { // create rect
 					elementLookup[(*term.cells)[pos.Y][pos.X].Element] = &types.Rect{
 						Start: &types.XY{X: pos.X, Y: pos.Y},
 						End:   &types.XY{X: pos.X, Y: pos.Y},

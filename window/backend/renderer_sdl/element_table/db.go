@@ -9,7 +9,7 @@ import (
 const (
 	sqlCreateTable  = `CREATE TABLE IF NOT EXISTS '%s' (%s);`
 	sqlInsertRecord = `INSERT INTO '%s' VALUES (%s);`
-	sqlSelect       = `SELECT ___mxapc_row_id from '%s' ORDER BY %s %s;`
+	sqlSelect       = `SELECT %s from '%s' %s ORDER BY "%s" %s;`
 )
 
 var orderByStr = map[bool]string{

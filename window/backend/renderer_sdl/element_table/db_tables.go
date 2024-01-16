@@ -98,11 +98,17 @@ func (el *ElementTable) _createTable_SliceSliceString(confFailColMismatch, confM
 }
 
 func (el *ElementTable) runQuery() ([]int, error) {
-	orderBy := "___mxapc_row_id"
-	if el.orderBy > -1 {
-		orderBy = el._stack[0][el.orderBy].String
+	where := el.filter
+	if where != "" {
+		where = "WHERE " + where
 	}
-	query := fmt.Sprintf(sqlSelect, el.name, orderBy, orderByStr[el.orderDesc])
+
+	orderBy := _ROW_ID
+	if el.orderBy > -1 {
+		orderBy = el._stackTerm[0][el.orderBy].String
+	}
+
+	query := fmt.Sprintf(sqlSelect, _ROW_ID, el.name, where, orderBy, orderByStr[el.orderDesc])
 
 	//log.Printf("DEBUG: SQL query = %s", query)
 

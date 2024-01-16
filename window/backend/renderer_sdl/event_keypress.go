@@ -1,8 +1,6 @@
 package rendersdl
 
 import (
-	"log"
-
 	"github.com/lmorg/mxtty/codes"
 	"github.com/lmorg/mxtty/types"
 	"github.com/veandco/go-sdl2/sdl"
@@ -77,12 +75,18 @@ func eventKeyPress(evt *sdl.KeyboardEvent, term types.Term) {
 }
 
 func eventKeyPressMod(evt *sdl.KeyboardEvent, term types.Term) {
-	log.Printf("DEBUG: keycode %s", string(evt.Keysym.Sym))
+	//log.Printf("DEBUG: keycode %s", string(evt.Keysym.Sym))
 
 	switch evt.Keysym.Mod {
 	case sdl.KMOD_CTRL, sdl.KMOD_LCTRL, sdl.KMOD_RCTRL:
 		if evt.Keysym.Sym > '`' && evt.Keysym.Sym < 'z' {
 			term.Reply([]byte{byte(evt.Keysym.Sym) - 0x60})
+		}
+
+	case sdl.KMOD_ALT, sdl.KMOD_LALT:
+		switch evt.Keysym.Sym{
+		case 'f':
+			
 		}
 	}
 }

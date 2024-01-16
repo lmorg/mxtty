@@ -1,13 +1,19 @@
 package virtualterm
 
-import "github.com/lmorg/mxtty/types"
+import (
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
 
-func (term *Term) mxapcTableBegin(parameters *types.ApcSlice) {
-	term._activeElement = term.renderer.NewElement(types.ELEMENT_ID_TABLE, nil, nil)
+	"github.com/lmorg/mxtty/types"
+)
+
+func (term *Term) mxapcBegin(element types.ElementID, parameters *types.ApcSlice) {
+	term._activeElement = term.renderer.NewElement(element, nil, nil)
 	term._activeElement.Begin(parameters)
 }
 
-func (term *Term) mxapcTableEnd(parameters *types.ApcSlice) {
+func (term *Term) mxapcEnd() {
 	if term._activeElement == nil {
 		return
 	}

@@ -7,8 +7,8 @@ import (
 )
 
 func main() {
-	//fontName := "hasklig.ttf"
-	//fontName := "monaco.ttf"
+	getFlags()
+
 	fontName := ""
 	shell := "/bin/bash"
 	//shell :="/opt/homebrew/bin/murex"

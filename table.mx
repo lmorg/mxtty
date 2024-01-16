@@ -1,5 +1,6 @@
 #!/usr/bin/env murex
 
+/#
 if { $TERM =~ '^(screen|tmux)' } then {
     tout str '{ESC}Ptmux;{ESC}{ESC}'
 }
@@ -21,3 +22,8 @@ tout str '{ESC}_END;TABLE{BELL}'
 if { $TERM =~ '^(screen|tmux)' } then {
     tout str '{ESC}\'
 }
+#/
+
+tout str '{ESC}Ptmux;{ESC}{ESC}{ESC}_begin;table{BELL}{ESC}\'
+ps aux
+tout str '{ESC}Ptmux;{ESC}{ESC}{ESC}_end;table{BELL}{ESC}\'

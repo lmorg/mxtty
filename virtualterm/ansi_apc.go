@@ -34,21 +34,36 @@ func (term *Term) parseApcCodes() {
 	apc := types.NewApcSlice(text)
 
 	switch apc.Index(0) {
-	case "BEGIN":
-		log.Println("BEGIN", apc.Index(1))
+	case "begin":
 		switch apc.Index(1) {
-		case "TABLE":
-			term.mxapcTableBegin(apc)
+		case "table":
+			term.mxapcBegin(types.ELEMENT_ID_TABLE, apc)
+
+		case "image":
+			term.mxapcBegin(types.ELEMENT_ID_IMAGE, apc)
+
 		default:
 			log.Printf("Unknown mxAPC code %s: %s", apc.Index(1), string(text[:len(text)-1]))
 		}
-	case "END":
+
+	case "end":
 		switch apc.Index(1) {
-		case "TABLE":
-			term.mxapcTableEnd(apc)
+		case "table":
+			term.mxapcEnd()
+
+		case "image":
+			term.mxapcEnd()
+
 		default:
 			log.Printf("Unknown mxAPC code %s: %s", apc.Index(1), string(text[:len(text)-1]))
 		}
+
+	/*case "insert":
+	switch apc.Index(1) {
+	case "image":
+		term.mxapcInsertImage(apc)
+	}*/
+
 	default:
 		log.Printf("Unknown APC code %s: %s", apc.Index(0), string(text[:len(text)-1]))
 	}

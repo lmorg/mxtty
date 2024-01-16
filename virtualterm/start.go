@@ -15,6 +15,11 @@ var ENV_VARS = []string{
 	"TERM=xterm-256color",
 }
 
+func init() {
+	exe, _ := os.Executable()
+	ENV_VARS = append(ENV_VARS, "MXTTY_EXE="+exe)
+}
+
 func (term *Term) Start(pty types.Pty, shell string) {
 	term.Pty = pty
 

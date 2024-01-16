@@ -28,6 +28,8 @@ func NewApcSlice(apc []rune) *ApcSlice {
 	err := json.Unmarshal([]byte(as.Index(2)), &as.kv)
 	if err != nil {
 		log.Printf("WARNING: cannot decode APC string '%s': %s", s, err.Error())
+		//} else {
+		//	log.Printf("DEBUG: APC parameters: %s (%v)", as.Index(2), as.kv)
 	}
 
 	return as
