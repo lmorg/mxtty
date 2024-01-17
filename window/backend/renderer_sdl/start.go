@@ -144,7 +144,6 @@ func (sr *sdlRender) Start(term types.Term) {
 		case <-time.After(15 * time.Millisecond):
 			continue
 		}
-
 	}
 }
 
@@ -157,6 +156,8 @@ func update(sr *sdlRender, term types.Term) {
 	}
 
 	term.Render()
+
+	sr.renderNotification(types.NOTIFY_WARNING, "testing 123")
 
 	if atomic.CompareAndSwapInt32(&sr.updateTitle, 1, 0) {
 		sr.window.SetTitle(sr.title)
