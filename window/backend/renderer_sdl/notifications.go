@@ -12,9 +12,16 @@ import (
 
 var notifyColour = map[int]*types.Colour{
 	types.NOTIFY_DEBUG:   {Red: 200, Green: 200, Blue: 200},
-	types.NOTIFY_INFO:    {Red: 0, Green: 0, Blue: 255},
+	types.NOTIFY_INFO:    {Red: 100, Green: 100, Blue: 255},
 	types.NOTIFY_WARNING: {Red: 0, Green: 255, Blue: 255},
 	types.NOTIFY_ERROR:   {Red: 255, Green: 0, Blue: 0},
+}
+
+var notifyBorderColour = map[int]*types.Colour{
+	types.NOTIFY_DEBUG:   {Red: 175, Green: 175, Blue: 175},
+	types.NOTIFY_INFO:    {Red: 75, Green: 75, Blue: 200},
+	types.NOTIFY_WARNING: {Red: 0, Green: 200, Blue: 200},
+	types.NOTIFY_ERROR:   {Red: 200, Green: 0, Blue: 0},
 }
 
 type notifyT struct {
@@ -109,31 +116,45 @@ func (sr *sdlRender) renderNotification(windowRect *sdl.Rect) {
 		}
 		defer countdown.Free()
 
-		text, err := sr.font.RenderUTF8BlendedWrapped(notification.Message, sdl.Color{R: 0, G: 0, B: 0, A: 255}, int(windowRect.W-padding-padding-countdown.W))
+		text, err := sr.font.RenderUTF8BlendedWrapped(notification.Message, sdl.Color{R: 255, G: 255, B: 255, A: 255}, int(windowRect.W-padding-padding-countdown.W))
 		if err != nil {
 			panic(err) // TODO: don't panic!
 		}
 		defer text.Free()
 
+		textShadow, err := sr.font.RenderUTF8BlendedWrapped(notification.Message, sdl.Color{R: 0, G: 0, B: 0, A: 230}, int(windowRect.W-padding-padding-countdown.W))
+		if err != nil {
+			panic(err) // TODO: don't panic!
+		}
+		defer textShadow.Free()
+
 		// draw border
+		bc := notifyBorderColour[int(notification.Type)]
+		sr.renderer.SetDrawColor(bc.Red, bc.Green, bc.Blue, 190)
 		rect := sdl.Rect{
+			X: sr.border - 1,
+			Y: sr.border + offset - 1,
+			W: windowRect.W - padding + 2,
+			H: text.H + padding + 2,
+		}
+		sr.renderer.DrawRect(&rect)
+		rect = sdl.Rect{
 			X: sr.border,
 			Y: sr.border + offset,
 			W: windowRect.W - padding,
 			H: text.H + padding,
 		}
-		c := notifyColour[int(notification.Type)]
-		sr.renderer.SetDrawColor(c.Red, c.Green, c.Blue, 255)
 		sr.renderer.DrawRect(&rect)
 
 		// fill background
+		c := notifyColour[int(notification.Type)]
+		sr.renderer.SetDrawColor(c.Red, c.Green, c.Blue, 190)
 		rect = sdl.Rect{
 			X: sr.border + 1,
 			Y: sr.border + 1 + offset,
 			W: sr.surface.W - padding - 2,
 			H: text.H + padding - 2,
 		}
-		sr.renderer.SetDrawColor(c.Red, c.Green, c.Blue, 190)
 		sr.renderer.FillRect(&rect)
 
 		// render text
@@ -147,17 +168,43 @@ func (sr *sdlRender) renderNotification(windowRect *sdl.Rect) {
 		if err != nil {
 			panic(err) // TODO: don't panic!
 		}
+		sr._renderNotificationSurface(surface, &rect)
 
-		texture, err := sr.renderer.CreateTextureFromSurface(surface)
-		if err != nil {
-			panic(err) //TODO: don't panic!
+		// render shadow
+		rect = sdl.Rect{
+			X: padding - 2,
+			Y: padding + offset - 2,
+			W: sr.surface.W - padding - 2 - countdown.W,
+			H: text.H + padding - 2,
 		}
-
-		err = sr.renderer.Copy(texture, &rect, &rect)
-		if err != nil {
-			panic(err) //TODO: don't panic!
+		_ = textShadow.Blit(nil, surface, &rect)
+		sr._renderNotificationSurface(surface, &rect)
+		rect = sdl.Rect{
+			X: padding + 2,
+			Y: padding + offset - 2,
+			W: sr.surface.W - padding - 2 - countdown.W,
+			H: text.H + padding - 2,
 		}
+		_ = textShadow.Blit(nil, surface, &rect)
+		sr._renderNotificationSurface(surface, &rect)
+		rect = sdl.Rect{
+			X: padding + 2,
+			Y: padding + offset + 2,
+			W: sr.surface.W - padding - 2 - countdown.W,
+			H: text.H + padding - 2,
+		}
+		_ = textShadow.Blit(nil, surface, &rect)
+		sr._renderNotificationSurface(surface, &rect)
+		rect = sdl.Rect{
+			X: padding - 2,
+			Y: padding + offset + 2,
+			W: sr.surface.W - padding - 2 - countdown.W,
+			H: text.H + padding - 2,
+		}
+		_ = textShadow.Blit(nil, surface, &rect)
+		sr._renderNotificationSurface(surface, &rect)
 
+		// render countdown
 		rect = sdl.Rect{
 			X: padding,
 			Y: padding + offset,
@@ -168,17 +215,20 @@ func (sr *sdlRender) renderNotification(windowRect *sdl.Rect) {
 		if err != nil {
 			panic(err) // TODO: don't panic!
 		}
-
-		texture, err = sr.renderer.CreateTextureFromSurface(surface)
-		if err != nil {
-			panic(err) //TODO: don't panic!
-		}
-
-		err = sr.renderer.Copy(texture, &rect, &rect)
-		if err != nil {
-			panic(err) //TODO: don't panic!
-		}
+		sr._renderNotificationSurface(surface, &rect)
 
 		offset += text.H + (sr.border * 3)
+	}
+}
+
+func (sr *sdlRender) _renderNotificationSurface(surface *sdl.Surface, rect *sdl.Rect) {
+	texture, err := sr.renderer.CreateTextureFromSurface(surface)
+	if err != nil {
+		panic(err) //TODO: don't panic!
+	}
+
+	err = sr.renderer.Copy(texture, rect, rect)
+	if err != nil {
+		panic(err) //TODO: don't panic!
 	}
 }
