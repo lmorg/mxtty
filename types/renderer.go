@@ -3,7 +3,8 @@ package types
 type NotificationType int
 
 const (
-	NOTIFY_INFO = iota
+	NOTIFY_DEBUG = iota
+	NOTIFY_INFO
 	NOTIFY_WARNING
 	NOTIFY_ERROR
 )
@@ -18,6 +19,8 @@ type Renderer interface {
 	Bell()
 	TriggerRedraw()
 	NewElement(elementType ElementID, size *XY, data []byte) Element
+	DisplayNotification(NotificationType, string)
+	AddImageToStack(func())
 	Close()
 }
 
@@ -26,3 +29,4 @@ type Image interface {
 	Draw(size *XY, rect *Rect)
 	Close()
 }
+

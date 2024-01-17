@@ -36,7 +36,7 @@ func (term *Term) Render() {
 			default:
 				err = term.renderer.PrintCell(&(*term.cells)[pos.Y][pos.X], pos)
 				if err != nil {
-					log.Printf("error in %s [x: %d, y: %d, value: '%s']: %s", "(t *Term) Render()", pos.X, pos.Y, string((*term.cells)[pos.Y][pos.X].Char), err.Error())
+					log.Printf("ERROR: error in %s [x: %d, y: %d, value: '%s']: %s", "(t *Term) Render()", pos.X, pos.Y, string((*term.cells)[pos.Y][pos.X].Char), err.Error())
 				}
 			}
 		}
@@ -75,6 +75,6 @@ func (term *Term) _blinkCursor() {
 	// print cell
 	err := term.renderer.PrintCell(cell, &term.curPos)
 	if err != nil {
-		log.Printf("error in %s [cursorBlink]: %s", "(t *Term) _blinkCursor()", err.Error())
+		log.Printf("ERROR: error in %s [cursorBlink]: %s", "(t *Term) _blinkCursor()", err.Error())
 	}
 }

@@ -17,37 +17,6 @@ func (term *Term) parseDcsCodes() {
 		text = append(text, r)
 		switch r {
 
-		case 't': // gobble tmux passthrough codes: {ESC}Ptmux;{ESC}
-			if len(text) == 1 {
-				r = term.Pty.Read()
-				text = append(text, r)
-				if r != 'm' {
-					continue
-				}
-				r = term.Pty.Read()
-				text = append(text, r)
-				if r != 'u' {
-					continue
-				}
-				r = term.Pty.Read()
-				text = append(text, r)
-				if r != 'x' {
-					continue
-				}
-				r = term.Pty.Read()
-				text = append(text, r)
-				if r != ';' {
-					continue
-				}
-				r = term.Pty.Read()
-				text = append(text, r)
-				if r != codes.AsciiEscape {
-					continue
-				}
-				term.Pty.TmuxPassthrough(true)
-				return
-			}
-
 		case codes.AsciiEscape:
 			r = term.Pty.Read()
 			if r == '\\' { // ST (DCS terminator)
@@ -67,6 +36,6 @@ parsed:
 
 	//stack := strings.Split(string(text), ";")
 
-	log.Printf("Unhandled DCS code %s", string(text))
+	log.Printf("WARNING: Unhandled DCS code %s", string(text))
 
 }

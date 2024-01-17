@@ -1,6 +1,11 @@
 package virtualterm
 
-import "log"
+import (
+	"fmt"
+	"log"
+
+	"github.com/lmorg/mxtty/types"
+)
 
 /*
 	Documentation:
@@ -223,12 +228,14 @@ func (term *Term) parseC1Codes() {
 
 	case '\\':
 		// String Terminator
-		term.Pty.TmuxPassthrough(false)
+		log.Printf("DEBUG: unexpected string terminator")
 
 	/////
 
 	default:
-		log.Printf("WARNING: Unexpected rune after escape: %d", r)
+		term.renderer.DisplayNotification(types.NOTIFY_DEBUG,
+			fmt.Sprintf("Unexpected rune after escape: %d", r))
+
 		//term.writeCell(r)
 	}
 }

@@ -5,19 +5,33 @@ import (
 	"encoding/base64"
 	"fmt"
 	"image"
+	"io"
+	"os"
+
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
 
 	"golang.org/x/image/bmp"
 )
 
 func (el *ElementImage) decode() error {
-	s := el.apc.Parameter(_KEY_BASE64)
-	if len(s) == 0 {
-		return fmt.Errorf("no image supplied in \"base64\" parameter")
+	var (
+		b   []byte
+		err error
+	)
+	s := el.apc.Parameter(_KEY_FILENAME)
+	if s != "" {
+		b, err = _loadImage(s)
+	} else {
+		s = el.apc.Parameter(_KEY_BASE64)
+		if s == "" {
+			return fmt.Errorf("no image supplied in \"base64\" nor \"filename\" parameters")
+		}
+		b, err = _decodeImage(s)
 	}
-
-	b, err := base64.StdEncoding.DecodeString(s)
 	if err != nil {
-		return fmt.Errorf("unable to decode base64 string: %s", err.Error())
+		return err
 	}
 
 	buf := bytes.NewBuffer(b)
@@ -35,4 +49,21 @@ func (el *ElementImage) decode() error {
 
 	el.bmp = buf.Bytes()
 	return nil
+}
+
+func _loadImage(filename string) ([]byte, error) {
+	f, err := os.Open(filename)
+	if err != nil {
+		return nil, fmt.Errorf("unable to open image: %s", err.Error())
+	}
+
+	return io.ReadAll(f)
+}
+
+func _decodeImage(b64 string) ([]byte, error) {
+	b, err := base64.StdEncoding.DecodeString(b64)
+	if err != nil {
+		return nil, fmt.Errorf("unable to decode base64 string: %s", err.Error())
+	}
+	return b, nil
 }

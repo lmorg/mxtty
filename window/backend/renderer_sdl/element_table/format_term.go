@@ -115,9 +115,15 @@ func (el *ElementTable) drawTerm(rect *types.Rect) {
 		}
 
 		for x := range el._stackTerm[y] {
-
+			var colOffset int32
+			if len(el.colOffset[y]) <= x {
+				// this works around a bug in tmux
+				colOffset = el.colOffset[y][len(el.colOffset[y])-1]
+			} else {
+				colOffset = el.colOffset[y][x]
+			}
 			for col, cell := range el._stackTerm[y][x].cells {
-				pos.X = rect.Start.X + el.colOffset[y][x] + int32(col) - lineWrapping.X
+				pos.X = rect.Start.X + colOffset + int32(col) - lineWrapping.X
 
 				if pos.X >= el.renderer.TermSize().X {
 					lineWrapping.X += el.renderer.TermSize().X

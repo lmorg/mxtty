@@ -13,6 +13,7 @@ import (
 type sdlRender struct {
 	window    *sdl.Window
 	surface   *sdl.Surface
+	renderer  *sdl.Renderer
 	glyphSize *types.XY
 	termSize  *types.XY
 
@@ -32,6 +33,12 @@ type sdlRender struct {
 	// events
 	_quit   chan bool
 	_redraw chan bool
+
+	// notifications
+	notifications notifyT
+
+	// image cache
+	imageStack []func()
 }
 
 func (sr *sdlRender) triggerQuit()   { sr._quit <- true }
@@ -42,12 +49,13 @@ func (sr *sdlRender) TermSize() *types.XY {
 }
 
 func (sr *sdlRender) Resize() *types.XY {
-	var err error
-	sr.surface.Free()
-	sr.surface, err = sr.window.GetSurface()
+	/*var err error
+	//sr.surface.Free()
+	//sr.surface, err = sr.window.GetSurface()
+	sr.renderer, err = sr.window.GetRenderer()
 	if err != nil {
 		panic(err) // TODO: this shouldn't panic!
-	}
+	}*/
 
 	return sr.getTermSize()
 }

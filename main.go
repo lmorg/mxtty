@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/lmorg/mxtty/psuedotty"
+	"github.com/lmorg/mxtty/ptty"
 	"github.com/lmorg/mxtty/virtualterm"
 	"github.com/lmorg/mxtty/window/backend"
 )
@@ -17,7 +17,7 @@ func main() {
 	defer renderer.Close()
 
 	term := virtualterm.NewTerminal(renderer)
-	pty, err := psuedotty.NewPTY(term.GetSize())
+	pty, err := ptty.NewPTY(term.GetSize())
 	if err != nil {
 		panic(err.Error())
 	}

@@ -1,9 +1,11 @@
 package rendersdl
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/lmorg/mxtty/assets"
+	"github.com/lmorg/mxtty/types"
 	"github.com/veandco/go-sdl2/mix"
 	"github.com/veandco/go-sdl2/sdl"
 )
@@ -41,9 +43,11 @@ func (sr *sdlRender) initBell() {
 func (sr *sdlRender) Bell() {
 	err := sr.bell.Play(1)
 	if err != nil {
-		log.Printf("ERROR: could not play %s from memory: %s", assets.BELL, err.Error())
+		//log.Printf("ERROR: could not play %s from memory: %s", assets.BELL, err.Error())
+		sr.DisplayNotification(types.NOTIFY_ERROR,
+			fmt.Sprintf("Could not play %s from memory: %s", assets.BELL, err.Error()))
 		return
 	}
-
+	sr.DisplayNotification(types.NOTIFY_INFO, "DING! System bell received")
 	sdl.Delay(5000)
 }

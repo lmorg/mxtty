@@ -1,6 +1,7 @@
 package virtualterm
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/lmorg/mxtty/codes"
@@ -21,6 +22,7 @@ func (term *Term) readLoop() {
 }
 
 func (term *Term) readChar(r rune) {
+	//writeR(r)
 	switch r {
 
 	case codes.AsciiCtrlG:
@@ -49,9 +51,17 @@ func (term *Term) readChar(r rune) {
 
 	default:
 		if r < 32 {
-			log.Printf("Unexpected ASCII control character (ignored): %d", r)
+			log.Printf("WARNING: Unexpected ASCII control character (ignored): %d", r)
 			return
 		}
 		term.writeCell(r)
+	}
+}
+
+func writeR(r rune) {
+	if r < ' ' {
+		fmt.Printf("{%d}", r)
+	} else {
+		fmt.Printf("%s", string(r))
 	}
 }

@@ -107,7 +107,7 @@ func (term *Term) parseCsiCodes() {
 				term.csiMoveCursorToPos(stack[0]-1, stack[1]-1)
 			default:
 				term.csiMoveCursorToPos(stack[0]-1, stack[1]-1)
-				log.Printf("more parameters than expected for %s: %v (%s)", string(r), stack, string(cache))
+				log.Printf("WARNING: more parameters than expected for %s: %v (%s)", string(r), stack, string(cache))
 			}
 
 		//case 'h':
@@ -203,7 +203,7 @@ func (term *Term) parseCsiCodes() {
 		case 'r':
 			// Set Scrolling Region [top;bottom] (default = full size of window) (DECSTBM), VT100.
 			if len(stack) != 2 {
-				log.Printf("Unexpected number of parameters in CSI r (%s): %v", string(cache), stack)
+				log.Printf("WARNING: Unexpected number of parameters in CSI r (%s): %v", string(cache), stack)
 			} else {
 				term.csiSetScrollingRegion(stack)
 			}
@@ -295,7 +295,7 @@ func (term *Term) parseCsiCodes() {
 
 		if isCsiTerminator(r) {
 			if unknown {
-				log.Printf("Unknown CSI code %s: %v [string: %s]", string(r), cache, string(cache))
+				log.Printf("WARNING: Unknown CSI code %s: %v [string: %s]", string(r), cache, string(cache))
 			}
 			return
 		}

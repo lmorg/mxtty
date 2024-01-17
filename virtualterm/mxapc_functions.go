@@ -1,10 +1,6 @@
 package virtualterm
 
 import (
-	_ "image/gif"
-	_ "image/jpeg"
-	_ "image/png"
-
 	"github.com/lmorg/mxtty/types"
 )
 

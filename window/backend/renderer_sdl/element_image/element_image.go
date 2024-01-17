@@ -1,15 +1,15 @@
 package elementImage
 
 import (
-	"log"
 	"strconv"
 
 	"github.com/lmorg/mxtty/types"
 )
 
 const (
-	_KEY_BASE64 = "base64"
-	_KEY_WIDTH  = "width"
+	_KEY_BASE64   = "base64"
+	_KEY_FILENAME = "filename"
+	_KEY_WIDTH    = "width"
 )
 
 type ElementImage struct {
@@ -26,6 +26,8 @@ func New(renderer types.Renderer, loadFn func([]byte, *types.XY) (types.Image, e
 }
 
 func (el *ElementImage) Begin(apc *types.ApcSlice) {
+	el.renderer.DisplayNotification(types.NOTIFY_DEBUG, "Importing image from ANSI escape codes....")
+
 	el.apc = apc
 	el.size = new(types.XY)
 
@@ -33,7 +35,8 @@ func (el *ElementImage) Begin(apc *types.ApcSlice) {
 	if width != "" {
 		i, err := strconv.Atoi(width)
 		if err != nil {
-			log.Printf("ERROR: cannot convert width: %s", err.Error())
+			//log.Printf("ERROR: cannot convert width: %s", err.Error())
+			el.renderer.DisplayNotification(types.NOTIFY_ERROR, "Cannot convert width: "+err.Error())
 		}
 		el.size.X = int32(i)
 	}
@@ -49,14 +52,13 @@ func (el *ElementImage) ReadCell(cell *types.Cell) {
 func (el *ElementImage) End() {
 	err := el.decode()
 	if err != nil {
-		log.Printf("ERROR: %s", err.Error())
+		//log.Printf("ERROR: %s", err.Error())
+		el.renderer.DisplayNotification(types.NOTIFY_ERROR, "Cannot decode image: "+err.Error())
 		return
 	}
 }
 
 func (el *ElementImage) Draw(rect *types.Rect) {
-	//log.Printf("DEBUG: image.Draw")
-
 	if len(el.bmp) == 0 {
 		return
 	}
@@ -66,12 +68,15 @@ func (el *ElementImage) Draw(rect *types.Rect) {
 		var err error
 		el.image, err = el.load(el.bmp, el.size)
 		if err != nil {
-			log.Printf("ERROR: %s", err.Error())
+			//log.Printf("ERROR: %s", err.Error())
+			el.renderer.DisplayNotification(types.NOTIFY_ERROR, "Cannot cache image: "+err.Error())
 			return
 		}
 	}
 
-	el.image.Draw(el.size, rect)
+	el.renderer.AddImageToStack(func() {
+		el.image.Draw(el.size, rect)
+	})
 }
 
 func (el *ElementImage) Close() {

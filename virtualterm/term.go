@@ -51,13 +51,6 @@ func (term *Term) lfRedraw() {
 	}
 }
 
-/*
-Types of elements:
-- image rendering
-- json tree
-- table sorting
-*/
-
 // NewTerminal creates a new virtual term
 func NewTerminal(renderer types.Renderer) *Term {
 	size := renderer.TermSize()

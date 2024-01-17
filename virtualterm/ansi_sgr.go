@@ -175,7 +175,7 @@ func lookupSgr(sgr *types.Sgr, n int32, stack []int32) {
 			sgr.Bg = types.SGR_COLOUR_WHITE_BRIGHT
 
 		default:
-			log.Printf("Unknown SGR code: %d", n)
+			log.Printf("WARNING: Unknown SGR code: %d", n)
 		}
 	}
 }
@@ -189,14 +189,14 @@ func _sgrEnhancedColour(n int32, stack []int32) *types.Colour {
 	case 5:
 		colour, ok := types.SGR_COLOUR_256[stack[2]]
 		if !ok {
-			log.Printf("SGR error: 256 value does not exist in %d: %v", n, stack)
+			log.Printf("WARNING: SGR error: 256 value does not exist in %d: %v", n, stack)
 			return nil
 		}
 		return colour
 
 	case 2:
 		if len(stack) != 5 {
-			log.Printf("SGR error: too few parameters in %d (24bit): %v", n, stack)
+			log.Printf("WARNING: SGR error: too few parameters in %d (24bit): %v", n, stack)
 			return nil
 		}
 		return &types.Colour{
@@ -206,7 +206,7 @@ func _sgrEnhancedColour(n int32, stack []int32) *types.Colour {
 		}
 
 	default:
-		log.Printf("SGR error: unexpected value in %d: %v", n, stack)
+		log.Printf("WARNING: SGR error: unexpected value in %d: %v", n, stack)
 		return nil
 	}
 

@@ -1,4 +1,4 @@
-package psuedotty
+package ptty
 
 import (
 	"bytes"
@@ -8,16 +8,13 @@ import (
 	"os"
 
 	"github.com/creack/pty"
-	"github.com/lmorg/mxtty/codes"
 	"github.com/lmorg/mxtty/types"
 )
 
 type PTY struct {
-	primary         *os.File
-	secondary       *os.File
-	stream          chan rune
-	tmuxPassthrough bool
-	lastRune        rune
+	primary   *os.File
+	secondary *os.File
+	stream    chan rune
 }
 
 func NewPTY(size *types.XY) (types.Pty, error) {
@@ -40,7 +37,7 @@ func NewPTY(size *types.XY) (types.Pty, error) {
 		stream:    make(chan rune),
 	}
 
-	go p.write()
+	go p.read(secondary)
 
 	return p, err
 }
@@ -54,7 +51,7 @@ func (p *PTY) Write(b []byte) error {
 	return err
 }
 
-func (p *PTY) write() {
+func (p *PTY) read(f *os.File) {
 	var (
 		b    = make([]byte, 10*1024)
 		utf8 []byte
@@ -62,7 +59,7 @@ func (p *PTY) write() {
 	)
 
 	for {
-		n, err := p.secondary.Read(b)
+		n, err := f.Read(b)
 		if err != nil && err.Error() != io.EOF.Error() {
 			log.Printf("ERROR: problem reading from PTY (%d bytes dropped): %s", n, err.Error())
 			continue
@@ -101,20 +98,5 @@ func runeLength(b byte) int {
 }
 
 func (p *PTY) Read() rune {
-start:
-	r := <-p.stream
-	if !p.tmuxPassthrough {
-		return r
-	}
-
-	if r == codes.AsciiEscape && p.lastRune == codes.AsciiEscape {
-		p.lastRune = 0
-		goto start
-	}
-	p.lastRune = r
-	return r
-}
-
-func (p *PTY) TmuxPassthrough(v bool) {
-	p.tmuxPassthrough = v
+	return <-p.stream
 }

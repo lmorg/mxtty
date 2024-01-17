@@ -8,5 +8,5 @@ type Cell struct {
 
 func (c *Cell) Clear() {
 	c.Char = 0
-	//c.sgr = &sgr{}
+	//c.Sgr = &Sgr{}
 }

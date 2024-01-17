@@ -1,8 +1,6 @@
 package elementTable
 
 import (
-	"log"
-
 	"github.com/lmorg/mxtty/types"
 )
 
@@ -30,6 +28,7 @@ func (el *ElementTable) MouseClick(button uint8, pos *types.XY) {
 	var err error
 	el._sqlResult, err = el.runQuery()
 	if err != nil {
-		log.Printf("ERROR: cannot sort table: %s", err.Error())
+		//log.Printf("ERROR: cannot sort table: %s", err.Error())
+		el.renderer.DisplayNotification(types.NOTIFY_ERROR, "Cannot sort table: "+err.Error())
 	}
 }

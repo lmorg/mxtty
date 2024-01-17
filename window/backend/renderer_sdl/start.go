@@ -65,7 +65,12 @@ func (sr *sdlRender) createWindow(caption string) error {
 
 	sr.initBell()
 
-	sr.surface, err = sr.window.GetSurface()
+	sr.renderer, err = sdl.CreateRenderer(sr.window, -1, sdl.RENDERER_ACCELERATED)
+	if err != nil {
+		return err
+	}
+
+	err = sr.renderer.SetDrawBlendMode(sdl.BLENDMODE_BLEND)
 	return err
 }
 
@@ -101,12 +106,7 @@ func (sr *sdlRender) getTermSize() *types.XY {
 }
 
 func (sr *sdlRender) Start(term types.Term) {
-	c := types.SGR_COLOUR_BLACK
-	pixel := sdl.MapRGBA(sr.surface.Format, c.Red, c.Green, c.Blue, 255)
-	err := sr.surface.FillRect(&sdl.Rect{W: sr.surface.W, H: sr.surface.H}, pixel)
-	if err != nil {
-		log.Printf("error drawing background: %s", err.Error())
-	}
+	//sr.drawBg(term)
 
 	for {
 
@@ -147,24 +147,51 @@ func (sr *sdlRender) Start(term types.Term) {
 	}
 }
 
-func update(sr *sdlRender, term types.Term) {
+func (sr *sdlRender) drawBg(term types.Term, rect *sdl.Rect) {
 	bg := term.Bg()
+
 	pixel := sdl.MapRGBA(sr.surface.Format, bg.Red, bg.Green, bg.Blue, 255)
-	err := sr.surface.FillRect(&sdl.Rect{W: sr.surface.W, H: sr.surface.H}, pixel)
+	err := sr.surface.FillRect(rect, pixel)
 	if err != nil {
-		log.Printf("error in renderer: %s", err.Error())
+		log.Printf("ERROR: error drawing background: %s", err.Error())
 	}
+}
+
+func update(sr *sdlRender, term types.Term) {
+	var err error
+	x, y := sr.window.GetSize()
+	rect := &sdl.Rect{W: x, H: y}
+
+	sr.surface, err = sdl.CreateRGBSurfaceWithFormat(0, x, y, 32, uint32(sdl.PIXELFORMAT_RGBA32))
+	if err != nil {
+		panic(err) //TODO: don't panic!
+	}
+	defer sr.surface.Free()
+
+	sr.drawBg(term, rect)
 
 	term.Render()
 
-	sr.renderNotification(types.NOTIFY_WARNING, "testing 123")
+	texture, err := sr.renderer.CreateTextureFromSurface(sr.surface)
+	if err != nil {
+		panic(err) //TODO: don't panic!
+	}
+
+	err = sr.renderer.Copy(texture, rect, rect)
+	if err != nil {
+		panic(err) //TODO: don't panic!
+	}
+
+	for i := range sr.imageStack {
+		sr.imageStack[i]()
+	}
+	sr.imageStack = make([]func(), 0) // clear image stack
+
+	sr.renderNotification(rect)
 
 	if atomic.CompareAndSwapInt32(&sr.updateTitle, 1, 0) {
 		sr.window.SetTitle(sr.title)
 	}
 
-	err = sr.window.UpdateSurface()
-	if err != nil {
-		log.Printf("error in renderer: %s", err.Error())
-	}
+	sr.renderer.Present()
 }

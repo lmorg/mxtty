@@ -47,8 +47,8 @@ type ElementTable struct {
 }
 
 var arrowGlyph = map[bool]rune{
-	false: '↓',
-	true:  '↑',
+	true:  '↓',
+	false: '↑',
 }
 
 func New(renderer types.Renderer) *ElementTable {

@@ -3,7 +3,7 @@ package elementTable
 import (
 	"bytes"
 	"encoding/csv"
-	"log"
+	"fmt"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -30,7 +30,9 @@ func (el *ElementTable) endStruct() {
 	}
 
 	if err != nil {
-		log.Printf("ERROR: cannot parse %s: %s", el._paramFormat, err.Error())
+		//log.Printf("ERROR: cannot parse %s: %s", el._paramFormat, err.Error())
+		el.renderer.DisplayNotification(types.NOTIFY_ERROR,
+			fmt.Sprintf("Cannot parse %s: %s", el._paramFormat, err.Error()))
 	}
 }
 

@@ -1,4 +1,4 @@
-package psuedotty
+package ptty
 
 import "testing"
 

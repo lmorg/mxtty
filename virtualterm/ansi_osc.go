@@ -50,6 +50,6 @@ parsed:
 		//$(osc)1337;File=inline=1:${base64 -i $file -o -}
 
 	default:
-		log.Printf("Unknown OSC code %s: %s", stack[0], string(text[:len(text)-1]))
+		log.Printf("WARNING: Unknown OSC code %s: %s", stack[0], string(text[:len(text)-1]))
 	}
 }

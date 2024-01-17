@@ -1,8 +1,6 @@
 package rendersdl
 
 import (
-	"log"
-
 	"github.com/lmorg/mxtty/types"
 	"github.com/veandco/go-sdl2/sdl"
 )
@@ -13,7 +11,7 @@ func (sr *sdlRender) loadImage(bmp []byte, size *types.XY) (types.Image, error) 
 		return nil, err
 	}
 
-	img := image{renderer: sr, rwops: rwops}
+	img := image{sr: sr, rwops: rwops}
 
 	img.surface, err = sdl.LoadBMPRW(rwops, true)
 	if err != nil {
@@ -30,14 +28,20 @@ func (sr *sdlRender) loadImage(bmp []byte, size *types.XY) (types.Image, error) 
 		Y: sr.glyphSize.Y * size.Y,
 	}
 
+	img.texture, err = img.sr.renderer.CreateTextureFromSurface(img.surface)
+	if err != nil {
+		return nil, err
+	}
+
 	return &img, nil
 }
 
 type image struct {
-	surface  *sdl.Surface
-	renderer *sdlRender
-	size     *types.XY
-	rwops    *sdl.RWops
+	surface *sdl.Surface
+	sr      *sdlRender
+	size    *types.XY
+	rwops   *sdl.RWops
+	texture *sdl.Texture
 }
 
 func (img *image) Size() *types.XY {
@@ -50,22 +54,27 @@ func (img *image) Draw(size *types.XY, rect *types.Rect) {
 		H: img.surface.H,
 	}
 
-	offset := (size.Y - (rect.End.Y - rect.Start.Y) - 1) * img.renderer.glyphSize.Y
+	offset := (size.Y - (rect.End.Y - rect.Start.Y) - 1) * img.sr.glyphSize.Y
 
 	dstRect := sdl.Rect{
-		X: img.renderer.border + (rect.Start.X * img.renderer.glyphSize.X),
-		Y: img.renderer.border + (rect.Start.Y * img.renderer.glyphSize.Y) - offset,
+		X: img.sr.border + (rect.Start.X * img.sr.glyphSize.X),
+		Y: img.sr.border + (rect.Start.Y * img.sr.glyphSize.Y) - offset,
 		W: img.size.X,
 		H: img.size.Y,
 	}
 
-	err := img.surface.BlitScaled(&srcRect, img.renderer.surface, &dstRect)
+	err := img.sr.renderer.Copy(img.texture, &srcRect, &dstRect)
 	if err != nil {
-		log.Printf("ERROR: cannot blit image: %s", err.Error())
+		panic(err) //TODO: don't panic!
 	}
 }
 
 func (img *image) Close() {
+	img.texture.Destroy()
 	img.surface.Free()
 	img.rwops.Free()
+}
+
+func (sr *sdlRender) AddImageToStack(fn func()) {
+	sr.imageStack = append(sr.imageStack, fn)
 }

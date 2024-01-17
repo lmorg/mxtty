@@ -1,7 +1,7 @@
 package virtualterm
 
 import (
-	"log"
+	"fmt"
 
 	"github.com/lmorg/mxtty/codes"
 	"github.com/lmorg/mxtty/types"
@@ -43,7 +43,8 @@ func (term *Term) parseApcCodes() {
 			term.mxapcBegin(types.ELEMENT_ID_IMAGE, apc)
 
 		default:
-			log.Printf("Unknown mxAPC code %s: %s", apc.Index(1), string(text[:len(text)-1]))
+			term.renderer.DisplayNotification(types.NOTIFY_DEBUG,
+				fmt.Sprintf("Unknown mxAPC code %s: %s", apc.Index(1), string(text[:len(text)-1])))
 		}
 
 	case "end":
@@ -55,8 +56,10 @@ func (term *Term) parseApcCodes() {
 			term.mxapcEnd()
 
 		default:
-			log.Printf("Unknown mxAPC code %s: %s", apc.Index(1), string(text[:len(text)-1]))
+			term.renderer.DisplayNotification(types.NOTIFY_DEBUG,
+				fmt.Sprintf("Unknown mxAPC code %s: %s", apc.Index(1), string(text[:len(text)-1])))
 		}
+
 
 	/*case "insert":
 	switch apc.Index(1) {
@@ -65,6 +68,7 @@ func (term *Term) parseApcCodes() {
 	}*/
 
 	default:
-		log.Printf("Unknown APC code %s: %s", apc.Index(0), string(text[:len(text)-1]))
+		term.renderer.DisplayNotification(types.NOTIFY_DEBUG,
+			fmt.Sprintf("Unknown mxAPC code %s: %s", apc.Index(1), string(text[:len(text)-1])))
 	}
 }

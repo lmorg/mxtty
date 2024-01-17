@@ -1,29 +1,6 @@
 #!/usr/bin/env murex
 
-/#
-if { $TERM =~ '^(screen|tmux)' } then {
-    tout str '{ESC}Ptmux;{ESC}{ESC}'
-}
 
-tout str '{ESC}_BEGIN;TABLE{BELL}'
-
-if { $TERM =~ '^(screen|tmux)' } then {
-    tout str '{ESC}\'
-}
-
-ps -fe | head -n10 #| left 100
-
-if { $TERM =~ '^(screen|tmux)' } then {
-    tout str '{ESC}Ptmux;{ESC}{ESC}'
-}
-
-tout str '{ESC}_END;TABLE{BELL}'
-
-if { $TERM =~ '^(screen|tmux)' } then {
-    tout str '{ESC}\'
-}
-#/
-
-tout str '{ESC}Ptmux;{ESC}{ESC}{ESC}_begin;table{BELL}{ESC}\'
-ps aux
-tout str '{ESC}Ptmux;{ESC}{ESC}{ESC}_end;table{BELL}{ESC}\'
+tout str '{ESC}_begin;table{ESC}\'
+ps -fe | head -n10
+tout str '{ESC}_end;table{ESC}\'
