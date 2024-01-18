@@ -106,8 +106,6 @@ func (sr *sdlRender) getTermSize() *types.XY {
 }
 
 func (sr *sdlRender) Start(term types.Term) {
-	//sr.drawBg(term)
-
 	for {
 
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
