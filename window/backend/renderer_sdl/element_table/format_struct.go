@@ -34,6 +34,8 @@ func (el *ElementTable) endStruct() {
 		el.renderer.DisplayNotification(types.NOTIFY_ERROR,
 			fmt.Sprintf("Cannot parse %s: %s", el._paramFormat, err.Error()))
 	}
+
+	return
 }
 
 func (el *ElementTable) parseCsv() error {
@@ -60,7 +62,7 @@ func (el *ElementTable) parseCsv() error {
 	return nil
 }
 
-func (el *ElementTable) drawStruct(rect *types.Rect) {
+func (el *ElementTable) drawStruct(rect *types.Rect) *types.XY {
 	el.colOffset = [][]int32{{}}
 
 	var err error
@@ -71,7 +73,8 @@ func (el *ElementTable) drawStruct(rect *types.Rect) {
 	for i := range el._tableCache {
 		_, err = w.Write([]byte(strings.Join(el._tableCache[i], "\t")))
 		if err != nil {
-			return
+			el.renderer.DisplayNotification(types.NOTIFY_ERROR, "Cannot output table: "+err.Error())
+			return nil
 		}
 	}
 	w.Flush()
@@ -122,4 +125,6 @@ func (el *ElementTable) drawStruct(rect *types.Rect) {
 		cell.Char = arrowGlyph[el.orderDesc]
 		el.renderer.PrintCell(cell, sortGlyph)
 	}
+
+	return nil
 }

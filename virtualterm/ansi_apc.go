@@ -39,9 +39,6 @@ func (term *Term) parseApcCodes() {
 		case "table":
 			term.mxapcBegin(types.ELEMENT_ID_TABLE, apc)
 
-		case "image":
-			term.mxapcBegin(types.ELEMENT_ID_IMAGE, apc)
-
 		default:
 			term.renderer.DisplayNotification(types.NOTIFY_DEBUG,
 				fmt.Sprintf("Unknown mxAPC code %s: %s", apc.Index(1), string(text[:len(text)-1])))
@@ -52,20 +49,16 @@ func (term *Term) parseApcCodes() {
 		case "table":
 			term.mxapcEnd()
 
-		case "image":
-			term.mxapcEnd()
-
 		default:
 			term.renderer.DisplayNotification(types.NOTIFY_DEBUG,
 				fmt.Sprintf("Unknown mxAPC code %s: %s", apc.Index(1), string(text[:len(text)-1])))
 		}
 
-
-	/*case "insert":
-	switch apc.Index(1) {
-	case "image":
-		term.mxapcInsertImage(apc)
-	}*/
+	case "insert":
+		switch apc.Index(1) {
+		case "image":
+			term.mxapcInsert(types.ELEMENT_ID_IMAGE, apc)
+		}
 
 	default:
 		term.renderer.DisplayNotification(types.NOTIFY_DEBUG,

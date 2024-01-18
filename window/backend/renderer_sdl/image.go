@@ -18,14 +18,14 @@ func (sr *sdlRender) loadImage(bmp []byte, size *types.XY) (types.Image, error) 
 		return nil, err
 	}
 
-	if size.X == 0 {
-		f := img.surface.W / img.surface.H
-		size.X = size.Y * f * 2
-	}
-
 	img.size = &types.XY{
 		X: sr.glyphSize.X * size.X,
 		Y: sr.glyphSize.Y * size.Y,
+	}
+
+	if size.X == 0 {
+		img.size.X = int32((float64(img.surface.W) / float64(img.surface.H)) * float64(img.size.Y))
+		size.X = int32((float64(img.size.X) / float64(sr.glyphSize.X)) + 1)
 	}
 
 	img.texture, err = img.sr.renderer.CreateTextureFromSurface(img.surface)
@@ -65,8 +65,12 @@ func (img *image) Draw(size *types.XY, rect *types.Rect) {
 
 	err := img.sr.renderer.Copy(img.texture, &srcRect, &dstRect)
 	if err != nil {
-		panic(err) //TODO: don't panic!
+		img.sr.DisplayNotification(types.NOTIFY_ERROR, "Cannot render image: "+err.Error())
 	}
+}
+
+func (img *image) Asset() any {
+	return img.surface
 }
 
 func (img *image) Close() {

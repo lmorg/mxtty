@@ -1,7 +1,6 @@
 package virtualterm
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/lmorg/mxtty/codes"
@@ -58,10 +57,10 @@ func (term *Term) readChar(r rune) {
 	}
 }
 
-func writeR(r rune) {
+/*func writeR(r rune) {
 	if r < ' ' {
 		fmt.Printf("{%d}", r)
 	} else {
 		fmt.Printf("%s", string(r))
 	}
-}
+}*/

@@ -6,7 +6,7 @@ import (
 )
 
 func eventMouseButton(evt *sdl.MouseButtonEvent, term types.Term, sr *sdlRender) {
-	if evt.State == sdl.RELEASED {
+	if evt.State == sdl.PRESSED {
 		return
 	}
 

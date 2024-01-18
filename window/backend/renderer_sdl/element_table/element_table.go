@@ -84,7 +84,7 @@ func (el *ElementTable) ReadCell(cell *types.Cell) {
 	}
 }
 
-func (el *ElementTable) End() {
+func (el *ElementTable) End() *types.XY {
 	if el._paramFormat == "" {
 		el.endTerm()
 	} else {
@@ -99,25 +99,34 @@ func (el *ElementTable) End() {
 	)
 	err := el.createTable(confFailColMismatch, confMergeTrailingColumns, confTableIncHeadings)
 	if err != nil {
-		panic(err)
+		el.renderer.DisplayNotification(types.NOTIFY_ERROR, "Cannot create sqlite3 table: "+err.Error())
+		return &types.XY{}
 	}
 
 	el._sqlResult, err = el.runQuery()
 	if err != nil {
-		panic(err)
+		el.renderer.DisplayNotification(types.NOTIFY_ERROR, "Cannot query sqlite3 table: "+err.Error())
+		return &types.XY{}
 	}
+
+	return nil
 }
 
-func (el *ElementTable) Draw(rect *types.Rect) {
+func (el *ElementTable) Insert(_ *types.ApcSlice) *types.XY {
+	// not required for this element
+	return nil
+}
+
+func (el *ElementTable) Draw(rect *types.Rect) *types.XY {
 	if el.size == nil {
-		return
+		return nil
 	}
 
 	if el._paramFormat == "" {
-		el.drawTerm(rect)
-	} else {
-		el.drawStruct(rect)
+		return el.drawTerm(rect)
 	}
+
+	return el.drawStruct(rect)
 }
 
 func (el *ElementTable) Close() {

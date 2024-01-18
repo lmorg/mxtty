@@ -81,3 +81,11 @@ func (sr *sdlRender) SetWindowTitle(title string) {
 func (sr *sdlRender) GetWindowTitle() string {
 	return sr.window.GetTitle()
 }
+
+func (sr *sdlRender) FocusWindow() {
+	sr.window.Raise()
+}
+
+func (sr *sdlRender) GetWindowMeta() any {
+	return sr.window
+}

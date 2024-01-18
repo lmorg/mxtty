@@ -10,27 +10,27 @@ func (term *Term) Render() {
 	term._mutex.Lock()
 
 	var err error
-	elementLookup := make(map[types.Element]*types.Rect)
+	elementStack := make(map[types.Element]*types.Rect)
 	pos := new(types.XY)
 
 	for ; int(pos.Y) < len(*term.cells); pos.Y++ {
 		for pos.X = 0; int(pos.X) < len((*term.cells)[pos.Y]); pos.X++ {
 			switch {
-			case (*term.cells)[pos.Y][pos.X].Sgr == nil:
-				continue
-
 			case (*term.cells)[pos.Y][pos.X].Element != nil:
-				rect, ok := elementLookup[(*term.cells)[pos.Y][pos.X].Element]
-				if ok { // update rect
-					rect.End.X, rect.End.Y = pos.X, pos.Y
-				} else { // create rect
-					elementLookup[(*term.cells)[pos.Y][pos.X].Element] = &types.Rect{
+				rect, ok := elementStack[(*term.cells)[pos.Y][pos.X].Element]
+				if !ok { // create rect
+					elementStack[(*term.cells)[pos.Y][pos.X].Element] = &types.Rect{
 						Start: &types.XY{X: pos.X, Y: pos.Y},
 						End:   &types.XY{X: pos.X, Y: pos.Y},
 					}
+				} else { // update rect
+					rect.End.X, rect.End.Y = pos.X, pos.Y
 				}
 
 			case (*term.cells)[pos.Y][pos.X].Char == 0:
+				continue
+
+			case (*term.cells)[pos.Y][pos.X].Sgr == nil:
 				continue
 
 			default:
@@ -42,8 +42,11 @@ func (term *Term) Render() {
 		}
 	}
 
-	for el, rect := range elementLookup {
-		el.Draw(rect)
+	for el, rect := range elementStack {
+		size := el.Draw(rect)
+		if size != nil {
+			term._elementResizeGrow(el, rect.Start, size)
+		}
 	}
 
 	term._blinkCursor()

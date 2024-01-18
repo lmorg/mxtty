@@ -76,9 +76,11 @@ func (el *ElementTable) endTerm() {
 
 		}
 	}
+
+	return
 }
 
-func (el *ElementTable) drawTerm(rect *types.Rect) {
+func (el *ElementTable) drawTerm(rect *types.Rect) *types.XY {
 	var err error
 	pos := new(types.XY)
 	pos.Y = rect.Start.Y
@@ -88,7 +90,7 @@ func (el *ElementTable) drawTerm(rect *types.Rect) {
 
 			err = el.renderer.PrintCell(cell, pos)
 			if err != nil {
-				panic(err)
+				panic(err) // TODO: don't panic!
 			}
 		}
 	}
@@ -133,7 +135,7 @@ func (el *ElementTable) drawTerm(rect *types.Rect) {
 				}
 
 				if pos.Y > rect.End.Y {
-					return
+					return nil
 				}
 
 				err = el.renderer.PrintCell(cell, pos)
@@ -143,4 +145,6 @@ func (el *ElementTable) drawTerm(rect *types.Rect) {
 			}
 		}
 	}
+
+	return nil
 }

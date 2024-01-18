@@ -1,0 +1,3 @@
+#!/usr/bin/env murex
+
+out '{ESC}_insert;image;{"filename":"assets/mxtty.png"}{ESC}\'

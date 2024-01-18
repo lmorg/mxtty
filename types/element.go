@@ -3,8 +3,9 @@ package types
 type Element interface {
 	Begin(*ApcSlice)
 	ReadCell(*Cell)
-	End()
-	Draw(*Rect)
+	End() *XY             // return is optional
+	Insert(*ApcSlice) *XY // return is required
+	Draw(*Rect) *XY       // return is optional
 	MouseClick(uint8, *XY)
 	Close()
 }
