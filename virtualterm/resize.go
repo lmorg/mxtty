@@ -5,5 +5,5 @@ import (
 )
 
 func (term *Term) Resize(size *types.XY) {
-	// TODO
+	
 }

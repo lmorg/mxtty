@@ -42,9 +42,9 @@ func (term *Term) mxapcInsert(element types.ElementID, parameters *types.ApcSlic
 
 func (term *Term) _elementResizeGrow(el types.Element, start *types.XY, size *types.XY) {
 	log.Printf("DEBUG: _elementResizeUpdate(): %s | %s", json.LazyLogging(start), json.LazyLogging(size))
-	for y := start.Y; y < start.Y+size.Y; y++ {
+	for y := start.Y; y < start.Y+size.Y && y < int32(len(*term.cells)); y++ {
 
-		for x := start.X; x < start.X+size.X; x++ {
+		for x := start.X; x < start.X+size.X && x < int32(len((*term.cells)[y])); x++ {
 			(*term.cells)[y][x].Element = el
 		}
 	}

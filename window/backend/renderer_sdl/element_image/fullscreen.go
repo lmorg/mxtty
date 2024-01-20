@@ -2,46 +2,15 @@ package elementImage
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/veandco/go-sdl2/sdl"
 )
 
 func (el *ElementImage) fullscreen() error {
-	var (
-		fullscreen uint32
-		err        error
-		dispIndex  int
-		dispMode   sdl.DisplayMode
-	)
-
-	win, ok := el.renderer.GetWindowMeta().(*sdl.Window)
-	if !ok {
-		log.Println("DEBUG: (el *ElementImage) fullscreen(): WindowMeta is not a window")
-		fullscreen = sdl.WINDOW_FULLSCREEN_DESKTOP
-		goto createWindow
-	}
-	dispIndex, err = win.GetDisplayIndex()
-	if err != nil {
-		log.Printf("DEBUG: (el *ElementImage) fullscreen(): %s", err)
-		fullscreen = sdl.WINDOW_FULLSCREEN_DESKTOP
-		goto createWindow
-	}
-
-	dispMode, err = sdl.GetDesktopDisplayMode(dispIndex)
-	if err != nil {
-		log.Printf("DEBUG: (el *ElementImage) fullscreen(): %s", err)
-		fullscreen = sdl.WINDOW_FULLSCREEN_DESKTOP
-		goto createWindow
-	}
-
-	fullscreen = sdl.WINDOW_FULLSCREEN
-createWindow:
-
 	window, err := sdl.CreateWindow(
 		"mxtty",
-		sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED, dispMode.W, dispMode.W,
-		sdl.WINDOW_SHOWN|fullscreen|sdl.WINDOW_ALWAYS_ON_TOP,
+		sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED, 0, 0,
+		sdl.WINDOW_SHOWN|sdl.WINDOW_FULLSCREEN_DESKTOP|sdl.WINDOW_ALWAYS_ON_TOP,
 	)
 	if err != nil {
 		return err
@@ -65,16 +34,22 @@ createWindow:
 		return err
 	}
 
-	imgRatio := float64(imgSurface.W) / float64(imgSurface.H)
-	x, y = window.GetSize()
-	winRatio := float64(x) / float64(y)
+	winW, winH := window.GetSize()
+	srcRect := &sdl.Rect{W: imgSurface.W, H: imgSurface.H}
 
-	x, y := imgSurface.W, imgSurface.H
-	srcRect := &sdl.Rect{W: x, H: y}
+	imgH := winH
+	imgW := int32((float64(imgSurface.W) / float64(imgSurface.H)) * float64(winH))
 
-	dstRect := &sdl.Rect{W: x, H: y}
+	if imgW > winW {
+		imgW = winW
+		imgH = int32((float64(imgSurface.H) / float64(imgSurface.W)) * float64(winW))
+	}
 
-	err = renderer.Copy(texture, srcRect, dstRect)
+	x := (winW / 2) - (imgW / 2)
+	y := (winH / 2) - (imgH / 2)
+	destRect := &sdl.Rect{X: x, Y: y, W: imgW, H: imgH}
+
+	err = renderer.Copy(texture, srcRect, destRect)
 	if err != nil {
 		return err
 	}
@@ -96,6 +71,11 @@ createWindow:
 					continue
 				}
 				return nil
+
+			case *sdl.WindowEvent:
+				if evt.Type == sdl.WINDOWEVENT_FOCUS_LOST {
+					return nil
+				}
 			}
 		}
 

@@ -28,6 +28,14 @@ func (sr *sdlRender) loadImage(bmp []byte, size *types.XY) (types.Image, error) 
 		size.X = int32((float64(img.size.X) / float64(sr.glyphSize.X)) + 1)
 	}
 
+	winW, _ := sr.window.GetSize()
+	if img.size.X > winW {
+		img.size.X = winW
+		img.size.Y = int32((float64(img.surface.H) / float64(img.surface.W)) * float64(img.size.X))
+		size.X = int32((float64(img.size.X) / float64(sr.glyphSize.X)))
+		size.Y = int32((float64(img.size.Y) / float64(sr.glyphSize.Y)) + 1)
+	}
+
 	img.texture, err = img.sr.renderer.CreateTextureFromSurface(img.surface)
 	if err != nil {
 		return nil, err

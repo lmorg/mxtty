@@ -81,6 +81,20 @@ func (term *Term) parseCsiCodes() {
 			// Line Position Relative  [rows] (default = [row+1,column]) (VPR).
 			term.csiMoveCursorDownwards(*n)
 
+		case 'f':
+			// Horizontal and Vertical Position [row;column] (default = [1,1]) (HVP).
+			switch len(stack) {
+			case 0:
+				term.csiMoveCursorToPos(-1, 0)
+			case 1:
+				term.csiMoveCursorToPos(-1, *n-1)
+			case 2:
+				term.csiMoveCursorToPos(stack[1]-1, stack[0]-1)
+			default:
+				term.csiMoveCursorToPos(stack[1]-1, stack[0]-1)
+				log.Printf("WARNING: more parameters than expected for %s: %v (%s)", string(r), stack, string(cache))
+			}
+
 		case 'g':
 			// Tab Clear (TBC).  ECMA-48 defines additional codes, but the
 			/*
