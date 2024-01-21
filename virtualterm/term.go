@@ -10,33 +10,37 @@ import (
 // Term is the display state of the virtual term
 type Term struct {
 	size     *types.XY
-	curPos   types.XY
 	sgr      *types.Sgr
 	renderer types.Renderer
 	Pty      types.Pty
 	_mutex   sync.Mutex
 
-	_slowBlinkState bool
-
 	cells    *[][]types.Cell
 	_normBuf [][]types.Cell
 	_altBuf  [][]types.Cell
-
-	// CSI states
-	_tabWidth         int32
-	_hideCursor       bool
-	_savedCurPos      types.XY
-	_scrollRegion     *scrollRegionT
-	_windowTitleStack []string
 
 	// line feed redraw
 	_lfEnabled   bool
 	_lfNum       int32
 	_lfFrequency int32
 
+	// tab stops
+	_tabSize  int32
+	_tabStops []int32
+
+	// cursor and scrolling
+	curPos        types.XY
+	_originMode   bool // Origin Mode (DECOM), VT100.
+	_hideCursor   bool
+	_savedCurPos  types.XY
+	_scrollRegion *scrollRegionT
+
 	// state
-	//_altBufActive bool
-	_activeElement types.Element
+	_activeElement  types.Element
+	_slowBlinkState bool
+
+	// misc CSI configs
+	_windowTitleStack []string
 }
 
 func (term *Term) lfRedraw() {
@@ -55,30 +59,37 @@ func (term *Term) lfRedraw() {
 func NewTerminal(renderer types.Renderer) *Term {
 	size := renderer.TermSize()
 
-	normBuf := make([][]types.Cell, size.Y)
-	for i := range normBuf {
-		normBuf[i] = make([]types.Cell, size.X)
-	}
-	altBuf := make([][]types.Cell, size.Y)
-	for i := range altBuf {
-		altBuf[i] = make([]types.Cell, size.X)
+	term := &Term{
+		renderer: renderer,
 	}
 
-	term := &Term{
-		renderer:  renderer,
-		_normBuf:  normBuf,
-		_altBuf:   altBuf,
-		size:      size,
-		sgr:       types.SGR_DEFAULT.Copy(),
-		_tabWidth: 8,
+	term.reset(size)
+
+	return term
+}
+
+func (term *Term) reset(size *types.XY) {
+	term.renderer.ResizeWindow(size)
+	term.size = size
+
+	term._normBuf = make([][]types.Cell, size.Y)
+	for i := range term._normBuf {
+		term._normBuf[i] = make([]types.Cell, size.X)
 	}
+	term._altBuf = make([][]types.Cell, size.Y)
+	for i := range term._altBuf {
+		term._altBuf[i] = make([]types.Cell, size.X)
+	}
+
+	term._tabSize = 8
+	term.csiResetTabStops()
 
 	term.cells = &term._normBuf
 
+	term.sgr = types.SGR_DEFAULT.Copy()
+
 	term._lfFrequency = 2
 	term._lfEnabled = true
-
-	return term
 }
 
 func (term *Term) newRow() []types.Cell {
@@ -134,7 +145,7 @@ type scrollRegionT struct {
 }
 
 func (term *Term) getScrollRegion() (top int32, bottom int32) {
-	if term._scrollRegion == nil {
+	if term._scrollRegion == nil || !term._originMode {
 		top = 0
 		bottom = term.size.Y - 1
 	} else {

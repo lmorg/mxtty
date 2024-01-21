@@ -8,11 +8,12 @@ import (
 func eventWindow(r types.Renderer, evt *sdl.WindowEvent, term types.Term) {
 	switch evt.Event {
 	case sdl.WINDOWEVENT_RESIZED:
-		resizeTerm(r, term)
+		//resizeTerm(r, term)
 	}
 }
 
-func resizeTerm(r types.Renderer, term types.Term) {
-	rect := r.Resize()
+/*func resizeTerm(r types.Renderer, term types.Term) {
+	//r.
 	term.Resize(rect)
 }
+*/

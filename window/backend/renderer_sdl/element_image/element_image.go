@@ -99,7 +99,7 @@ func (el *ElementImage) Draw(rect *types.Rect) *types.XY {
 
 	}
 
-	el.renderer.AddImageToStack(func() {
+	el.renderer.AddRenderFnToStack(func() {
 		el.image.Draw(el.size, rect)
 	})
 

@@ -37,8 +37,8 @@ type sdlRender struct {
 	// notifications
 	notifications notifyT
 
-	// image cache
-	imageStack []func()
+	// render function stack (AddRenderFnToStack)
+	fnStack []func()
 }
 
 func (sr *sdlRender) triggerQuit()   { sr._quit <- true }
@@ -48,7 +48,7 @@ func (sr *sdlRender) TermSize() *types.XY {
 	return sr.termSize
 }
 
-func (sr *sdlRender) Resize() *types.XY {
+func (sr *sdlRender) resize() *types.XY {
 	/*var err error
 	//sr.surface.Free()
 	//sr.surface, err = sr.window.GetSurface()
@@ -88,4 +88,10 @@ func (sr *sdlRender) FocusWindow() {
 
 func (sr *sdlRender) GetWindowMeta() any {
 	return sr.window
+}
+
+func (sr *sdlRender) ResizeWindow(size *types.XY) {
+	w := (size.X * sr.glyphSize.X) + (sr.border * 2)
+	h := (size.Y * sr.glyphSize.Y) + (sr.border * 2)
+	sr.window.SetSize(w, h)
 }

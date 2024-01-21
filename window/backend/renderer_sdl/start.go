@@ -180,10 +180,10 @@ func update(sr *sdlRender, term types.Term) {
 		panic(err) //TODO: don't panic!
 	}
 
-	for i := range sr.imageStack {
-		sr.imageStack[i]()
+	for i := range sr.fnStack {
+		sr.fnStack[i]()
 	}
-	sr.imageStack = make([]func(), 0) // clear image stack
+	sr.fnStack = make([]func(), 0) // clear image stack
 
 	sr.renderNotification(rect)
 

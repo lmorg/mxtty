@@ -8,10 +8,20 @@ func lookupPrivateCsi(term *Term, code []rune) {
 	switch r {
 	case 'h':
 		switch param {
-		case "12", "25": // Stop Blinking Cursor (att610) / Hide Cursor (DECTCEM)
-			term.csiCursorHide()
+		case "3":
+			// 132 Column Mode (DECCOLM), VT100.
+			term.resize132()
 
-		case "47", "1047": // alt screen buffer
+		case "6":
+			// Origin Mode (DECOM), VT100.
+			term._originMode = true
+
+		case "12", "25":
+			// Start Blinking Cursor (att610) / Show Cursor (DECTCEM)
+			term.csiCursorShow()
+
+		case "47", "1047":
+			// alt screen buffer
 			term.csiScreenBufferAlternative()
 
 		case "1048":
@@ -21,7 +31,8 @@ func lookupPrivateCsi(term *Term, code []rune) {
 			term.csiCursorPosSave()
 			term.csiScreenBufferAlternative()
 
-		case "2004": // Set bracketed paste mode
+		case "2004":
+			// Set bracketed paste mode
 			log.Printf("TODO: Set bracketed paste mode")
 
 		default:
@@ -30,10 +41,20 @@ func lookupPrivateCsi(term *Term, code []rune) {
 
 	case 'l':
 		switch param {
-		case "12", "25": // Start Blinking Cursor (att610) / Show Cursor (DECTCEM)
-			term.csiCursorShow()
+		case "3":
+			// 80 Column Mode (DECCOLM), VT100.
+			term.resize80()
 
-		case "47", "1047": // normal screen buffer
+		case "6":
+			// Normal Cursor Mode (DECOM), VT100.
+			term._originMode = false
+
+		case "12", "25":
+			// Stop Blinking Cursor (att610) / Hide Cursor (DECTCEM)
+			term.csiCursorHide()
+
+		case "47", "1047":
+			// normal screen buffer
 			term.csiScreenBufferNormal()
 
 		case "1048":
@@ -43,7 +64,8 @@ func lookupPrivateCsi(term *Term, code []rune) {
 			term.csiScreenBufferNormal()
 			term.csiCursorPosRestore()
 
-		case "2004": // Reset bracketed paste mode
+		case "2004":
+			// Reset bracketed paste mode
 			log.Printf("TODO: Reset bracketed paste mode")
 
 		default:

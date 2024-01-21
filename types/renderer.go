@@ -13,7 +13,6 @@ type Renderer interface {
 	Start(Term)
 	FocusWindow()
 	TermSize() *XY
-	Resize() *XY
 	PrintCell(*Cell, *XY) error
 	GetWindowTitle() string
 	SetWindowTitle(string)
@@ -21,8 +20,9 @@ type Renderer interface {
 	TriggerRedraw()
 	NewElement(elementType ElementID, size *XY, data []byte) Element
 	DisplayNotification(NotificationType, string)
-	AddImageToStack(func())
+	AddRenderFnToStack(func())
 	GetWindowMeta() any
+	ResizeWindow(*XY)
 	Close()
 }
 

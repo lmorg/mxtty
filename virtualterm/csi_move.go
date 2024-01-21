@@ -1,13 +1,12 @@
 package virtualterm
 
-// basic TTY operations
+import (
+	"log"
 
-func (term *Term) printTab() {
-	indent := int(4 - (term.curPos.X % term._tabWidth))
-	for i := 0; i < indent; i++ {
-		term.writeCell(' ')
-	}
-}
+	"github.com/lmorg/mxtty/types"
+)
+
+// basic TTY operations
 
 func (term *Term) carriageReturn() {
 	term.curPos.X = 0
@@ -105,16 +104,18 @@ func (term *Term) csiMoveCursorDownwards(i int32) (overflow int32) {
 }
 
 func (term *Term) csiMoveCursorToPos(x, y int32) {
+	top, bottom := term.getScrollRegion()
+
 	if x < 0 {
-		x = term.curPos.X
+		x = 0
 	} else if x >= term.size.X {
 		x = term.size.X - 1
 	}
 
-	if y < 0 {
-		y = term.curPos.Y
-	} else if y >= term.size.Y {
-		y = term.size.Y - 1
+	if y < top {
+		y = top
+	} else if y > bottom {
+		y = bottom
 	}
 
 	term.curPos.X, term.curPos.Y = x, y
@@ -176,6 +177,8 @@ func (term *Term) csiSetScrollingRegion(region []int32) {
 */
 
 func (term *Term) csiInsertLines(n int32) {
+	log.Println("DEBUG: csiInsertLines()")
+
 	if n < 1 {
 		n = 1
 	}
@@ -194,4 +197,18 @@ func (term *Term) csiInsertLines(n int32) {
 			(*term.cells)[y] = term.newRow()
 		}
 	}
+}
+
+func (term *Term) csiInsertCharacters(n int32) {
+	log.Println("DEBUG: csiInsertCharacters()")
+
+	if n < 1 {
+		n = 1
+	}
+
+	insert := make([]types.Cell, n)
+	buf := (*term.cells)[term.curPos.Y][term.curPos.X:]
+
+	(*term.cells)[term.curPos.Y] = append((*term.cells)[term.curPos.Y][:term.curPos.X], insert...)
+	copy((*term.cells)[term.curPos.Y][term.curPos.X+n:], buf[:n])
 }

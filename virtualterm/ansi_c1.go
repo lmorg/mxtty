@@ -134,11 +134,11 @@ func (term *Term) parseC1Codes() {
 		log.Printf("TODO: Unhandled C1 code: %s", string(r))
 
 	case 'D':
-		// Index
-		log.Printf("TODO: Unhandled C1 code: %s", string(r))
+		// Index (IND  is 0x84).
+		term.lineFeed()
 
 	case 'E':
-		// Next Line
+		// Next Line (NEL  is 0x85).
 		term.carriageReturn()
 		term.lineFeed()
 
@@ -149,9 +149,11 @@ func (term *Term) parseC1Codes() {
 		log.Printf("TODO: Unhandled C1 code: %s", string(r))
 
 	case 'H':
+		// Tab Set (HTS  is 0x88).
 		// Character Tabulation Set
 		// Horizontal Tabulation Set
 		log.Printf("TODO: Unhandled C1 code: %s", string(r))
+		//term._tabWidth = *n
 
 	case 'I':
 		// Character Tabulation With Justification
@@ -174,6 +176,7 @@ func (term *Term) parseC1Codes() {
 		log.Printf("TODO: Unhandled C1 code: %s", string(r))
 
 	case 'M':
+		// Reverse Index (RI  is 0x8d).
 		// Reverse Line Feed
 		// Reverse Index
 		term.ReverseLineFeed()

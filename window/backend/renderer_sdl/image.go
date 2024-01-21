@@ -87,6 +87,6 @@ func (img *image) Close() {
 	img.rwops.Free()
 }
 
-func (sr *sdlRender) AddImageToStack(fn func()) {
-	sr.imageStack = append(sr.imageStack, fn)
+func (sr *sdlRender) AddRenderFnToStack(fn func()) {
+	sr.fnStack = append(sr.fnStack, fn)
 }

@@ -34,8 +34,9 @@ func (term *Term) parseCsiCodes() {
 		}
 
 		switch r {
-		//case '@':
-		// Insert Ps (Blank) Character(s) (default = 1) (ICH)
+		case '@':
+			// Insert Ps (Blank) Character(s) (default = 1) (ICH)
+			term.csiInsertCharacters(*n)
 
 		case 'a':
 			//Character Position Relative  [columns] (default = [row,col+1]) (HPR).
@@ -54,6 +55,10 @@ func (term *Term) parseCsiCodes() {
 			// Cursor Down Ps Times (default = 1) (CUD).
 			// Cursor Next Line Ps Times (default = 1) (CNL).
 			term.csiMoveCursorDownwards(*n)
+
+		case 'c':
+			// Send Device Attributes (Primary DA).
+			// send reply: "\0x1B[?1;" + https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h3-Functions-using-CSI-_-ordered-by-the-final-character_s_
 
 		case 'C':
 			// Cursor Forward Ps Times (default = 1) (CUF).
@@ -106,6 +111,8 @@ func (term *Term) parseCsiCodes() {
 			switch *n {
 			case -1, 0:
 				term.csiClearTab()
+			case 3:
+				term.csiResetTabStops()
 			default:
 				log.Printf("WARNING: Unhandled parameter for %s: %v (%s)", string(r), stack, string(cache))
 			}
@@ -216,10 +223,13 @@ func (term *Term) parseCsiCodes() {
 
 		case 'r':
 			// Set Scrolling Region [top;bottom] (default = full size of window) (DECSTBM), VT100.
-			if len(stack) != 2 {
-				log.Printf("WARNING: Unexpected number of parameters in CSI r (%s): %v", string(cache), stack)
-			} else {
+			switch len(stack) {
+			case 0, 1:
+				term.csiSetScrollingRegion([]int32{0, term.size.Y - 1})
+			case 2:
 				term.csiSetScrollingRegion(stack)
+			default:
+				log.Printf("WARNING: Unexpected number of parameters in CSI r (%s): %v", string(cache), stack)
 			}
 
 		case 's':
