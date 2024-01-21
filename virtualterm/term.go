@@ -25,8 +25,8 @@ type Term struct {
 	_lfFrequency int32
 
 	// tab stops
-	_tabSize  int32
 	_tabStops []int32
+	_tabWidth int32
 
 	// cursor and scrolling
 	curPos        types.XY
@@ -81,7 +81,7 @@ func (term *Term) reset(size *types.XY) {
 		term._altBuf[i] = make([]types.Cell, size.X)
 	}
 
-	term._tabSize = 8
+	term._tabWidth = 8
 	term.csiResetTabStops()
 
 	term.cells = &term._normBuf

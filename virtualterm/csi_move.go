@@ -45,7 +45,7 @@ func (term *Term) csiMoveCursorBackwards(i int32) (overflow int32) {
 		term.curPos.X = 0
 	}
 
-	//log.Printf("DEBUG: csiMoveCursorBackwards(%d) == %d [pos: %d]", i, overflow, term.curPos.X)
+	log.Printf("DEBUG: csiMoveCursorBackwards(%d) == %d [pos: %d]", i, overflow, term.curPos.X)
 
 	return
 }
@@ -61,7 +61,7 @@ func (term *Term) csiMoveCursorForwards(i int32) (overflow int32) {
 		term.curPos.X = term.size.X - 1
 	}
 
-	//log.Printf("DEBUG: csiMoveCursorForwards(%d) == %d [pos: %d]", i, overflow, term.curPos.X)
+	log.Printf("DEBUG: csiMoveCursorForwards(%d) == %d [pos: %d]", i, overflow, term.curPos.X)
 
 	return
 }
@@ -79,7 +79,7 @@ func (term *Term) csiMoveCursorUpwards(i int32) (overflow int32) {
 		term.curPos.Y = top
 	}
 
-	//log.Printf("DEBUG: csiMoveCursorUpwards(%d) == %d [pos: %d]", i, overflow, term.curPos.Y)
+	log.Printf("DEBUG: csiMoveCursorUpwards(%d) == %d [pos: %d]", i, overflow, term.curPos.Y)
 
 	return
 }
@@ -98,7 +98,7 @@ func (term *Term) csiMoveCursorDownwards(i int32) (overflow int32) {
 		term.curPos.Y = bottom
 	}
 
-	//log.Printf("DEBUG: csiMoveCursorDownwards(%d) == %d [pos: %d]", i, overflow, term.curPos.Y)
+	log.Printf("DEBUG: csiMoveCursorDownwards(%d) == %d [pos: %d]", i, overflow, term.curPos.Y)
 
 	return
 }
@@ -166,6 +166,8 @@ func (term *Term) csiScrollDown(n int32) {
 }
 
 func (term *Term) csiSetScrollingRegion(region []int32) {
+	log.Printf("csiSetScrollingRegion(%d:%d)", region[0], region[1])
+
 	term._scrollRegion = &scrollRegionT{
 		Top:    region[0],
 		Bottom: region[1],
