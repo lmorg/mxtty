@@ -1,8 +1,17 @@
 package virtualterm
 
+import "sort"
+
 /*
-	RESET TAB STOPS
+	TAB STOPS
 */
+
+func (term *Term) c1AddTabStop() {
+	term._tabStops = append(term._tabStops, term.curPos.X)
+	sort.Slice(term._tabStops, func(i, j int) bool {
+		return term._tabStops[i] < term._tabStops[j]
+	})
+}
 
 func (term *Term) csiResetTabStops() {
 	term._tabStops = make([]int32, 0)

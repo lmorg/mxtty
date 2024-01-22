@@ -16,6 +16,14 @@ func multiplyN(n *int32, r rune) {
 	*n = (*n * 10) + (r - 48)
 }
 
+/*
+	Reference documentation used:
+	- https://en.wikipedia.org/wiki/ANSI_escape_code#SGR_(Select_Graphic_Rendition)_parameters
+	- https://invisible-island.net/xterm/ctlseqs/ctlseqs.html
+	- https://news.ycombinator.com/item?id=38849690
+	- ChatGPT (when the documentation above was unclear)
+*/
+
 func (term *Term) parseCsiCodes() {
 	var (
 		r       rune
@@ -225,9 +233,9 @@ func (term *Term) parseCsiCodes() {
 			// Set Scrolling Region [top;bottom] (default = full size of window) (DECSTBM), VT100.
 			switch len(stack) {
 			case 0, 1:
-				term.csiSetScrollingRegion([]int32{0, term.size.Y - 1})
+				term.setScrollingRegion([]int32{1, term.size.Y})
 			case 2:
-				term.csiSetScrollingRegion(stack)
+				term.setScrollingRegion(stack)
 			default:
 				log.Printf("WARNING: Unexpected number of parameters in CSI r (%s): %v", string(cache), stack)
 			}

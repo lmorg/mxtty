@@ -1,11 +1,25 @@
 package virtualterm
 
 import (
-	"log"
 	"sync"
 
 	"github.com/lmorg/mxtty/types"
 )
+
+/*
+	The virtual terminal emulator
+
+	There is a distinct lack of unit tests in this package. That should change
+	however it is worth noting that 9/10ths of the problem is understanding
+	_what_ correct behaviour should look like, as opposed to any logic itself
+	being complex. Therefore this package has has extensive manual testing
+	against it via the following CLI applications:
+	- vttest: https://invisible-island.net/vttest/vttest.html
+	- vim
+	- tmux
+	- murex: https://murex.rocks
+	- bash
+*/
 
 // Term is the display state of the virtual term
 type Term struct {
@@ -69,17 +83,14 @@ func NewTerminal(renderer types.Renderer) *Term {
 }
 
 func (term *Term) reset(size *types.XY) {
-	term.renderer.ResizeWindow(size)
+	term.renderer.AddRenderFnToStack(func() {
+		term.renderer.ResizeWindow(size)
+	})
 	term.size = size
+	term.curPos = types.XY{}
 
-	term._normBuf = make([][]types.Cell, size.Y)
-	for i := range term._normBuf {
-		term._normBuf[i] = make([]types.Cell, size.X)
-	}
-	term._altBuf = make([][]types.Cell, size.Y)
-	for i := range term._altBuf {
-		term._altBuf[i] = make([]types.Cell, size.X)
-	}
+	term._normBuf = term.makeScreen()
+	term._altBuf = term.makeScreen()
 
 	term._tabWidth = 8
 	term.csiResetTabStops()
@@ -92,31 +103,48 @@ func (term *Term) reset(size *types.XY) {
 	term._lfEnabled = true
 }
 
-func (term *Term) newRow() []types.Cell {
+func (term *Term) makeScreen() [][]types.Cell {
+	screen := make([][]types.Cell, term.size.Y)
+	for i := range screen {
+		screen[i] = term.makeRow()
+	}
+	return screen
+}
+
+func (term *Term) makeRow() []types.Cell {
 	return make([]types.Cell, term.size.X)
 }
+
 func (term *Term) GetSize() *types.XY {
 	return term.size
 }
 
 func (term *Term) cell() *types.Cell {
 	if term.curPos.X < 0 {
-		log.Printf("ERROR: term.curPos.X < 0(returning first cell) TODO fixme")
+		//log.Printf("ERROR: term.curPos.X < 0(returning first cell) TODO fixme")
+		term.renderer.DisplayNotification(types.NOTIFY_ERROR,
+			"ERROR: term.curPos.X < 0(returning first cell) TODO fixme")
 		term.curPos.X = 0
 	}
 
 	if term.curPos.Y < 0 {
-		log.Printf("ERROR: term.curPos.Y < 0 (returning first cell) TODO fixme")
+		//log.Printf("ERROR: term.curPos.Y < 0 (returning first cell) TODO fixme")
+		term.renderer.DisplayNotification(types.NOTIFY_ERROR,
+			"ERROR: term.curPos.Y < 0 (returning first cell) TODO fixme")
 		term.curPos.Y = 0
 	}
 
 	if term.curPos.X >= term.size.X {
-		log.Printf("ERROR: term.curPos.X >= term.size.X (returning last cell) TODO fixme")
+		//log.Printf("ERROR: term.curPos.X >= term.size.X (returning last cell) TODO fixme")
+		term.renderer.DisplayNotification(types.NOTIFY_ERROR,
+			"ERROR: term.curPos.X >= term.size.X (returning last cell) TODO fixme")
 		term.curPos.X = term.size.X - 1
 	}
 
 	if term.curPos.Y >= term.size.Y {
-		log.Printf("ERROR: term.curPos.Y >= term.size.Y (returning last cell) TODO fixme")
+		//log.Printf("ERROR: term.curPos.Y >= term.size.Y (returning last cell) TODO fixme")
+		term.renderer.DisplayNotification(types.NOTIFY_ERROR,
+			"ERROR: term.curPos.Y >= term.size.Y (returning last cell) TODO fixme")
 		term.curPos.Y = term.size.Y - 1
 	}
 
@@ -142,18 +170,6 @@ func (term *Term) previousCell() (*types.Cell, *types.XY) {
 type scrollRegionT struct {
 	Top    int32
 	Bottom int32
-}
-
-func (term *Term) getScrollRegion() (top int32, bottom int32) {
-	if term._scrollRegion == nil || !term._originMode {
-		top = 0
-		bottom = term.size.Y - 1
-	} else {
-		top = term._scrollRegion.Top - 1
-		bottom = term._scrollRegion.Bottom - 1
-	}
-
-	return
 }
 
 func (term *Term) Reply(b []byte) error {

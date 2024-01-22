@@ -7,6 +7,13 @@ import (
 	"github.com/lmorg/mxtty/codes"
 )
 
+/*
+	Reference documentation used:
+	- https://en.wikipedia.org/wiki/ANSI_escape_code#OSC_(Operating_System_Command)_sequences
+	- https://invisible-island.net/xterm/ctlseqs/ctlseqs.html
+	- ChatGPT (when the documentation above was unclear)
+*/
+
 func (term *Term) parseOscCodes() {
 	var (
 		r    rune

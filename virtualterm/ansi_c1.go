@@ -8,8 +8,10 @@ import (
 )
 
 /*
-	Documentation:
-	* https://en.wikipedia.org/wiki/C0_and_C1_control_codes
+	Reference documentation used:
+	- https://en.wikipedia.org/wiki/C0_and_C1_control_codes
+	- https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Definitions
+	- ChatGPT (when the documentation above was unclear)
 */
 
 func (term *Term) parseC1Codes() {
@@ -152,8 +154,7 @@ func (term *Term) parseC1Codes() {
 		// Tab Set (HTS  is 0x88).
 		// Character Tabulation Set
 		// Horizontal Tabulation Set
-		log.Printf("TODO: Unhandled C1 code: %s", string(r))
-		//term._tabWidth = *n
+		term.c1AddTabStop()
 
 	case 'I':
 		// Character Tabulation With Justification

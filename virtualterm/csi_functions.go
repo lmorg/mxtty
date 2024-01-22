@@ -5,9 +5,12 @@ import (
 	"log"
 
 	"github.com/lmorg/mxtty/codes"
+	"github.com/lmorg/mxtty/debug"
 )
 
 func (term *Term) csiRepeatPreceding(n int32) {
+	debug.Log(n)
+
 	if n < 1 {
 		n = 1
 	}
@@ -36,7 +39,7 @@ func (term *Term) csiScreenBufferAlternative() {
 func (term *Term) csiScreenBufferNormal() {
 	term.cells = &term._normBuf
 	for i := range term._altBuf {
-		term._altBuf[i] = term.newRow()
+		term._altBuf[i] = term.makeRow()
 	}
 }
 

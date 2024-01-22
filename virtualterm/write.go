@@ -1,6 +1,8 @@
 package virtualterm
 
 func (term *Term) writeCell(r rune) {
+	//debug.Log(string(r))
+
 	if term.curPos.X >= term.size.X {
 		overflow := term.curPos.X - (term.size.X - 1)
 		term.curPos.X = 0

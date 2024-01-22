@@ -12,6 +12,11 @@ import (
 	"github.com/veandco/go-sdl2/ttf"
 )
 
+/*
+	Reference documentation used:
+	- https://github.com/veandco/go-sdl2-examples/tree/master/examples
+*/
+
 const (
 	width  int32 = 1024
 	height int32 = 768
@@ -29,17 +34,17 @@ func Initialise(fontName string, fontSize int) types.Renderer {
 		panic(err.Error())
 	}
 
-	font, err := typeface.Open(fontName, fontSize)
-	if err != nil {
-		panic(err.Error())
-	}
+	sr.border = 5
+	sr.dropShadow = true
 
 	sr._quit = make(chan bool)
 	sr._redraw = make(chan bool)
 
+	font, err := typeface.Open(fontName, fontSize)
+	if err != nil {
+		panic(err.Error())
+	}
 	sr.setTypeFace(font)
-	sr.border = 5
-	sr.dropShadow = true
 
 	return sr
 }
@@ -94,6 +99,7 @@ func (sr *sdlRender) setTypeFace(f *ttf.Font) {
 	sr.font = f
 	sr.glyphSize = typeface.GetSize()
 	sr.termSize = sr.getTermSize()
+	sr.preloadNotificationGlyphs()
 }
 
 func (sr *sdlRender) getTermSize() *types.XY {

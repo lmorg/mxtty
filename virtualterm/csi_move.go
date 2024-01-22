@@ -1,8 +1,7 @@
 package virtualterm
 
 import (
-	"log"
-
+	"github.com/lmorg/mxtty/debug"
 	"github.com/lmorg/mxtty/types"
 )
 
@@ -13,6 +12,8 @@ func (term *Term) carriageReturn() {
 }
 
 func (term *Term) lineFeed() {
+	debug.Log(term.curPos.Y)
+
 	if term.csiMoveCursorDownwards(1) > 0 {
 		term.csiScrollUp(1)
 		term.csiMoveCursorDownwards(1)
@@ -26,15 +27,24 @@ func (term *Term) lineFeed() {
 }
 
 func (term *Term) ReverseLineFeed() {
+	debug.Log(term.curPos.Y)
+
 	if term.csiMoveCursorUpwards(1) > 0 {
 		term.csiScrollDown(1)
 		term.csiMoveCursorUpwards(1)
 	}
 }
 
-// moveCursor functions DON'T affect other contents in the grid
+/*
+	csiMoveCursor[...] functions DON'T affect other contents in the grid
+*/
 
+// csiMoveCursorBackwards: -1 should default to 1.
+// Returns how many additional cells were requested before hitting the edge of
+// the screen.
 func (term *Term) csiMoveCursorBackwards(i int32) (overflow int32) {
+	debug.Log(i)
+
 	if i < 0 {
 		i = 1
 	}
@@ -45,12 +55,15 @@ func (term *Term) csiMoveCursorBackwards(i int32) (overflow int32) {
 		term.curPos.X = 0
 	}
 
-	log.Printf("DEBUG: csiMoveCursorBackwards(%d) == %d [pos: %d]", i, overflow, term.curPos.X)
-
 	return
 }
 
+// csiMoveCursorForwards: -1 should default to 1.
+// Returns how many additional cells were requested before hitting the edge of
+// the screen.
 func (term *Term) csiMoveCursorForwards(i int32) (overflow int32) {
+	debug.Log(i)
+
 	if i < 0 {
 		i = 1
 	}
@@ -61,17 +74,20 @@ func (term *Term) csiMoveCursorForwards(i int32) (overflow int32) {
 		term.curPos.X = term.size.X - 1
 	}
 
-	log.Printf("DEBUG: csiMoveCursorForwards(%d) == %d [pos: %d]", i, overflow, term.curPos.X)
-
 	return
 }
 
+// csiMoveCursorUpwards: -1 should default to 1.
+// Returns how many additional cells were requested before hitting the edge of
+// the screen.
 func (term *Term) csiMoveCursorUpwards(i int32) (overflow int32) {
+	debug.Log(i)
+
 	if i < 0 {
 		i = 1
 	}
 
-	top, _ := term.getScrollRegion()
+	top, _ := term.getScrollingRegion()
 
 	term.curPos.Y -= i
 	if term.curPos.Y <= top {
@@ -79,32 +95,43 @@ func (term *Term) csiMoveCursorUpwards(i int32) (overflow int32) {
 		term.curPos.Y = top
 	}
 
-	log.Printf("DEBUG: csiMoveCursorUpwards(%d) == %d [pos: %d]", i, overflow, term.curPos.Y)
-
 	return
 }
 
+// csiMoveCursorDownwards: -1 should default to 1.
+// Returns how many additional cells were requested before hitting the edge of
+// the screen.
 func (term *Term) csiMoveCursorDownwards(i int32) (overflow int32) {
+	debug.Log(i)
+
 	if i < 0 {
 		i = 1
 	}
 
 	term.curPos.Y += i
 
-	_, bottom := term.getScrollRegion()
+	_, bottom := term.getScrollingRegion()
 
 	if term.curPos.Y > bottom {
 		overflow = term.curPos.Y - (bottom)
 		term.curPos.Y = bottom
 	}
 
-	log.Printf("DEBUG: csiMoveCursorDownwards(%d) == %d [pos: %d]", i, overflow, term.curPos.Y)
-
 	return
 }
 
+// csiMoveCursorToPos: -1 values should default to current cursor position.
 func (term *Term) csiMoveCursorToPos(x, y int32) {
-	top, bottom := term.getScrollRegion()
+	debug.Log(types.XY{X: x, Y: y})
+
+	if x == -1 {
+		x = term.curPos.X
+	}
+	if y == -1 {
+		y = term.curPos.Y
+	}
+
+	top, bottom := term.getScrollingRegion()
 
 	if x < 0 {
 		x = 0
@@ -125,12 +152,41 @@ func (term *Term) csiMoveCursorToPos(x, y int32) {
 	SCROLLING
 */
 
+// csiSetScrollingRegion values should be offset by 1 (as seen in the ANSI
+// escape codes). eg the top left corder would be `[]int32{1, 1}`.
+func (term *Term) setScrollingRegion(region []int32) {
+	debug.Log(region[0])
+	debug.Log(region[1])
+
+	term._scrollRegion = &scrollRegionT{
+		Top:    region[0] - 1,
+		Bottom: region[1] - 1,
+	}
+}
+
+func (term *Term) getScrollingRegion() (top int32, bottom int32) {
+	debug.Log(term._scrollRegion)
+
+	if term._scrollRegion == nil || term._originMode {
+		top = 0
+		bottom = term.size.Y - 1
+	} else {
+		top = term._scrollRegion.Top
+		bottom = term._scrollRegion.Bottom
+	}
+
+	return
+}
+
+// csiScrollUp: -1 should default to 1.
 func (term *Term) csiScrollUp(n int32) {
+	debug.Log(n)
+
 	if n < 1 {
 		n = 1
 	}
 
-	top, bottom := term.getScrollRegion()
+	top, bottom := term.getScrollingRegion()
 
 	if n > bottom-top {
 		n = bottom - top
@@ -140,19 +196,22 @@ func (term *Term) csiScrollUp(n int32) {
 		if i+n <= bottom {
 			(*term.cells)[i] = (*term.cells)[i+n]
 		} else {
-			(*term.cells)[i] = term.newRow()
+			(*term.cells)[i] = term.makeRow()
 		}
 	}
 }
 
+// csiScrollUp: -1 should default to 1.
 func (term *Term) csiScrollDown(n int32) {
+	debug.Log(n)
+
 	if n < 0 {
 		n = 1
 	}
 
-	top, bottom := term.getScrollRegion()
+	top, bottom := term.getScrollingRegion()
 
-	if n > bottom-top {
+	/*if n > bottom-top {
 		n = bottom - top
 	}
 
@@ -160,49 +219,67 @@ func (term *Term) csiScrollDown(n int32) {
 		if i+n <= bottom {
 			(*term.cells)[i] = (*term.cells)[i-n]
 		} else {
-			(*term.cells)[i] = term.newRow()
+			(*term.cells)[i] = term.makeRow()
 		}
-	}
+	}*/
+	term._scrollDown(top, bottom, 1)
 }
 
-func (term *Term) csiSetScrollingRegion(region []int32) {
-	log.Printf("csiSetScrollingRegion(%d:%d)", region[0], region[1])
+// _scrollDown does not take into account term size nor scrolling region. Any
+// error handling should be done by the calling function.
+func (term *Term) _scrollDown(start, end, shift int32) {
+	screen := term.makeScreen()
 
-	term._scrollRegion = &scrollRegionT{
-		Top:    region[0],
-		Bottom: region[1],
+	if start+shift > end {
+		shift = end - start
 	}
+
+	copy(screen[start+shift:end], (*term.cells)[start:end])
+	copy((*term.cells)[start:end], screen[start:end])
 }
+
+// _scrollUp does not take into account term size nor scrolling region. Any
+// error handling should be done by the calling function.
+/*func (term *Term) _scrollUp(start, end, shift int32) {
+	screen := term.makeScreen()
+
+	if start-shift > start {
+		shift = end - start
+	}
+
+	copy(screen[start-shift:end], (*term.cells)[start:end])
+	copy((*term.cells)[start:end], screen[start:end])
+}*/
 
 /*
-	INSERTING
+	INSERT
 */
 
+// csiInsertLines: -1 should default to 1.
 func (term *Term) csiInsertLines(n int32) {
-	log.Println("DEBUG: csiInsertLines()")
+	debug.Log(n)
 
 	if n < 1 {
 		n = 1
 	}
 
-	_, bottom := term.getScrollRegion()
+	_, bottom := term.getScrollingRegion()
 
-	if term.curPos.Y+n > bottom {
-		n = bottom - term.curPos.Y
-	}
+	/*start := term.curPos.Y + n
+	if start > bottom {
+		start = bottom - term.curPos.Y
+	}*/
 
-	for y, i := bottom, int32(0); y > term.curPos.Y; y-- {
-		if i < n {
-			(*term.cells)[y] = (*term.cells)[y-1]
-			i++
-		} else {
-			(*term.cells)[y] = term.newRow()
-		}
-	}
+	/*screen := term.makeScreen()
+
+	copy(screen[start:bottom], (*term.cells)[term.curPos.Y:bottom])
+	copy((*term.cells)[term.curPos.Y:bottom], screen[term.curPos.Y:bottom])*/
+	term._scrollDown(term.curPos.Y, bottom, n)
 }
 
+// csiInsertCharacters: -1 should default to 1.
 func (term *Term) csiInsertCharacters(n int32) {
-	log.Println("DEBUG: csiInsertCharacters()")
+	debug.Log(n)
 
 	if n < 1 {
 		n = 1

@@ -6,22 +6,57 @@ import (
 	"sync"
 	"time"
 
+	"github.com/lmorg/mxtty/assets"
 	"github.com/lmorg/mxtty/types"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
 var notifyColour = map[int]*types.Colour{
-	types.NOTIFY_DEBUG:   {Red: 200, Green: 200, Blue: 200},
-	types.NOTIFY_INFO:    {Red: 100, Green: 100, Blue: 255},
-	types.NOTIFY_WARNING: {Red: 0, Green: 255, Blue: 255},
-	types.NOTIFY_ERROR:   {Red: 255, Green: 0, Blue: 0},
+	types.NOTIFY_DEBUG: {0x1c, 0x3e, 0x64},
+	types.NOTIFY_INFO:  {0x31, 0x6d, 0xb0},
+	types.NOTIFY_WARN:  {0x74, 0x58, 0x10},
+	types.NOTIFY_ERROR: {0x66, 0x16, 0x1a},
 }
 
 var notifyBorderColour = map[int]*types.Colour{
-	types.NOTIFY_DEBUG:   {Red: 175, Green: 175, Blue: 175},
-	types.NOTIFY_INFO:    {Red: 75, Green: 75, Blue: 200},
-	types.NOTIFY_WARNING: {Red: 0, Green: 200, Blue: 200},
-	types.NOTIFY_ERROR:   {Red: 200, Green: 0, Blue: 0},
+	types.NOTIFY_DEBUG: {0x31, 0x6d, 0xb0},
+	types.NOTIFY_INFO:  {0x99, 0xc0, 0xd3},
+	types.NOTIFY_WARN:  {0xf2, 0xb7, 0x1f},
+	types.NOTIFY_ERROR: {0xde, 0x33, 0x3b},
+}
+
+func (sr *sdlRender) preloadNotificationGlyphs() {
+	var err error
+	sr.notifyIcon = map[int]types.Image{
+		types.NOTIFY_DEBUG: nil,
+		types.NOTIFY_INFO:  nil,
+		types.NOTIFY_WARN:  nil,
+		types.NOTIFY_ERROR: nil,
+	}
+	sr.notifyIconSize = &types.XY{
+		X: sr.glyphSize.Y + (sr.border * 4),
+		Y: sr.glyphSize.Y + (sr.border * 4),
+	}
+
+	sr.notifyIcon[types.NOTIFY_DEBUG], err = sr.loadImage(assets.Get(assets.ICON_DEBUG), sr.notifyIconSize)
+	if err != nil {
+		panic(err)
+	}
+
+	sr.notifyIcon[types.NOTIFY_INFO], err = sr.loadImage(assets.Get(assets.ICON_INFO), sr.notifyIconSize)
+	if err != nil {
+		panic(err)
+	}
+
+	sr.notifyIcon[types.NOTIFY_WARN], err = sr.loadImage(assets.Get(assets.ICON_WARN), sr.notifyIconSize)
+	if err != nil {
+		panic(err)
+	}
+
+	sr.notifyIcon[types.NOTIFY_ERROR], err = sr.loadImage(assets.Get(assets.ICON_ERROR), sr.notifyIconSize)
+	if err != nil {
+		panic(err)
+	}
 }
 
 type notifyT struct {
@@ -116,13 +151,13 @@ func (sr *sdlRender) renderNotification(windowRect *sdl.Rect) {
 		}
 		defer countdown.Free()
 
-		text, err := sr.font.RenderUTF8BlendedWrapped(notification.Message, sdl.Color{R: 255, G: 255, B: 255, A: 255}, int(windowRect.W-padding-padding-countdown.W))
+		text, err := sr.font.RenderUTF8BlendedWrapped(notification.Message, sdl.Color{R: 200, G: 200, B: 200, A: 255}, int(sr.surface.W-sr.notifyIconSize.X-countdown.W))
 		if err != nil {
 			panic(err) // TODO: don't panic!
 		}
 		defer text.Free()
 
-		textShadow, err := sr.font.RenderUTF8BlendedWrapped(notification.Message, sdl.Color{R: 100, G: 100, B: 100, A: 240}, int(windowRect.W-padding-padding-countdown.W))
+		textShadow, err := sr.font.RenderUTF8BlendedWrapped(notification.Message, sdl.Color{R: 0, G: 0, B: 0, A: 150}, int(sr.surface.W-sr.notifyIconSize.X-countdown.W))
 		if err != nil {
 			panic(err) // TODO: don't panic!
 		}
@@ -157,7 +192,7 @@ func (sr *sdlRender) renderNotification(windowRect *sdl.Rect) {
 		}
 		sr.renderer.FillRect(&rect)
 
-		// render text
+		// render countdown
 		rect = sdl.Rect{
 			X: windowRect.W - padding - countdown.W,
 			Y: padding + offset,
@@ -172,19 +207,19 @@ func (sr *sdlRender) renderNotification(windowRect *sdl.Rect) {
 
 		// render shadow
 		rect = sdl.Rect{
-			X: padding + 2,
+			X: padding + sr.notifyIconSize.X + 2,
 			Y: padding + offset + 2,
-			W: sr.surface.W - padding - 2 - countdown.W,
+			W: sr.surface.W - sr.notifyIconSize.X - countdown.W,
 			H: text.H + padding - 2,
 		}
 		_ = textShadow.Blit(nil, surface, &rect)
 		sr._renderNotificationSurface(surface, &rect)
 
-		// render countdown
+		// render text
 		rect = sdl.Rect{
-			X: padding,
+			X: padding + sr.notifyIconSize.X,
 			Y: padding + offset,
-			W: sr.surface.W - padding - 2 - countdown.W,
+			W: sr.surface.W - sr.notifyIconSize.X - countdown.W,
 			H: text.H + padding - 2,
 		}
 		err = text.Blit(nil, surface, &rect)
@@ -192,6 +227,32 @@ func (sr *sdlRender) renderNotification(windowRect *sdl.Rect) {
 			panic(err) // TODO: don't panic!
 		}
 		sr._renderNotificationSurface(surface, &rect)
+
+		if surface, ok := sr.notifyIcon[int(notification.Type)].Asset().(*sdl.Surface); ok {
+			srcRect := &sdl.Rect{
+				X: 0,
+				Y: 0,
+				W: surface.W,
+				H: surface.H,
+			}
+
+			dstRect := &sdl.Rect{
+				X: sr.border * 2,
+				Y: offset + ((text.H + padding + padding + 2) / 2) - (sr.notifyIconSize.Y / 2),
+				W: sr.notifyIconSize.X,
+				H: sr.notifyIconSize.X,
+			}
+
+			texture, err := sr.renderer.CreateTextureFromSurface(surface)
+			if err != nil {
+				panic(err) //TODO: don't panic!
+			}
+
+			err = sr.renderer.Copy(texture, srcRect, dstRect)
+			if err != nil {
+				panic(err) //TODO: don't panic!
+			}
+		}
 
 		offset += text.H + (sr.border * 3)
 	}

@@ -5,7 +5,7 @@ type NotificationType int
 const (
 	NOTIFY_DEBUG = iota
 	NOTIFY_INFO
-	NOTIFY_WARNING
+	NOTIFY_WARN
 	NOTIFY_ERROR
 )
 

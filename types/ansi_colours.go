@@ -31,6 +31,8 @@ var BlinkColour = map[bool]*Colour{
 	false: SGR_COLOUR_WHITE,
 }
 
+// SGR_COLOUR_256 colours are a copy of xterm 256 colour values.
+// source: https://vim.fandom.com/wiki/Xterm256_color_names_for_console_Vim
 var SGR_COLOUR_256 = map[int32]*Colour{
 	0: SGR_COLOUR_BLACK,
 	1: SGR_COLOUR_RED,

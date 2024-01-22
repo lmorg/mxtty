@@ -1,13 +1,15 @@
 package virtualterm
 
-import "log"
+import (
+	"github.com/lmorg/mxtty/debug"
+)
 
 /*
 	ERASE DISPLAY
 */
 
 func (term *Term) csiEraseDisplayAfter() {
-	log.Println("DEBUG: csiEraseDisplayAfter()")
+	debug.Log(term.curPos)
 
 	for y := term.curPos.Y; y < term.size.Y; y++ {
 		for x := int32(0); x < term.size.X; x++ {
@@ -17,7 +19,7 @@ func (term *Term) csiEraseDisplayAfter() {
 }
 
 func (term *Term) csiEraseDisplayBefore() {
-	log.Println("DEBUG: csiEraseDisplayBefore()")
+	debug.Log(term.curPos)
 
 	for y := term.curPos.Y; y >= 0; y-- {
 		for x := int32(0); x >= 0; x-- {
@@ -27,7 +29,7 @@ func (term *Term) csiEraseDisplayBefore() {
 }
 
 func (term *Term) csiEraseDisplay() {
-	log.Println("DEBUG: csiEraseDisplay()")
+	debug.Log(term.curPos)
 
 	var x, y int32
 	for ; y < term.size.Y; y++ {
@@ -42,7 +44,7 @@ func (term *Term) csiEraseDisplay() {
 */
 
 func (term *Term) csiEraseLineAfter() {
-	log.Println("DEBUG: csiEraseLineAfter()")
+	debug.Log(term.curPos)
 
 	for x := term.curPos.X; x < term.size.X; x++ {
 		(*term.cells)[term.curPos.Y][x].Clear()
@@ -50,7 +52,7 @@ func (term *Term) csiEraseLineAfter() {
 }
 
 func (term *Term) csiEraseLineBefore() {
-	log.Println("DEBUG: csiEraseLineBefore()")
+	debug.Log(term.curPos)
 
 	for x := term.curPos.X; x >= 0; x-- {
 		(*term.cells)[term.curPos.Y][x].Clear()
@@ -58,7 +60,7 @@ func (term *Term) csiEraseLineBefore() {
 }
 
 func (term *Term) csiEraseLine() {
-	log.Println("DEBUG: csiEraseLine()")
+	debug.Log(term.curPos)
 
 	var x int32
 	for ; x < term.size.X; x++ {
@@ -67,7 +69,7 @@ func (term *Term) csiEraseLine() {
 }
 
 func (term *Term) csiEraseCharacters(n int32) {
-	log.Println("DEBUG: csiEraseCharacters()")
+	debug.Log(n)
 
 	if n < 1 {
 		n = 1
@@ -85,7 +87,7 @@ func (term *Term) csiEraseCharacters(n int32) {
 */
 
 func (term *Term) csiDeleteCharacters(n int32) {
-	log.Println("DEBUG: csiDeleteCharacters()")
+	debug.Log(n)
 
 	if n < 1 {
 		n = 1
@@ -105,13 +107,13 @@ func (term *Term) csiDeleteCharacters(n int32) {
 }
 
 func (term *Term) csiDeleteLines(n int32) {
-	log.Println("DEBUG: csiDeleteLines()")
+	debug.Log(n)
 
 	if n < 1 {
 		n = 1
 	}
 
-	_, bottom := term.getScrollRegion()
+	_, bottom := term.getScrollingRegion()
 
 	if term.curPos.Y+n >= bottom {
 		n = bottom - term.curPos.Y
@@ -121,7 +123,7 @@ func (term *Term) csiDeleteLines(n int32) {
 		if term.curPos.Y+i+n <= bottom {
 			(*term.cells)[term.curPos.Y+i] = (*term.cells)[term.curPos.Y]
 		} else {
-			(*term.cells)[term.curPos.Y] = term.newRow()
+			(*term.cells)[term.curPos.Y] = term.makeRow()
 		}
 	}
 }

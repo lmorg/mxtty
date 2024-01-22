@@ -35,7 +35,9 @@ type sdlRender struct {
 	_redraw chan bool
 
 	// notifications
-	notifications notifyT
+	notifications  notifyT
+	notifyIcon     map[int]types.Image
+	notifyIconSize *types.XY
 
 	// render function stack (AddRenderFnToStack)
 	fnStack []func()

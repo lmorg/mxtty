@@ -6,6 +6,12 @@ import (
 	"github.com/lmorg/mxtty/codes"
 )
 
+/*
+	Reference documentation used:
+	- https://invisible-island.net/xterm/ctlseqs/ctlseqs.html
+	- ChatGPT (when the documentation above was unclear)
+*/
+
 func (term *Term) parsePmCodes() {
 	var (
 		r    rune

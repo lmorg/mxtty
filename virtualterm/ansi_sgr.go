@@ -6,6 +6,12 @@ import (
 	"github.com/lmorg/mxtty/types"
 )
 
+/*
+	Reference documentation used:
+	- https://en.wikipedia.org/wiki/ANSI_escape_code#SGR_(Select_Graphic_Rendition)_parameters
+	- https://invisible-island.net/xterm/ctlseqs/ctlseqs.html
+*/
+
 func lookupSgr(sgr *types.Sgr, n int32, stack []int32) {
 	for _, i := range stack {
 		switch i {

@@ -13,11 +13,18 @@ var ENV_VARS = []string{
 	"MXTTY=true",
 	"MXTTY_VERSION=" + app.Version(),
 	"TERM=xterm-256color",
+	"TERM_PROGRAM=mxtty",
 }
 
 func init() {
 	exe, _ := os.Executable()
 	ENV_VARS = append(ENV_VARS, "MXTTY_EXE="+exe)
+
+	_ = os.Unsetenv("TMUX")
+	_ = os.Unsetenv("TERM")
+	_ = os.Unsetenv("TERM_PROGRAM")
+
+	ENV_VARS = append(os.Environ(), ENV_VARS...)
 }
 
 func (term *Term) Start(pty types.Pty, shell string) {
@@ -30,7 +37,7 @@ func (term *Term) Start(pty types.Pty, shell string) {
 
 func (term *Term) exec(command string) {
 	cmd := exec.Command(command)
-	cmd.Env = append(os.Environ(), ENV_VARS...)
+	cmd.Env = ENV_VARS
 	cmd.Stdin = term.Pty.File()
 	cmd.Stdout = term.Pty.File()
 	cmd.Stderr = term.Pty.File()
