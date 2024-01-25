@@ -2,6 +2,11 @@ package virtualterm
 
 import "log"
 
+/*
+	Reference documentation used:
+	- xterm: https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h3-Functions-using-CSI-_-ordered-by-the-final-character_s_
+*/
+
 func lookupTertiaryCsi(term *Term, code []rune) {
 	param := string(code[:len(code)-1])
 	r := code[len(code)-1]

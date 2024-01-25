@@ -47,7 +47,7 @@ func (el *ElementTable) parseCsv() error {
 		return err
 	}
 
-	if el.apc.Parameter(_KEY_NO_HEADINGS) == "true" {
+	if el.apc.Parameter(_KEY_HAS_HEADINGS) == "false" {
 		//table = append([][]string{},table...)
 		panic("TODO")
 	}

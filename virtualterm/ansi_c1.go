@@ -9,8 +9,8 @@ import (
 
 /*
 	Reference documentation used:
-	- https://en.wikipedia.org/wiki/C0_and_C1_control_codes
-	- https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Definitions
+	- xterm: https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h3-C1-lparen-8-Bit-rparen-Control-Characters
+	- Wikipedia: https://en.wikipedia.org/wiki/C0_and_C1_control_codes
 	- ChatGPT (when the documentation above was unclear)
 */
 
@@ -87,11 +87,13 @@ func (term *Term) parseC1Codes() {
 
 	case 'l':
 		// Memory Lock (per HP terminals). Locks memory above the cursor.
-		log.Printf("TODO: Unhandled C1 code: %s", string(r))
+		//log.Printf("TODO: Unhandled C1 code: %s", string(r))
+		term.renderer.DisplayNotification(types.NOTIFY_WARN, "Unsupported C0 code: Memory Lock (per HP terminals). Locks memory above the cursor")
 
 	case 'm':
 		// Memory Unlock (per HP terminals)
-		log.Printf("TODO: Unhandled C1 code: %s", string(r))
+		//log.Printf("TODO: Unhandled C1 code: %s", string(r))
+		term.renderer.DisplayNotification(types.NOTIFY_WARN, "Unsupported C0 code: Memory Unlock (per HP terminals)")
 
 	case 'n':
 		// Invoke the G2 Character Set as GL (LS2).
@@ -148,7 +150,8 @@ func (term *Term) parseC1Codes() {
 		// Start of Selected Area
 		// Start of Selected Area
 		// Cursor to lower left corner of screen (if enabled by the 'hpLowerleftBugCompat' resource).
-		log.Printf("TODO: Unhandled C1 code: %s", string(r))
+		//log.Printf("TODO: Unhandled C1 code: %s", string(r))
+		term.renderer.DisplayNotification(types.NOTIFY_WARN, "Unsupported C0 code: Select Area (Cursor to lower left corner of screen - if enabled by the 'hpLowerleftBugCompat' resource")
 
 	case 'H':
 		// Tab Set (HTS  is 0x88).

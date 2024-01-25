@@ -2,28 +2,23 @@ package virtualterm
 
 import (
 	"log"
+
+	"github.com/lmorg/mxtty/codes"
+	"github.com/lmorg/mxtty/debug"
 )
-
-func isCsiTerminator(r rune) bool {
-	return r >= 0x40 && r <= 0x7E
-}
-
-func multiplyN(n *int32, r rune) {
-	if *n < 0 {
-		*n = 0
-	}
-
-	*n = (*n * 10) + (r - 48)
-}
 
 /*
 	Reference documentation used:
-	- https://en.wikipedia.org/wiki/ANSI_escape_code#SGR_(Select_Graphic_Rendition)_parameters
-	- https://invisible-island.net/xterm/ctlseqs/ctlseqs.html
-	- https://news.ycombinator.com/item?id=38849690
+	- xterm: https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h3-Functions-using-CSI-_-ordered-by-the-final-character_s_
+	- Wikipedia: https://en.wikipedia.org/wiki/ANSI_escape_code#SGR_(Select_Graphic_Rendition)_parameters
+	- HN discussion: https://news.ycombinator.com/item?id=38849690
 	- ChatGPT (when the documentation above was unclear)
 */
 
+/*
+Reference documentation used:
+-
+*/
 func (term *Term) parseCsiCodes() {
 	var (
 		r       rune
@@ -41,10 +36,12 @@ func (term *Term) parseCsiCodes() {
 			continue
 		}
 
+		debug.Log(string(cache))
+
 		switch r {
-		case '@':
-			// Insert Ps (Blank) Character(s) (default = 1) (ICH)
-			term.csiInsertCharacters(*n)
+		/*case '@':
+		// Insert Ps (Blank) Character(s) (default = 1) (ICH)
+		term.csiInsertCharacters(*n)*/
 
 		case 'a':
 			//Character Position Relative  [columns] (default = [row,col+1]) (HPR).
@@ -67,6 +64,8 @@ func (term *Term) parseCsiCodes() {
 		case 'c':
 			// Send Device Attributes (Primary DA).
 			// send reply: "\0x1B[?1;" + https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h3-Functions-using-CSI-_-ordered-by-the-final-character_s_
+			reply := append([]byte(codes.Csi), []byte("?65;1;6;15;17;22;28;29c")...)
+			term.Reply(reply)
 
 		case 'C':
 			// Cursor Forward Ps Times (default = 1) (CUF).
@@ -164,6 +163,17 @@ func (term *Term) parseCsiCodes() {
 			Ps = 1 0  ⇒  HTML screen dump, xterm.
 			Ps = 1 1  ⇒  SVG screen dump, xterm.
 		*/
+
+		/*case 'I':
+		// Cursor Forward Tabulation Ps tab stops (default = 1) (CHT).
+		// TODO don't do this!!!
+		if *n < 0 {
+			term.printTab()
+		} else {
+			for i := int32(0); i < *n; i++ {
+				term.printTab()
+			}
+		}*/
 
 		case 'J':
 			// Erase in Display (ED), VT100.
@@ -347,4 +357,16 @@ func (term *Term) parseCsiExtendedCodes() []rune {
 			return code
 		}
 	}
+}
+
+func isCsiTerminator(r rune) bool {
+	return r >= 0x40 && r <= 0x7E
+}
+
+func multiplyN(n *int32, r rune) {
+	if *n < 0 {
+		*n = 0
+	}
+
+	*n = (*n * 10) + (r - 48)
 }

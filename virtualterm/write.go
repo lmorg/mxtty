@@ -1,15 +1,20 @@
 package virtualterm
 
 func (term *Term) writeCell(r rune) {
-	//debug.Log(string(r))
+	//debug.Log(term.curPos)
 
 	if term.curPos.X >= term.size.X {
-		overflow := term.curPos.X - (term.size.X - 1)
-		term.curPos.X = 0
+		if term._noAutoLineWrap {
+			term.curPos.X--
 
-		if overflow > 0 && term.csiMoveCursorDownwards(1) > 0 {
-			term.csiScrollUp(1)
-			term.csiMoveCursorDownwards(1)
+		} else {
+			overflow := term.curPos.X - (term.size.X - 1)
+			term.curPos.X = 0
+
+			if overflow > 0 && term.csiMoveCursorDownwards(1) > 0 {
+				term.csiScrollUp(1)
+				term.csiMoveCursorDownwards(1)
+			}
 		}
 	}
 
@@ -23,4 +28,19 @@ func (term *Term) writeCell(r rune) {
 	}
 
 	term.curPos.X++
+
+	/*if term.curPos.X >= term.size.X {
+		if term._noAutoLineWrap {
+			term.curPos.X--
+
+		} else {
+			overflow := term.curPos.X - (term.size.X - 1)
+			term.curPos.X = 0
+
+			if overflow > 0 && term.csiMoveCursorDownwards(1) > 0 {
+				term.csiScrollUp(1)
+				term.csiMoveCursorDownwards(1)
+			}
+		}
+	}*/
 }

@@ -9,9 +9,8 @@ import (
 
 /*
 	Reference documentation used:
-	- https://en.wikipedia.org/wiki/ANSI_escape_code#OSC_(Operating_System_Command)_sequences
-	- https://invisible-island.net/xterm/ctlseqs/ctlseqs.html
-	- ChatGPT (when the documentation above was unclear)
+	- Wikipedia: https://en.wikipedia.org/wiki/ANSI_escape_code#OSC_(Operating_System_Command)_sequences
+	- xterm: https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h3-Operating-System-Commands
 */
 
 func (term *Term) parseOscCodes() {

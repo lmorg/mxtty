@@ -55,6 +55,7 @@ type Term struct {
 
 	// misc CSI configs
 	_windowTitleStack []string
+	_noAutoLineWrap   bool // No Auto-Wrap Mode (DECAWM), VT100.
 }
 
 func (term *Term) lfRedraw() {
@@ -122,29 +123,26 @@ func (term *Term) GetSize() *types.XY {
 func (term *Term) cell() *types.Cell {
 	if term.curPos.X < 0 {
 		//log.Printf("ERROR: term.curPos.X < 0(returning first cell) TODO fixme")
-		term.renderer.DisplayNotification(types.NOTIFY_ERROR,
-			"ERROR: term.curPos.X < 0(returning first cell) TODO fixme")
+		term.renderer.DisplayNotification(types.NOTIFY_WARN,
+			"term.curPos.X < 0 (returning first cell)")
 		term.curPos.X = 0
 	}
 
 	if term.curPos.Y < 0 {
-		//log.Printf("ERROR: term.curPos.Y < 0 (returning first cell) TODO fixme")
-		term.renderer.DisplayNotification(types.NOTIFY_ERROR,
-			"ERROR: term.curPos.Y < 0 (returning first cell) TODO fixme")
+		term.renderer.DisplayNotification(types.NOTIFY_WARN,
+			"term.curPos.Y < 0 (returning first cell)")
 		term.curPos.Y = 0
 	}
 
 	if term.curPos.X >= term.size.X {
-		//log.Printf("ERROR: term.curPos.X >= term.size.X (returning last cell) TODO fixme")
-		term.renderer.DisplayNotification(types.NOTIFY_ERROR,
-			"ERROR: term.curPos.X >= term.size.X (returning last cell) TODO fixme")
+		term.renderer.DisplayNotification(types.NOTIFY_WARN,
+			"term.curPos.X >= term.size.X (returning last cell)")
 		term.curPos.X = term.size.X - 1
 	}
 
 	if term.curPos.Y >= term.size.Y {
-		//log.Printf("ERROR: term.curPos.Y >= term.size.Y (returning last cell) TODO fixme")
-		term.renderer.DisplayNotification(types.NOTIFY_ERROR,
-			"ERROR: term.curPos.Y >= term.size.Y (returning last cell) TODO fixme")
+		term.renderer.DisplayNotification(types.NOTIFY_WARN,
+			"term.curPos.Y >= term.size.Y (returning last cell)")
 		term.curPos.Y = term.size.Y - 1
 	}
 
@@ -156,8 +154,10 @@ func (term *Term) previousCell() (*types.Cell, *types.XY) {
 	pos.X--
 
 	if pos.X < 0 {
-		pos.X = 0
+		pos.X = term.size.X - 1
 		pos.Y--
+	} else if pos.X >= term.size.X {
+		pos.X = term.size.X - 1
 	}
 
 	if pos.Y < 0 {

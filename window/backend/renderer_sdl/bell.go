@@ -43,7 +43,6 @@ func (sr *sdlRender) initBell() {
 func (sr *sdlRender) Bell() {
 	err := sr.bell.Play(1)
 	if err != nil {
-		//log.Printf("ERROR: could not play %s from memory: %s", assets.BELL, err.Error())
 		sr.DisplayNotification(types.NOTIFY_ERROR,
 			fmt.Sprintf("Could not play %s from memory: %s", assets.BELL, err.Error()))
 		return

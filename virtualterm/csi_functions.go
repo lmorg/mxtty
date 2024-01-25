@@ -76,3 +76,11 @@ func (term *Term) csiWindowTitleStackRestoreFrom() {
 	term.renderer.SetWindowTitle(title)
 	term._windowTitleStack = term._windowTitleStack[:len(term._windowTitleStack)-1]
 }
+
+/*
+	MISC
+*/
+
+func (term *Term) csiNoAutoLineWrap(state bool) {
+	term._noAutoLineWrap = state
+}

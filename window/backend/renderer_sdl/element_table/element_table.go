@@ -8,11 +8,11 @@ import (
 )
 
 const (
-	_KEY_TABLE_NAME  = "name"
-	_KEY_FORMAT      = "format"
-	_KEY_NO_HEADINGS = "add_headings"
-	_KEY_HEAD_OFFSET = "col_offset"
-	_ROW_ID          = "___mxapc_row_id"
+	_KEY_TABLE_NAME   = "name"
+	_KEY_FORMAT       = "format"
+	_KEY_HAS_HEADINGS = "has_headings"
+	_KEY_HEAD_OFFSET  = "col_offset"
+	_ROW_ID           = "___mxapc_row_id"
 )
 
 type elTableRecordT struct {

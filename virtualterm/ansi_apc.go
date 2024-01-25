@@ -7,6 +7,11 @@ import (
 	"github.com/lmorg/mxtty/types"
 )
 
+/*
+	Reference documentation used:
+	- xterm: https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h3-Application-Program-Command-functions
+*/
+
 func (term *Term) parseApcCodes() {
 	var (
 		r    rune

@@ -8,8 +8,7 @@ import (
 
 /*
 	Reference documentation used:
-	- https://invisible-island.net/xterm/ctlseqs/ctlseqs.html
-	- ChatGPT (when the documentation above was unclear)
+	- xterm: https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h3-Device-Control-functions
 */
 
 func (term *Term) parseDcsCodes() {

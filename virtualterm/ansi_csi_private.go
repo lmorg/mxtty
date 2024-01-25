@@ -2,6 +2,11 @@ package virtualterm
 
 import "log"
 
+/*
+	Reference documentation used:
+	- xterm: https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h3-Functions-using-CSI-_-ordered-by-the-final-character_s_
+*/
+
 func lookupPrivateCsi(term *Term, code []rune) {
 	param := string(code[:len(code)-1])
 	r := code[len(code)-1]
@@ -15,6 +20,10 @@ func lookupPrivateCsi(term *Term, code []rune) {
 		case "6":
 			// Origin Mode (DECOM), VT100.
 			term._originMode = true
+
+		case "7":
+			// Auto-Wrap Mode (DECAWM), VT100.
+			term.csiNoAutoLineWrap(false)
 
 		case "12", "25":
 			// Start Blinking Cursor (att610) / Show Cursor (DECTCEM)
@@ -48,6 +57,10 @@ func lookupPrivateCsi(term *Term, code []rune) {
 		case "6":
 			// Normal Cursor Mode (DECOM), VT100.
 			term._originMode = false
+
+		case "7":
+			// No Auto-Wrap Mode (DECAWM), VT100.
+			term.csiNoAutoLineWrap(true)
 
 		case "12", "25":
 			// Stop Blinking Cursor (att610) / Hide Cursor (DECTCEM)

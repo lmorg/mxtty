@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/lmorg/mxtty/codes"
+	"github.com/lmorg/mxtty/debug"
 )
 
 func (term *Term) readLoop() {
@@ -12,7 +13,6 @@ func (term *Term) readLoop() {
 	for {
 		r = term.Pty.Read()
 		term._slowBlinkState = true
-		//log.Printf("DEBUG: read rune %d [pos: %d:%d] [size: %d:%d]", r, term.curPos.X, term.curPos.Y, term.size.X, term.size.Y)
 
 		term._mutex.Lock()
 		term.readChar(r)
@@ -20,36 +20,52 @@ func (term *Term) readLoop() {
 	}
 }
 
+/*
+	Reference documentation used:
+	- ASCII table: https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/ASCII-Table-wide.svg/1280px-ASCII-Table-wide.svg.png
+	- xterm: https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h3-Single-character-functions
+*/
+
 func (term *Term) readChar(r rune) {
-	//writeR(r)
+	//writeDebuggingRune(r)
+
 	switch r {
 
 	case codes.AsciiCtrlG:
-		// bell (7)
+		// 7: {BELL}
 		go term.renderer.Bell()
 
 	case codes.AsciiBackspace, codes.IsoBackspace:
-		// (10) / (127)
+		// 8 / 127
 		_ = term.csiMoveCursorBackwards(1)
 
 	case codes.AsciiTab:
-		// \t (11)
+		// 9: horizontal tab, \t
 		term.printTab()
 
 	case codes.AsciiCtrlJ:
-		// \n (12)
+		// 10: line feed, \n
+		term.lineFeed()
+
+	case codes.AsciiCtrlK:
+		// 11: vertical tab
+		term.lineFeed()
+
+	case codes.AsciiCtrlL:
+		// 12: form feed
 		term.lineFeed()
 
 	case codes.AsciiCtrlM:
-		// \r (13)
+		// 13: carriage return, \r
 		term.carriageReturn()
 
 	case codes.AsciiEscape:
-		// (27)
+		// 27: escape, {ESC}
 		term.parseC1Codes()
 
 	default:
 		if r < 32 {
+
 			log.Printf("WARNING: Unexpected ASCII control character (ignored): %d", r)
 			return
 		}
@@ -57,10 +73,14 @@ func (term *Term) readChar(r rune) {
 	}
 }
 
-/*func writeR(r rune) {
-	if r < ' ' {
-		fmt.Printf("{%d}", r)
-	} else {
-		fmt.Printf("%s", string(r))
+func writeDebuggingRune(r rune) {
+	if !debug.Enabled {
+		return
 	}
-}*/
+
+	if r <= ' ' {
+		debug.Log(r)
+	} else {
+		debug.Log(string(r))
+	}
+}
