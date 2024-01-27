@@ -8,7 +8,6 @@ import (
 
 type ApcSlice struct {
 	slice []string
-	kv    map[string]string
 }
 
 func NewApcSlice(apc []rune) *ApcSlice {
@@ -24,14 +23,6 @@ func NewApcSlice(apc []rune) *ApcSlice {
 		as.slice = slice
 	}
 
-	as.kv = make(map[string]string)
-	err := json.Unmarshal([]byte(as.Index(2)), &as.kv)
-	if err != nil {
-		log.Printf("WARNING: cannot decode APC string '%s': %s", s, err.Error())
-		//} else {
-		//	log.Printf("DEBUG: APC parameters: %s (%v)", as.Index(2), as.kv)
-	}
-
 	return as
 }
 
@@ -42,6 +33,12 @@ func (as *ApcSlice) Index(i int) string {
 	return as.slice[i]
 }
 
-func (as *ApcSlice) Parameter(key string) string {
-	return as.kv[key]
+func (as *ApcSlice) Parameters(params any) {
+	s := as.Index(2)
+	if s != "" {
+		err := json.Unmarshal([]byte(s), &params)
+		if err != nil {
+			log.Printf("WARNING: cannot decode APC string '%s': %s", s, err.Error())
+		}
+	}
 }

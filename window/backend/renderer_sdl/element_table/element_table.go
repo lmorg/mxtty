@@ -8,12 +8,15 @@ import (
 )
 
 const (
-	_KEY_TABLE_NAME   = "name"
-	_KEY_FORMAT       = "format"
-	_KEY_HAS_HEADINGS = "has_headings"
-	_KEY_HEAD_OFFSET  = "col_offset"
-	_ROW_ID           = "___mxapc_row_id"
+	_ROW_ID = "___mxapc_row_id"
 )
+
+type parametersT struct {
+	Name        string
+	Format      string
+	HeadMissing bool
+	HeadOffset  int
+}
 
 type elTableRecordT struct {
 	cells  []*types.Cell
@@ -30,13 +33,11 @@ type ElementTable struct {
 	renderer     types.Renderer
 	name         string
 	size         *types.XY
-	apc          *types.ApcSlice
+	parameters   parametersT
 	db           *sql.DB
 	filter       string
-	_paramFormat string
 	colOffset    [][]int32           // [row][column]
 	_colOffset   int32               // counter
-	headOffset   int32               // row
 	_headOffset  int32               // counter
 	_stackTerm   [][]*elTableRecordT // [row][column][cell]
 	_stackStruct []rune
@@ -56,15 +57,15 @@ func New(renderer types.Renderer) *ElementTable {
 }
 
 func (el *ElementTable) Begin(apc *types.ApcSlice) {
-	el.apc = apc
+	apc.Parameters(&el.parameters)
 
 	// initialise table
 	el.setName()
-	el._paramFormat = strings.ToLower(el.apc.Parameter(_KEY_FORMAT))
+	el.parameters.Format = strings.ToLower(el.parameters.Format)
 
 	el.orderBy = -1
 
-	if el._paramFormat == "" {
+	if el.parameters.Format == "" {
 		el.beginTerm()
 	} else {
 		el.beginStruct()
@@ -77,7 +78,7 @@ func (el *ElementTable) Begin(apc *types.ApcSlice) {
 }
 
 func (el *ElementTable) ReadCell(cell *types.Cell) {
-	if el._paramFormat == "" {
+	if el.parameters.Format == "" {
 		el.readTerm(cell)
 	} else {
 		el.readStruct(cell)
@@ -85,7 +86,7 @@ func (el *ElementTable) ReadCell(cell *types.Cell) {
 }
 
 func (el *ElementTable) End() *types.XY {
-	if el._paramFormat == "" {
+	if el.parameters.Format == "" {
 		el.endTerm()
 	} else {
 		el.endStruct()
@@ -122,7 +123,7 @@ func (el *ElementTable) Draw(rect *types.Rect) *types.XY {
 		return nil
 	}
 
-	if el._paramFormat == "" {
+	if el.parameters.Format == "" {
 		return el.drawTerm(rect)
 	}
 

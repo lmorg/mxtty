@@ -1,25 +1,23 @@
 package elementImage
 
 import (
-	"strconv"
-
 	"github.com/lmorg/mxtty/types"
 )
 
-const (
-	_KEY_BASE64   = "base64"
-	_KEY_FILENAME = "filename"
-	_KEY_HEIGHT   = "height"
-	_KEY_WIDTH    = "width"
-)
-
 type ElementImage struct {
-	renderer types.Renderer
-	size     *types.XY
-	apc      *types.ApcSlice
-	load     func([]byte, *types.XY) (types.Image, error)
-	bmp      []byte
-	image    types.Image
+	renderer   types.Renderer
+	parameters parametersT
+	size       *types.XY
+	load       func([]byte, *types.XY) (types.Image, error)
+	bmp        []byte
+	image      types.Image
+}
+
+type parametersT struct {
+	Base64   string
+	Filename string
+	Width    int32
+	Height   int32
 }
 
 func New(renderer types.Renderer, loadFn func([]byte, *types.XY) (types.Image, error)) *ElementImage {
@@ -42,26 +40,10 @@ func (el *ElementImage) End() *types.XY {
 func (el *ElementImage) Insert(apc *types.ApcSlice) *types.XY {
 	el.renderer.DisplayNotification(types.NOTIFY_DEBUG, "Importing image from ANSI escape codes....")
 
-	el.apc = apc
+	apc.Parameters(&el.parameters)
+
 	el.size = new(types.XY)
-
-	width := apc.Parameter(_KEY_WIDTH)
-	if width != "" {
-		i, err := strconv.Atoi(width)
-		if err != nil {
-			el.renderer.DisplayNotification(types.NOTIFY_ERROR, "Cannot convert width: "+err.Error())
-		}
-		el.size.X = int32(i)
-	}
-
-	height := apc.Parameter(_KEY_HEIGHT)
-	if height != "" {
-		i, err := strconv.Atoi(height)
-		if err != nil {
-			el.renderer.DisplayNotification(types.NOTIFY_ERROR, "Cannot convert height: "+err.Error())
-		}
-		el.size.Y = int32(i)
-	}
+	el.size.X, el.size.Y = el.parameters.Width, el.parameters.Height
 
 	if el.size.X == 0 && el.size.Y == 0 {
 		el.size.Y = 15 // default

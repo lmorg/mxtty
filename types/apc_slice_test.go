@@ -73,18 +73,3 @@ func TestApcSliceIndexNoJson(t *testing.T) {
 		}
 	}
 }
-
-func TestApcSliceParameter(t *testing.T) {
-	ApcCode := `BEGIN;TABLE;{"foo":"bar","baz":";"}`
-	Parameters := map[string]string{"foo": "bar", "baz": ";"}
-	apc := NewApcSlice([]rune(ApcCode))
-
-	for key, value := range Parameters {
-		if apc.Parameter(key) != value {
-			t.Errorf("slice mismatch in test '%s':", key)
-			t.Logf("  APC str: '%s'", ApcCode)
-			t.Logf("  Expected: %s", value)
-			t.Logf("  Actual:   %s", apc.Parameter(key))
-		}
-	}
-}

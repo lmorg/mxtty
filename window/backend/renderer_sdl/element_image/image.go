@@ -20,15 +20,14 @@ func (el *ElementImage) decode() error {
 		b   []byte
 		err error
 	)
-	s := el.apc.Parameter(_KEY_FILENAME)
-	if s != "" {
-		b, err = _loadImage(s)
+
+	if el.parameters.Filename != "" {
+		b, err = _loadImage(el.parameters.Filename)
 	} else {
-		s = el.apc.Parameter(_KEY_BASE64)
-		if s == "" {
-			return fmt.Errorf("no image supplied in \"base64\" nor \"filename\" parameters")
+		if el.parameters.Base64 == "" {
+			return fmt.Errorf("no image supplied in \"Base64\" nor \"Filename\" parameters")
 		}
-		b, err = _decodeImage(s)
+		b, err = _decodeImage(el.parameters.Base64)
 	}
 	if err != nil {
 		return err

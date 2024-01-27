@@ -6,9 +6,8 @@ import (
 )
 
 func (el *ElementTable) setName() {
-	el.name = el.apc.Parameter(_KEY_TABLE_NAME)
-	if el.name == "" {
-		el.name = time.Now().String()
+	if el.parameters.Name == "" {
+		el.parameters.Name = time.Now().String()
 	}
 
 	el.name = hex.EncodeToString([]byte(el.name))

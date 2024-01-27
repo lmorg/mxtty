@@ -24,7 +24,7 @@ func (el *ElementTable) readStruct(cell *types.Cell) {
 
 func (el *ElementTable) endStruct() {
 	var err error
-	switch el._paramFormat {
+	switch el.parameters.Format {
 	case "csv":
 		err = el.parseCsv()
 	}
@@ -32,7 +32,7 @@ func (el *ElementTable) endStruct() {
 	if err != nil {
 		//log.Printf("ERROR: cannot parse %s: %s", el._paramFormat, err.Error())
 		el.renderer.DisplayNotification(types.NOTIFY_ERROR,
-			fmt.Sprintf("Cannot parse %s: %s", el._paramFormat, err.Error()))
+			fmt.Sprintf("Cannot parse %s: %s", el.parameters.Format, err.Error()))
 	}
 
 	return
@@ -47,7 +47,7 @@ func (el *ElementTable) parseCsv() error {
 		return err
 	}
 
-	if el.apc.Parameter(_KEY_HAS_HEADINGS) == "false" {
+	if el.parameters.HeadMissing {
 		//table = append([][]string{},table...)
 		panic("TODO")
 	}
