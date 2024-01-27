@@ -286,8 +286,11 @@ func (term *Term) csiInsertCharacters(n int32) {
 	}
 
 	insert := make([]types.Cell, n)
-	buf := (*term.cells)[term.curPos.Y][term.curPos.X:]
+	for i := range insert {
+		insert[i].Char = (*term.cells)[term.curPos.Y][term.curPos.X].Char
+	}
 
-	(*term.cells)[term.curPos.Y] = append((*term.cells)[term.curPos.Y][:term.curPos.X], insert...)
-	copy((*term.cells)[term.curPos.Y][term.curPos.X+n:], buf[:n])
+	row := append((*term.cells)[term.curPos.Y][:term.curPos.X], insert...)
+	row = append(row, (*term.cells)[term.curPos.Y][term.curPos.X:]...)
+	(*term.cells)[term.curPos.Y] = row[:term.size.X]
 }

@@ -15,10 +15,6 @@ import (
 	- ChatGPT (when the documentation above was unclear)
 */
 
-/*
-Reference documentation used:
--
-*/
 func (term *Term) parseCsiCodes() {
 	var (
 		r       rune
@@ -39,9 +35,9 @@ func (term *Term) parseCsiCodes() {
 		debug.Log(string(cache))
 
 		switch r {
-		/*case '@':
-		// Insert Ps (Blank) Character(s) (default = 1) (ICH)
-		term.csiInsertCharacters(*n)*/
+		case '@':
+			// Insert Ps (Blank) Character(s) (default = 1) (ICH)
+			term.csiInsertCharacters(*n)
 
 		case 'a':
 			//Character Position Relative  [columns] (default = [row,col+1]) (HPR).
