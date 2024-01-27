@@ -112,6 +112,9 @@ func (sr *sdlRender) getTermSize() *types.XY {
 }
 
 func (sr *sdlRender) Start(term types.Term) {
+	sr.term = term
+	go sr.blinkLoop()
+
 	for {
 
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
@@ -121,19 +124,19 @@ func (sr *sdlRender) Start(term types.Term) {
 				go sr.triggerQuit()
 
 			case *sdl.WindowEvent:
-				eventWindow(sr, evt, term)
+				sr.eventWindow(evt)
 				go sr.TriggerRedraw()
 
 			case *sdl.TextInputEvent:
-				eventTextInput(evt, term)
+				sr.eventTextInput(evt)
 				go sr.TriggerRedraw()
 
 			case *sdl.KeyboardEvent:
-				eventKeyPress(evt, term)
+				sr.eventKeyPress(evt)
 				go sr.TriggerRedraw()
 
 			case *sdl.MouseButtonEvent:
-				eventMouseButton(evt, term, sr)
+				sr.eventMouseButton(evt)
 				go sr.TriggerRedraw()
 			}
 		}
@@ -192,6 +195,10 @@ func update(sr *sdlRender, term types.Term) {
 	sr.fnStack = make([]func(), 0) // clear image stack
 
 	sr.renderNotification(rect)
+
+	if sr.inputBoxActive {
+		sr.renderInputBox(rect)
+	}
 
 	if atomic.CompareAndSwapInt32(&sr.updateTitle, 1, 0) {
 		sr.window.SetTitle(sr.title)

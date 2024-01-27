@@ -104,7 +104,7 @@ func (el *ElementTable) End() *types.XY {
 		return &types.XY{}
 	}
 
-	el._sqlResult, err = el.runQuery()
+	err = el.runQuery()
 	if err != nil {
 		el.renderer.DisplayNotification(types.NOTIFY_ERROR, "Cannot query sqlite3 table: "+err.Error())
 		return &types.XY{}

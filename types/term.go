@@ -10,6 +10,7 @@ type Term interface {
 	Bg() *Colour
 	Reply([]byte) error
 	MouseClick(uint8, *XY)
+	ShowCursor(bool)
 }
 
 type Pty interface {

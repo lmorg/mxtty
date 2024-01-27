@@ -2,6 +2,7 @@ package rendersdl
 
 import (
 	"sync/atomic"
+	"time"
 
 	"github.com/lmorg/mxtty/types"
 	"github.com/lmorg/mxtty/window/backend/typeface"
@@ -16,6 +17,7 @@ type sdlRender struct {
 	renderer  *sdl.Renderer
 	glyphSize *types.XY
 	termSize  *types.XY
+	term      types.Term
 
 	// preferences
 	font       *ttf.Font
@@ -39,8 +41,17 @@ type sdlRender struct {
 	notifyIcon     map[int]types.Image
 	notifyIconSize *types.XY
 
+	// inputbox
+	inputBoxActive   bool
+	inputBoxMessage  string
+	inputBoxValue    string
+	inputBoxCallback func(string)
+
 	// render function stack (AddRenderFnToStack)
 	fnStack []func()
+
+	// state
+	blinkState bool
 }
 
 func (sr *sdlRender) triggerQuit()   { sr._quit <- true }
@@ -96,4 +107,11 @@ func (sr *sdlRender) ResizeWindow(size *types.XY) {
 	w := (size.X * sr.glyphSize.X) + (sr.border * 2)
 	h := (size.Y * sr.glyphSize.Y) + (sr.border * 2)
 	sr.window.SetSize(w, h)
+}
+
+func (sr *sdlRender) blinkLoop() {
+	for {
+		time.Sleep(500 * time.Millisecond)
+		sr.blinkState = !sr.blinkState
+	}
 }

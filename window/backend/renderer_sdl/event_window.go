@@ -1,11 +1,10 @@
 package rendersdl
 
 import (
-	"github.com/lmorg/mxtty/types"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
-func eventWindow(r types.Renderer, evt *sdl.WindowEvent, term types.Term) {
+func (sr *sdlRender) eventWindow(evt *sdl.WindowEvent) {
 	switch evt.Event {
 	case sdl.WINDOWEVENT_RESIZED:
 		//resizeTerm(r, term)

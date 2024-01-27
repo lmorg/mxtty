@@ -56,11 +56,11 @@ func (term *Term) csiCursorPosRestore() {
 }
 
 func (term *Term) csiCursorHide() {
-	term._hideCursor = true
+	term.ShowCursor(false)
 }
 
 func (term *Term) csiCursorShow() {
-	term._hideCursor = false
+	term.ShowCursor(true)
 }
 
 /*

@@ -25,6 +25,10 @@ var notifyBorderColour = map[int]*types.Colour{
 	types.NOTIFY_ERROR: {0xde, 0x33, 0x3b},
 }
 
+const (
+	notificationAlpha = 190
+)
+
 func (sr *sdlRender) preloadNotificationGlyphs() {
 	var err error
 	sr.notifyIcon = map[int]types.Image{
@@ -165,7 +169,7 @@ func (sr *sdlRender) renderNotification(windowRect *sdl.Rect) {
 
 		// draw border
 		bc := notifyBorderColour[int(notification.Type)]
-		sr.renderer.SetDrawColor(bc.Red, bc.Green, bc.Blue, 190)
+		sr.renderer.SetDrawColor(bc.Red, bc.Green, bc.Blue, notificationAlpha)
 		rect := sdl.Rect{
 			X: sr.border - 1,
 			Y: sr.border + offset - 1,
@@ -183,7 +187,7 @@ func (sr *sdlRender) renderNotification(windowRect *sdl.Rect) {
 
 		// fill background
 		c := notifyColour[int(notification.Type)]
-		sr.renderer.SetDrawColor(c.Red, c.Green, c.Blue, 190)
+		sr.renderer.SetDrawColor(c.Red, c.Green, c.Blue, notificationAlpha)
 		rect = sdl.Rect{
 			X: sr.border + 1,
 			Y: sr.border + 1 + offset,

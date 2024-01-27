@@ -5,6 +5,17 @@ import (
 )
 
 func (el *ElementTable) MouseClick(button uint8, pos *types.XY) {
+	if pos.Y != 0 {
+		el.renderer.DisplayInputBox("Please input desired SQL filter:", el.filter, func(filter string) {
+			el.filter = filter
+			err := el.runQuery()
+			if err != nil {
+				el.renderer.DisplayNotification(types.NOTIFY_ERROR, "Cannot sort table: "+err.Error())
+			}
+		})
+		return
+	}
+
 	i := len(el.colOffset[0]) - 1
 	for ; i > 0; i-- {
 		if pos.X >= el.colOffset[0][i] {
@@ -25,8 +36,7 @@ func (el *ElementTable) MouseClick(button uint8, pos *types.XY) {
 		el.orderBy = -1
 	}
 
-	var err error
-	el._sqlResult, err = el.runQuery()
+	err := el.runQuery()
 	if err != nil {
 		//log.Printf("ERROR: cannot sort table: %s", err.Error())
 		el.renderer.DisplayNotification(types.NOTIFY_ERROR, "Cannot sort table: "+err.Error())

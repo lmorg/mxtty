@@ -97,7 +97,7 @@ func (el *ElementTable) _createTable_SliceSliceString(confFailColMismatch, confM
 	return nil
 }
 
-func (el *ElementTable) runQuery() ([]int, error) {
+func (el *ElementTable) runQuery() error {
 	where := el.filter
 	if where != "" {
 		where = "WHERE " + where
@@ -114,7 +114,7 @@ func (el *ElementTable) runQuery() ([]int, error) {
 
 	rows, err := el.db.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf("cannot query table: %s\nSQL: %s", err.Error(), query)
+		return fmt.Errorf("cannot query table: %s\nSQL: %s", err.Error(), query)
 	}
 
 	var (
@@ -126,23 +126,24 @@ func (el *ElementTable) runQuery() ([]int, error) {
 	for rows.Next() {
 		err = rows.Scan(&s)
 		if err != nil {
-			return nil, fmt.Errorf("cannot retrieve rows: %s", err.Error())
+			return fmt.Errorf("cannot retrieve rows: %s", err.Error())
 		}
 
 		i, err = strconv.Atoi(s)
 		if err != nil {
-			return nil, fmt.Errorf("cannot retrieve rows: %s", err.Error())
+			return fmt.Errorf("cannot retrieve rows: %s", err.Error())
 		}
 
 		table = append(table, i)
 	}
 	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("cannot retrieve rows: %s", err.Error())
+		return fmt.Errorf("cannot retrieve rows: %s", err.Error())
 	}
 
 	//log.Printf("DEBUG: %s", json.LazyLogging(table))
 
 	rows.Close()
 
-	return table, nil
+	el._sqlResult = table
+	return nil
 }

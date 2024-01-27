@@ -191,3 +191,7 @@ func (term *Term) copyCell(cell *types.Cell) *types.Cell {
 
 	return copy
 }
+
+func (term *Term) ShowCursor(v bool) {
+	term._hideCursor = !v
+}

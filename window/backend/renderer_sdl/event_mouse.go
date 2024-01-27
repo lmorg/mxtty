@@ -5,7 +5,11 @@ import (
 	"github.com/veandco/go-sdl2/sdl"
 )
 
-func eventMouseButton(evt *sdl.MouseButtonEvent, term types.Term, sr *sdlRender) {
+func (sr *sdlRender) eventMouseButton(evt *sdl.MouseButtonEvent) {
+	if sr.inputBoxActive {
+		return
+	}
+
 	if evt.State == sdl.PRESSED {
 		return
 	}
@@ -14,5 +18,5 @@ func eventMouseButton(evt *sdl.MouseButtonEvent, term types.Term, sr *sdlRender)
 		X: (evt.X - sr.border) / sr.glyphSize.X,
 		Y: (evt.Y - sr.border) / sr.glyphSize.Y,
 	}
-	term.MouseClick(evt.Button, &pos)
+	sr.term.MouseClick(evt.Button, &pos)
 }

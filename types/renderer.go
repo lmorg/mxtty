@@ -20,6 +20,7 @@ type Renderer interface {
 	TriggerRedraw()
 	NewElement(elementType ElementID, size *XY, data []byte) Element
 	DisplayNotification(NotificationType, string)
+	DisplayInputBox(string, string, func(string))
 	AddRenderFnToStack(func())
 	GetWindowMeta() any
 	ResizeWindow(*XY)
