@@ -111,6 +111,7 @@ func (sr *sdlRender) renderInputBox(windowRect *sdl.Rect) {
 
 	height = sr.glyphSize.Y + (sr.border * 2)
 	offset += text.H + sr.border + sr.border
+	var width int32
 
 	// draw border
 	sr.renderer.SetDrawColor(255, 255, 255, 150)
@@ -151,12 +152,24 @@ func (sr *sdlRender) renderInputBox(windowRect *sdl.Rect) {
 			X: padding + sr.notifyIconSize.X + sr.border,
 			Y: sr.border + offset,
 			W: sr.surface.W - sr.notifyIconSize.X,
-			H: text.H + padding - 2,
+			H: textValue.H + padding - 2,
 		}
 		err = textValue.Blit(nil, surface, &rect)
 		if err != nil {
 			panic(err) // TODO: don't panic!
 		}
 		sr._renderNotificationSurface(surface, &rect)
+		width = textValue.W
+	}
+
+	if sr.blinkState {
+		sr.renderer.SetDrawColor(255, 255, 255, 255)
+		rect = sdl.Rect{
+			X: padding + sr.notifyIconSize.X + sr.border + width,
+			Y: sr.border + offset,
+			W: sr.glyphSize.X,
+			H: sr.glyphSize.Y,
+		}
+		sr.renderer.FillRect(&rect)
 	}
 }
