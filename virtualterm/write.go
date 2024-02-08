@@ -1,5 +1,10 @@
 package virtualterm
 
+import (
+	"fmt"
+	"unsafe"
+)
+
 func (term *Term) writeCell(r rune) {
 	//debug.Log(term.curPos)
 
@@ -11,9 +16,8 @@ func (term *Term) writeCell(r rune) {
 			overflow := term.curPos.X - (term.size.X - 1)
 			term.curPos.X = 0
 
-			if overflow > 0 && term.csiMoveCursorDownwards(1) > 0 {
-				term.csiScrollUp(1)
-				term.csiMoveCursorDownwards(1)
+			if overflow > 0 {
+				term.lineFeed()
 			}
 		}
 	}
@@ -28,19 +32,17 @@ func (term *Term) writeCell(r rune) {
 	}
 
 	term.curPos.X++
+}
 
-	/*if term.curPos.X >= term.size.X {
-		if term._noAutoLineWrap {
-			term.curPos.X--
-
-		} else {
-			overflow := term.curPos.X - (term.size.X - 1)
-			term.curPos.X = 0
-
-			if overflow > 0 && term.csiMoveCursorDownwards(1) > 0 {
-				term.csiScrollUp(1)
-				term.csiMoveCursorDownwards(1)
+func (term *Term) appendScrollBuf() {
+	if unsafe.Pointer(term.cells) == unsafe.Pointer(&term._normBuf) {
+		term._scrollBuf = append(term._scrollBuf, term._normBuf[0])
+		if term._scrollOffset > 0 {
+			term._scrollOffset++
+			if term._scrollMsg != nil {
+				term._scrollMsg.SetMessage(fmt.Sprintf("Viewing scrollback history. %d lines from end", term._scrollOffset))
+				term.renderer.TriggerRedraw()
 			}
 		}
-	}*/
+	}
 }

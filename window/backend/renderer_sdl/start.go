@@ -138,6 +138,10 @@ func (sr *sdlRender) Start(term types.Term) {
 			case *sdl.MouseButtonEvent:
 				sr.eventMouseButton(evt)
 				go sr.TriggerRedraw()
+
+			case *sdl.MouseWheelEvent:
+				sr.eventMouseWheel(evt)
+				go sr.TriggerRedraw()
 			}
 		}
 

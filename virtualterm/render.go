@@ -9,17 +9,27 @@ import (
 func (term *Term) Render() {
 	term._mutex.Lock()
 
+	var cells = *term.cells
+	if term._scrollOffset != 0 {
+		// render scrollback buffer
+		start := len(term._scrollBuf) - term._scrollOffset
+		cells = term._scrollBuf[start:]
+		if len(cells) < int(term.size.Y) {
+			cells = append(cells, term._normBuf...)
+		}
+	}
+
 	var err error
 	elementStack := make(map[types.Element]*types.Rect)
 	pos := new(types.XY)
 
-	for ; int(pos.Y) < len(*term.cells); pos.Y++ {
-		for pos.X = 0; int(pos.X) < len((*term.cells)[pos.Y]); pos.X++ {
+	for ; pos.Y < term.size.Y; pos.Y++ {
+		for pos.X = 0; pos.X < term.size.X; pos.X++ {
 			switch {
-			case (*term.cells)[pos.Y][pos.X].Element != nil:
-				rect, ok := elementStack[(*term.cells)[pos.Y][pos.X].Element]
+			case cells[pos.Y][pos.X].Element != nil:
+				rect, ok := elementStack[cells[pos.Y][pos.X].Element]
 				if !ok { // create rect
-					elementStack[(*term.cells)[pos.Y][pos.X].Element] = &types.Rect{
+					elementStack[cells[pos.Y][pos.X].Element] = &types.Rect{
 						Start: &types.XY{X: pos.X, Y: pos.Y},
 						End:   &types.XY{X: pos.X, Y: pos.Y},
 					}
@@ -27,16 +37,16 @@ func (term *Term) Render() {
 					rect.End.X, rect.End.Y = pos.X, pos.Y
 				}
 
-			case (*term.cells)[pos.Y][pos.X].Char == 0:
+			case cells[pos.Y][pos.X].Char == 0:
 				continue
 
-			case (*term.cells)[pos.Y][pos.X].Sgr == nil:
+			case cells[pos.Y][pos.X].Sgr == nil:
 				continue
 
 			default:
-				err = term.renderer.PrintCell(&(*term.cells)[pos.Y][pos.X], pos)
+				err = term.renderer.PrintCell(&cells[pos.Y][pos.X], pos)
 				if err != nil {
-					log.Printf("ERROR: error in %s [x: %d, y: %d, value: '%s']: %s", "(t *Term) Render()", pos.X, pos.Y, string((*term.cells)[pos.Y][pos.X].Char), err.Error())
+					log.Printf("ERROR: error in %s [x: %d, y: %d, value: '%s']: %s", "(t *Term) Render()", pos.X, pos.Y, string(cells[pos.Y][pos.X].Char), err.Error())
 				}
 			}
 		}

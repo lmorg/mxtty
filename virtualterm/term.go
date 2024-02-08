@@ -29,9 +29,12 @@ type Term struct {
 	Pty      types.Pty
 	_mutex   sync.Mutex
 
-	cells    *[][]types.Cell
-	_normBuf [][]types.Cell
-	_altBuf  [][]types.Cell
+	cells         *[][]types.Cell
+	_normBuf      [][]types.Cell
+	_altBuf       [][]types.Cell
+	_scrollBuf    [][]types.Cell
+	_scrollOffset int
+	_scrollMsg    types.Notification
 
 	// line feed redraw
 	_lfEnabled   bool

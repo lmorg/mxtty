@@ -111,7 +111,8 @@ func (sr *sdlRender) ResizeWindow(size *types.XY) {
 
 func (sr *sdlRender) blinkLoop() {
 	for {
-		time.Sleep(250 * time.Millisecond)
+		time.Sleep(500 * time.Millisecond)
 		sr.blinkState = !sr.blinkState
+		sr.TriggerRedraw()
 	}
 }

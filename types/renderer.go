@@ -1,14 +1,5 @@
 package types
 
-type NotificationType int
-
-const (
-	NOTIFY_DEBUG = iota
-	NOTIFY_INFO
-	NOTIFY_WARN
-	NOTIFY_ERROR
-)
-
 type Renderer interface {
 	Start(Term)
 	FocusWindow()
@@ -20,6 +11,7 @@ type Renderer interface {
 	TriggerRedraw()
 	NewElement(elementType ElementID, size *XY, data []byte) Element
 	DisplayNotification(NotificationType, string)
+	DisplaySticky(NotificationType, string) Notification
 	DisplayInputBox(string, string, func(string))
 	AddRenderFnToStack(func())
 	GetWindowMeta() any

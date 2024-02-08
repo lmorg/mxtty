@@ -12,9 +12,10 @@ func (term *Term) carriageReturn() {
 }
 
 func (term *Term) lineFeed() {
-	debug.Log(term.curPos.Y)
+	//debug.Log(term.curPos.Y)
 
-	if term.csiMoveCursorDownwards(1) > 0 {
+	if term.csiMoveCursorDownwards(1) != 0 {
+		term.appendScrollBuf()
 		term.csiScrollUp(1)
 		term.csiMoveCursorDownwards(1)
 	}
@@ -29,7 +30,7 @@ func (term *Term) lineFeed() {
 func (term *Term) ReverseLineFeed() {
 	debug.Log(term.curPos.Y)
 
-	if term.csiMoveCursorUpwards(1) > 0 {
+	if term.csiMoveCursorUpwards(1) != 0 {
 		term.csiScrollDown(1)
 		term.csiMoveCursorUpwards(1)
 	}
@@ -211,17 +212,6 @@ func (term *Term) csiScrollDown(n int32) {
 
 	top, bottom := term.getScrollingRegion()
 
-	/*if n > bottom-top {
-		n = bottom - top
-	}
-
-	for i := bottom; i > top; i-- {
-		if i+n <= bottom {
-			(*term.cells)[i] = (*term.cells)[i-n]
-		} else {
-			(*term.cells)[i] = term.makeRow()
-		}
-	}*/
 	term._scrollDown(top, bottom, 1)
 }
 

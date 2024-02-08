@@ -12,17 +12,19 @@ import (
 )
 
 var notifyColour = map[int]*types.Colour{
-	types.NOTIFY_DEBUG: {0x1c, 0x3e, 0x64},
-	types.NOTIFY_INFO:  {0x31, 0x6d, 0xb0},
-	types.NOTIFY_WARN:  {0x74, 0x58, 0x10},
-	types.NOTIFY_ERROR: {0x66, 0x16, 0x1a},
+	types.NOTIFY_DEBUG:  {0x1c, 0x3e, 0x64},
+	types.NOTIFY_INFO:   {0x31, 0x6d, 0xb0},
+	types.NOTIFY_WARN:   {0x74, 0x58, 0x10},
+	types.NOTIFY_ERROR:  {0x66, 0x16, 0x1a},
+	types.NOTIFY_SCROLL: {0x1c, 0x3e, 0x64},
 }
 
 var notifyBorderColour = map[int]*types.Colour{
-	types.NOTIFY_DEBUG: {0x31, 0x6d, 0xb0},
-	types.NOTIFY_INFO:  {0x99, 0xc0, 0xd3},
-	types.NOTIFY_WARN:  {0xf2, 0xb7, 0x1f},
-	types.NOTIFY_ERROR: {0xde, 0x33, 0x3b},
+	types.NOTIFY_DEBUG:  {0x31, 0x6d, 0xb0},
+	types.NOTIFY_INFO:   {0x99, 0xc0, 0xd3},
+	types.NOTIFY_WARN:   {0xf2, 0xb7, 0x1f},
+	types.NOTIFY_ERROR:  {0xde, 0x33, 0x3b},
+	types.NOTIFY_SCROLL: {0x31, 0x6d, 0xb0},
 }
 
 const (
@@ -61,11 +63,17 @@ func (sr *sdlRender) preloadNotificationGlyphs() {
 	if err != nil {
 		panic(err)
 	}
+
+	sr.notifyIcon[types.NOTIFY_SCROLL], err = sr.loadImage(assets.Get(assets.ICON_DOWN), sr.notifyIconSize)
+	if err != nil {
+		panic(err)
+	}
 }
 
 type notifyT struct {
-	stack []*notificationT
-	mutex sync.Mutex
+	timed  []*notificationT
+	sticky []*notificationT
+	mutex  sync.Mutex
 }
 
 type notificationT struct {
@@ -73,28 +81,40 @@ type notificationT struct {
 	Message string
 	wait    <-chan time.Time
 	end     time.Time
+	close   func()
+	id      int64
+}
+
+func (notification *notificationT) SetMessage(message string) {
+	notification.Message = message
+}
+
+func (notification *notificationT) Close() {
+	if notification.close != nil {
+		notification.close()
+	}
 }
 
 func (n *notifyT) _wait() {
 	for {
-		if len(n.stack) == 0 {
+		if len(n.timed) == 0 {
 			return
 		}
 
-		<-n.stack[0].wait
+		<-n.timed[0].wait
 		n.remove()
 	}
 }
 
-func (n *notifyT) add(notification *notificationT) {
+func (n *notifyT) addTimed(notification *notificationT) {
 	d := 5 * time.Second
 	notification.end = time.Now().Add(d)
 	notification.wait = time.After(d)
 
 	n.mutex.Lock()
-	n.stack = append(n.stack, notification)
+	n.timed = append(n.timed, notification)
 
-	if len(n.stack) > 0 {
+	if len(n.timed) > 0 {
 		go n._wait()
 	}
 	n.mutex.Unlock()
@@ -102,9 +122,32 @@ func (n *notifyT) add(notification *notificationT) {
 	log.Printf("NOTIFICATION: %s", notification.Message)
 }
 
+func (n *notifyT) addSticky(notification *notificationT) {
+	notification.id = time.Now().UnixMilli()
+	notification.close = func() {
+		n.mutex.Lock()
+		var i int
+		for i := range n.sticky {
+			if n.sticky[i].id == notification.id {
+				goto matched
+			}
+		}
+		return
+	matched:
+		n.sticky = append(n.sticky[:i], n.sticky[i+1:]...)
+		n.mutex.Unlock()
+	}
+
+	n.mutex.Lock()
+	n.sticky = append(n.sticky, notification)
+	n.mutex.Unlock()
+
+	log.Printf("NOTIFICATION: %s", notification.Message)
+}
+
 func (n *notifyT) remove() {
 	n.mutex.Lock()
-	n.stack = n.stack[1:]
+	n.timed = n.timed[1:]
 	n.mutex.Unlock()
 }
 
@@ -112,12 +155,13 @@ func (n *notifyT) get() []*notificationT {
 	n.mutex.Lock()
 	defer n.mutex.Unlock()
 
-	if len(n.stack) == 0 {
+	if len(n.sticky) == 0 && len(n.timed) == 0 {
 		return nil
 	}
 
-	notifications := make([]*notificationT, len(n.stack))
-	copy(notifications, n.stack)
+	notifications := make([]*notificationT, len(n.timed)+len(n.sticky))
+	copy(notifications, n.sticky)
+	copy(notifications[len(n.sticky):], n.timed)
 
 	return notifications
 }
@@ -127,7 +171,17 @@ func (sr *sdlRender) DisplayNotification(notificationType types.NotificationType
 		Type:    notificationType,
 		Message: message,
 	}
-	sr.notifications.add(notification)
+	sr.notifications.addTimed(notification)
+}
+
+func (sr *sdlRender) DisplaySticky(notificationType types.NotificationType, message string) types.Notification {
+	notification := &notificationT{
+		Type:    notificationType,
+		Message: message,
+	}
+	sr.notifications.addSticky(notification)
+
+	return notification
 }
 
 func (sr *sdlRender) renderNotification(windowRect *sdl.Rect) {
@@ -197,17 +251,19 @@ func (sr *sdlRender) renderNotification(windowRect *sdl.Rect) {
 		sr.renderer.FillRect(&rect)
 
 		// render countdown
-		rect = sdl.Rect{
-			X: windowRect.W - padding - countdown.W,
-			Y: padding + offset,
-			W: countdown.W,
-			H: countdown.H,
+		if notification.close == nil {
+			rect = sdl.Rect{
+				X: windowRect.W - padding - countdown.W,
+				Y: padding + offset,
+				W: countdown.W,
+				H: countdown.H,
+			}
+			err = countdown.Blit(nil, surface, &rect)
+			if err != nil {
+				panic(err) // TODO: don't panic!
+			}
+			sr._renderNotificationSurface(surface, &rect)
 		}
-		err = countdown.Blit(nil, surface, &rect)
-		if err != nil {
-			panic(err) // TODO: don't panic!
-		}
-		sr._renderNotificationSurface(surface, &rect)
 
 		// render shadow
 		rect = sdl.Rect{

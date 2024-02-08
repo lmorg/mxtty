@@ -13,6 +13,7 @@ const (
 	ICON_INFO  = "icon-info.bmp"
 	ICON_WARN  = "icon-warn.bmp"
 	ICON_ERROR = "icon-error.bmp"
+	ICON_DOWN  = "icon-down.bmp"
 )
 
 //go:embed bell.mp3
