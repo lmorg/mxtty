@@ -95,6 +95,7 @@ func (term *Term) reset(size *types.XY) {
 
 	term._normBuf = term.makeScreen()
 	term._altBuf = term.makeScreen()
+	term._scrollBuf = [][]types.Cell{}
 
 	term._tabWidth = 8
 	term.csiResetTabStops()

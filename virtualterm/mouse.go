@@ -33,7 +33,7 @@ func (term *Term) MouseWheel(Y int) {
 		return
 	}
 
-	if len(term._scrollBuf) < len(term._normBuf) {
+	if len(term._scrollBuf) == 0 {
 		return
 	}
 
