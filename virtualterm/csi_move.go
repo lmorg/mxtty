@@ -256,10 +256,16 @@ func (term *Term) csiInsertCharacters(n int32) {
 
 	insert := make([]types.Cell, n)
 	for i := range insert {
-		insert[i].Char = (*term.cells)[term.curPos.Y][term.curPos.X].Char
+		insert[i].Char = '~' //(*term.cells)[term.curPos.Y][term.curPos.X].Char
 	}
 
-	row := append((*term.cells)[term.curPos.Y][:term.curPos.X], insert...)
-	row = append(row, (*term.cells)[term.curPos.Y][term.curPos.X:]...)
-	(*term.cells)[term.curPos.Y] = row[:term.size.X]
+	//row := append((*term.cells)[term.curPos.Y][:term.curPos.X], insert...)
+	//row = append(row, (*term.cells)[term.curPos.Y][term.curPos.X:]...)
+	//(*term.cells)[term.curPos.Y] = row[:term.size.X]
+
+	row := term.makeRow()
+	copy(row, (*term.cells)[term.curPos.Y][:term.curPos.X])
+	copy(row[term.curPos.X:], insert)
+	copy(row[term.curPos.X+n:], (*term.cells)[term.curPos.Y][term.curPos.X:])
+	(*term.cells)[term.curPos.Y] = row
 }

@@ -27,7 +27,7 @@ func (term *Term) readLoop() {
 */
 
 func (term *Term) readChar(r rune) {
-	//writeDebuggingRune(r)
+	writeDebuggingRune(r)
 
 	switch r {
 
@@ -35,7 +35,7 @@ func (term *Term) readChar(r rune) {
 		// 7: {BELL}
 		go term.renderer.Bell()
 
-	case codes.AsciiBackspace, codes.IsoBackspace:
+	case codes.IsoBackspace, codes.AsciiBackspace:
 		// 8 / 127
 		_ = term.csiMoveCursorBackwards(1)
 
