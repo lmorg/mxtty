@@ -53,13 +53,21 @@ type Term struct {
 	_scrollRegion *scrollRegionT
 
 	// state
-	_activeElement  types.Element
-	_slowBlinkState bool
+	_activeElement   types.Element
+	_slowBlinkState  bool
+	_insertOrReplace _stateIrmT
 
 	// misc CSI configs
 	_windowTitleStack []string
 	_noAutoLineWrap   bool // No Auto-Wrap Mode (DECAWM), VT100.
 }
+
+type _stateIrmT int
+
+const (
+	_STATE_IRM_REPLACE = 0
+	_STATE_IRM_INSERT  = 1
+)
 
 func (term *Term) lfRedraw() {
 	if !term._lfEnabled {
@@ -126,28 +134,31 @@ func (term *Term) GetSize() *types.XY {
 
 func (term *Term) cell() *types.Cell {
 	if term.curPos.X < 0 {
-		//log.Printf("ERROR: term.curPos.X < 0(returning first cell) TODO fixme")
-		term.renderer.DisplayNotification(types.NOTIFY_WARN,
+		term.renderer.DisplayNotification(types.NOTIFY_DEBUG,
 			"term.curPos.X < 0 (returning first cell)")
 		term.curPos.X = 0
+		//term.lineFeed()
 	}
 
 	if term.curPos.Y < 0 {
-		term.renderer.DisplayNotification(types.NOTIFY_WARN,
+		term.renderer.DisplayNotification(types.NOTIFY_DEBUG,
 			"term.curPos.Y < 0 (returning first cell)")
 		term.curPos.Y = 0
 	}
 
 	if term.curPos.X >= term.size.X {
-		term.renderer.DisplayNotification(types.NOTIFY_WARN,
+		term.renderer.DisplayNotification(types.NOTIFY_DEBUG,
 			"term.curPos.X >= term.size.X (returning last cell)")
-		term.curPos.X = term.size.X - 1
+		//term.curPos.X = term.size.X - 1
+		term.curPos.X = 0
+		term.lineFeed()
 	}
 
 	if term.curPos.Y >= term.size.Y {
-		term.renderer.DisplayNotification(types.NOTIFY_WARN,
+		term.renderer.DisplayNotification(types.NOTIFY_DEBUG,
 			"term.curPos.Y >= term.size.Y (returning last cell)")
 		term.curPos.Y = term.size.Y - 1
+		term.lineFeed()
 	}
 
 	return &(*term.cells)[term.curPos.Y][term.curPos.X]

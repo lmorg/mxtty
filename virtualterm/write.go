@@ -13,13 +13,13 @@ func (term *Term) writeCell(r rune) {
 			term.curPos.X--
 
 		} else {
-			overflow := term.curPos.X - (term.size.X - 1)
 			term.curPos.X = 0
-
-			if overflow > 0 {
-				term.lineFeed()
-			}
+			term.lineFeed()
 		}
+	}
+
+	if term._insertOrReplace == _STATE_IRM_INSERT {
+		term.csiInsertCharacters(1)
 	}
 
 	cell := term.cell()
@@ -32,6 +32,16 @@ func (term *Term) writeCell(r rune) {
 	}
 
 	term.curPos.X++
+
+	/*if term.curPos.X >= term.size.X {
+		if term._noAutoLineWrap {
+			term.curPos.X--
+
+		} else {
+			term.curPos.X = 0
+			term.lineFeed()
+		}
+	}*/
 }
 
 func (term *Term) appendScrollBuf() {

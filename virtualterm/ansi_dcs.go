@@ -42,5 +42,4 @@ parsed:
 	//stack := strings.Split(string(text), ";")
 
 	log.Printf("WARNING: Unhandled DCS code %s", string(text))
-
 }

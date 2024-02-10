@@ -12,7 +12,7 @@ func (term *Term) readLoop() {
 
 	for {
 		r = term.Pty.Read()
-		term._slowBlinkState = true
+		term._slowBlinkState = false
 
 		term._mutex.Lock()
 		term.readChar(r)
@@ -64,7 +64,7 @@ func (term *Term) readChar(r rune) {
 		term.parseC1Codes()
 
 	default:
-		if r < 32 {
+		if r < ' ' {
 
 			log.Printf("WARNING: Unexpected ASCII control character (ignored): %d", r)
 			return

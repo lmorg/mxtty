@@ -37,7 +37,7 @@ func (term *Term) ReverseLineFeed() {
 }
 
 /*
-	csiMoveCursor[...] functions DON'T affect other contents in the grid
+	csiMoveCursor[...] functions DOESN'T affect other contents in the grid
 */
 
 // csiMoveCursorBackwards: -1 should default to 1.
@@ -52,7 +52,7 @@ func (term *Term) csiMoveCursorBackwards(i int32) (overflow int32) {
 
 	term.curPos.X -= i
 	if term.curPos.X < 0 {
-		overflow = term.curPos.X * -1
+		overflow = -term.curPos.X
 		term.curPos.X = 0
 	}
 
@@ -92,7 +92,7 @@ func (term *Term) csiMoveCursorUpwards(i int32) (overflow int32) {
 
 	term.curPos.Y -= i
 	if term.curPos.Y <= top {
-		overflow = term.curPos.Y * -1
+		overflow = -term.curPos.Y
 		term.curPos.Y = top
 	}
 
@@ -202,7 +202,7 @@ func (term *Term) csiScrollUp(n int32) {
 	}
 }
 
-// csiScrollUp: -1 should default to 1.
+// csiScrollDown: -1 should default to 1.
 func (term *Term) csiScrollDown(n int32) {
 	debug.Log(n)
 
@@ -212,13 +212,14 @@ func (term *Term) csiScrollDown(n int32) {
 
 	top, bottom := term.getScrollingRegion()
 
-	term._scrollDown(top, bottom, 1)
+	term._scrollDown(top, bottom, n)
 }
 
 // _scrollDown does not take into account term size nor scrolling region. Any
 // error handling should be done by the calling function.
 func (term *Term) _scrollDown(start, end, shift int32) {
 	screen := term.makeScreen()
+	//screen := make([][]types.Cell, end)
 
 	if start+shift > end {
 		shift = end - start
@@ -227,19 +228,6 @@ func (term *Term) _scrollDown(start, end, shift int32) {
 	copy(screen[start+shift:end], (*term.cells)[start:end])
 	copy((*term.cells)[start:end], screen[start:end])
 }
-
-// _scrollUp does not take into account term size nor scrolling region. Any
-// error handling should be done by the calling function.
-/*func (term *Term) _scrollUp(start, end, shift int32) {
-	screen := term.makeScreen()
-
-	if start-shift > start {
-		shift = end - start
-	}
-
-	copy(screen[start-shift:end], (*term.cells)[start:end])
-	copy((*term.cells)[start:end], screen[start:end])
-}*/
 
 /*
 	INSERT
@@ -255,15 +243,6 @@ func (term *Term) csiInsertLines(n int32) {
 
 	_, bottom := term.getScrollingRegion()
 
-	/*start := term.curPos.Y + n
-	if start > bottom {
-		start = bottom - term.curPos.Y
-	}*/
-
-	/*screen := term.makeScreen()
-
-	copy(screen[start:bottom], (*term.cells)[term.curPos.Y:bottom])
-	copy((*term.cells)[term.curPos.Y:bottom], screen[term.curPos.Y:bottom])*/
 	term._scrollDown(term.curPos.Y, bottom, n)
 }
 

@@ -32,6 +32,11 @@ func (term *Term) parseCsiCodes() {
 			continue
 		}
 
+		if r < ' ' && r != codes.AsciiEscape {
+			term.readChar(r)
+			continue
+		}
+
 		debug.Log(string(cache))
 
 		switch r {
@@ -134,14 +139,20 @@ func (term *Term) parseCsiCodes() {
 				log.Printf("WARNING: more parameters than expected for %s: %v (%s)", string(r), stack, string(cache))
 			}
 
-		//case 'h':
-		// Set Mode (SM).
-		/*
-			Ps = 2  ⇒  Keyboard Action Mode (KAM).
-			Ps = 4  ⇒  Insert Mode (IRM).
-			Ps = 1 2  ⇒  Send/receive (SRM).
-			Ps = 2 0  ⇒  Automatic Newline (LNM).
-		*/
+		case 'h':
+			// Set Mode (SM).
+			switch stack[0] {
+
+			// Ps = 2  ⇒  Keyboard Action Mode (KAM).
+
+			case 4:
+				// Insert Mode (IRM).
+				term.csiIrmInsertOrReplace(_STATE_IRM_INSERT)
+
+				// Ps = 1 2  ⇒  Send/receive (SRM).
+				// Ps = 2 0  ⇒  Automatic Newline (LNM).
+			}
+
 		case 'H':
 			// Cursor Position [row;column] (default = [1,1]) (CUP).
 			if len(stack) != 2 {
@@ -193,14 +204,19 @@ func (term *Term) parseCsiCodes() {
 				term.csiEraseLine()
 			}
 
-		//case 'l':
-		// Reset Mode (RM).
-		/*
-			Ps = 2  ⇒  Keyboard Action Mode (KAM).
-			Ps = 4  ⇒  Replace Mode (IRM).
-			Ps = 1 2  ⇒  Send/receive (SRM).
-			Ps = 2 0  ⇒  Normal Linefeed (LNM).
-		*/
+		case 'l':
+			// Reset Mode (RM).
+			switch stack[0] {
+
+			// Ps = 2  ⇒  Keyboard Action Mode (KAM).
+
+			case 4:
+				// Replace Mode (IRM).
+				term.csiIrmInsertOrReplace(_STATE_IRM_REPLACE)
+
+				// Ps = 1 2  ⇒  Send/receive (SRM).
+				// Ps = 2 0  ⇒  Normal Linefeed (LNM).
+			}
 
 		case 'L':
 			// Insert Ps Line(s) (default = 1) (IL).

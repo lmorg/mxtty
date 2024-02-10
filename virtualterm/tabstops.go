@@ -32,7 +32,7 @@ func (term *Term) nextTabStop() int32 {
 }
 
 func (term *Term) printTab() {
-	term._printTab(term.nextTabStop())
+	term._printTab(term.nextTabStop() - 1)
 }
 
 func (term *Term) _printTab(tabWidth int32) {

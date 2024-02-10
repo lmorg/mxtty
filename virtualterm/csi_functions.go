@@ -84,3 +84,7 @@ func (term *Term) csiWindowTitleStackRestoreFrom() {
 func (term *Term) csiNoAutoLineWrap(state bool) {
 	term._noAutoLineWrap = state
 }
+
+func (term *Term) csiIrmInsertOrReplace(state _stateIrmT) {
+	term._insertOrReplace = state
+}

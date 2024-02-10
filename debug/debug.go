@@ -17,8 +17,10 @@ func Log(v any) {
 	switch t := v.(type) {
 	case byte:
 		v = string(t)
+
 	case []byte:
 		v = string(t)
+
 	case []rune:
 		v = string(t)
 	}
