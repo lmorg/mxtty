@@ -37,7 +37,19 @@ func (term *Term) parseC1Codes() {
 		// APC code
 		term.parseApcCodes()
 
-	case ' ', '#', '%':
+	case '#':
+		// DEC codes
+		r := term.Pty.Read()
+		switch r {
+		case '8':
+			// DEC Screen Alignment Test (DECALN)
+			term.c1DecalnTestAlignment()
+
+		default:
+			log.Printf("TODO: Unhandled DEC C1 escape sequence: {ESC}#%s", string(r))
+		}
+
+	case ' ', '%':
 		// 7/8bit controls
 		// ANSI conformance level
 		// character set

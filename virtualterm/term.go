@@ -83,7 +83,14 @@ func (term *Term) lfRedraw() {
 
 // NewTerminal creates a new virtual term
 func NewTerminal(renderer types.Renderer) *Term {
-	size := renderer.TermSize()
+	var size *types.XY
+
+	if renderer != nil {
+		size = renderer.TermSize()
+	} else {
+		// to support testing
+		size = &types.XY{X: 80, Y: 24}
+	}
 
 	term := &Term{
 		renderer: renderer,
@@ -95,9 +102,12 @@ func NewTerminal(renderer types.Renderer) *Term {
 }
 
 func (term *Term) reset(size *types.XY) {
-	term.renderer.AddRenderFnToStack(func() {
-		term.renderer.ResizeWindow(size)
-	})
+	if term.renderer != nil {
+		term.renderer.AddRenderFnToStack(func() {
+			term.renderer.ResizeWindow(size)
+		})
+	}
+
 	term.size = size
 	term.curPos = types.XY{}
 
@@ -149,9 +159,9 @@ func (term *Term) cell() *types.Cell {
 	if term.curPos.X >= term.size.X {
 		term.renderer.DisplayNotification(types.NOTIFY_DEBUG,
 			"term.curPos.X >= term.size.X (returning last cell)")
-		//term.curPos.X = term.size.X - 1
-		term.curPos.X = 0
-		term.lineFeed()
+		term.curPos.X = term.size.X - 1
+		//term.curPos.X = 0
+		//term.lineFeed()
 	}
 
 	if term.curPos.Y >= term.size.Y {
@@ -209,4 +219,12 @@ func (term *Term) copyCell(cell *types.Cell) *types.Cell {
 
 func (term *Term) ShowCursor(v bool) {
 	term._hideCursor = !v
+}
+
+func (term *Term) c1DecalnTestAlignment() {
+	term.curPos = types.XY{} // top left
+	for i := int32(0); i < term.size.X*term.size.Y; i++ {
+		term.writeCell('E')
+	}
+	term.curPos = types.XY{} // top left
 }

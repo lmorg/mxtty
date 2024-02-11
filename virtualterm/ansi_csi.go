@@ -118,7 +118,7 @@ func (term *Term) parseCsiCodes() {
 			*/
 			switch *n {
 			case -1, 0:
-				term.csiClearTab()
+				term.csiClearTabStop()
 			case 3:
 				term.csiResetTabStops()
 			default:
