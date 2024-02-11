@@ -168,7 +168,7 @@ func (term *Term) cell() *types.Cell {
 		term.renderer.DisplayNotification(types.NOTIFY_DEBUG,
 			"term.curPos.Y >= term.size.Y (returning last cell)")
 		term.curPos.Y = term.size.Y - 1
-		term.lineFeed()
+		//term.lineFeed()
 	}
 
 	return &(*term.cells)[term.curPos.Y][term.curPos.X]

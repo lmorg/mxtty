@@ -68,47 +68,47 @@ only aspirational.
 
 - C0 codes
   - [x] common: can run most CLI applications
-  - [ ] broad: can run more older or more CLI applications
+  - [ ] broad: can run older or more complicated CLI applications
   - [ ] xterm compatibility
 - C1 codes
   - [x] common: can run most CLI applications
   - [ ] broad: can run older or more CLI applications
   - [ ] xterm compatible
 - CSI codes
-  - [ ] common: can run most CLI applications
-  - [ ] broad: can run more older or more CLI applications
+  - [x] common: can run most CLI applications
+  - [x] broad: can run older or more complicated CLI applications
   - [ ] xterm compatible
 - SGR codes
   - [x] common: can run most CLI applications
-  - [x] broad: can run more older or more CLI applications
+  - [x] broad: can run older or more complicated CLI applications
   - [ ] xterm compatible
 - OSC codes
   - [x] common: can run most CLI applications
-  - [x] broad: can run more older or more CLI applications
+  - [x] broad: can run older or more complicated CLI applications
   - [ ] xterm compatible
 - DCS codes
   - [ ] common: can run most CLI applications
-  - [ ] broad: can run more older or more CLI applications
+  - [ ] broad: can run older or more complicated CLI applications
   - [ ] xterm compatible
 - PM codes (out of scope)
   - [x] common: can run most CLI applications
-  - [x] broad: can run more older or more CLI applications
+  - [x] broad: can run older or more complicated CLI applications
   - [x] xterm compatible
 - [x] runs `tmux` glitch-free
-- [ ] runs `vim` glitch-free
+- [x] runs `vim` glitch-free
 - mouse support
   - [ ] common: can run most CLI applications
-  - [ ] broad: can run more older or more CLI applications
+  - [ ] broad: can run older or more complicated CLI applications
   - [ ] xterm compatible
 - [ ] alt character sets
 - [ ] wide characters
 - [ ] resize support
-- [ ] scrollback history
+- [x] scrollback history
 
 #### extended features
 
 - inlining images
-  - [ ] own API?
+  - [x] own API
   - [ ] iterm2 compatible
   - [ ] sixel compatible
 - [ ] hyperlink support
@@ -120,7 +120,7 @@ only aspirational.
   - [ ] alpha: available but expect changes to the API
   - [ ] stable: available to use in Murex
 - table sorting
-  - [ ] alpha: available but expect changes to the API
+  - [x] alpha: available but expect changes to the API
   - [ ] stable: available to use in Murex
 
 #### application customisation
@@ -136,7 +136,7 @@ only aspirational.
 Support for the following platforms is planned:
 
 - Linux
-  - [x] ArchLinux
+  - [x] Arch
   - [ ] Ubuntu
   - [ ] Rocky
 - BSD
@@ -147,6 +147,7 @@ Support for the following platforms is planned:
 - [x] macOS
 - [ ] Windows
 
+(checked boxes has tested)
 
 ## How To Support
 

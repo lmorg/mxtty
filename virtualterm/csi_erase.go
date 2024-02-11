@@ -13,30 +13,24 @@ func (term *Term) csiEraseDisplayAfter() {
 	debug.Log(term.curPos)
 
 	for y := term.curPos.Y; y < term.size.Y; y++ {
-		for x := int32(0); x < term.size.X; x++ {
-			(*term.cells)[y][x].Clear()
-		}
+		(*term.cells)[y] = term.makeRow()
 	}
 }
 
 func (term *Term) csiEraseDisplayBefore() {
 	debug.Log(term.curPos)
 
-	for y := term.curPos.Y; y >= 0; y-- {
-		for x := int32(0); x >= 0; x-- {
-			(*term.cells)[y][x].Clear()
-		}
+	for y := term.curPos.Y - 1; y >= 0; y-- {
+		(*term.cells)[y] = term.makeRow()
 	}
 }
 
 func (term *Term) csiEraseDisplay() {
 	debug.Log(term.curPos)
 
-	var x, y int32
+	var y int32
 	for ; y < term.size.Y; y++ {
-		for x = 0; x < term.size.X; x++ {
-			(*term.cells)[y][x].Clear()
-		}
+		(*term.cells)[y] = term.makeRow()
 	}
 }
 
@@ -47,26 +41,23 @@ func (term *Term) csiEraseDisplay() {
 func (term *Term) csiEraseLineAfter() {
 	debug.Log(term.curPos)
 
-	for x := term.curPos.X; x < term.size.X; x++ {
-		(*term.cells)[term.curPos.Y][x].Clear()
-	}
+	n := term.size.X - term.curPos.X
+	clear := make([]types.Cell, n)
+	copy((*term.cells)[term.curPos.Y][term.curPos.X+1:], clear)
 }
 
 func (term *Term) csiEraseLineBefore() {
 	debug.Log(term.curPos)
 
-	for x := term.curPos.X; x >= 0; x-- {
-		(*term.cells)[term.curPos.Y][x].Clear()
-	}
+	n := term.curPos.X
+	clear := make([]types.Cell, n)
+	copy((*term.cells)[term.curPos.Y], clear)
 }
 
 func (term *Term) csiEraseLine() {
 	debug.Log(term.curPos)
 
-	var x int32
-	for ; x < term.size.X; x++ {
-		(*term.cells)[term.curPos.Y][x].Clear()
-	}
+	(*term.cells)[term.curPos.Y] = term.makeRow()
 }
 
 /*
@@ -95,17 +86,10 @@ func (term *Term) csiDeleteCharacters(n int32) {
 		n = 1
 	}
 
-	if term.curPos.X+n >= term.size.X {
-		n = term.size.X - term.curPos.X
-	}
+	copy((*term.cells)[term.curPos.Y][term.curPos.X:], (*term.cells)[term.curPos.Y][term.curPos.X+n:])
+	blank := make([]types.Cell, n)
+	copy((*term.cells)[term.curPos.Y][term.size.X-n:], blank)
 
-	for i := int32(0); i < term.size.X-term.curPos.X; i++ {
-		if term.curPos.X+i+n < term.size.X {
-			(*term.cells)[term.curPos.Y][term.curPos.X+i] = (*term.cells)[term.curPos.Y][term.curPos.X+i+n]
-		} else {
-			(*term.cells)[term.curPos.Y][term.curPos.X+i].Clear()
-		}
-	}
 }
 
 func (term *Term) csiDeleteLines(n int32) {
