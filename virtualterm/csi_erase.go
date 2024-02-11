@@ -2,6 +2,7 @@ package virtualterm
 
 import (
 	"github.com/lmorg/mxtty/debug"
+	"github.com/lmorg/mxtty/types"
 )
 
 /*
@@ -68,18 +69,19 @@ func (term *Term) csiEraseLine() {
 	}
 }
 
+/*
+	ERASE CHARACTERS
+*/
+
 func (term *Term) csiEraseCharacters(n int32) {
 	debug.Log(n)
 
 	if n < 1 {
 		n = 1
 	}
-	if term.curPos.X+n >= term.size.X {
-		n = term.size.X - term.curPos.X
-	}
-	for x := int32(0); x < n; x++ {
-		(*term.cells)[term.curPos.Y][x].Clear()
-	}
+
+	clear := make([]types.Cell, n)
+	copy((*term.cells)[term.curPos.Y][term.curPos.X:], clear)
 }
 
 /*

@@ -48,18 +48,16 @@ func (term *Term) parseCsiCodes() {
 			//Character Position Relative  [columns] (default = [row,col+1]) (HPR).
 			term.csiMoveCursorForwards(*n)
 
-		case 'A', 'F':
+		case 'A':
 			// Cursor Up Ps Times (default = 1) (CUU).
-			// Cursor Preceding Line Ps Times (default = 1) (CPL).
 			term.csiMoveCursorUpwards(*n)
 
 		case 'b':
 			// Repeat the preceding graphic character Ps times (REP).
 			term.csiRepeatPreceding(*n)
 
-		case 'B', 'E':
+		case 'B':
 			// Cursor Down Ps Times (default = 1) (CUD).
-			// Cursor Next Line Ps Times (default = 1) (CNL).
 			term.csiMoveCursorDownwards(*n)
 
 		case 'c':
@@ -94,6 +92,11 @@ func (term *Term) parseCsiCodes() {
 			// Line Position Relative  [rows] (default = [row+1,column]) (VPR).
 			term.csiMoveCursorDownwards(*n)
 
+		case 'E':
+			// Cursor Next Line Ps Times (default = 1) (CNL).
+			term.csiMoveCursorDownwards(*n)
+			term.curPos.X = 0
+
 		case 'f':
 			// Horizontal and Vertical Position [row;column] (default = [1,1]) (HVP).
 			switch len(stack) {
@@ -107,6 +110,11 @@ func (term *Term) parseCsiCodes() {
 				term.csiMoveCursorToPos(stack[1]-1, stack[0]-1)
 				log.Printf("WARNING: more parameters than expected for %s: %v (%s)", string(r), stack, string(cache))
 			}
+
+		case 'F':
+			// Cursor Preceding Line Ps Times (default = 1) (CPL).
+			term.csiMoveCursorUpwards(*n)
+			term.curPos.X = 0
 
 		case 'g':
 			// Tab Clear (TBC).  ECMA-48 defines additional codes, but the
