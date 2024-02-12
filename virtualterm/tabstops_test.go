@@ -34,7 +34,7 @@ func TestAddClearTabStop(t *testing.T) {
 		},
 	}
 
-	expected := "[1 8 9 16 23 24 32 40 48 50 56 64 72]"
+	expected := "[1 9 23 50]"
 
 	for _, test := range tests {
 		term.curPos.X = test.CurPos

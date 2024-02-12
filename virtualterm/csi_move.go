@@ -190,7 +190,9 @@ func (term *Term) csiScrollUp(n int32) {
 	top, bottom := term.getScrollingRegion()
 
 	if n > bottom-top {
-		n = bottom - top
+		screen := term.makeScreen()
+		copy((*term.cells)[top:bottom+1], screen)
+		return
 	}
 
 	for i := top; i <= bottom; i++ {
@@ -217,16 +219,16 @@ func (term *Term) csiScrollDown(n int32) {
 
 // _scrollDown does not take into account term size nor scrolling region. Any
 // error handling should be done by the calling function.
-func (term *Term) _scrollDown(start, end, shift int32) {
+func (term *Term) _scrollDown(top, bottom, shift int32) {
 	screen := term.makeScreen()
-	//screen := make([][]types.Cell, end)
 
-	if start+shift > end {
-		shift = end - start
+	if top+shift > bottom {
+		copy((*term.cells)[top:bottom+1], screen)
+		return
 	}
 
-	copy(screen[start+shift:end], (*term.cells)[start:end])
-	copy((*term.cells)[start:end], screen[start:end])
+	copy(screen[top+shift:], (*term.cells)[top:bottom+1])
+	copy((*term.cells)[top:], screen[top:bottom+1])
 }
 
 /*

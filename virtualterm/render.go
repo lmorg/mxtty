@@ -91,3 +91,28 @@ func (term *Term) _blinkCursor() {
 		log.Printf("ERROR: error in %s [cursorBlink]: %s", "(t *Term) _blinkCursor()", err.Error())
 	}
 }
+
+func (term *Term) exportAsString() string {
+	//term._mutex.Lock()
+	//defer term._mutex.Unlock()
+
+	var (
+		r = make([]rune, (term.size.X*term.size.Y)+term.size.Y)
+		i int
+	)
+
+	for y := range *term.cells {
+		for x := range (*term.cells)[y] {
+			if (*term.cells)[y][x].Char > 0 {
+				r[i] = (*term.cells)[y][x].Char
+			} else {
+				r[i] = '·'
+			}
+			i++
+		}
+		r[i] = '\n'
+		i++
+	}
+
+	return string(r)
+}

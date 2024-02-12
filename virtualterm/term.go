@@ -89,7 +89,7 @@ func NewTerminal(renderer types.Renderer) *Term {
 		size = renderer.TermSize()
 	} else {
 		// to support testing
-		size = &types.XY{X: 80, Y: 24}
+		size = &types.XY{X: 10, Y: 4}
 	}
 
 	term := &Term{
