@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-const Enabled = true
+const Enabled = false
 
 func Log(v any) {
 	if !Enabled {

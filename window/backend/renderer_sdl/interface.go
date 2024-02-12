@@ -2,7 +2,6 @@ package rendersdl
 
 import (
 	"sync/atomic"
-	"time"
 
 	"github.com/lmorg/mxtty/types"
 	"github.com/lmorg/mxtty/window/backend/typeface"
@@ -54,8 +53,11 @@ type sdlRender struct {
 	blinkState bool
 }
 
-func (sr *sdlRender) triggerQuit()   { sr._quit <- true }
-func (sr *sdlRender) TriggerRedraw() { sr._redraw <- true }
+func (sr *sdlRender) TriggerQuit()  { go sr._triggerQuit() }
+func (sr *sdlRender) _triggerQuit() { sr._quit <- true }
+
+func (sr *sdlRender) TriggerRedraw()  { go sr._triggerRedraw() }
+func (sr *sdlRender) _triggerRedraw() { sr._redraw <- true }
 
 func (sr *sdlRender) TermSize() *types.XY {
 	return sr.termSize
@@ -107,12 +109,4 @@ func (sr *sdlRender) ResizeWindow(size *types.XY) {
 	w := (size.X * sr.glyphSize.X) + (sr.border * 2)
 	h := (size.Y * sr.glyphSize.Y) + (sr.border * 2)
 	sr.window.SetSize(w, h)
-}
-
-func (sr *sdlRender) blinkLoop() {
-	for {
-		time.Sleep(500 * time.Millisecond)
-		sr.blinkState = !sr.blinkState
-		sr.TriggerRedraw()
-	}
 }

@@ -113,7 +113,6 @@ func (sr *sdlRender) getTermSize() *types.XY {
 
 func (sr *sdlRender) Start(term types.Term) {
 	sr.term = term
-	go sr.blinkLoop()
 
 	for {
 
@@ -121,27 +120,27 @@ func (sr *sdlRender) Start(term types.Term) {
 			switch evt := event.(type) {
 
 			case *sdl.QuitEvent:
-				go sr.triggerQuit()
+				sr.TriggerQuit()
 
 			case *sdl.WindowEvent:
 				sr.eventWindow(evt)
-				go sr.TriggerRedraw()
+				sr.TriggerRedraw()
 
 			case *sdl.TextInputEvent:
 				sr.eventTextInput(evt)
-				go sr.TriggerRedraw()
+				sr.TriggerRedraw()
 
 			case *sdl.KeyboardEvent:
 				sr.eventKeyPress(evt)
-				go sr.TriggerRedraw()
+				sr.TriggerRedraw()
 
 			case *sdl.MouseButtonEvent:
 				sr.eventMouseButton(evt)
-				go sr.TriggerRedraw()
+				sr.TriggerRedraw()
 
 			case *sdl.MouseWheelEvent:
 				sr.eventMouseWheel(evt)
-				go sr.TriggerRedraw()
+				sr.TriggerRedraw()
 			}
 		}
 

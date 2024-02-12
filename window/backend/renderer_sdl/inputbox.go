@@ -1,6 +1,8 @@
 package rendersdl
 
 import (
+	"time"
+
 	"github.com/lmorg/mxtty/types"
 	"github.com/veandco/go-sdl2/sdl"
 )
@@ -16,6 +18,7 @@ func (sr *sdlRender) DisplayInputBox(message string, defaultValue string, callba
 	sr.inputBoxCallback = callback
 	sr.inputBoxValue = defaultValue
 	sr.term.ShowCursor(false)
+	go sr.inputBoxCursorBlink()
 }
 
 func (sr *sdlRender) closeInputBox() {
@@ -171,5 +174,16 @@ func (sr *sdlRender) renderInputBox(windowRect *sdl.Rect) {
 			H: sr.glyphSize.Y,
 		}
 		sr.renderer.FillRect(&rect)
+	}
+}
+
+func (sr *sdlRender) inputBoxCursorBlink() {
+	for {
+		time.Sleep(500 * time.Millisecond)
+		sr.blinkState = !sr.blinkState
+		sr.TriggerRedraw()
+		if !sr.inputBoxActive {
+			return
+		}
 	}
 }
