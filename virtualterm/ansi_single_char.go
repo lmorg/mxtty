@@ -61,11 +61,15 @@ func (term *Term) readChar(r rune) {
 
 	case codes.AsciiEscape:
 		// 27: escape, {ESC}
-		term.parseC1Codes()
+		switch term._vtMode {
+		case _VT52:
+			term.parseVt52Codes()
+		default:
+			term.parseC1Codes()
+		}
 
 	default:
 		if r < ' ' {
-
 			log.Printf("WARNING: Unexpected ASCII control character (ignored): %d", r)
 			return
 		}

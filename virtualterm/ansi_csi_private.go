@@ -50,6 +50,10 @@ func lookupPrivateCsi(term *Term, code []rune) {
 
 	case 'l':
 		switch param {
+		case "2":
+			// Designate VT52 mode (DECANM), VT100.
+			term._vtMode = _VT52
+
 		case "3":
 			// 80 Column Mode (DECCOLM), VT100.
 			term.resize80()

@@ -12,7 +12,7 @@ import (
 func (term *Term) csiEraseDisplayAfter() {
 	debug.Log(term.curPos)
 
-	for y := term.curPos.Y; y < term.size.Y; y++ {
+	for y := term.curPos.Y + 1; y < term.size.Y; y++ {
 		(*term.cells)[y] = term.makeRow()
 	}
 	term.csiEraseLineAfter()
@@ -45,13 +45,13 @@ func (term *Term) csiEraseLineAfter() {
 
 	n := term.size.X - term.curPos.X
 	clear := make([]types.Cell, n)
-	copy((*term.cells)[term.curPos.Y][term.curPos.X+1:], clear)
+	copy((*term.cells)[term.curPos.Y][term.curPos.X:], clear)
 }
 
 func (term *Term) csiEraseLineBefore() {
 	debug.Log(term.curPos)
 
-	n := term.curPos.X
+	n := term.curPos.X + 1
 	clear := make([]types.Cell, n)
 	copy((*term.cells)[term.curPos.Y], clear)
 }
@@ -103,15 +103,5 @@ func (term *Term) csiDeleteLines(n int32) {
 
 	_, bottom := term.getScrollingRegion()
 
-	if term.curPos.Y+n >= bottom {
-		n = bottom - term.curPos.Y
-	}
-
-	for i := int32(0); i < bottom-term.curPos.Y; i++ {
-		if term.curPos.Y+i+n <= bottom {
-			(*term.cells)[term.curPos.Y+i] = (*term.cells)[term.curPos.Y]
-		} else {
-			(*term.cells)[term.curPos.Y] = term.makeRow()
-		}
-	}
+	term._scrollUp(term.curPos.Y, bottom, n)
 }

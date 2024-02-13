@@ -53,6 +53,7 @@ type Term struct {
 	_scrollRegion *scrollRegionT
 
 	// state
+	_vtMode          _stateVtMode
 	_activeElement   types.Element
 	_slowBlinkState  bool
 	_insertOrReplace _stateIrmT
@@ -61,6 +62,14 @@ type Term struct {
 	_windowTitleStack []string
 	_noAutoLineWrap   bool // No Auto-Wrap Mode (DECAWM), VT100.
 }
+
+type _stateVtMode int
+
+const (
+	_VT100   = 0
+	_VT52    = 1
+	_TEK4014 = 2
+)
 
 type _stateIrmT int
 
