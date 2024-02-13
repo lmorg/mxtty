@@ -5,10 +5,15 @@
 - [Multimedia Terminal Emulator](#multimedia-terminal-emulator)
 - [How It Works](#how-it-works)
 - [Whats Left To Do](#whats-left-to-do)
-  - [Compatibility Guide](#compatibility-guide)
-    - [Escape Codes](#escape-codes)
-    - [Application Support](#application-support)
-    - [Supported Platforms](#supported-platforms)
+  - [Escape Codes](#escape-codes)
+    - [VT100](#vt100)
+    - [VT52 mode](#vt52-mode)
+    - [Tektronix 4014 mode](#tektronix-4014-mode)
+    - [Window management codes](#window-management-codes)
+    - [Common application support](#common-application-support)
+    - [Extended features](#extended-features)
+  - [Application Usability](#application-usability)
+- [Supported Platforms](#supported-platforms)
 - [Install Guide](#install-guide)
 - [How To Support](#how-to-support)
 
@@ -60,58 +65,68 @@ without breaking compatibility for legacy terminal emulators.
 
 ## Whats Left To Do
 
-In short, pretty much everything. Most of what has been detailed above is still
-only aspirational.
+In short, _a lot_!! Some of what has been detailed above is still aspirational.
+Some of it has already been delivered but in a _very_ alpha state. And while
+there is lots of error handling and unit tests, test coverage is still pretty
+low and exceptions will crash the terminal (quite deliberately, because I want
+to see where the application fails).
 
-### Compatibility Guide
+Below is a high level TODO list of features and compatibility.
 
-#### Escape Codes
+### Escape Codes
 
-- VT100
-  - C1 codes
-    - [x] common: can run most CLI applications
-    - [ ] broad: can run older or more CLI applications
-    - [ ] xterm compatible
-  - CSI codes
-    - [x] common: can run most CLI applications
-    - [x] broad: can run older or more complicated CLI applications
-    - [ ] xterm compatible
-  - SGR codes
-    - [x] common: can run most CLI applications
-    - [x] broad: can run older or more complicated CLI applications
-    - [ ] xterm compatible
-  - OSC codes
-    - [x] common: can run most CLI applications
-    - [x] broad: can run older or more complicated CLI applications
-    - [ ] xterm compatible
-  - DCS codes
-    - [ ] common: can run most CLI applications
-    - [ ] broad: can run older or more complicated CLI applications
-    - [ ] xterm compatible
-  - PM codes (out of scope)
-    - [x] common: can run most CLI applications
-    - [x] broad: can run older or more complicated CLI applications
-    - [x] xterm compatible
-  - [ ] Alt character sets
-  - [ ] Wide characters
-  - Mouse tracking
-    - [ ] common: can run most CLI applications
-    - [ ] broad: can run older or more complicated CLI applications
-    - [ ] xterm compatible
-    - [ ] Hyperlink support
-    - [ ] Bracketed paste mode
+#### VT100
 
-- VT52 mode
-  - [x] cursor movements
-  - [ ] special modes
+- C1 codes
+  - [x] common: can run most CLI applications
+  - [ ] broad: can run older or more CLI applications
+  - [ ] xterm compatible
+- CSI codes
+  - [x] common: can run most CLI applications
+  - [x] broad: can run older or more complicated CLI applications
+  - [ ] xterm compatible
+- SGR codes
+  - [x] common: can run most CLI applications
+  - [x] broad: can run older or more complicated CLI applications
+  - [ ] xterm compatible
+- OSC codes
+  - [x] common: can run most CLI applications
+  - [x] broad: can run older or more complicated CLI applications
+  - [ ] xterm compatible
+- DCS codes
+  - [ ] common: can run most CLI applications
+  - [ ] broad: can run older or more complicated CLI applications
+  - [ ] xterm compatible
+- PM codes (out of scope)
+  - [x] common: can run most CLI applications
+  - [x] broad: can run older or more complicated CLI applications
+  - [x] xterm compatible
+- [ ] Alt character sets
+- [ ] Wide characters
+- Mouse tracking
+  - [ ] common: can run most CLI applications
+  - [ ] broad: can run older or more complicated CLI applications
+  - [ ] xterm compatible
 
-- [ ] Tektronix 4014 mode
+#### VT52 mode
 
-- [ ] `xterm` codes
-  - [ ] Window management
-    - [x] titlebar can be changed
-    - [ ] window can be moved and resized
-    - [ ] window can be minimized and restored
+- [x] cursor movements
+- [ ] special modes
+
+#### Tektronix 4014 mode
+
+- [ ] graphics plotting
+- [ ] text rendering
+  
+#### Window management codes
+
+eg `xterm` and similar terminal emulators
+
+- [x] titlebar can be changed
+- [ ] window can be moved and resized
+- [ ] window can be minimized and restored
+
+#### Common application support
 
 - [ ] Supports `tmux`
   - [x] usable
@@ -119,7 +134,14 @@ only aspirational.
 - [ ] Supports `vim`
   - [x] usable
   - [ ] glitch-free
+- [x] Supports `murex`
+  - [x] usable
+  - [x] glitch-free
 
+#### Extended features
+
+- [ ] Hyperlink support
+- [ ] Bracketed paste mode
 - Inlining images
   - [x] mxtty codes
   - [ ] iterm2 compatible
@@ -132,17 +154,20 @@ only aspirational.
   - [x] alpha: available but expect changes to the API
   - [ ] stable: available to use in Murex
 
-#### Application Support
+### Application Usability
 
 - [ ] Terminal can be resized
 - [x] Scrollback history
+  - [x] usability hints added
+  - [ ] discoverability hints added
 - [ ] Typeface can be changed
 - [ ] Colour scheme can be changed
 - [ ] Bell can be changed
 - [ ] Default term size can be changed
 - [ ] Default command / shell can be changed
 
-#### Supported Platforms
+
+## Supported Platforms
 
 Support for the following platforms is planned:
 
@@ -169,7 +194,10 @@ Currently mxtty can only be compiled from source.
 To do so you will need the following installed:
 - C compiler (eg gnu c)
 - Go compiler
-- SDL libraries 
+- SDL libraries
+
+Aside from that, it's as easy as running `go build .` from the git repository
+root directory.
 
 ## How To Support
 
