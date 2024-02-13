@@ -33,7 +33,7 @@ func (term *Term) writeCell(r rune) {
 
 	term.curPos.X++
 
-	/*if term.curPos.X > term.size.X {
+	/*if term.curPos.X >= term.size.X {
 		if term._noAutoLineWrap {
 			term.curPos.X--
 

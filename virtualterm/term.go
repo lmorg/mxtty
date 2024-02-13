@@ -220,11 +220,3 @@ func (term *Term) copyCell(cell *types.Cell) *types.Cell {
 func (term *Term) ShowCursor(v bool) {
 	term._hideCursor = !v
 }
-
-func (term *Term) c1DecalnTestAlignment() {
-	term.curPos = types.XY{} // top left
-	for i := int32(0); i < term.size.X*term.size.Y; i++ {
-		term.writeCell('E')
-	}
-	term.curPos = types.XY{} // top left
-}

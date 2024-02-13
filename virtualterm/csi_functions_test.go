@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestCsiSRepeatPreceding(t *testing.T) {
+func TestCsiRepeatPreceding(t *testing.T) {
 	test := testTerm{
 		Tests: []testCondition{
 			{

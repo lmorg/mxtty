@@ -15,6 +15,7 @@ func (term *Term) csiEraseDisplayAfter() {
 	for y := term.curPos.Y; y < term.size.Y; y++ {
 		(*term.cells)[y] = term.makeRow()
 	}
+	term.csiEraseLineAfter()
 }
 
 func (term *Term) csiEraseDisplayBefore() {
@@ -23,6 +24,7 @@ func (term *Term) csiEraseDisplayBefore() {
 	for y := term.curPos.Y - 1; y >= 0; y-- {
 		(*term.cells)[y] = term.makeRow()
 	}
+	term.csiEraseLineBefore()
 }
 
 func (term *Term) csiEraseDisplay() {
