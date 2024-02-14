@@ -6,7 +6,7 @@ import (
 )
 
 func TestAddClearTabStop(t *testing.T) {
-	term := NewTerminal(nil)
+	term := NewTestTerminal()
 
 	tests := []struct {
 		CurPos int32
@@ -51,7 +51,7 @@ func TestAddClearTabStop(t *testing.T) {
 }
 
 func TestNextTabStop(t *testing.T) {
-	term := NewTerminal(nil)
+	term := NewTestTerminal()
 
 	tests := []struct {
 		CurPos   int32

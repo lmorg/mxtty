@@ -208,7 +208,7 @@ func (term *Term) _scrollUp(top, bottom, shift int32) {
 func (term *Term) csiScrollDown(n int32) {
 	debug.Log(n)
 
-	if n < 0 {
+	if n < 1 {
 		n = 1
 	}
 

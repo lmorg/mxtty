@@ -104,9 +104,6 @@ func NewTerminal(renderer types.Renderer) *Term {
 
 	if renderer != nil {
 		size = renderer.TermSize()
-	} else {
-		// to support testing
-		size = &types.XY{X: 10, Y: 4}
 	}
 
 	term := &Term{
@@ -189,6 +186,11 @@ func (term *Term) cell() *types.Cell {
 		term.curPos.Y = term.size.Y - 1
 		//term.lineFeed()
 	}*/
+
+	if term.curPos.X >= term.size.X {
+		term.curPos.X = 0
+		term.lineFeed()
+	}
 
 	return &(*term.cells)[term.curPos.Y][term.curPos.X]
 }

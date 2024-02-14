@@ -44,9 +44,8 @@ func (term *Term) exec(command string) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Noctty:  false,
 		Setctty: true,
-		//Ctty:    cmd.Process.Pid,
+		//Ctty:    int(term.Pty.File().Fd()),
 		//Setpgid: true,
-		//Pgid:    cmd.Process.Pid,
 		Setsid: true,
 	}
 
@@ -55,7 +54,7 @@ func (term *Term) exec(command string) {
 		panic(err.Error())
 	}
 
-	cmd.SysProcAttr.Ctty = cmd.Process.Pid
+	//cmd.SysProcAttr.Ctty = cmd.Process.Pid
 	cmd.SysProcAttr.Pgid = cmd.Process.Pid
 
 	err = cmd.Wait()

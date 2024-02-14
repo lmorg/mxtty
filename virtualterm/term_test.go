@@ -1,9 +1,25 @@
 package virtualterm
 
 import (
+	"bytes"
 	"strings"
 	"testing"
+
+	"github.com/lmorg/mxtty/types"
 )
+
+const _testTermHeight = 5
+
+// NewTestTerminal creates a new virtual term used for unit tests
+func NewTestTerminal() *Term {
+	size := &types.XY{X: 10, Y: _testTermHeight}
+
+	term := &Term{}
+
+	term.reset(size)
+
+	return term
+}
 
 type testCondition struct {
 	Screen    string
@@ -20,7 +36,7 @@ func (tt *testTerm) RunTests(t *testing.T) {
 	t.Helper()
 
 	for i, test := range tt.Tests {
-		term := NewTerminal(nil)
+		term := NewTestTerminal()
 		term._lfEnabled = false
 
 		for _, r := range test.Screen {
@@ -53,8 +69,10 @@ func (tt *testTerm) RunTests(t *testing.T) {
 	}
 }
 
+var _padding = bytes.Repeat([]byte("..........\n"), _testTermHeight)
+
 func _pad(s string) string {
-	padded := []byte("..........\n..........\n..........\n..........\n")
+	padded := bytes.Clone(_padding)
 	copy(padded, s)
 	return string(padded)
 }
