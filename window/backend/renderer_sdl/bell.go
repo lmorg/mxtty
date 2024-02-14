@@ -41,6 +41,10 @@ func (sr *sdlRender) initBell() {
 }
 
 func (sr *sdlRender) Bell() {
+	go sr._bell()
+}
+
+func (sr *sdlRender) _bell() {
 	err := sr.bell.Play(1)
 	if err != nil {
 		sr.DisplayNotification(types.NOTIFY_ERROR,

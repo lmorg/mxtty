@@ -31,33 +31,42 @@ func (term *Term) readChar(r rune) {
 
 	switch r {
 
-	case codes.AsciiCtrlG:
-		// 7: {BELL}
-		go term.renderer.Bell()
+	case 7:
+		// Ctrl+G: Bell (BELL)
+		term.renderer.Bell()
 
-	case codes.IsoBackspace, codes.AsciiBackspace:
-		// 8 / 127
+	case 8, 127:
+		// Backspace (BS) aka ^H
+		// Delete (DEL) aka ^?
 		_ = term.csiMoveCursorBackwards(1)
 
-	case codes.AsciiTab:
-		// 9: horizontal tab, \t
+	case 9:
+		// Ctrl+I: Horizontal Tab (HT) aka \t
 		term.printTab()
 
-	case codes.AsciiCtrlJ:
-		// 10: line feed, \n
+	case 10:
+		// Ctrl+J: Line Feed (LF) aka \n
 		term.lineFeed()
 
-	case codes.AsciiCtrlK:
-		// 11: vertical tab
+	case 11:
+		// Ctrl+K: Vertical Tab:
 		term.lineFeed()
 
-	case codes.AsciiCtrlL:
-		// 12: form feed
+	case 12:
+		// Ctrl+L: Form Feed (FF)
 		term.lineFeed()
 
-	case codes.AsciiCtrlM:
-		// 13: carriage return, \r
+	case 13:
+		// Ctrl+M: Carriage Return (CR) aka \r
 		term.carriageReturn()
+
+	case 14:
+		// Ctrl+N: Shift Out (SO)
+		term._activeCharSet = 1
+
+	case 15:
+		// Ctrl+O: Shift In (SI)
+		term._activeCharSet = 0
 
 	case codes.AsciiEscape:
 		// 27: escape, {ESC}
@@ -73,6 +82,15 @@ func (term *Term) readChar(r rune) {
 			log.Printf("WARNING: Unexpected ASCII control character (ignored): %d", r)
 			return
 		}
+
+		if term._charSetG[term._activeCharSet] != nil {
+			char := term._charSetG[term._activeCharSet][r]
+			if char != 0 {
+				term.writeCell(char)
+				return
+			}
+		}
+
 		term.writeCell(r)
 	}
 }

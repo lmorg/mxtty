@@ -31,7 +31,7 @@ func (sr *sdlRender) eventKeyPress(evt *sdl.KeyboardEvent) {
 			if sr.inputBoxValue != "" {
 				sr.inputBoxValue = sr.inputBoxValue[:len(sr.inputBoxValue)-1]
 			} else {
-				go sr.Bell()
+				sr.Bell()
 			}
 		}
 		return

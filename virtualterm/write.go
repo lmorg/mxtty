@@ -8,7 +8,7 @@ import (
 func (term *Term) writeCell(r rune) {
 	//debug.Log(term.curPos)
 
-	if term.curPos.X >= term.size.X {
+	/*if term.curPos.X >= term.size.X {
 		if term._noAutoLineWrap {
 			term.curPos.X--
 
@@ -16,7 +16,7 @@ func (term *Term) writeCell(r rune) {
 			term.curPos.X = 0
 			term.lineFeed()
 		}
-	}
+	}*/
 
 	if term._insertOrReplace == _STATE_IRM_INSERT {
 		term.csiInsertCharacters(1)
@@ -33,7 +33,7 @@ func (term *Term) writeCell(r rune) {
 
 	term.curPos.X++
 
-	/*if term.curPos.X >= term.size.X {
+	if term.curPos.X >= term.size.X {
 		if term._noAutoLineWrap {
 			term.curPos.X--
 
@@ -41,7 +41,7 @@ func (term *Term) writeCell(r rune) {
 			term.curPos.X = 0
 			term.lineFeed()
 		}
-	}*/
+	}
 }
 
 func (term *Term) appendScrollBuf() {

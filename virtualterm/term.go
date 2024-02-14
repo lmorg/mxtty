@@ -3,22 +3,26 @@ package virtualterm
 import (
 	"sync"
 
+	"github.com/lmorg/mxtty/charset"
 	"github.com/lmorg/mxtty/types"
 )
 
 /*
 	The virtual terminal emulator
 
-	There is a distinct lack of unit tests in this package. That should change
-	however it is worth noting that 9/10ths of the problem is understanding
-	_what_ correct behaviour should look like, as opposed to any logic itself
-	being complex. Therefore this package has has extensive manual testing
-	against it via the following CLI applications:
+	There is a distinct lack of unit tests in this package. That will change
+	over time, however it is worth noting that the hardest part of the problem
+	is understanding _what_ correct behaviour should look like, as opposed to
+	any logic itself being complex. Therefore this package has has extensive
+	manual testing against it via the following CLI applications:
 	- vttest: https://invisible-island.net/vttest/vttest.html
 	- vim
 	- tmux
 	- murex: https://murex.rocks
 	- bash
+
+	...as well as heavy reliance on documentation, as described in each source
+	file.
 */
 
 // Term is the display state of the virtual term
@@ -57,6 +61,10 @@ type Term struct {
 	_activeElement   types.Element
 	_slowBlinkState  bool
 	_insertOrReplace _stateIrmT
+
+	// character sets
+	_activeCharSet int
+	_charSetG      [4]map[rune]rune
 
 	// misc CSI configs
 	_windowTitleStack []string
@@ -131,6 +139,8 @@ func (term *Term) reset(size *types.XY) {
 
 	term.sgr = types.SGR_DEFAULT.Copy()
 
+	term._charSetG[1] = charset.DecSpecialChar
+
 	term._lfFrequency = 2
 	term._lfEnabled = true
 }
@@ -152,7 +162,7 @@ func (term *Term) GetSize() *types.XY {
 }
 
 func (term *Term) cell() *types.Cell {
-	if term.curPos.X < 0 {
+	/*if term.curPos.X < 0 {
 		term.renderer.DisplayNotification(types.NOTIFY_DEBUG,
 			"term.curPos.X < 0 (returning first cell)")
 		term.curPos.X = 0
@@ -178,7 +188,7 @@ func (term *Term) cell() *types.Cell {
 			"term.curPos.Y >= term.size.Y (returning last cell)")
 		term.curPos.Y = term.size.Y - 1
 		//term.lineFeed()
-	}
+	}*/
 
 	return &(*term.cells)[term.curPos.Y][term.curPos.X]
 }

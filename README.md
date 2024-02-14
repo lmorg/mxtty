@@ -10,8 +10,8 @@
     - [VT52 mode](#vt52-mode)
     - [Tektronix 4014 mode](#tektronix-4014-mode)
     - [Window management codes](#window-management-codes)
-    - [Common application support](#common-application-support)
     - [Extended features](#extended-features)
+    - [Common application support](#common-application-support)
   - [Application Usability](#application-usability)
 - [Supported Platforms](#supported-platforms)
 - [Install Guide](#install-guide)
@@ -126,18 +126,6 @@ eg `xterm` and similar terminal emulators
 - [ ] window can be moved and resized
 - [ ] window can be minimized and restored
 
-#### Common application support
-
-- [ ] Supports `tmux`
-  - [x] usable
-  - [ ] glitch-free
-- [ ] Supports `vim`
-  - [x] usable
-  - [ ] glitch-free
-- [x] Supports `murex`
-  - [x] usable
-  - [x] glitch-free
-
 #### Extended features
 
 - [ ] Hyperlink support
@@ -154,6 +142,18 @@ eg `xterm` and similar terminal emulators
   - [x] alpha: available but expect changes to the API
   - [ ] stable: available to use in Murex
 
+#### Common application support
+
+- [ ] Supports `tmux`
+  - [x] usable
+  - [ ] glitch-free
+- [ ] Supports `vim`
+  - [x] usable
+  - [ ] glitch-free
+- [x] Supports `murex`
+  - [x] usable
+  - [x] glitch-free
+
 ### Application Usability
 
 - [ ] Terminal can be resized
@@ -165,7 +165,6 @@ eg `xterm` and similar terminal emulators
 - [ ] Bell can be changed
 - [ ] Default term size can be changed
 - [ ] Default command / shell can be changed
-
 
 ## Supported Platforms
 
@@ -204,23 +203,23 @@ root directory.
 Regardless of your time and skill set, there are multiple ways you can support
 this project:
 
-- **contributing code**: This could be bug fixes, new features, or even just
+- **Contributing code**: This could be bug fixes, new features, or even just
   correcting any typos.
 
-- **testing**: There is a plethora of different software that needs to run
+- **Testing**: There is a plethora of different software that needs to run
   inside a terminal emulator and a multitude of distinct platforms that this
   could run on. Any support testing `mxtty` would be greatly appreciated.
 
-- **documentation**: This is possibly the hardest part of any project to get
+- **Documentation**: This is possibly the hardest part of any project to get
   right. Eventually documentation for this will follow the same structure as
   [Murex Rocks](https://murex.rocks) (albeit its own website) however, for now,
   any documentation written in markdown is better than none.
 
-- **architecture discussions**: I'm always open to discussing code theory. And
+- **Architecture discussions**: I'm always open to discussing code theory. And
   if it results in building a better terminal emulator, then that is a
   worthwhile discussion to have.
 
-- **porting escape codes to other applications**: Currently [Murex](https://github.com/lmorg/murex)
+- **Porting escape codes to other applications**: Currently [Murex](https://github.com/lmorg/murex)
   is the pioneer for supporting `mxtty`-specific ANSI escape codes. However it
   would be good to see some of these extensions expanded out further. Maybe
   even to a point where this terminal emulator isn't required any more than a

@@ -49,41 +49,45 @@ func (term *Term) parseC1Codes() {
 			log.Printf("TODO: Unhandled DEC C1 escape sequence: {ESC}#%s", string(r))
 		}
 
-	case ' ', '%':
+	case ' ':
 		// 7/8bit controls
 		// ANSI conformance level
-		// character set
-		param := term.Pty.Read() // ignore these sequences
-		log.Printf("DEBUG: Ignored '{ESC}%s%s' sequence", string(r), string(param))
-
-	case '(': // Designate G0 Character Set (ISO 2022)
 		param := term.Pty.Read()
-		log.Printf("TODO: Unhandled escape sequence: {ESC}%s%s", string(r), string(param))
+		log.Printf("DEBUG: Ignored '{ESC}%%%s' sequence", string(param))
+
+	case '%':
+		// @: Select default character set.  That is ISO 8859-1 (ISO 2022).
+		// G: Select UTF-8 character set, ISO 2022.
+		param := term.Pty.Read() // Ignore these sequences. We always default to UTF-8
+		log.Printf("DEBUG: Ignored '{ESC}%%%s' sequence, we always default to UTF-8", string(param))
+
+	case '(':
+		// Designate G0 Character Set (ISO 2022), VT100.
+		term._charSetG[0] = term.fetchCharacterSet()
 
 	case ')':
-		// Designate G1 Character Set (ISO 2022)
-		param := term.Pty.Read()
-		log.Printf("TODO: Unhandled escape sequence: {ESC}%s%s", string(r), string(param))
+		// Designate G1 Character Set (ISO 2022), VT100.
+		term._charSetG[1] = term.fetchCharacterSet()
 
 	case '*':
-		// Designate G2 Character Set (ISO 2022)
-		param := term.Pty.Read()
-		log.Printf("TODO: Unhandled escape sequence: {ESC}%s%s", string(r), string(param))
+		// Designate G2 Character Set (ISO 2022), VT220.
+		term._charSetG[2] = term.fetchCharacterSet()
 
 	case '+':
-		// Designate G3 Character Set (ISO 2022)
-		param := term.Pty.Read()
-		log.Printf("TODO: Unhandled escape sequence: {ESC}%s%s", string(r), string(param))
+		// Designate G3 Character Set (ISO 2022), VT220.
+		term._charSetG[3] = term.fetchCharacterSet()
+
+	case '-':
+		// Designate G1 Character Set, VT300.
+		term._charSetG[1] = term.fetchCharacterSet()
 
 	case '.':
 		// Designate G2 Character Set, VT300.
-		param := term.Pty.Read()
-		log.Printf("TODO: Unhandled escape sequence: {ESC}%s%s", string(r), string(param))
+		term._charSetG[2] = term.fetchCharacterSet()
 
 	case '/':
 		// Designate G3 Character Set, VT300.
-		param := term.Pty.Read()
-		log.Printf("TODO: Unhandled escape sequence: {ESC}%s%s", string(r), string(param))
+		term._charSetG[3] = term.fetchCharacterSet()
 
 	case '=':
 		// Application Keypad (DECPAM)
@@ -109,23 +113,23 @@ func (term *Term) parseC1Codes() {
 
 	case 'n':
 		// Invoke the G2 Character Set as GL (LS2).
-		log.Printf("TODO: Unhandled C1 code: %s", string(r))
+		term._activeCharSet = 2
 
 	case 'o':
 		// Invoke the G3 Character Set as GL (LS3).
-		log.Printf("TODO: Unhandled C1 code: %s", string(r))
+		term._activeCharSet = 3
 
 	case '|':
 		// Invoke the G3 Character Set as GR (LS3R).
-		log.Printf("TODO: Unhandled C1 code: %s", string(r))
+		term._activeCharSet = 3
 
 	case '}':
 		// Invoke the G2 Character Set as GR (LS2R).
-		log.Printf("TODO: Unhandled C1 code: %s", string(r))
+		term._activeCharSet = 2
 
 	case '~':
-		// Invoke the G1 Character Set as GR (LS1R).
-		log.Printf("TODO: Unhandled C1 code: %s", string(r))
+		// Invoke the G1 Character Set as GR (LS1R), VT100.
+		term._activeCharSet = 1
 
 	case '7':
 		term.csiCursorPosSave()
@@ -199,11 +203,11 @@ func (term *Term) parseC1Codes() {
 
 	case 'N':
 		// Single-Shift 2
-		log.Printf("TODO: Unhandled C1 code: %s", string(r))
+		term._activeCharSet = 2
 
 	case 'O':
 		// Single-Shift 3
-		log.Printf("TODO: Unhandled C1 code: %s", string(r))
+		term._activeCharSet = 3
 
 	case 'Q':
 		// Private Use 1
