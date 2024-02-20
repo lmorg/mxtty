@@ -20,7 +20,7 @@ import (
 func (term *Term) parseCsiCodes() {
 	var (
 		r       rune
-		stack   = []int32{-1} // default value is -1
+		stack   = []int32{0} // default value is 0
 		n       = &stack[0]
 		cache   []rune
 		unknown bool
@@ -74,17 +74,7 @@ func (term *Term) parseCsiCodes() {
 
 		case 'd':
 			// Line Position Absolute  [row] (default = [1,column]) (VPA).
-			switch len(stack) {
-			case 0:
-				term.csiMoveCursorToPos(-1, 0)
-			case 1:
-				term.csiMoveCursorToPos(-1, *n-1)
-			case 2:
-				term.csiMoveCursorToPos(stack[1]-1, stack[0]-1)
-			default:
-				term.csiMoveCursorToPos(stack[1]-1, stack[0]-1)
-				log.Printf("WARNING: more parameters than expected for %s: %v (%s)", string(r), stack, string(cache))
-			}
+			term.moveCursorToRow(*n)
 
 		case 'D':
 			// Cursor Backward Ps Times (default = 1) (CUB).
@@ -106,13 +96,13 @@ func (term *Term) parseCsiCodes() {
 			// Horizontal and Vertical Position [row;column] (default = [1,1]) (HVP).
 			switch len(stack) {
 			case 0:
-				term.csiMoveCursorToPos(-1, 0)
+				term.moveCursorToPos(1, 1)
 			case 1:
-				term.csiMoveCursorToPos(-1, *n-1)
+				term.moveCursorToPos(*n, 1)
 			case 2:
-				term.csiMoveCursorToPos(stack[1]-1, stack[0]-1)
+				term.moveCursorToPos(stack[0], stack[1])
 			default:
-				term.csiMoveCursorToPos(stack[1]-1, stack[0]-1)
+				term.moveCursorToPos(stack[0], stack[1])
 				log.Printf("WARNING: more parameters than expected for %s: %v (%s)", string(r), stack, string(cache))
 			}
 
@@ -140,17 +130,7 @@ func (term *Term) parseCsiCodes() {
 
 		case 'G':
 			// Cursor Character Absolute  [column] (default = [row,1]) (CHA).
-			switch len(stack) {
-			case 0:
-				term.csiMoveCursorToPos(0, -1)
-			case 1:
-				term.csiMoveCursorToPos(*n-1, -1)
-			case 2:
-				term.csiMoveCursorToPos(stack[0]-1, stack[1]-1)
-			default:
-				term.csiMoveCursorToPos(stack[0]-1, stack[1]-1)
-				log.Printf("WARNING: more parameters than expected for %s: %v (%s)", string(r), stack, string(cache))
-			}
+			term.moveCursorToColumn(*n)
 
 		case 'h':
 			// Set Mode (SM).
@@ -168,10 +148,16 @@ func (term *Term) parseCsiCodes() {
 
 		case 'H':
 			// Cursor Position [row;column] (default = [1,1]) (CUP).
-			if len(stack) != 2 {
-				term.csiMoveCursorToPos(0, 0)
-			} else {
-				term.csiMoveCursorToPos(stack[1]-1, stack[0]-1)
+			switch len(stack) {
+			case 0:
+				term.moveCursorToPos(1, 1)
+			case 1:
+				term.moveCursorToPos(*n, 1)
+			case 2:
+				term.moveCursorToPos(stack[0], stack[1])
+			default:
+				term.moveCursorToPos(stack[0], stack[1])
+				log.Printf("WARNING: more parameters than expected for %s: %v (%s)", string(r), stack, string(cache))
 			}
 
 		//case 'i':
@@ -332,7 +318,7 @@ func (term *Term) parseCsiCodes() {
 
 		case '`':
 			// Character Position Absolute  [column] (default = [row,1]) (HPA).
-			term.csiMoveCursorToPos(*n-1, -1)
+			term.moveCursorToColumn(*n)
 
 		//case '!':
 		// CSI ! p: Soft terminal reset (DECSTR), VT220 and up.

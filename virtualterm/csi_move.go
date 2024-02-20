@@ -121,32 +121,39 @@ func (term *Term) csiMoveCursorDownwards(i int32) (overflow int32) {
 	return
 }
 
-// csiMoveCursorToPos: -1 values should default to current cursor position.
-func (term *Term) csiMoveCursorToPos(row, col int32, deleteme bool) {
-	debug.Log(types.XY{X: x, Y: y})
+func (term *Term) moveCursorToColumn(col int32) {
+	debug.Log(col)
 
-	if x == -1 {
-		x = term.curPos.X
+	switch {
+	case col < 1:
+		term.curPos.X = 0
+	case col > term.size.X:
+		term.curPos.X = term.size.X - 1
+	default:
+		term.curPos.X = col - 1
 	}
-	if y == -1 {
-		y = term.curPos.Y
-	}
+}
+
+func (term *Term) moveCursorToRow(row int32) {
+	debug.Log(row)
 
 	top, bottom := term.getScrollingRegion()
 
-	if x < 0 {
-		x = 0
-	} else if x >= term.size.X {
-		x = term.size.X - 1
+	switch {
+	case row < top:
+		term.curPos.Y = top
+	case row > bottom:
+		term.curPos.Y = bottom
+	default:
+		term.curPos.Y = row - 1
 	}
+}
 
-	if y < top {
-		y = top
-	} else if y > bottom {
-		y = bottom
-	}
-
-	term.curPos.X, term.curPos.Y = x, y
+// csiMoveCursorToPos: -1 values should default to current cursor position.
+func (term *Term) moveCursorToPos(row, col int32) {
+	debug.Log(nil)
+	term.moveCursorToRow(row)
+	term.moveCursorToColumn(col)
 }
 
 /*
@@ -174,7 +181,7 @@ func (term *Term) setScrollingRegion(region []int32) {
 func (term *Term) getScrollingRegion() (top int32, bottom int32) {
 	debug.Log(term._scrollRegion)
 
-	if term._scrollRegion == nil || term._originMode {
+	if term._scrollRegion == nil || !term._originMode {
 		top = 0
 		bottom = term.size.Y - 1
 	} else {

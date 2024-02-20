@@ -15,7 +15,7 @@ func TestCsiEraseDisplayAfter(t *testing.T) {
 				Screen:   "1234567890\nabcdefghij\nklmnopqrst\n0987654321",
 				Expected: "1234567890\nabcdefghij\nkl",
 				Operation: func(t *testing.T, term *Term) {
-					term.csiMoveCursorToPos(2, 2)
+					term.moveCursorToPos(3, 3)
 					term.csiEraseDisplayAfter()
 				},
 			},
@@ -32,7 +32,7 @@ func TestCsiEraseDisplayBefore(t *testing.T) {
 				Screen:   "1234567890\nabcdefghij\nklmnopqrst\n0987654321",
 				Expected: "..........\n..........\n...nopqrst\n0987654321",
 				Operation: func(t *testing.T, term *Term) {
-					term.csiMoveCursorToPos(2, 2)
+					term.moveCursorToPos(3, 3)
 					term.csiEraseDisplayBefore()
 				},
 			},
@@ -53,7 +53,7 @@ func TestCsiEraseLineAfter(t *testing.T) {
 				Screen:   "1234567890\nabcdefghij\nklmnopqrst\n0987654321",
 				Expected: "1234567890\nabcdefghij\nkl........\n0987654321",
 				Operation: func(t *testing.T, term *Term) {
-					term.csiMoveCursorToPos(2, 2)
+					term.moveCursorToPos(3, 3)
 					term.csiEraseLineAfter()
 				},
 			},
@@ -70,7 +70,7 @@ func TestCsiEraseLineBefore(t *testing.T) {
 				Screen:   "1234567890\nabcdefghij\nklmnopqrst\n0987654321",
 				Expected: "1234567890\nabcdefghij\n...nopqrst\n0987654321",
 				Operation: func(t *testing.T, term *Term) {
-					term.csiMoveCursorToPos(2, 2)
+					term.moveCursorToPos(3, 3)
 					term.csiEraseLineBefore()
 				},
 			},
@@ -87,7 +87,7 @@ func TestCsiEraseLine(t *testing.T) {
 				Screen:   "1234567890\nabcdefghij\nklmnopqrst\n0987654321",
 				Expected: "1234567890\nabcdefghij\n..........\n0987654321",
 				Operation: func(t *testing.T, term *Term) {
-					term.csiMoveCursorToPos(2, 2)
+					term.moveCursorToPos(3, 3)
 					term.csiEraseLine()
 				},
 			},
@@ -108,7 +108,7 @@ func TestCsiEraseCharacters(t *testing.T) {
 				Screen:   "1234567890\nabcdefghij\nklmnopqrst\n0987654321",
 				Expected: "1234567890\nabcdefghij\nkl.nopqrst\n0987654321",
 				Operation: func(t *testing.T, term *Term) {
-					term.csiMoveCursorToPos(2, 2)
+					term.moveCursorToPos(3, 3)
 					term.csiEraseCharacters(1)
 				},
 			},
@@ -116,7 +116,7 @@ func TestCsiEraseCharacters(t *testing.T) {
 				Screen:   "1234567890\nabcdefghij\nklmnopqrst\n0987654321",
 				Expected: "1234567890\nabcdefghij\nkl..opqrst\n0987654321",
 				Operation: func(t *testing.T, term *Term) {
-					term.csiMoveCursorToPos(2, 2)
+					term.moveCursorToPos(3, 3)
 					term.csiEraseCharacters(2)
 				},
 			},
@@ -124,7 +124,7 @@ func TestCsiEraseCharacters(t *testing.T) {
 				Screen:   "1234567890\nabcdefghij\nklmnopqrst\n0987654321",
 				Expected: "1234567890\nabcdefghij\nkl...pqrst\n0987654321",
 				Operation: func(t *testing.T, term *Term) {
-					term.csiMoveCursorToPos(2, 2)
+					term.moveCursorToPos(3, 3)
 					term.csiEraseCharacters(3)
 				},
 			},
@@ -145,7 +145,7 @@ func TestCsiDeleteCharacters(t *testing.T) {
 				Screen:   "1234567890\nabcdefghij\nklmnopqrst\n0987654321",
 				Expected: "1234567890\nabcdefghij\nklnopqrst.\n0987654321",
 				Operation: func(t *testing.T, term *Term) {
-					term.csiMoveCursorToPos(2, 2)
+					term.moveCursorToPos(3, 3)
 					term.csiDeleteCharacters(1)
 				},
 			},
@@ -153,7 +153,7 @@ func TestCsiDeleteCharacters(t *testing.T) {
 				Screen:   "1234567890\nabcdefghij\nklmnopqrst\n0987654321",
 				Expected: "1234567890\nabcdefghij\nklopqrst..\n0987654321",
 				Operation: func(t *testing.T, term *Term) {
-					term.csiMoveCursorToPos(2, 2)
+					term.moveCursorToPos(3, 3)
 					term.csiDeleteCharacters(2)
 				},
 			},
@@ -161,7 +161,7 @@ func TestCsiDeleteCharacters(t *testing.T) {
 				Screen:   "1234567890\nabcdefghij\nklmnopqrst\n0987654321",
 				Expected: "1234567890\nabcdefghij\nklpqrst...\n0987654321",
 				Operation: func(t *testing.T, term *Term) {
-					term.csiMoveCursorToPos(2, 2)
+					term.moveCursorToPos(3, 3)
 					term.csiDeleteCharacters(3)
 				},
 			},
@@ -178,7 +178,7 @@ func TestCsiDeleteLines(t *testing.T) {
 				Screen:   "1234567890\nabcdefghij\nklmnopqrst\n0987654321",
 				Expected: "1234567890\nabcdefghij\n0987654321",
 				Operation: func(t *testing.T, term *Term) {
-					term.csiMoveCursorToPos(2, 2)
+					term.moveCursorToPos(3, 3)
 					term.csiDeleteLines(-1)
 				},
 			},
@@ -186,7 +186,7 @@ func TestCsiDeleteLines(t *testing.T) {
 				Screen:   "1234567890\nabcdefghij\nklmnopqrst\n0987654321",
 				Expected: "1234567890\nabcdefghij\n0987654321",
 				Operation: func(t *testing.T, term *Term) {
-					term.csiMoveCursorToPos(2, 2)
+					term.moveCursorToPos(3, 3)
 					term.csiDeleteLines(0)
 				},
 			},
@@ -194,7 +194,7 @@ func TestCsiDeleteLines(t *testing.T) {
 				Screen:   "1234567890\nabcdefghij\nklmnopqrst\n0987654321",
 				Expected: "1234567890\nabcdefghij\n0987654321",
 				Operation: func(t *testing.T, term *Term) {
-					term.csiMoveCursorToPos(2, 2)
+					term.moveCursorToPos(3, 3)
 					term.csiDeleteLines(1)
 				},
 			},
@@ -202,7 +202,7 @@ func TestCsiDeleteLines(t *testing.T) {
 				Screen:   "1234567890\nabcdefghij\nklmnopqrst\n0987654321",
 				Expected: "1234567890\nabcdefghij",
 				Operation: func(t *testing.T, term *Term) {
-					term.csiMoveCursorToPos(2, 2)
+					term.moveCursorToPos(3, 3)
 					term.csiDeleteLines(2)
 				},
 			},
@@ -210,7 +210,7 @@ func TestCsiDeleteLines(t *testing.T) {
 				Screen:   "1234567890\nabcdefghij\nklmnopqrst\n0987654321",
 				Expected: "1234567890\nabcdefghij",
 				Operation: func(t *testing.T, term *Term) {
-					term.csiMoveCursorToPos(2, 2)
+					term.moveCursorToPos(3, 3)
 					term.csiDeleteLines(3)
 				},
 			},

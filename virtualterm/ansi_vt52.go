@@ -57,7 +57,7 @@ func (term *Term) parseVt52Codes() {
 
 	case 'H':
 		// Move the cursor to the home position.
-		term.csiMoveCursorToPos(0, 0)
+		term.moveCursorToPos(1, 1)
 
 	case 'I':
 		// Reverse line feed.
@@ -76,7 +76,7 @@ func (term *Term) parseVt52Codes() {
 		// Move the cursor to given row and column.
 		row := term.Pty.Read()
 		col := term.Pty.Read()
-		term.csiMoveCursorToPos(col-32, row-32)
+		term.moveCursorToPos(col-32, row-32)
 
 	case 'Z':
 		// Identify.
