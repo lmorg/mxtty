@@ -6,6 +6,180 @@ import (
 	"github.com/lmorg/mxtty/types"
 )
 
+func TestReverseLineFeed(t *testing.T) {
+	test := testTerm{
+		Tests: []testCondition{
+			{
+				Screen:   "..........\n..........\nfoo",
+				Expected: "..........\n..........\n...bar....\nfoo",
+				Operation: func(t *testing.T, term *Term) {
+					term.setScrollingRegion([]int32{3, 4})
+					term.ReverseLineFeed()
+					for _, r := range "bar" {
+						term.writeCell(r)
+					}
+				},
+			},
+			{
+				Screen:   "..........\n..........\nfoo",
+				Expected: "..........\n..........\n......baz.\n...bar",
+				Operation: func(t *testing.T, term *Term) {
+					term.setScrollingRegion([]int32{3, 4})
+					term.ReverseLineFeed()
+					for _, r := range "bar" {
+						term.writeCell(r)
+					}
+					term.ReverseLineFeed()
+					for _, r := range "baz" {
+						term.writeCell(r)
+					}
+				},
+			},
+		},
+	}
+
+	test.RunTests(t)
+}
+
+
+
+func TestScrollingRegion(t *testing.T) {
+	test := testTerm{
+		Tests: []testCondition{
+			{
+				Screen:   "..........\n..........\nfoo.......\nbar.......\nbaz",
+				Expected: "..........\n..........\nbar.......\n..........\nbaz",
+				Operation: func(t *testing.T, term *Term) {
+					term.setScrollingRegion([]int32{3, 4})
+					term.csiScrollUp(0)
+				},
+			},
+			{
+				Screen:   "..........\n..........\nfoo.......\nbar.......\nbaz",
+				Expected: "..........\n..........\nbar.......\n..........\nbaz",
+				Operation: func(t *testing.T, term *Term) {
+					term.setScrollingRegion([]int32{3, 4})
+					term.csiScrollUp(1)
+				},
+			},
+			{
+				Screen:   "..........\n..........\nfoo.......\nbar.......\nbaz",
+				Expected: "..........\n..........\n..........\nfoo.......\nbaz",
+				Operation: func(t *testing.T, term *Term) {
+					term.setScrollingRegion([]int32{3, 4})
+					term.csiScrollDown(0)
+				},
+			},
+			{
+				Screen:   "..........\n..........\nfoo.......\nbar.......\nbaz",
+				Expected: "..........\n..........\n..........\nfoo.......\nbaz",
+				Operation: func(t *testing.T, term *Term) {
+					term.setScrollingRegion([]int32{3, 4})
+					term.csiScrollDown(1)
+				},
+			},
+			/////
+			{
+				Screen:   "..........\n..........\n1234567890",
+				Expected: "..........\n..........\nabcdefghij",
+				Operation: func(t *testing.T, term *Term) {
+					term.setScrollingRegion([]int32{3, 3})
+					for _, r := range "abcdefghij" {
+						term.writeCell(r)
+					}
+				},
+			},
+			{
+				Screen:   "..........\n..........\n1234567890\n0987654321",
+				Expected: "..........\n..........\nklmnopqrst\n0987654321",
+				Operation: func(t *testing.T, term *Term) {
+					term.setScrollingRegion([]int32{3, 3})
+					for _, r := range "abcdefghijklmnopqrst" {
+						term.writeCell(r)
+					}
+				},
+			},
+			{
+				Screen:   "..........\n..........\n1234567890\n0987654321",
+				Expected: "..........\n..........\nabcdefghij\nklmnopqrst",
+				Operation: func(t *testing.T, term *Term) {
+					term.setScrollingRegion([]int32{3, 4})
+					for _, r := range "abcdefghijklmnopqrst" {
+						term.writeCell(r)
+					}
+				},
+			},
+			{
+				Screen:   "..........\n..........\nfoo.......\nbar",
+				Expected: "..........\n..........\nbar.......\nbaz",
+				Operation: func(t *testing.T, term *Term) {
+					term.setScrollingRegion([]int32{3, 4})
+					term.carriageReturn()
+					term.lineFeed()
+					for _, r := range "baz" {
+						term.writeCell(r)
+					}
+				},
+			},
+			{
+				Screen:   "..........\n..........\nfoo.......\nbar",
+				Expected: "..........\n..........\nfoobaz....\nbar",
+				Operation: func(t *testing.T, term *Term) {
+					term.setScrollingRegion([]int32{3, 4})
+					term.csiMoveCursorUpwards(20)
+					for _, r := range "baz" {
+						term.writeCell(r)
+					}
+				},
+			},
+			///// scroll downwards
+			{
+				Screen:   "..........\n..........\nfoo.......\nbar",
+				Expected: "..........\n..........\nbaz.......\nfoo",
+				Operation: func(t *testing.T, term *Term) {
+					term.setScrollingRegion([]int32{3, 4})
+					term.carriageReturn()
+					term.csiMoveCursorUpwards(1)
+					term.csiScrollDown(1)
+					term.csiMoveCursorUpwards(1)
+					for _, r := range "baz" {
+						term.writeCell(r)
+					}
+				},
+			},
+			{
+				Screen:   "..........\n..........\nfoo.......\nbar",
+				Expected: "..........\n..........\nbaz.......\nfoo",
+				Operation: func(t *testing.T, term *Term) {
+					term.setScrollingRegion([]int32{3, 4})
+					term.carriageReturn()
+					term.csiMoveCursorUpwards(10)
+					term.csiScrollDown(1)
+					term.csiMoveCursorUpwards(10)
+					for _, r := range "baz" {
+						term.writeCell(r)
+					}
+				},
+			},
+			{
+				Screen:   "..........\n..........\nfoo.......\nbar",
+				Expected: "..........\n..........\n..........\nfoobaz",
+				Operation: func(t *testing.T, term *Term) {
+					term.setScrollingRegion([]int32{3, 4})
+					term.csiMoveCursorDownwards(10)
+					term.csiScrollDown(1)
+					term.csiMoveCursorDownwards(10)
+					for _, r := range "baz" {
+						term.writeCell(r)
+					}
+				},
+			},
+		},
+	}
+
+	test.RunTests(t)
+}
+
 func TestCsiScrollUp(t *testing.T) {
 	test := testTerm{
 		Tests: []testCondition{

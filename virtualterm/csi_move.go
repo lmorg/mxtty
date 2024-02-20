@@ -46,7 +46,7 @@ func (term *Term) ReverseLineFeed() {
 func (term *Term) csiMoveCursorBackwards(i int32) (overflow int32) {
 	debug.Log(i)
 
-	if i < 0 {
+	if i < 1 {
 		i = 1
 	}
 
@@ -65,7 +65,7 @@ func (term *Term) csiMoveCursorBackwards(i int32) (overflow int32) {
 func (term *Term) csiMoveCursorForwards(i int32) (overflow int32) {
 	debug.Log(i)
 
-	if i < 0 {
+	if i < 1 {
 		i = 1
 	}
 
@@ -84,15 +84,15 @@ func (term *Term) csiMoveCursorForwards(i int32) (overflow int32) {
 func (term *Term) csiMoveCursorUpwards(i int32) (overflow int32) {
 	debug.Log(i)
 
-	if i < 0 {
+	if i < 1 {
 		i = 1
 	}
 
 	top, _ := term.getScrollingRegion()
 
 	term.curPos.Y -= i
-	if term.curPos.Y <= top {
-		overflow = -term.curPos.Y
+	if term.curPos.Y < top {
+		overflow = term.curPos.Y - top
 		term.curPos.Y = top
 	}
 
@@ -105,7 +105,7 @@ func (term *Term) csiMoveCursorUpwards(i int32) (overflow int32) {
 func (term *Term) csiMoveCursorDownwards(i int32) (overflow int32) {
 	debug.Log(i)
 
-	if i < 0 {
+	if i < 1 {
 		i = 1
 	}
 
@@ -114,7 +114,7 @@ func (term *Term) csiMoveCursorDownwards(i int32) (overflow int32) {
 	_, bottom := term.getScrollingRegion()
 
 	if term.curPos.Y > bottom {
-		overflow = term.curPos.Y - (bottom)
+		overflow = term.curPos.Y - bottom
 		term.curPos.Y = bottom
 	}
 
@@ -122,7 +122,7 @@ func (term *Term) csiMoveCursorDownwards(i int32) (overflow int32) {
 }
 
 // csiMoveCursorToPos: -1 values should default to current cursor position.
-func (term *Term) csiMoveCursorToPos(x, y int32) {
+func (term *Term) csiMoveCursorToPos(row, col int32, deleteme bool) {
 	debug.Log(types.XY{X: x, Y: y})
 
 	if x == -1 {
@@ -156,12 +156,18 @@ func (term *Term) csiMoveCursorToPos(x, y int32) {
 // csiSetScrollingRegion values should be offset by 1 (as seen in the ANSI
 // escape codes). eg the top left corder would be `[]int32{1, 1}`.
 func (term *Term) setScrollingRegion(region []int32) {
-	debug.Log(region[0])
-	debug.Log(region[1])
+	debug.Log(region)
 
 	term._scrollRegion = &scrollRegionT{
 		Top:    region[0] - 1,
 		Bottom: region[1] - 1,
+	}
+
+	if term.curPos.Y <= region[0] {
+		term.curPos.Y = term._scrollRegion.Top
+	}
+	if term.curPos.Y >= region[1] {
+		term.curPos.Y = term._scrollRegion.Bottom
 	}
 }
 

@@ -20,6 +20,9 @@ func Log(v any) {
 		v = string(t)
 
 	case []rune:
+		if len(t) > 0 && t[0] < 32 {
+			break
+		}
 		v = string(t)
 	}
 

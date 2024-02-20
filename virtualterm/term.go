@@ -115,6 +115,14 @@ func NewTerminal(renderer types.Renderer) *Term {
 	return term
 }
 
+func (term *Term) Start(pty types.Pty, shell string) {
+	term.Pty = pty
+
+	go term.exec(shell)
+	go term.readLoop()
+	go term.slowBlink()
+}
+
 func (term *Term) reset(size *types.XY) {
 	if term.renderer != nil {
 		term.renderer.AddRenderFnToStack(func() {

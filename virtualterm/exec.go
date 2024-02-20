@@ -6,7 +6,6 @@ import (
 	"syscall"
 
 	"github.com/lmorg/mxtty/app"
-	"github.com/lmorg/mxtty/types"
 )
 
 var ENV_VARS = []string{
@@ -25,14 +24,6 @@ func init() {
 	_ = os.Unsetenv("TERM_PROGRAM")
 
 	ENV_VARS = append(os.Environ(), ENV_VARS...)
-}
-
-func (term *Term) Start(pty types.Pty, shell string) {
-	term.Pty = pty
-
-	go term.exec(shell)
-	go term.readLoop()
-	go term.slowBlink()
 }
 
 func (term *Term) exec(command string) {

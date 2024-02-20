@@ -50,7 +50,7 @@ func (sr *sdlRender) eventKeyPress(evt *sdl.KeyboardEvent) {
 	case sdl.K_RETURN:
 		sr.term.Reply([]byte{'\n'})
 	case sdl.K_BACKSPACE:
-		sr.term.Reply([]byte{codes.IsoBackspace})
+		sr.term.Reply([]byte{codes.AsciiBackspace})
 
 	case sdl.K_UP:
 		sr.term.Reply(codes.AnsiUp)

@@ -27,7 +27,7 @@ func (term *Term) readLoop() {
 */
 
 func (term *Term) readChar(r rune) {
-	writeDebuggingRune(r)
+	//writeDebuggingRune(r)
 
 	switch r {
 

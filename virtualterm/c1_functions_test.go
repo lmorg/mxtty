@@ -9,7 +9,7 @@ func TestC1DecalnTestAlignment(t *testing.T) {
 		Tests: []testCondition{
 			{
 				Screen:   "12345",
-				Expected: "EEEEEEEEEE\nEEEEEEEEEE\nEEEEEEEEEE\nEEEEEEEEEE\n",
+				Expected: "EEEEEEEEEE\nEEEEEEEEEE\nEEEEEEEEEE\nEEEEEEEEEE\nEEEEEEEEEE",
 				Operation: func(t *testing.T, term *Term) {
 					term.c1DecalnTestAlignment()
 				},

@@ -1,10 +1,12 @@
 package virtualterm
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/lmorg/mxtty/codes"
 	"github.com/lmorg/mxtty/debug"
+	"github.com/lmorg/mxtty/types"
 )
 
 /*
@@ -90,6 +92,9 @@ func (term *Term) parseCsiCodes() {
 
 		case 'e':
 			// Line Position Relative  [rows] (default = [row+1,column]) (VPR).
+			if *n < 0 {
+				term.renderer.DisplayNotification(types.NOTIFY_DEBUG, fmt.Sprintf("VPR is negative value: %d", *n))
+			}
 			term.csiMoveCursorDownwards(*n)
 
 		case 'E':
