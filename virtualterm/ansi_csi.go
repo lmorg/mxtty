@@ -144,6 +144,9 @@ func (term *Term) parseCsiCodes() {
 
 				// Ps = 1 2  ⇒  Send/receive (SRM).
 				// Ps = 2 0  ⇒  Automatic Newline (LNM).
+
+			default:
+				log.Printf("WARNING: Unknown Set Mode (SM) sequence: %d", *n)
 			}
 
 		case 'H':
@@ -190,6 +193,8 @@ func (term *Term) parseCsiCodes() {
 				term.csiEraseDisplayBefore()
 			case 2, 3:
 				term.csiEraseDisplay() // TODO: 3 should also erase scrollback buffer
+			default:
+				log.Printf("WARNING: Unknown Erase in Display (ED) sequence: %d", *n)
 			}
 
 		case 'K':
@@ -201,6 +206,8 @@ func (term *Term) parseCsiCodes() {
 				term.csiEraseLineBefore()
 			case 2:
 				term.csiEraseLine()
+			default:
+				log.Printf("WARNING: Unknown Erase in Line (EL) sequence: %d", *n)
 			}
 
 		case 'l':
@@ -215,6 +222,9 @@ func (term *Term) parseCsiCodes() {
 
 				// Ps = 1 2  ⇒  Send/receive (SRM).
 				// Ps = 2 0  ⇒  Normal Linefeed (LNM).
+
+			default:
+				log.Printf("WARNING: Unknown Reset Mode (RM) sequence: %d", *n)
 			}
 
 		case 'L':
@@ -240,6 +250,8 @@ func (term *Term) parseCsiCodes() {
 			switch *n {
 			case 6:
 				term.csiCallback("%d;%dR", term.curPos.Y+1, term.curPos.X+1)
+			default:
+				log.Printf("WARNING: Unknown Device Status Report (DSR) sequence: %d", *n)
 			}
 
 		case 'P':
@@ -286,14 +298,18 @@ func (term *Term) parseCsiCodes() {
 				switch p2 {
 				case 0, 2:
 					term.csiWindowTitleStackSaveTo()
+				default:
+					log.Printf("WARNING: Unknown Window manipulation (XTWINOPS) sequence %d: %v (%s)", *n, stack, string(cache))
 				}
 			case 23:
 				switch p2 {
 				case 0, 2:
 					term.csiWindowTitleStackRestoreFrom()
+				default:
+					log.Printf("WARNING: Unknown Window manipulation (XTWINOPS) sequence %d: %v (%s)", *n, stack, string(cache))
 				}
 			default:
-				log.Printf("WARNING: Unknown CSI code %d: %v (%s)", *n, stack, string(cache))
+				log.Printf("WARNING: Unknown Window manipulation (XTWINOPS) sequence %d: %v (%s)", *n, stack, string(cache))
 			}
 
 		case 'T':
@@ -344,6 +360,11 @@ func (term *Term) parseCsiCodes() {
 
 		default:
 			unknown = true
+			if !isCsiTerminator(r) {
+				code := term.parseCsiExtendedCodes()
+				log.Printf("WARNING: Unknown extended CSI code %s: %v [string: %s]", string(r), append(cache, code...), string(cache)+string(code))
+				return
+			}
 		}
 
 		if isCsiTerminator(r) {

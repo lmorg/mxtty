@@ -12,6 +12,7 @@ func lookupPrivateCsi(term *Term, code []rune) {
 	r := code[len(code)-1]
 	switch r {
 	case 'h':
+		// DEC Private Mode Set (DECSET).
 		switch param {
 		case "3":
 			// 132 Column Mode (DECCOLM), VT100.
@@ -48,7 +49,21 @@ func lookupPrivateCsi(term *Term, code []rune) {
 			log.Printf("Private CSI parameter not implemented in %s: %v [param: %s]", string(r), string(code), param)
 		}
 
+	case 'K':
+		// Erase in Line (DECSEL), VT220. (selective)
+		switch param {
+		case "", "0":
+			term.csiEraseLineAfter()
+		case "1":
+			term.csiEraseLineBefore()
+		case "2":
+			term.csiEraseLine()
+		default:
+			log.Printf("WARNING: Unknown Erase in Line (EL) sequence: %s", param)
+		}
+
 	case 'l':
+		// DEC Private Mode Reset (DECRST).
 		switch param {
 		case "2":
 			// Designate VT52 mode (DECANM), VT100.

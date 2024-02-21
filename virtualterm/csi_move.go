@@ -40,7 +40,7 @@ func (term *Term) ReverseLineFeed() {
 	csiMoveCursor[...] functions DOESN'T affect other contents in the grid
 */
 
-// csiMoveCursorBackwards: -1 should default to 1.
+// csiMoveCursorBackwards: 0 should default to 1.
 // Returns how many additional cells were requested before hitting the edge of
 // the screen.
 func (term *Term) csiMoveCursorBackwards(i int32) (overflow int32) {
@@ -59,7 +59,7 @@ func (term *Term) csiMoveCursorBackwards(i int32) (overflow int32) {
 	return
 }
 
-// csiMoveCursorForwards: -1 should default to 1.
+// csiMoveCursorForwards: 0 should default to 1.
 // Returns how many additional cells were requested before hitting the edge of
 // the screen.
 func (term *Term) csiMoveCursorForwards(i int32) (overflow int32) {
@@ -78,7 +78,7 @@ func (term *Term) csiMoveCursorForwards(i int32) (overflow int32) {
 	return
 }
 
-// csiMoveCursorUpwards: -1 should default to 1.
+// csiMoveCursorUpwards: 0 should default to 1.
 // Returns how many additional cells were requested before hitting the edge of
 // the screen.
 func (term *Term) csiMoveCursorUpwards(i int32) (overflow int32) {
@@ -99,7 +99,7 @@ func (term *Term) csiMoveCursorUpwards(i int32) (overflow int32) {
 	return
 }
 
-// csiMoveCursorDownwards: -1 should default to 1.
+// csiMoveCursorDownwards: 0 should default to 1.
 // Returns how many additional cells were requested before hitting the edge of
 // the screen.
 func (term *Term) csiMoveCursorDownwards(i int32) (overflow int32) {
@@ -149,7 +149,7 @@ func (term *Term) moveCursorToRow(row int32) {
 	}
 }
 
-// csiMoveCursorToPos: -1 values should default to current cursor position.
+// csiMoveCursorToPos: 0 values should default to current cursor position.
 func (term *Term) moveCursorToPos(row, col int32) {
 	debug.Log(nil)
 	term.moveCursorToRow(row)
@@ -192,7 +192,7 @@ func (term *Term) getScrollingRegion() (top int32, bottom int32) {
 	return
 }
 
-// csiScrollUp: -1 should default to 1.
+// csiScrollUp: 0 should default to 1.
 func (term *Term) csiScrollUp(n int32) {
 	debug.Log(n)
 
@@ -217,7 +217,7 @@ func (term *Term) _scrollUp(top, bottom, shift int32) {
 	}
 }
 
-// csiScrollDown: -1 should default to 1.
+// csiScrollDown: 0 should default to 1.
 func (term *Term) csiScrollDown(n int32) {
 	debug.Log(n)
 
@@ -248,7 +248,7 @@ func (term *Term) _scrollDown(top, bottom, shift int32) {
 	INSERT
 */
 
-// csiInsertLines: -1 should default to 1.
+// csiInsertLines: 0 should default to 1.
 func (term *Term) csiInsertLines(n int32) {
 	debug.Log(n)
 
@@ -261,7 +261,7 @@ func (term *Term) csiInsertLines(n int32) {
 	term._scrollDown(term.curPos.Y, bottom, n)
 }
 
-// csiInsertCharacters: -1 should default to 1.
+// csiInsertCharacters: 0 should default to 1.
 func (term *Term) csiInsertCharacters(n int32) {
 	debug.Log(n)
 
