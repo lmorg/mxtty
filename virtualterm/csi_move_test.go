@@ -41,8 +41,6 @@ func TestReverseLineFeed(t *testing.T) {
 	test.RunTests(t)
 }
 
-
-
 func TestScrollingRegion(t *testing.T) {
 	test := testTerm{
 		Tests: []testCondition{

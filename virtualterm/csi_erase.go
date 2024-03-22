@@ -36,6 +36,14 @@ func (term *Term) csiEraseDisplay() {
 	}
 }
 
+func (term *Term) eraseScrollBack() {
+	debug.Log(term.curPos)
+
+	term._scrollOffset = 0
+	term._scrollMsg = nil
+	term._scrollBuf = [][]types.Cell{}
+}
+
 /*
 	ERASE LINE
 */

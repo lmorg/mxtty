@@ -47,7 +47,7 @@ func (term *Term) parseCsiCodes() {
 			term.csiInsertCharacters(*n)
 
 		case 'a':
-			//Character Position Relative  [columns] (default = [row,col+1]) (HPR).
+			// Character Position Relative  [columns] (default = [row,col+1]) (HPR).
 			term.csiMoveCursorForwards(*n)
 
 		case 'A':
@@ -191,8 +191,11 @@ func (term *Term) parseCsiCodes() {
 				term.csiEraseDisplayAfter()
 			case 1:
 				term.csiEraseDisplayBefore()
-			case 2, 3:
-				term.csiEraseDisplay() // TODO: 3 should also erase scrollback buffer
+			case 2:
+				term.csiEraseDisplay()
+			case 3:
+				term.csiEraseDisplay()
+				term.eraseScrollBack()
 			default:
 				log.Printf("WARNING: Unknown Erase in Display (ED) sequence: %d", *n)
 			}
