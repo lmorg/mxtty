@@ -8,6 +8,8 @@ import (
 	"github.com/veandco/go-sdl2/ttf"
 )
 
+const dropShadowOffset = 2
+
 func (sr *sdlRender) PrintCell(cell *types.Cell, pos *types.XY) error {
 	fg, bg := sgrOpts(cell.Sgr)
 
@@ -39,8 +41,8 @@ func (sr *sdlRender) PrintCell(cell *types.Cell, pos *types.XY) error {
 	var rect2 *sdl.Rect
 	if sr.dropShadow && bg == nil {
 		rect2 = &sdl.Rect{
-			X: (sr.glyphSize.X * pos.X) + sr.border + 3,
-			Y: (sr.glyphSize.Y * pos.Y) + sr.border + 3,
+			X: (sr.glyphSize.X * pos.X) + sr.border + dropShadowOffset,
+			Y: (sr.glyphSize.Y * pos.Y) + sr.border + dropShadowOffset,
 			W: sr.glyphSize.X,
 			H: sr.glyphSize.Y,
 		}
