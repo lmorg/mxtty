@@ -39,7 +39,9 @@ func (term *Term) parseCsiCodes() {
 			continue
 		}
 
-		debug.Log(string(cache))
+		if isCsiTerminator(r) {
+			debug.Log(string(cache))
+		}
 
 		switch r {
 		case '@':
@@ -327,8 +329,8 @@ func (term *Term) parseCsiCodes() {
 			// Erase Ps Character(s) (default = 1) (ECH).
 			term.csiEraseCharacters(*n)
 
-		case 'Z':
-			// Cursor Backward Tabulation Ps tab stops (default = 1) (CBT).
+		//case 'Z':
+		// Cursor Backward Tabulation Ps tab stops (default = 1) (CBT).
 
 		case '^':
 			// Scroll down Ps lines (default = 1) (SD), ECMA-48.

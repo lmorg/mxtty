@@ -12,7 +12,8 @@ import (
 func (term *Term) csiEraseDisplayAfter() {
 	debug.Log(term.curPos)
 
-	for y := term.curPos.Y + 1; y < term.size.Y; y++ {
+	_, bottom := term.getScrollingRegionExcOrigin()
+	for y := term.curPos.Y + 1; y <= bottom; y++ {
 		(*term.cells)[y] = term.makeRow()
 	}
 	term.csiEraseLineAfter()
@@ -21,7 +22,8 @@ func (term *Term) csiEraseDisplayAfter() {
 func (term *Term) csiEraseDisplayBefore() {
 	debug.Log(term.curPos)
 
-	for y := term.curPos.Y - 1; y >= 0; y-- {
+	top, _ := term.getScrollingRegionExcOrigin()
+	for y := term.curPos.Y - 1; y >= top; y-- {
 		(*term.cells)[y] = term.makeRow()
 	}
 	term.csiEraseLineBefore()
@@ -30,8 +32,8 @@ func (term *Term) csiEraseDisplayBefore() {
 func (term *Term) csiEraseDisplay() {
 	debug.Log(term.curPos)
 
-	var y int32
-	for ; y < term.size.Y; y++ {
+	y, bottom := term.getScrollingRegionExcOrigin()
+	for ; y <= bottom; y++ {
 		(*term.cells)[y] = term.makeRow()
 	}
 }
@@ -109,7 +111,7 @@ func (term *Term) csiDeleteLines(n int32) {
 		n = 1
 	}
 
-	_, bottom := term.getScrollingRegion()
+	_, bottom := term.getScrollingRegionExcOrigin()
 
 	term._scrollUp(term.curPos.Y, bottom, n)
 }

@@ -3,11 +3,17 @@ package virtualterm
 import (
 	"fmt"
 	"unsafe"
+
+	"github.com/lmorg/mxtty/debug"
+	"github.com/lmorg/mxtty/types"
 )
 
-func (term *Term) writeCell(r rune) {
-	//debug.Log(term.curPos)
+type _debugWriteCell struct {
+	types.XY
+	Rune string
+}
 
+func (term *Term) writeCell(r rune) {
 	if term._insertOrReplace == _STATE_IRM_INSERT {
 		term.csiInsertCharacters(1)
 	}
@@ -15,6 +21,10 @@ func (term *Term) writeCell(r rune) {
 	cell := term.cell()
 	cell.Char = r
 	cell.Sgr = term.sgr.Copy()
+
+	if debug.Enabled {
+		debug.Log(_debugWriteCell{term.curPos, string(r)})
+	}
 
 	if term._activeElement != nil {
 		cell.Element = term._activeElement

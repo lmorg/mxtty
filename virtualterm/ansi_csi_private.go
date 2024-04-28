@@ -1,6 +1,10 @@
 package virtualterm
 
-import "log"
+import (
+	"log"
+
+	"github.com/lmorg/mxtty/debug"
+)
 
 /*
 	Reference documentation used:
@@ -10,6 +14,9 @@ import "log"
 func lookupPrivateCsi(term *Term, code []rune) {
 	param := string(code[:len(code)-1])
 	r := code[len(code)-1]
+
+	debug.Log(param)
+
 	switch r {
 	case 'h':
 		// DEC Private Mode Set (DECSET).

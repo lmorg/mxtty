@@ -167,37 +167,26 @@ func (term *Term) GetSize() *types.XY {
 }
 
 func (term *Term) cell() *types.Cell {
-	/*if term.curPos.X < 0 {
-		term.renderer.DisplayNotification(types.NOTIFY_DEBUG,
-			"term.curPos.X < 0 (returning first cell)")
+	if term.curPos.X < 0 {
+		//term.renderer.DisplayNotification(types.NOTIFY_DEBUG, "term.curPos.X < 0 (returning first cell)")
 		term.curPos.X = 0
 		//term.lineFeed()
 	}
 
 	if term.curPos.Y < 0 {
-		term.renderer.DisplayNotification(types.NOTIFY_DEBUG,
-			"term.curPos.Y < 0 (returning first cell)")
+		//term.renderer.DisplayNotification(types.NOTIFY_DEBUG, "term.curPos.Y < 0 (returning first cell)")
 		term.curPos.Y = 0
 	}
 
 	if term.curPos.X >= term.size.X {
-		term.renderer.DisplayNotification(types.NOTIFY_DEBUG,
-			"term.curPos.X >= term.size.X (returning last cell)")
-		term.curPos.X = term.size.X - 1
-		//term.curPos.X = 0
-		//term.lineFeed()
+		//term.renderer.DisplayNotification(types.NOTIFY_DEBUG, "term.curPos.X >= term.size.X (returning last cell)")
+		term.curPos.X = 0
+		term.lineFeed()
 	}
 
 	if term.curPos.Y >= term.size.Y {
-		term.renderer.DisplayNotification(types.NOTIFY_DEBUG,
-			"term.curPos.Y >= term.size.Y (returning last cell)")
+		//term.renderer.DisplayNotification(types.NOTIFY_DEBUG, "term.curPos.Y >= term.size.Y (returning last cell)")
 		term.curPos.Y = term.size.Y - 1
-		//term.lineFeed()
-	}*/
-
-	if term.curPos.X >= term.size.X {
-		term.curPos.X = 0
-		term.lineFeed()
 	}
 
 	return &(*term.cells)[term.curPos.Y][term.curPos.X]

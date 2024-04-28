@@ -308,7 +308,7 @@ func Test_scrollDown(t *testing.T) {
 				Screen:   "1111111111\n2222222222\n3333333333\n4444444444",
 				Expected: "..........\n1111111111\n2222222222\n3333333333\n4444444444",
 				Operation: func(t *testing.T, term *Term) {
-					top, bottom := term.getScrollingRegion()
+					top, bottom := term.getScrollingRegionExcOrigin()
 					term._scrollDown(top, bottom, 1)
 				},
 			},
@@ -316,7 +316,7 @@ func Test_scrollDown(t *testing.T) {
 				Screen:   "1111111111\n2222222222\n3333333333\n4444444444",
 				Expected: "..........\n..........\n1111111111\n2222222222\n3333333333",
 				Operation: func(t *testing.T, term *Term) {
-					top, bottom := term.getScrollingRegion()
+					top, bottom := term.getScrollingRegionExcOrigin()
 					term._scrollDown(top, bottom, 2)
 				},
 			},
@@ -324,7 +324,7 @@ func Test_scrollDown(t *testing.T) {
 				Screen:   "1111111111\n2222222222\n3333333333\n4444444444",
 				Expected: "..........\n..........\n..........\n1111111111\n2222222222",
 				Operation: func(t *testing.T, term *Term) {
-					top, bottom := term.getScrollingRegion()
+					top, bottom := term.getScrollingRegionExcOrigin()
 					term._scrollDown(top, bottom, 3)
 				},
 			},
@@ -332,7 +332,7 @@ func Test_scrollDown(t *testing.T) {
 				Screen:   "1111111111\n2222222222\n3333333333\n4444444444",
 				Expected: "..........\n..........\n..........\n..........\n1111111111",
 				Operation: func(t *testing.T, term *Term) {
-					top, bottom := term.getScrollingRegion()
+					top, bottom := term.getScrollingRegionExcOrigin()
 					term._scrollDown(top, bottom, 4)
 				},
 			},
@@ -340,7 +340,7 @@ func Test_scrollDown(t *testing.T) {
 				Screen:   "1111111111\n2222222222\n3333333333\n4444444444",
 				Expected: "..........\n..........\n..........\n..........",
 				Operation: func(t *testing.T, term *Term) {
-					top, bottom := term.getScrollingRegion()
+					top, bottom := term.getScrollingRegionExcOrigin()
 					term._scrollDown(top, bottom, 5)
 				},
 			},
@@ -348,7 +348,7 @@ func Test_scrollDown(t *testing.T) {
 				Screen:   "1111111111\n2222222222\n3333333333\n4444444444",
 				Expected: "..........\n..........\n..........\n..........",
 				Operation: func(t *testing.T, term *Term) {
-					top, bottom := term.getScrollingRegion()
+					top, bottom := term.getScrollingRegionExcOrigin()
 					term._scrollDown(top, bottom, 6)
 				},
 			},
