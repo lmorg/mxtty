@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"unsafe"
 
+	"github.com/lmorg/mxtty/config"
 	"github.com/lmorg/mxtty/debug"
 	"github.com/lmorg/mxtty/types"
 )
@@ -40,7 +41,11 @@ func (term *Term) writeCell(r rune) {
 
 func (term *Term) appendScrollBuf() {
 	if unsafe.Pointer(term.cells) == unsafe.Pointer(&term._normBuf) {
-		term._scrollBuf = append(term._scrollBuf, term._normBuf[0])
+		if len(term._scrollBuf) < config.SCROLLBACK_HISTORY {
+			term._scrollBuf = append(term._scrollBuf, term._normBuf[0])
+		} else {
+			term._scrollBuf = append(term._scrollBuf[1:], term._normBuf[0])
+		}
 		if term._scrollOffset > 0 {
 			term._scrollOffset++
 			if term._scrollMsg != nil {

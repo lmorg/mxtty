@@ -1,5 +1,14 @@
 package assets
 
+/*
+	The purpose of this directory is to bundle any external dependency we might
+	need, into the terminal's executable.
+
+	This file defines what assets to include and what to ignore.
+
+	All assets have to sit within this directory.
+*/
+
 import (
 	"embed"
 	"fmt"
