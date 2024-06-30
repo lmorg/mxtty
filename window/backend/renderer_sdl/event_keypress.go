@@ -99,16 +99,21 @@ func (sr *sdlRender) eventKeyPress(evt *sdl.KeyboardEvent) {
 func (sr *sdlRender) eventKeyPressMod(evt *sdl.KeyboardEvent) {
 	//log.Printf("DEBUG: keycode %s", string(evt.Keysym.Sym))
 
-	switch evt.Keysym.Mod {
-	case sdl.KMOD_CTRL, sdl.KMOD_LCTRL, sdl.KMOD_RCTRL:
+	switch {
+	//case sdl.KMOD_CTRL, sdl.KMOD_LCTRL, sdl.KMOD_RCTRL:
+	case evt.Keysym.Mod&sdl.KMOD_CTRL != 0:
+		fallthrough
+	case evt.Keysym.Mod&sdl.KMOD_LCTRL != 0:
+		fallthrough
+	case evt.Keysym.Mod&sdl.KMOD_RCTRL != 0:
 		if evt.Keysym.Sym > '`' && evt.Keysym.Sym < 'z' {
 			sr.term.Reply([]byte{byte(evt.Keysym.Sym) - 0x60})
 		}
 
-	case sdl.KMOD_ALT, sdl.KMOD_LALT:
-		switch evt.Keysym.Sym {
+		//case sdl.KMOD_ALT, sdl.KMOD_LALT:
+		/*switch evt.Keysym.Sym {
 		case 'f':
 
-		}
+		}*/
 	}
 }
