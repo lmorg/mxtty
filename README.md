@@ -71,7 +71,8 @@ there is lots of error handling and unit tests, test coverage is still pretty
 low and exceptions will crash the terminal (quite deliberately, because I want
 to see where the application fails).
 
-Below is a high level TODO list of features and compatibility.
+Below is a high level TODO list of features and compatibility. If an item is
+ticked but not working as expected, then please raise an issue in Github.
 
 ### Escape Codes
 
@@ -79,34 +80,39 @@ Below is a high level TODO list of features and compatibility.
 
 - C1 codes
   - [x] common: can run most CLI applications
-  - [ ] broad: can run older or more CLI applications
-  - [ ] xterm compatible
+  - [x] broad: can run older or more CLI applications
+  - [ ] complete: xterm compatible
 - CSI codes
   - [x] common: can run most CLI applications
   - [x] broad: can run older or more complicated CLI applications
-  - [ ] xterm compatible
+  - [ ] complete: xterm compatible
 - SGR codes
   - [x] common: can run most CLI applications
   - [x] broad: can run older or more complicated CLI applications
-  - [ ] xterm compatible
+  - [ ] complete: xterm compatible
 - OSC codes
   - [x] common: can run most CLI applications
   - [x] broad: can run older or more complicated CLI applications
-  - [ ] xterm compatible
+  - [ ] complete: xterm compatible
 - DCS codes
   - [ ] common: can run most CLI applications
   - [ ] broad: can run older or more complicated CLI applications
-  - [ ] xterm compatible
+  - [ ] complete: xterm compatible
 - PM codes (out of scope)
   - [x] common: can run most CLI applications
   - [x] broad: can run older or more complicated CLI applications
   - [x] xterm compatible
-- [ ] Alt character sets
+- [x] Alt character sets
 - [ ] Wide characters
+- Keyboard
+  - [x] Ctrl modifiers
+  - [ ] Alt modifiers
+  - [ ] Shift modifiers
+  - [ ] special keys (eg function keys, number pad, etc)
 - Mouse tracking
   - [ ] common: can run most CLI applications
   - [ ] broad: can run older or more complicated CLI applications
-  - [ ] xterm compatible
+  - [ ] complete: xterm compatible
 
 #### VT52 mode
 
@@ -123,7 +129,7 @@ Below is a high level TODO list of features and compatibility.
 eg `xterm` and similar terminal emulators
 
 - [x] titlebar can be changed
-- [ ] window can be moved and resized
+- [ ] ~~window can be moved and resized (WILL NOT IMPLEMENT)~~
 - [ ] window can be minimized and restored
 
 #### Extended features
@@ -159,7 +165,7 @@ eg `xterm` and similar terminal emulators
 - [ ] Terminal can be resized
 - [x] Scrollback history
   - [x] usability hints added
-  - [ ] discoverability hints added
+- [ ] discoverability hints added
 - [ ] Typeface can be changed
 - [ ] Colour scheme can be changed
 - [ ] Bell can be changed
@@ -170,21 +176,24 @@ eg `xterm` and similar terminal emulators
 
 Support for the following platforms is planned:
 
-- Linux
-  - [x] Arch
-  - [ ] Ubuntu
-  - [ ] Rocky
-- BSD
-  - [ ] FreeBSD
-  - [ ] NetBSD
-  - [ ] OpenBSD
-  - [ ] DragonflyBSD
+- [x] Linux
+  - [x] tested on Arch
+  - [ ] tested on Ubuntu
+  - [ ] tested on Rocky
+- [ ] BSD
+  - [ ] tested on FreeBSD
+  - [ ] tested on NetBSD
+  - [ ] tested on OpenBSD
+  - [ ] tested on DragonflyBSD
 - [x] macOS
+  - [ ] tested on 12.x, Monterey
+  - [ ] tested on 13.x, Ventura
+  - [x] tested on 14.x, Sonoma
+  - [ ] tested on 15.x, Sequoia
 - [ ] Windows
-
-Checked boxes indicate platforms tested. However because the frameworks mxtty
-was written in (SDL and Go) are cross platform, mxtty should compile and run
-across all the listed platforms.
+  - [ ] PTY support implemented
+  - [ ] tested on Windows 10
+  - [ ] tested on Windows 11
 
 ## Install Guide
 
