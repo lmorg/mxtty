@@ -81,6 +81,10 @@ func (el *ElementTable) endTerm() {
 }
 
 func (el *ElementTable) drawTerm(rect *types.Rect) *types.XY {
+	if len(el._sqlResult) == 0 {
+		return nil
+	}
+
 	var err error
 	pos := new(types.XY)
 	pos.Y = rect.Start.Y

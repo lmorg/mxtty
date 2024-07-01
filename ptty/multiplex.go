@@ -7,6 +7,7 @@ import (
 	"syscall"
 
 	"github.com/creack/pty"
+	"github.com/lmorg/mxtty/utils/exit"
 	"github.com/lmorg/mxtty/virtualterm"
 )
 
@@ -70,7 +71,7 @@ func execute(f *os.File, command string) {
 	if err != nil {
 		panic(err.Error())
 	}
-	os.Exit(0)
+	exit.Exit(0)
 }
 
 func multiplexBypass(p *PTY, fifo *os.File) {

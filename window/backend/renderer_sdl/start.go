@@ -70,7 +70,7 @@ func (sr *sdlRender) createWindow(caption string) error {
 
 	sr.initBell()
 
-	sr.renderer, err = sdl.CreateRenderer(sr.window, -1, sdl.RENDERER_ACCELERATED)
+	sr.renderer, err = sdl.CreateRenderer(sr.window, -1, sdl.RENDERER_ACCELERATED) //|sdl.RENDERER_PRESENTVSYNC|sdl.RENDERER_TARGETTEXTURE)
 	if err != nil {
 		return err
 	}

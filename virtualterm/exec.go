@@ -6,6 +6,7 @@ import (
 	"syscall"
 
 	"github.com/lmorg/mxtty/app"
+	"github.com/lmorg/mxtty/utils/exit"
 )
 
 var ENV_VARS = []string{
@@ -52,5 +53,5 @@ func (term *Term) exec(command string) {
 	if err != nil {
 		panic(err.Error())
 	}
-	os.Exit(0)
+	exit.Exit(0)
 }

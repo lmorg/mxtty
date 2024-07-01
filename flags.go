@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+
+	"github.com/lmorg/mxtty/utils/exit"
 )
 
 var (
@@ -45,19 +47,19 @@ func ansiImage() {
 		fmt.Printf(ANSI_INSERT, "image", params(map[string]any{
 			"base64": b64,
 		}))
-		os.Exit(0)
+		exit.Exit(0)
 	}
 
 	fmt.Printf(ANSI_INSERT, "image", params(map[string]any{
 		"filename": fAnsiImage,
 	}))
-	os.Exit(0)
+	exit.Exit(0)
 }
 
 func die(err error) {
 	if err != nil {
 		os.Stderr.WriteString(err.Error() + "\n")
-		os.Exit(1)
+		exit.Exit(1)
 	}
 }
 

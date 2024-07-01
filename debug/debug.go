@@ -5,6 +5,8 @@ import (
 	"log"
 	"runtime"
 	"strings"
+
+	_ "github.com/lmorg/mxtty/debug/pprof"
 )
 
 func Log(v any) {
