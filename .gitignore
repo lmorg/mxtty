@@ -2,4 +2,4 @@
 sdl-examples/
 mxtty
 mxtty.exe
-*pprof
+*.pprof
