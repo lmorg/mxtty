@@ -203,6 +203,10 @@ To do so you will need the following installed:
 - C compiler (eg gnu c)
 - Go compiler
 - SDL libraries
+  - sdl2
+  - sdl2_ttf
+  - sdl2_mixer
+- `pkg-config`
 
 Aside from that, it's as easy as running `go build .` from the git repository
 root directory.
