@@ -1,6 +1,7 @@
 package rendersdl
 
 import (
+	"sync"
 	"sync/atomic"
 
 	"github.com/lmorg/mxtty/types"
@@ -17,6 +18,7 @@ type sdlRender struct {
 	glyphSize *types.XY
 	termSize  *types.XY
 	term      types.Term
+	limiter   sync.Mutex
 
 	// preferences
 	font       *ttf.Font
@@ -56,8 +58,12 @@ type sdlRender struct {
 func (sr *sdlRender) TriggerQuit()  { go sr._triggerQuit() }
 func (sr *sdlRender) _triggerQuit() { sr._quit <- true }
 
-func (sr *sdlRender) TriggerRedraw()  { go sr._triggerRedraw() }
-func (sr *sdlRender) _triggerRedraw() { sr._redraw <- true }
+func (sr *sdlRender) TriggerRedraw() { go sr._triggerRedraw() }
+func (sr *sdlRender) _triggerRedraw() {
+	if sr.limiter.TryLock() {
+		sr._redraw <- true
+	}
+}
 
 func (sr *sdlRender) TermSize() *types.XY {
 	return sr.termSize

@@ -181,7 +181,7 @@ func (sr *sdlRender) inputBoxCursorBlink() {
 	for {
 		time.Sleep(500 * time.Millisecond)
 		sr.blinkState = !sr.blinkState
-		sr.TriggerRedraw()
+		//sr.TriggerRedraw()
 		if !sr.inputBoxActive {
 			return
 		}

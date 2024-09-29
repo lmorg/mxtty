@@ -37,7 +37,7 @@ func (term *Term) MouseWheel(Y int) {
 		return
 	}
 
-	term._scrollOffset += Y
+	term._scrollOffset += Y * 2
 
 	switch {
 	case term._scrollOffset < 0:

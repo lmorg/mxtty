@@ -50,7 +50,7 @@ func (term *Term) appendScrollBuf() {
 			term._scrollOffset++
 			if term._scrollMsg != nil {
 				term._scrollMsg.SetMessage(fmt.Sprintf("Viewing scrollback history. %d lines from end", term._scrollOffset))
-				term.renderer.TriggerRedraw()
+				//term.renderer.TriggerRedraw()
 			}
 		}
 	}

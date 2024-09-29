@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/lmorg/mxtty/assets"
+	"github.com/lmorg/mxtty/config"
 	"github.com/lmorg/mxtty/types"
 	"github.com/lmorg/mxtty/window/backend/typeface"
 	"github.com/veandco/go-sdl2/sdl"
@@ -22,7 +23,7 @@ const (
 	height int32 = 768
 )
 
-func Initialise(fontName string, fontSize int) types.Renderer {
+func Initialise() types.Renderer {
 	err := sdl.Init(sdl.INIT_VIDEO)
 	if err != nil {
 		panic(err.Error())
@@ -40,7 +41,7 @@ func Initialise(fontName string, fontSize int) types.Renderer {
 	sr._quit = make(chan bool)
 	sr._redraw = make(chan bool)
 
-	font, err := typeface.Open(fontName, fontSize)
+	font, err := typeface.Open(config.FONT_NAME, config.FONT_SIZE)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -113,6 +114,7 @@ func (sr *sdlRender) getTermSize() *types.XY {
 
 func (sr *sdlRender) Start(term types.Term) {
 	sr.term = term
+	//go sr.renderLoop()
 
 	for {
 
@@ -150,10 +152,18 @@ func (sr *sdlRender) Start(term types.Term) {
 
 		case <-sr._redraw:
 			update(sr, term)
+			sr.limiter.Unlock()
 
 		case <-time.After(15 * time.Millisecond):
 			continue
 		}
+	}
+}
+
+func (sr *sdlRender) renderLoop() {
+	for {
+		time.Sleep(16 * time.Millisecond)
+		sr.TriggerRedraw()
 	}
 }
 
