@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/lmorg/mxtty/config"
 	"github.com/lmorg/mxtty/debug/pprof"
 	"github.com/lmorg/mxtty/ptty"
 	"github.com/lmorg/mxtty/virtualterm"
@@ -13,11 +14,7 @@ func main() {
 
 	getFlags()
 
-	fontName := ""
-	shell := "/bin/bash"
-	//shell :="/opt/homebrew/bin/murex"
-
-	renderer := backend.Initialise(fontName, 15)
+	renderer := backend.Initialise()
 	defer renderer.Close()
 
 	term := virtualterm.NewTerminal(renderer)
@@ -26,6 +23,6 @@ func main() {
 		panic(err.Error())
 	}
 
-	term.Start(pty, shell)
+	term.Start(pty, config.DEFAULT_SHELL)
 	backend.Start(renderer, term)
 }
