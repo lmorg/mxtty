@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/lmorg/mxtty/config"
 	"github.com/lmorg/mxtty/debug/pprof"
 	"github.com/lmorg/mxtty/ptty"
 	"github.com/lmorg/mxtty/virtualterm"
@@ -23,6 +22,6 @@ func main() {
 		panic(err.Error())
 	}
 
-	term.Start(pty, config.DEFAULT_SHELL)
+	term.Start(pty)
 	backend.Start(renderer, term)
 }

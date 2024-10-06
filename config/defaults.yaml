@@ -1,0 +1,13 @@
+Shell:
+  Default:  [ "murex" ]
+  Fallback: [ "/bin/sh" ]
+
+Terminal:
+  TypeFace:
+    FontName: ""
+    FontSize: 14
+    DropShadow: true
+  ScrollbackHistory: 10000 # lines
+
+Window:
+  Opacity: 90

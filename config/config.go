@@ -1,22 +1,53 @@
 package config
 
-import "os/exec"
+import (
+	"bytes"
+	_ "embed"
+
+	"gopkg.in/yaml.v3"
+)
 
 /*
 	Eventually these will be user configurable rather than compiled time
 	options.
 */
 
-var (
-	SCROLLBACK_HISTORY = 10000 // lines
-	DEFAULT_SHELL      = "/bin/sh"
-	FONT_NAME          = ""
-	FONT_SIZE          = 14
-)
+//go:embed defaults.yaml
+var defaults []byte
 
 func init() {
-	shell, err := exec.LookPath("murex")
-	if err == nil {
-		DEFAULT_SHELL = shell
+	err := Default()
+	if err != nil {
+		panic(err)
 	}
+}
+
+func Default() error {
+	yml := yaml.NewDecoder(bytes.NewReader(defaults))
+	yml.KnownFields(true)
+	return yml.Decode(&Config)
+}
+
+var Config configT
+
+type configT struct {
+	Shell struct {
+		Default  []string `yaml:"Default"`
+		Fallback []string `yaml:"Fallback"`
+	} `yaml:"Shell"`
+
+	Terminal struct {
+		ScrollbackHistory int `yaml:"ScrollbackHistory"`
+
+		TypeFace struct {
+			FontName   string `yaml:"FontName"`
+			FontSize   int    `yaml:"FontSize"`
+			DropShadow bool   `yaml:"DropShadow"`
+		} `yaml:"TypeFace"`
+	} `yaml:"Terminal"`
+
+	Window struct {
+		Opacity  int      `yaml:"Opacity"`
+		Fallback []string `yaml:"Fallback"`
+	} `yaml:"Window"`
 }

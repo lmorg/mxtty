@@ -115,10 +115,10 @@ func NewTerminal(renderer types.Renderer) *Term {
 	return term
 }
 
-func (term *Term) Start(pty types.Pty, shell string) {
+func (term *Term) Start(pty types.Pty) {
 	term.Pty = pty
 
-	go term.exec(shell)
+	go term.exec()
 	go term.readLoop()
 	go term.slowBlink()
 }

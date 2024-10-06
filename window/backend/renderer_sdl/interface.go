@@ -24,7 +24,6 @@ type sdlRender struct {
 	font       *ttf.Font
 	_fontStyle types.SgrFlag
 	border     int32
-	dropShadow bool
 
 	// title
 	title       string

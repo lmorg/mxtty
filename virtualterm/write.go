@@ -41,7 +41,7 @@ func (term *Term) writeCell(r rune) {
 
 func (term *Term) appendScrollBuf() {
 	if unsafe.Pointer(term.cells) == unsafe.Pointer(&term._normBuf) {
-		if len(term._scrollBuf) < config.SCROLLBACK_HISTORY {
+		if len(term._scrollBuf) < config.Config.Terminal.ScrollbackHistory {
 			term._scrollBuf = append(term._scrollBuf, term._normBuf[0])
 		} else {
 			term._scrollBuf = append(term._scrollBuf[1:], term._normBuf[0])

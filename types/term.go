@@ -3,7 +3,7 @@ package types
 import "os"
 
 type Term interface {
-	Start(Pty, string)
+	Start(Pty)
 	GetSize() *XY
 	Resize(*XY)
 	Render()

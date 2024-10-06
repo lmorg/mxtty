@@ -29,6 +29,8 @@ func Close() {
 
 func Open(name string, size int) (font *ttf.Font, err error) {
 	if name != "" {
+		// Custom font
+
 		var path string
 		path, err = findfont.Find(name)
 		if err != nil {
@@ -41,6 +43,7 @@ func Open(name string, size int) (font *ttf.Font, err error) {
 		}
 
 	} else {
+		// compiled font
 
 		rwops, err := sdl.RWFromMem(assets.Get(assets.TYPEFACE))
 		if err != nil {

@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/lmorg/mxtty/app"
 	"github.com/lmorg/mxtty/assets"
 	"github.com/lmorg/mxtty/config"
 	"github.com/lmorg/mxtty/types"
@@ -30,18 +31,20 @@ func Initialise() types.Renderer {
 	}
 
 	sr := new(sdlRender)
-	err = sr.createWindow("mxtty - Multimedia Terminal Emulator")
+	err = sr.createWindow(app.Title)
 	if err != nil {
 		panic(err.Error())
 	}
 
 	sr.border = 5
-	sr.dropShadow = true
 
 	sr._quit = make(chan bool)
 	sr._redraw = make(chan bool)
 
-	font, err := typeface.Open(config.FONT_NAME, config.FONT_SIZE)
+	font, err := typeface.Open(
+		config.Config.Terminal.TypeFace.FontName,
+		config.Config.Terminal.TypeFace.FontSize,
+	)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -63,6 +66,8 @@ func (sr *sdlRender) createWindow(caption string) error {
 	if err != nil {
 		return err
 	}
+
+	sr.window.SetWindowOpacity(float32(config.Config.Window.Opacity) / 100)
 
 	err = sr.setIcon()
 	if err != nil {
@@ -114,7 +119,6 @@ func (sr *sdlRender) getTermSize() *types.XY {
 
 func (sr *sdlRender) Start(term types.Term) {
 	sr.term = term
-	//go sr.renderLoop()
 
 	for {
 
@@ -157,13 +161,6 @@ func (sr *sdlRender) Start(term types.Term) {
 		case <-time.After(15 * time.Millisecond):
 			continue
 		}
-	}
-}
-
-func (sr *sdlRender) renderLoop() {
-	for {
-		time.Sleep(16 * time.Millisecond)
-		sr.TriggerRedraw()
 	}
 }
 

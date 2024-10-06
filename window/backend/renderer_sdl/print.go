@@ -3,6 +3,7 @@ package rendersdl
 import (
 	"unsafe"
 
+	"github.com/lmorg/mxtty/config"
 	"github.com/lmorg/mxtty/types"
 	"github.com/veandco/go-sdl2/sdl"
 	"github.com/veandco/go-sdl2/ttf"
@@ -39,7 +40,7 @@ func (sr *sdlRender) PrintCell(cell *types.Cell, pos *types.XY) error {
 	// render drop shadow
 
 	var rect2 *sdl.Rect
-	if sr.dropShadow && bg == nil {
+	if config.Config.Terminal.TypeFace.DropShadow && bg == nil {
 		rect2 = &sdl.Rect{
 			X: (sr.glyphSize.X * pos.X) + sr.border + dropShadowOffset,
 			Y: (sr.glyphSize.Y * pos.Y) + sr.border + dropShadowOffset,

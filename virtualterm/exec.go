@@ -1,12 +1,14 @@
 package virtualterm
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 	"syscall"
 
 	"github.com/lmorg/mxtty/app"
-	"github.com/lmorg/mxtty/utils/exit"
+	"github.com/lmorg/mxtty/config"
 )
 
 var ENV_VARS = []string{
@@ -27,12 +29,30 @@ func init() {
 	ENV_VARS = append(os.Environ(), ENV_VARS...)
 }
 
-func (term *Term) exec(command string) {
-	cmd := exec.Command(command)
+func (term *Term) exec() {
+	defaultErr := _exec(term.Pty.File(), config.Config.Shell.Default)
+	if defaultErr == nil {
+		// success, no need to run fallback shell
+		term.renderer.TriggerQuit()
+	}
+
+	fallbackErr := _exec(term.Pty.File(), config.Config.Shell.Fallback)
+	if fallbackErr == nil {
+		// success, no need to run fallback shell
+		term.renderer.TriggerQuit()
+	}
+
+	panic(fmt.Sprintf(
+		"Cannot launch either shell: (Default) %s: (Fallback) %s",
+		defaultErr, fallbackErr))
+}
+
+func _exec(tty *os.File, command []string) error {
+	cmd := exec.Command(command[0], command[1:]...)
 	cmd.Env = ENV_VARS
-	cmd.Stdin = term.Pty.File()
-	cmd.Stdout = term.Pty.File()
-	cmd.Stderr = term.Pty.File()
+	cmd.Stdin = tty
+	cmd.Stdout = tty
+	cmd.Stderr = tty
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Noctty:  false,
 		Setctty: true,
@@ -43,15 +63,16 @@ func (term *Term) exec(command string) {
 
 	err := cmd.Start()
 	if err != nil {
-		panic(err.Error())
+		return err
 	}
 
 	//cmd.SysProcAttr.Ctty = cmd.Process.Pid
 	cmd.SysProcAttr.Pgid = cmd.Process.Pid
 
 	err = cmd.Wait()
-	if err != nil {
-		panic(err.Error())
+	if err != nil && strings.HasPrefix(err.Error(), "Signal") {
+		return err
 	}
-	exit.Exit(0)
+
+	return nil
 }

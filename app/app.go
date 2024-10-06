@@ -15,8 +15,10 @@ const (
 	version  = "%d.%d.%d"
 	Major    = 0
 	Minor    = 0
-	Revision = 3020
+	Revision = 4000
 )
+
+const Title = "mxtty - Multimedia Terminal Emulator"
 
 // Copyright is the copyright owner string
 const Copyright = "© 2023-2024 Laurence Morgan"
