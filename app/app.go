@@ -42,3 +42,5 @@ var sv *semver.Version
 func Semver() *semver.Version {
 	return sv
 }
+
+const ProjectSourcePath = "github.com/lmorg/mxtty/"

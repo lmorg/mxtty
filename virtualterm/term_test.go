@@ -37,7 +37,7 @@ func (tt *testTerm) RunTests(t *testing.T) {
 
 	for i, test := range tt.Tests {
 		term := NewTestTerminal()
-		term._lfEnabled = false
+		term.setJumpScroll()
 
 		for _, r := range test.Screen {
 			if r == '\n' {

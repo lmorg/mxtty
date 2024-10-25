@@ -25,6 +25,10 @@ func lookupPrivateCsi(term *Term, code []rune) {
 			// 132 Column Mode (DECCOLM), VT100.
 			term.resize132()
 
+		case "4":
+			// Smooth (Slow) Scroll (DECSCLM), VT100.
+			term.setSmoothScroll()
+
 		case "6":
 			// Origin Mode (DECOM), VT100.
 			term._originMode = true
@@ -79,6 +83,10 @@ func lookupPrivateCsi(term *Term, code []rune) {
 		case "3":
 			// 80 Column Mode (DECCOLM), VT100.
 			term.resize80()
+
+		case "4":
+			// Jump (Fast) Scroll (DECSCLM), VT100.
+			term.setJumpScroll()
 
 		case "6":
 			// Normal Cursor Mode (DECOM), VT100.

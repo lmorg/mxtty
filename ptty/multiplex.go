@@ -7,8 +7,8 @@ import (
 	"syscall"
 
 	"github.com/creack/pty"
+	"github.com/lmorg/mxtty/config"
 	"github.com/lmorg/mxtty/utils/exit"
-	"github.com/lmorg/mxtty/virtualterm"
 )
 
 func MultiplexBypass(command string) {
@@ -46,7 +46,7 @@ func MultiplexBypass(command string) {
 
 func execute(f *os.File, command string) {
 	cmd := exec.Command(command)
-	cmd.Env = append(os.Environ(), virtualterm.ENV_VARS...)
+	cmd.Env = config.SetEnv()
 	cmd.Stdin = f
 	cmd.Stdout = f
 	cmd.Stderr = f

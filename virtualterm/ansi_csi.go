@@ -124,6 +124,8 @@ func (term *Term) parseCsiCodes() {
 			switch *n {
 			case -1, 0:
 				term.csiClearTabStop()
+			case 1, 2:
+				// Ignored by vt100 and xterm
 			case 3:
 				term.csiResetTabStops()
 			default:
@@ -271,7 +273,7 @@ func (term *Term) parseCsiCodes() {
 			// Set Scrolling Region [top;bottom] (default = full size of window) (DECSTBM), VT100.
 			switch len(stack) {
 			case 0, 1:
-				term.setScrollingRegion([]int32{1, term.size.Y})
+				term.unsetScrollingRegion()
 			case 2:
 				term.setScrollingRegion(stack)
 			default:

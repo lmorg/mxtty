@@ -1,6 +1,6 @@
 Shell:
-  Default:  [ "murex" ]
-  Fallback: [ "/bin/sh" ]
+  #Default:  [ murex ]
+  Fallback: [ /bin/sh ]
 
 Terminal:
   TypeFace:
@@ -8,6 +8,7 @@ Terminal:
     FontSize: 14
     DropShadow: true
   ScrollbackHistory: 10000 # lines
+  JumpScrollLineCount: 2
 
 Window:
   Opacity: 90

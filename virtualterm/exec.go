@@ -7,39 +7,38 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/lmorg/mxtty/app"
 	"github.com/lmorg/mxtty/config"
+	"github.com/lmorg/mxtty/debug"
 )
 
-var ENV_VARS = []string{
-	"MXTTY=true",
-	"MXTTY_VERSION=" + app.Version(),
-	"TERM=xterm-256color",
-	"TERM_PROGRAM=mxtty",
-}
-
 func init() {
-	exe, _ := os.Executable()
-	ENV_VARS = append(ENV_VARS, "MXTTY_EXE="+exe)
-
-	_ = os.Unsetenv("TMUX")
-	_ = os.Unsetenv("TERM")
-	_ = os.Unsetenv("TERM_PROGRAM")
-
-	ENV_VARS = append(os.Environ(), ENV_VARS...)
+	for _, env := range config.UnsetEnv {
+		err := os.Unsetenv(env)
+		if err != nil {
+			debug.Log(err)
+		}
+	}
 }
 
 func (term *Term) exec() {
-	defaultErr := _exec(term.Pty.File(), config.Config.Shell.Default)
+	var defaultErr, fallbackErr error
+	if len(config.Config.Shell.Default) == 0 {
+		goto fallback
+	}
+
+	defaultErr = _exec(term.Pty.File(), config.Config.Shell.Default, &term.process)
 	if defaultErr == nil {
 		// success, no need to run fallback shell
 		term.renderer.TriggerQuit()
+		return
 	}
 
-	fallbackErr := _exec(term.Pty.File(), config.Config.Shell.Fallback)
+fallback:
+	fallbackErr = _exec(term.Pty.File(), config.Config.Shell.Fallback, &term.process)
 	if fallbackErr == nil {
 		// success, no need to run fallback shell
 		term.renderer.TriggerQuit()
+		return
 	}
 
 	panic(fmt.Sprintf(
@@ -47,9 +46,9 @@ func (term *Term) exec() {
 		defaultErr, fallbackErr))
 }
 
-func _exec(tty *os.File, command []string) error {
+func _exec(tty *os.File, command []string, proc **os.Process) error {
 	cmd := exec.Command(command[0], command[1:]...)
-	cmd.Env = ENV_VARS
+	cmd.Env = config.SetEnv()
 	cmd.Stdin = tty
 	cmd.Stdout = tty
 	cmd.Stderr = tty
@@ -68,6 +67,8 @@ func _exec(tty *os.File, command []string) error {
 
 	//cmd.SysProcAttr.Ctty = cmd.Process.Pid
 	cmd.SysProcAttr.Pgid = cmd.Process.Pid
+
+	*proc = cmd.Process
 
 	err = cmd.Wait()
 	if err != nil && strings.HasPrefix(err.Error(), "Signal") {

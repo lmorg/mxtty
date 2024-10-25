@@ -61,7 +61,7 @@ func (term *Term) parseVt52Codes() {
 
 	case 'I':
 		// Reverse line feed.
-		term.ReverseLineFeed()
+		term.reverseLineFeed()
 
 	case 'J':
 		// Erase from the cursor to the end of the screen.

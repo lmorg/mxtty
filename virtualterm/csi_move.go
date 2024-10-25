@@ -1,6 +1,7 @@
 package virtualterm
 
 import (
+	"github.com/lmorg/mxtty/config"
 	"github.com/lmorg/mxtty/debug"
 	"github.com/lmorg/mxtty/types"
 )
@@ -27,7 +28,15 @@ func (term *Term) lineFeed() {
 	go term.lfRedraw()
 }
 
-func (term *Term) ReverseLineFeed() {
+func (term *Term) setJumpScroll() {
+	term._ssFrequency = int32(config.Config.Terminal.JumpScrollLineCount)
+}
+
+func (term *Term) setSmoothScroll() {
+	term._ssFrequency = 1
+}
+
+func (term *Term) reverseLineFeed() {
 	debug.Log(term.curPos.Y)
 
 	if term.csiMoveCursorUpwardsExcOrigin(1) != 0 {
@@ -236,6 +245,11 @@ func (term *Term) setScrollingRegion(region []int32) {
 	if term.curPos.Y >= region[1] {
 		term.curPos.Y = term._scrollRegion.Bottom
 	}
+}
+
+func (term *Term) unsetScrollingRegion() {
+	debug.Log(nil)
+	term._scrollRegion = nil
 }
 
 func (term *Term) getScrollingRegionIncOrigin() (top int32, bottom int32) {

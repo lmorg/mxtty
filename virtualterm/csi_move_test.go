@@ -14,7 +14,7 @@ func TestReverseLineFeed(t *testing.T) {
 				Expected: "..........\n..........\n...bar....\nfoo",
 				Operation: func(t *testing.T, term *Term) {
 					term.setScrollingRegion([]int32{3, 4})
-					term.ReverseLineFeed()
+					term.reverseLineFeed()
 					for _, r := range "bar" {
 						term.writeCell(r)
 					}
@@ -25,11 +25,11 @@ func TestReverseLineFeed(t *testing.T) {
 				Expected: "..........\n..........\n......baz.\n...bar",
 				Operation: func(t *testing.T, term *Term) {
 					term.setScrollingRegion([]int32{3, 4})
-					term.ReverseLineFeed()
+					term.reverseLineFeed()
 					for _, r := range "bar" {
 						term.writeCell(r)
 					}
-					term.ReverseLineFeed()
+					term.reverseLineFeed()
 					for _, r := range "baz" {
 						term.writeCell(r)
 					}

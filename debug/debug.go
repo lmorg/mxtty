@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/lmorg/mxtty/app"
 	_ "github.com/lmorg/mxtty/debug/pprof"
 )
 
@@ -41,7 +42,7 @@ func Log(v any) {
 	}
 
 	fn := runtime.FuncForPC(pc)
-	fnName := strings.Replace(fn.Name(), "github.com/lmorg/mxtty/", "", 1)
+	fnName := strings.Replace(fn.Name(), app.ProjectSourcePath, "", 1)
 
 	pc, _, _, ok = runtime.Caller(2)
 	if !ok {
@@ -50,6 +51,6 @@ func Log(v any) {
 	}
 
 	fn = runtime.FuncForPC(pc)
-	prevName := strings.Replace(fn.Name(), "github.com/lmorg/mxtty/", "", 1)
-	log.Printf("DEBUG: %s() <- %s(): %s", fnName, prevName, string(b))
+	prevName := strings.Replace(fn.Name(), app.ProjectSourcePath, "", 1)
+	log.Printf("DEBUG: %s() -> %s(): %s", prevName, fnName, string(b))
 }

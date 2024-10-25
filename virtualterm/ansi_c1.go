@@ -199,7 +199,7 @@ func (term *Term) parseC1Codes() {
 		// Reverse Index (RI  is 0x8d).
 		// Reverse Line Feed
 		// Reverse Index
-		term.ReverseLineFeed()
+		term.reverseLineFeed()
 
 	case 'N':
 		// Single-Shift 2

@@ -1,6 +1,7 @@
 package virtualterm
 
 import (
+	"os"
 	"sync"
 
 	"github.com/lmorg/mxtty/charset"
@@ -31,6 +32,7 @@ type Term struct {
 	sgr      *types.Sgr
 	renderer types.Renderer
 	Pty      types.Pty
+	process  *os.Process
 	_mutex   sync.Mutex
 
 	cells         *[][]types.Cell
@@ -40,10 +42,9 @@ type Term struct {
 	_scrollOffset int
 	_scrollMsg    types.Notification
 
-	// line feed redraw
-	_lfEnabled   bool
-	_lfNum       int32
-	_lfFrequency int32
+	// smooth scroll
+	_ssCounter   int32
+	_ssFrequency int32
 
 	// tab stops
 	_tabStops []int32
@@ -87,13 +88,9 @@ const (
 )
 
 func (term *Term) lfRedraw() {
-	if !term._lfEnabled {
-		return
-	}
-
-	term._lfNum++
-	if term._lfNum >= term._lfFrequency {
-		term._lfNum = 0
+	term._ssCounter++
+	if term._ssCounter >= term._ssFrequency {
+		term._ssCounter = 0
 		term.renderer.TriggerRedraw()
 	}
 }
@@ -131,6 +128,7 @@ func (term *Term) reset(size *types.XY) {
 	}
 
 	term.size = size
+	term.resizePty()
 	term.curPos = types.XY{}
 
 	term._normBuf = term.makeScreen()
@@ -146,8 +144,7 @@ func (term *Term) reset(size *types.XY) {
 
 	term._charSetG[1] = charset.DecSpecialChar
 
-	term._lfFrequency = 2
-	term._lfEnabled = true
+	term.setJumpScroll()
 }
 
 func (term *Term) makeScreen() [][]types.Cell {

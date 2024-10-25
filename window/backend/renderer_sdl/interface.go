@@ -41,7 +41,7 @@ type sdlRender struct {
 	notifyIcon     map[int]types.Image
 	notifyIconSize *types.XY
 
-	// inputbox
+	// input box
 	inputBoxActive   bool
 	inputBoxMessage  string
 	inputBoxValue    string
