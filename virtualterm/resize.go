@@ -14,7 +14,7 @@ func (term *Term) Resize(size *types.XY) {
 
 func (term *Term) resizePty() {
 	if term.Pty == nil { //|| term.process == nil {
-		debug.Log("cannot resize pty")
+		debug.Log("cannot resize pty: term.Pty is nil")
 		return
 	}
 

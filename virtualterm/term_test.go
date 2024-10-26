@@ -9,10 +9,11 @@ import (
 )
 
 const _testTermHeight = 5
+const _testTermWidth = 10
 
 // NewTestTerminal creates a new virtual term used for unit tests
 func NewTestTerminal() *Term {
-	size := &types.XY{X: 10, Y: _testTermHeight}
+	size := &types.XY{X: _testTermWidth, Y: _testTermHeight}
 
 	term := &Term{}
 
@@ -32,31 +33,6 @@ type testTerm struct {
 	Operation func(t *testing.T, term *Term)
 }
 
-func (term *Term) exportAsString() string {
-	//term._mutex.Lock()
-	//defer term._mutex.Unlock()
-
-	var (
-		r = make([]rune, (term.size.X*term.size.Y)+term.size.Y)
-		i int
-	)
-
-	for y := range *term.cells {
-		for x := range (*term.cells)[y] {
-			if (*term.cells)[y][x].Char > 0 {
-				r[i] = (*term.cells)[y][x].Char
-			} else {
-				r[i] = '·'
-			}
-			i++
-		}
-		r[i] = '\n'
-		i++
-	}
-
-	return string(r)
-}
-
 func (tt *testTerm) RunTests(t *testing.T) {
 	t.Helper()
 
@@ -68,7 +44,7 @@ func (tt *testTerm) RunTests(t *testing.T) {
 			if r == '\n' {
 				continue
 			}
-			term.writeCell(r)
+			term.readChar(r)
 		}
 
 		begin := term.exportAsString()
@@ -83,6 +59,7 @@ func (tt *testTerm) RunTests(t *testing.T) {
 
 		expected := _pad(test.Expected)
 		actual := strings.ReplaceAll(term.exportAsString(), "·", ".")
+		//actual := term.exportAsString()
 		if actual != expected {
 			t.Errorf("Expected doesn't match Actual in test %d:", i)
 			t.Logf("  Raw Begin: '%s'", strings.ReplaceAll(begin, "\n", "↲"))
@@ -94,7 +71,9 @@ func (tt *testTerm) RunTests(t *testing.T) {
 	}
 }
 
-var _padding = bytes.Repeat([]byte("..........\n"), _testTermHeight)
+var _padding = bytes.Repeat(
+	append(bytes.Repeat([]byte{'.'}, _testTermWidth), '\n'),
+	_testTermHeight)
 
 func _pad(s string) string {
 	padded := bytes.Clone(_padding)
@@ -113,4 +92,29 @@ func (term *Term) writeCells(s string) {
 	for _, r := range s {
 		term.writeCell(r)
 	}
+}
+
+func (term *Term) exportAsString() string {
+	//term._mutex.Lock()
+	//defer term._mutex.Unlock()
+
+	var (
+		r = make([]rune, (term.size.X+1)*term.size.Y)
+		i int
+	)
+
+	for y := range *term.cells {
+		for x := range (*term.cells)[y] {
+			if (*term.cells)[y][x].Char > 0 {
+				r[i] = (*term.cells)[y][x].Char
+			} else {
+				r[i] = '·'
+			}
+			i++
+		}
+		r[i] = '\n'
+		i++
+	}
+
+	return string(r)
 }

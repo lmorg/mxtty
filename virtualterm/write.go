@@ -19,11 +19,11 @@ func (term *Term) writeCell(r rune) {
 		term.csiInsertCharacters(1)
 	}
 
-	if term._curPos.X > term.size.X && !term._noAutoLineWrap {
+	if term._curPos.X >= term.size.X && !term._noAutoLineWrap {
 		term._curPos.X = 0
-		if term.csiMoveCursorDownwards(1) > 0 {
-			term.lineFeed()
-		}
+		//if term.csiMoveCursorDownwardsExcOrigin(1) > 0 {
+		term.lineFeed()
+		//}
 	}
 
 	cell := term.currentCell()
