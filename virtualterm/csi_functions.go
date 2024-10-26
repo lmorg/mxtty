@@ -50,13 +50,13 @@ func (term *Term) csiScreenBufferNormal() {
 func (term *Term) csiCursorPosSave() {
 	debug.Log(term._savedCurPos)
 	debug.Log(term.curPos)
-	term._savedCurPos = term.curPos
+	term._savedCurPos = term._curPos
 }
 
 func (term *Term) csiCursorPosRestore() {
 	debug.Log(term.curPos)
 	debug.Log(term._savedCurPos)
-	term.curPos = term._savedCurPos
+	term._curPos = term._savedCurPos
 }
 
 func (term *Term) csiCursorHide() {

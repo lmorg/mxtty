@@ -32,6 +32,31 @@ type testTerm struct {
 	Operation func(t *testing.T, term *Term)
 }
 
+func (term *Term) exportAsString() string {
+	//term._mutex.Lock()
+	//defer term._mutex.Unlock()
+
+	var (
+		r = make([]rune, (term.size.X*term.size.Y)+term.size.Y)
+		i int
+	)
+
+	for y := range *term.cells {
+		for x := range (*term.cells)[y] {
+			if (*term.cells)[y][x].Char > 0 {
+				r[i] = (*term.cells)[y][x].Char
+			} else {
+				r[i] = '·'
+			}
+			i++
+		}
+		r[i] = '\n'
+		i++
+	}
+
+	return string(r)
+}
+
 func (tt *testTerm) RunTests(t *testing.T) {
 	t.Helper()
 
@@ -80,4 +105,12 @@ func _pad(s string) string {
 func _indent(s string) string {
 	s = strings.ReplaceAll("\n"+s[:len(s)-1], "\n", "|\n    |")
 	return s[1:] + "|"
+}
+
+// writeCellsTest is not a practical function for the terminal however it does
+// provide a helpful wrapper for unit tests.
+func (term *Term) writeCells(s string) {
+	for _, r := range s {
+		term.writeCell(r)
+	}
 }

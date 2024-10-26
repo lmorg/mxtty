@@ -10,27 +10,27 @@ import (
 */
 
 func (term *Term) csiEraseDisplayAfter() {
-	debug.Log(term.curPos)
+	debug.Log(term.curPos())
 
 	_, bottom := term.getScrollingRegionExcOrigin()
-	for y := term.curPos.Y + 1; y <= bottom; y++ {
+	for y := term.curPos().Y + 1; y <= bottom; y++ {
 		(*term.cells)[y] = term.makeRow()
 	}
 	term.csiEraseLineAfter()
 }
 
 func (term *Term) csiEraseDisplayBefore() {
-	debug.Log(term.curPos)
+	debug.Log(term.curPos())
 
 	top, _ := term.getScrollingRegionExcOrigin()
-	for y := term.curPos.Y - 1; y >= top; y-- {
+	for y := term.curPos().Y - 1; y >= top; y-- {
 		(*term.cells)[y] = term.makeRow()
 	}
 	term.csiEraseLineBefore()
 }
 
 func (term *Term) csiEraseDisplay() {
-	debug.Log(term.curPos)
+	debug.Log(term.curPos())
 
 	y, bottom := term.getScrollingRegionExcOrigin()
 	for ; y <= bottom; y++ {
@@ -39,7 +39,7 @@ func (term *Term) csiEraseDisplay() {
 }
 
 func (term *Term) eraseScrollBack() {
-	debug.Log(term.curPos)
+	debug.Log(term.curPos())
 
 	term._scrollOffset = 0
 	term._scrollMsg = nil
@@ -51,25 +51,27 @@ func (term *Term) eraseScrollBack() {
 */
 
 func (term *Term) csiEraseLineAfter() {
-	debug.Log(term.curPos)
+	debug.Log(term.curPos())
 
-	n := term.size.X - term.curPos.X
+	pos := term.curPos()
+	n := term.size.X - pos.X
 	clear := make([]types.Cell, n)
-	copy((*term.cells)[term.curPos.Y][term.curPos.X:], clear)
+	copy((*term.cells)[pos.Y][pos.X:], clear)
 }
 
 func (term *Term) csiEraseLineBefore() {
-	debug.Log(term.curPos)
+	debug.Log(term.curPos())
 
-	n := term.curPos.X + 1
+	pos := term.curPos()
+	n := pos.X + 1
 	clear := make([]types.Cell, n)
-	copy((*term.cells)[term.curPos.Y], clear)
+	copy((*term.cells)[pos.Y], clear)
 }
 
 func (term *Term) csiEraseLine() {
-	debug.Log(term.curPos)
+	debug.Log(term.curPos())
 
-	(*term.cells)[term.curPos.Y] = term.makeRow()
+	(*term.cells)[term.curPos().Y] = term.makeRow()
 }
 
 /*
@@ -83,8 +85,9 @@ func (term *Term) csiEraseCharacters(n int32) {
 		n = 1
 	}
 
+	pos := term.curPos()
 	clear := make([]types.Cell, n)
-	copy((*term.cells)[term.curPos.Y][term.curPos.X:], clear)
+	copy((*term.cells)[pos.Y][pos.X:], clear)
 }
 
 /*
@@ -98,9 +101,10 @@ func (term *Term) csiDeleteCharacters(n int32) {
 		n = 1
 	}
 
-	copy((*term.cells)[term.curPos.Y][term.curPos.X:], (*term.cells)[term.curPos.Y][term.curPos.X+n:])
+	pos := term.curPos()
+	copy((*term.cells)[pos.Y][pos.X:], (*term.cells)[pos.Y][pos.X+n:])
 	blank := make([]types.Cell, n)
-	copy((*term.cells)[term.curPos.Y][term.size.X-n:], blank)
+	copy((*term.cells)[pos.Y][term.size.X-n:], blank)
 
 }
 
@@ -113,5 +117,5 @@ func (term *Term) csiDeleteLines(n int32) {
 
 	_, bottom := term.getScrollingRegionExcOrigin()
 
-	term._scrollUp(term.curPos.Y, bottom, n)
+	term._scrollUp(term.curPos().Y, bottom, n)
 }

@@ -19,12 +19,19 @@ func (term *Term) writeCell(r rune) {
 		term.csiInsertCharacters(1)
 	}
 
-	cell := term.cell()
+	if term._curPos.X > term.size.X && !term._noAutoLineWrap {
+		term._curPos.X = 0
+		if term.csiMoveCursorDownwards(1) > 0 {
+			term.lineFeed()
+		}
+	}
+
+	cell := term.currentCell()
 	cell.Char = r
 	cell.Sgr = term.sgr.Copy()
 
 	if debug.Enabled {
-		debug.Log(_debugWriteCell{term.curPos, string(r)})
+		debug.Log(_debugWriteCell{term._curPos, string(r)})
 	}
 
 	if term._activeElement != nil {
@@ -32,10 +39,12 @@ func (term *Term) writeCell(r rune) {
 		term._activeElement.ReadCell(cell)
 	}
 
-	term.curPos.X++
+	if term._insertOrReplace == _STATE_IRM_REPLACE {
+		term._curPos.X++
+	}
 
-	if term.curPos.X >= term.size.X && term._noAutoLineWrap {
-		term.curPos.X--
+	if term._ssFrequency == 0 {
+		term.renderer.TriggerRedraw()
 	}
 }
 

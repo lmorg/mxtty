@@ -1,14 +1,15 @@
 Shell:
-  #Default:  [ murex ]
+  Default:  [ murex   ]
   Fallback: [ /bin/sh ]
 
 Terminal:
   TypeFace:
     FontName: ""
-    FontSize: 14
+    FontSize: 12
     DropShadow: true
   ScrollbackHistory: 10000 # lines
-  JumpScrollLineCount: 2
+  JumpScrollLineCount: -1  # lines, 0 is per character, -1 is per page
+  RefreshInterval: 200 # 0 disables
 
 Window:
-  Opacity: 90
+  Opacity: 100 # %age

@@ -37,7 +37,7 @@ func TestAddClearTabStop(t *testing.T) {
 	expected := "[1 9 23 50]"
 
 	for _, test := range tests {
-		term.curPos.X = test.CurPos
+		term._curPos.X = test.CurPos
 		term.c1AddTabStop()
 	}
 
@@ -76,12 +76,12 @@ func TestNextTabStop(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		term.curPos.X = test.CurPos
+		term._curPos.X = test.CurPos
 		actual := term.nextTabStop()
 
 		if actual != test.Expected {
 			t.Errorf("Expected does not match actual in test %d:", i)
-			t.Logf("  curPos.X: %d", term.curPos.X)
+			t.Logf("  curPos.X: %d", term._curPos.X)
 			t.Logf("  tabStops: %v", term._tabStops)
 			t.Logf("  Expected: %d", test.Expected)
 			t.Logf("  Actual:   %d", actual)

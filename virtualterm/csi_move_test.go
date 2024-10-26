@@ -15,9 +15,7 @@ func TestReverseLineFeed(t *testing.T) {
 				Operation: func(t *testing.T, term *Term) {
 					term.setScrollingRegion([]int32{3, 4})
 					term.reverseLineFeed()
-					for _, r := range "bar" {
-						term.writeCell(r)
-					}
+					term.writeCells("bar")
 				},
 			},
 			{
@@ -26,13 +24,9 @@ func TestReverseLineFeed(t *testing.T) {
 				Operation: func(t *testing.T, term *Term) {
 					term.setScrollingRegion([]int32{3, 4})
 					term.reverseLineFeed()
-					for _, r := range "bar" {
-						term.writeCell(r)
-					}
+					term.writeCells("bar")
 					term.reverseLineFeed()
-					for _, r := range "baz" {
-						term.writeCell(r)
-					}
+					term.writeCells("baz")
 				},
 			},
 		},
@@ -82,9 +76,7 @@ func TestScrollingRegion(t *testing.T) {
 				Expected: "..........\n..........\nabcdefghij",
 				Operation: func(t *testing.T, term *Term) {
 					term.setScrollingRegion([]int32{3, 3})
-					for _, r := range "abcdefghij" {
-						term.writeCell(r)
-					}
+					term.writeCells("abcdefghij")
 				},
 			},
 			{
@@ -92,9 +84,7 @@ func TestScrollingRegion(t *testing.T) {
 				Expected: "..........\n..........\nklmnopqrst\n0987654321",
 				Operation: func(t *testing.T, term *Term) {
 					term.setScrollingRegion([]int32{3, 3})
-					for _, r := range "abcdefghijklmnopqrst" {
-						term.writeCell(r)
-					}
+					term.writeCells("abcdefghijklmnopqrst")
 				},
 			},
 			{
@@ -102,21 +92,26 @@ func TestScrollingRegion(t *testing.T) {
 				Expected: "..........\n..........\nabcdefghij\nklmnopqrst",
 				Operation: func(t *testing.T, term *Term) {
 					term.setScrollingRegion([]int32{3, 4})
-					for _, r := range "abcdefghijklmnopqrst" {
-						term.writeCell(r)
-					}
+					term.writeCells("abcdefghijklmnopqrst")
 				},
 			},
 			{
 				Screen:   "..........\n..........\nfoo.......\nbar",
-				Expected: "..........\n..........\nbar.......\nbaz",
+				Expected: "..........\n..........\nbar.......\n",
 				Operation: func(t *testing.T, term *Term) {
 					term.setScrollingRegion([]int32{3, 4})
 					term.carriageReturn()
 					term.lineFeed()
-					for _, r := range "baz" {
-						term.writeCell(r)
-					}
+				},
+			},
+			{
+				Screen:   "..........\n..........\nfoo.......\nbar",
+				Expected: "..........\n..........\nbar.......\nbaz8",
+				Operation: func(t *testing.T, term *Term) {
+					term.setScrollingRegion([]int32{3, 4})
+					term.carriageReturn()
+					term.lineFeed()
+					term.writeCells("baz8")
 				},
 			},
 			{
@@ -125,9 +120,7 @@ func TestScrollingRegion(t *testing.T) {
 				Operation: func(t *testing.T, term *Term) {
 					term.setScrollingRegion([]int32{3, 4})
 					term.csiMoveCursorUpwards(20)
-					for _, r := range "baz" {
-						term.writeCell(r)
-					}
+					term.writeCells("baz")
 				},
 			},
 			///// scroll downwards
@@ -140,9 +133,7 @@ func TestScrollingRegion(t *testing.T) {
 					term.csiMoveCursorUpwards(1)
 					term.csiScrollDown(1)
 					term.csiMoveCursorUpwards(1)
-					for _, r := range "baz" {
-						term.writeCell(r)
-					}
+					term.writeCells("baz")
 				},
 			},
 			{
@@ -154,9 +145,7 @@ func TestScrollingRegion(t *testing.T) {
 					term.csiMoveCursorUpwards(10)
 					term.csiScrollDown(1)
 					term.csiMoveCursorUpwards(10)
-					for _, r := range "baz" {
-						term.writeCell(r)
-					}
+					term.writeCells("baz")
 				},
 			},
 			{
@@ -387,7 +376,7 @@ func TestCsiInsertCharacters(t *testing.T) {
 			},
 		},
 		Operation: func(t *testing.T, term *Term) {
-			term.curPos = types.XY{X: 3, Y: 0}
+			term._curPos = types.XY{X: 3, Y: 0}
 			term.csiInsertCharacters(2)
 		},
 	}

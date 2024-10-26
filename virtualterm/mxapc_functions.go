@@ -21,19 +21,19 @@ func (term *Term) mxapcEnd() {
 }
 
 func (term *Term) mxapcInsert(element types.ElementID, parameters *types.ApcSlice) {
+	// this is ugly and needs rewriting
 	term._activeElement = term.renderer.NewElement(element, nil, nil)
 
 	size := term._activeElement.Insert(parameters)
 
 	if size != nil {
-
-		term.cell().Element = term._activeElement
+		term.currentCell().Element = term._activeElement
 
 		for i := int32(1); i < size.Y; i++ {
 			term.lineFeed()
 		}
 
-		start := &types.XY{X: term.curPos.X, Y: term.curPos.Y - size.Y}
+		start := &types.XY{X: term.curPos().X, Y: term.curPos().Y - size.Y}
 		term._elementResizeGrow(term._activeElement, start, size)
 	}
 

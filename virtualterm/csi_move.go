@@ -9,7 +9,7 @@ import (
 // basic TTY operations
 
 func (term *Term) carriageReturn() {
-	term.curPos.X = 0
+	term._curPos.X = 0
 }
 
 func (term *Term) lineFeed() {
@@ -29,15 +29,19 @@ func (term *Term) lineFeed() {
 }
 
 func (term *Term) setJumpScroll() {
-	term._ssFrequency = int32(config.Config.Terminal.JumpScrollLineCount)
+	i := int32(config.Config.Terminal.JumpScrollLineCount)
+	if i < 0 {
+		i = term.size.Y
+	}
+	term._ssFrequency = i
 }
 
 func (term *Term) setSmoothScroll() {
-	term._ssFrequency = 1
+	term._ssFrequency = 0
 }
 
 func (term *Term) reverseLineFeed() {
-	debug.Log(term.curPos.Y)
+	debug.Log(term._curPos.Y)
 
 	if term.csiMoveCursorUpwardsExcOrigin(1) != 0 {
 		term.csiScrollDown(1)
@@ -59,10 +63,11 @@ func (term *Term) csiMoveCursorBackwards(i int32) (overflow int32) {
 		i = 1
 	}
 
-	term.curPos.X -= i
-	if term.curPos.X < 0 {
-		overflow = -term.curPos.X
-		term.curPos.X = 0
+	pos := term.curPos()
+	term._curPos.X = pos.X - i
+	if term._curPos.X < 0 {
+		overflow = -term._curPos.X
+		term._curPos.X = 0
 	}
 
 	return
@@ -78,10 +83,11 @@ func (term *Term) csiMoveCursorForwards(i int32) (overflow int32) {
 		i = 1
 	}
 
-	term.curPos.X += i
-	if term.curPos.X >= term.size.X {
-		overflow = term.curPos.X - (term.size.X - 1)
-		term.curPos.X = term.size.X - 1
+	pos := term.curPos()
+	term._curPos.X = pos.X + i
+	if term._curPos.X >= term.size.X {
+		overflow = term._curPos.X - (term.size.X - 1)
+		term._curPos.X = term.size.X - 1
 	}
 
 	return
@@ -97,12 +103,13 @@ func (term *Term) csiMoveCursorUpwards(i int32) (overflow int32) {
 		i = 1
 	}
 
+	pos := term.curPos()
 	top, _ := term.getScrollingRegionIncOrigin()
 
-	term.curPos.Y -= i
-	if term.curPos.Y < top {
-		overflow = term.curPos.Y - top
-		term.curPos.Y = top
+	term._curPos.Y = pos.Y - i
+	if term._curPos.Y < top {
+		overflow = term._curPos.Y - top
+		term._curPos.Y = top
 	}
 
 	return
@@ -115,12 +122,13 @@ func (term *Term) csiMoveCursorUpwardsExcOrigin(i int32) (overflow int32) {
 		i = 1
 	}
 
+	pos := term.curPos()
 	top, _ := term.getScrollingRegionExcOrigin()
 
-	term.curPos.Y -= i
-	if term.curPos.Y < top {
-		overflow = term.curPos.Y - top
-		term.curPos.Y = top
+	term._curPos.Y = pos.Y - i
+	if term._curPos.Y < top {
+		overflow = term._curPos.Y - top
+		term._curPos.Y = top
 	}
 
 	return
@@ -136,13 +144,14 @@ func (term *Term) csiMoveCursorDownwards(i int32) (overflow int32) {
 		i = 1
 	}
 
-	term.curPos.Y += i
+	pos := term.curPos()
+	term._curPos.Y = pos.Y + i
 
 	_, bottom := term.getScrollingRegionIncOrigin()
 
-	if term.curPos.Y > bottom {
-		overflow = term.curPos.Y - bottom
-		term.curPos.Y = bottom
+	if term._curPos.Y > bottom {
+		overflow = term._curPos.Y - bottom
+		term._curPos.Y = bottom
 	}
 
 	return
@@ -155,13 +164,14 @@ func (term *Term) csiMoveCursorDownwardsExcOrigin(i int32) (overflow int32) {
 		i = 1
 	}
 
-	term.curPos.Y += i
+	pos := term.curPos()
+	term._curPos.Y = pos.Y + i
 
 	_, bottom := term.getScrollingRegionExcOrigin()
 
-	if term.curPos.Y > bottom {
-		overflow = term.curPos.Y - bottom
-		term.curPos.Y = bottom
+	if term._curPos.Y > bottom {
+		overflow = term._curPos.Y - bottom
+		term._curPos.Y = bottom
 	}
 
 	return
@@ -172,11 +182,11 @@ func (term *Term) moveCursorToColumn(col int32) {
 
 	switch {
 	case col < 1:
-		term.curPos.X = 0
+		term._curPos.X = 0
 	case col > term.size.X:
-		term.curPos.X = term.size.X - 1
+		term._curPos.X = term.size.X - 1
 	default:
-		term.curPos.X = col - 1
+		term._curPos.X = col - 1
 	}
 }
 
@@ -189,11 +199,11 @@ func (term *Term) moveCursorToRow(row int32) {
 
 	switch {
 	case row < top:
-		term.curPos.Y = top
+		term._curPos.Y = top
 	case row > bottom:
-		term.curPos.Y = bottom
+		term._curPos.Y = bottom
 	default:
-		term.curPos.Y = row - 1
+		term._curPos.Y = row - 1
 	}
 }
 
@@ -214,8 +224,8 @@ func (term *Term) setScrollingRegion(region []int32) {
 	debug.Log(region)
 
 	switch {
-	case region[0] < 1:
-		region[0] = 1
+	case region[0] < 0:
+		region[0] = 0
 	case region[0] > term.size.Y:
 		region[0] = term.size.Y - 1
 	}
@@ -223,15 +233,8 @@ func (term *Term) setScrollingRegion(region []int32) {
 	switch {
 	case region[1] < region[0]:
 		region[1] = region[0]
-	case region[1] >= term.size.Y:
+	case region[1] > term.size.Y:
 		region[1] = term.size.Y
-	}
-
-	switch {
-	case region[0] < 0:
-		region[0] = 0
-	case region[0] >= term.size.Y:
-		region[0] = term.size.Y - 1
 	}
 
 	term._scrollRegion = &scrollRegionT{
@@ -239,11 +242,12 @@ func (term *Term) setScrollingRegion(region []int32) {
 		Bottom: region[1] - 1,
 	}
 
-	if term.curPos.Y <= region[0] {
-		term.curPos.Y = term._scrollRegion.Top
+	pos := term.curPos()
+	if pos.Y <= region[0] {
+		term._curPos.Y = term._scrollRegion.Top
 	}
-	if term.curPos.Y >= region[1] {
-		term.curPos.Y = term._scrollRegion.Bottom
+	if pos.Y >= region[1] {
+		term._curPos.Y = term._scrollRegion.Bottom
 	}
 }
 
@@ -347,11 +351,12 @@ func (term *Term) csiInsertCharacters(n int32) {
 	insert := make([]types.Cell, n)
 	row := term.makeRow()
 
-	copy(row, (*term.cells)[term.curPos.Y][:term.curPos.X])
-	copy(row[term.curPos.X:], insert)
-	copy(row[term.curPos.X+n:], (*term.cells)[term.curPos.Y][term.curPos.X:])
+	pos := term.curPos()
+	copy(row, (*term.cells)[pos.Y][:pos.X])
+	copy(row[pos.X:], insert)
+	copy(row[pos.X+n:], (*term.cells)[pos.Y][pos.X:])
 
-	(*term.cells)[term.curPos.Y] = row
+	(*term.cells)[pos.Y] = row
 }
 
 // csiInsertLines: 0 should default to 1.
@@ -364,5 +369,5 @@ func (term *Term) csiInsertLines(n int32) {
 
 	_, bottom := term.getScrollingRegionExcOrigin()
 
-	term._scrollDown(term.curPos.Y, bottom, n)
+	term._scrollDown(term.curPos().Y, bottom, n)
 }

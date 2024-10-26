@@ -7,7 +7,9 @@ import (
 )
 
 func (term *Term) Render() {
-	term._mutex.Lock()
+	if !term._mutex.TryLock() {
+		return
+	}
 
 	var cells = *term.cells
 	if term._scrollOffset != 0 {
@@ -70,7 +72,7 @@ func (term *Term) _blinkCursor() {
 	}
 
 	// copy cell
-	cell := term.copyCell(term.cell())
+	cell := term.copyCurrentCell(term.currentCell())
 
 	// format cell
 	if cell.Char == 0 {
@@ -86,33 +88,8 @@ func (term *Term) _blinkCursor() {
 	}
 
 	// print cell
-	err := term.renderer.PrintCell(cell, &term.curPos)
+	err := term.renderer.PrintCell(cell, term.curPos())
 	if err != nil {
 		log.Printf("ERROR: error in %s [cursorBlink]: %s", "(t *Term) _blinkCursor()", err.Error())
 	}
-}
-
-func (term *Term) exportAsString() string {
-	//term._mutex.Lock()
-	//defer term._mutex.Unlock()
-
-	var (
-		r = make([]rune, (term.size.X*term.size.Y)+term.size.Y)
-		i int
-	)
-
-	for y := range *term.cells {
-		for x := range (*term.cells)[y] {
-			if (*term.cells)[y][x].Char > 0 {
-				r[i] = (*term.cells)[y][x].Char
-			} else {
-				r[i] = '·'
-			}
-			i++
-		}
-		r[i] = '\n'
-		i++
-	}
-
-	return string(r)
 }

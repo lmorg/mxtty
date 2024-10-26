@@ -3,8 +3,10 @@ package virtualterm
 import (
 	"os"
 	"sync"
+	"time"
 
 	"github.com/lmorg/mxtty/charset"
+	"github.com/lmorg/mxtty/config"
 	"github.com/lmorg/mxtty/types"
 )
 
@@ -51,7 +53,7 @@ type Term struct {
 	_tabWidth int32
 
 	// cursor and scrolling
-	curPos        types.XY
+	_curPos       types.XY
 	_originMode   bool // Origin Mode (DECOM), VT100.
 	_hideCursor   bool
 	_savedCurPos  types.XY
@@ -88,6 +90,10 @@ const (
 )
 
 func (term *Term) lfRedraw() {
+	if term.renderer == nil {
+		return
+	}
+
 	term._ssCounter++
 	if term._ssCounter >= term._ssFrequency {
 		term._ssCounter = 0
@@ -118,6 +124,20 @@ func (term *Term) Start(pty types.Pty) {
 	go term.exec()
 	go term.readLoop()
 	go term.slowBlink()
+	go term.refreshInterval()
+}
+
+func (term *Term) refreshInterval() {
+	if config.Config.Terminal.RefreshInterval == 0 {
+		return
+	}
+
+	d := time.Duration(config.Config.Terminal.RefreshInterval) * time.Millisecond
+	//time.Sleep(3 * time.Second) // lets let everything start first
+	for {
+		time.Sleep(d)
+		term.renderer.TriggerRedraw()
+	}
 }
 
 func (term *Term) reset(size *types.XY) {
@@ -129,7 +149,7 @@ func (term *Term) reset(size *types.XY) {
 
 	term.size = size
 	term.resizePty()
-	term.curPos = types.XY{}
+	term._curPos = types.XY{}
 
 	term._normBuf = term.makeScreen()
 	term._altBuf = term.makeScreen()
@@ -163,34 +183,14 @@ func (term *Term) GetSize() *types.XY {
 	return term.size
 }
 
-func (term *Term) cell() *types.Cell {
-	if term.curPos.X < 0 {
-		//term.renderer.DisplayNotification(types.NOTIFY_DEBUG, "term.curPos.X < 0 (returning first cell)")
-		term.curPos.X = 0
-		//term.lineFeed()
-	}
+func (term *Term) currentCell() *types.Cell {
+	pos := term.curPos()
 
-	if term.curPos.Y < 0 {
-		//term.renderer.DisplayNotification(types.NOTIFY_DEBUG, "term.curPos.Y < 0 (returning first cell)")
-		term.curPos.Y = 0
-	}
-
-	if term.curPos.X >= term.size.X {
-		//term.renderer.DisplayNotification(types.NOTIFY_DEBUG, "term.curPos.X >= term.size.X (returning last cell)")
-		term.curPos.X = 0
-		term.lineFeed()
-	}
-
-	if term.curPos.Y >= term.size.Y {
-		//term.renderer.DisplayNotification(types.NOTIFY_DEBUG, "term.curPos.Y >= term.size.Y (returning last cell)")
-		term.curPos.Y = term.size.Y - 1
-	}
-
-	return &(*term.cells)[term.curPos.Y][term.curPos.X]
+	return &(*term.cells)[pos.Y][pos.X]
 }
 
 func (term *Term) previousCell() (*types.Cell, *types.XY) {
-	pos := term.curPos
+	pos := term.curPos()
 	pos.X--
 
 	if pos.X < 0 {
@@ -204,7 +204,32 @@ func (term *Term) previousCell() (*types.Cell, *types.XY) {
 		pos.Y = 0
 	}
 
-	return &(*term.cells)[pos.Y][pos.X], &pos
+	return &(*term.cells)[pos.Y][pos.X], pos
+}
+
+func (term *Term) curPos() *types.XY {
+	var y int32
+	switch {
+	case term._curPos.Y < 0:
+		y = 0
+	case term._curPos.Y > term.size.Y:
+		y = term.size.Y - 1
+		//term.lineFeed()
+	default:
+		y = term._curPos.Y
+	}
+
+	var x int32
+	switch {
+	case term._curPos.X < 0:
+		x = 0
+	case term._curPos.X >= term.size.X:
+		x = term.size.X - 1
+	default:
+		x = term._curPos.X
+	}
+
+	return &types.XY{X: x, Y: y}
 }
 
 type scrollRegionT struct {
@@ -220,10 +245,10 @@ func (term *Term) Bg() *types.Colour {
 	return types.SGR_DEFAULT.Bg
 }
 
-func (term *Term) copyCell(cell *types.Cell) *types.Cell {
+func (term *Term) copyCurrentCell(cell *types.Cell) *types.Cell {
 	copy := new(types.Cell)
 	copy.Char = cell.Char
-	if term.cell().Sgr == nil {
+	if term.currentCell().Sgr == nil {
 		copy.Sgr = term.sgr.Copy()
 	} else {
 		copy.Sgr = cell.Sgr.Copy()

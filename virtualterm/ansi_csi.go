@@ -92,7 +92,7 @@ func (term *Term) parseCsiCodes() {
 		case 'E':
 			// Cursor Next Line Ps Times (default = 1) (CNL).
 			term.csiMoveCursorDownwards(*n)
-			term.curPos.X = 0
+			term._curPos.X = 0
 
 		case 'f':
 			// Horizontal and Vertical Position [row;column] (default = [1,1]) (HVP).
@@ -111,7 +111,7 @@ func (term *Term) parseCsiCodes() {
 		case 'F':
 			// Cursor Preceding Line Ps Times (default = 1) (CPL).
 			term.csiMoveCursorUpwards(*n)
-			term.curPos.X = 0
+			term._curPos.X = 0
 
 		case 'g':
 			// Tab Clear (TBC).  ECMA-48 defines additional codes, but the
@@ -256,7 +256,8 @@ func (term *Term) parseCsiCodes() {
 			*/
 			switch *n {
 			case 6:
-				term.csiCallback("%d;%dR", term.curPos.Y+1, term.curPos.X+1)
+				pos := term.curPos()
+				term.csiCallback("%d;%dR", pos.Y+1, pos.X+1)
 			default:
 				log.Printf("WARNING: Unknown Device Status Report (DSR) sequence: %d", *n)
 			}
