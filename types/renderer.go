@@ -10,7 +10,7 @@ type Renderer interface {
 	Bell()
 	TriggerRedraw()
 	TriggerQuit()
-	NewElement(elementType ElementID, size *XY, data []byte) Element
+	NewElement(elementType ElementID) Element
 	DisplayNotification(NotificationType, string)
 	DisplaySticky(NotificationType, string) Notification
 	DisplayInputBox(string, string, func(string))

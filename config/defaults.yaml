@@ -4,12 +4,12 @@ Shell:
 
 Terminal:
   TypeFace:
-    FontName: ""
-    FontSize: 12
+    FontName: "SpecialElite-Regular"
+    FontSize: 15
     DropShadow: true
   ScrollbackHistory: 10000 # lines
   JumpScrollLineCount: -1  # lines, 0 is per character, -1 is per page
-  RefreshInterval: 200 # 0 disables
+  RefreshInterval: 200     # 0 disables
 
 Window:
-  Opacity: 100 # %age
+  Opacity: 90 # %age

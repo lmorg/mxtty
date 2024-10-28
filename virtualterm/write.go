@@ -14,7 +14,7 @@ type _debugWriteCell struct {
 	Rune string
 }
 
-func (term *Term) writeCell(r rune) {
+func (term *Term) writeCell(r rune, el types.Element) {
 	if term._insertOrReplace == _STATE_IRM_INSERT {
 		term.csiInsertCharacters(1)
 	}
@@ -29,14 +29,10 @@ func (term *Term) writeCell(r rune) {
 	cell := term.currentCell()
 	cell.Char = r
 	cell.Sgr = term.sgr.Copy()
+	cell.Element = el
 
 	if debug.Enabled {
 		debug.Log(_debugWriteCell{term._curPos, string(r)})
-	}
-
-	if term._activeElement != nil {
-		cell.Element = term._activeElement
-		term._activeElement.ReadCell(cell)
 	}
 
 	if term._insertOrReplace == _STATE_IRM_REPLACE {

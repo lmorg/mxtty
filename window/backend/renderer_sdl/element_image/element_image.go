@@ -1,6 +1,8 @@
 package elementImage
 
 import (
+	"fmt"
+
 	"github.com/lmorg/mxtty/types"
 )
 
@@ -24,20 +26,7 @@ func New(renderer types.Renderer, loadFn func([]byte, *types.XY) (types.Image, e
 	return &ElementImage{renderer: renderer, load: loadFn}
 }
 
-func (el *ElementImage) Begin(_ *types.ApcSlice) {
-	// not required for this element
-}
-
-func (el *ElementImage) ReadCell(cell *types.Cell) {
-	// not required for this element
-}
-
-func (el *ElementImage) End() *types.XY {
-	// not required for this element
-	return nil
-}
-
-func (el *ElementImage) Insert(apc *types.ApcSlice) *types.XY {
+func (el *ElementImage) Generate(apc *types.ApcSlice) error {
 	el.renderer.DisplayNotification(types.NOTIFY_DEBUG, "Importing image from ANSI escape codes....")
 
 	apc.Parameters(&el.parameters)
@@ -51,44 +40,30 @@ func (el *ElementImage) Insert(apc *types.ApcSlice) *types.XY {
 
 	err := el.decode()
 	if err != nil {
-		el.renderer.DisplayNotification(types.NOTIFY_ERROR, "Cannot decode image: "+err.Error())
-		return nil
+		return fmt.Errorf("cannot decode image: %s", err.Error())
 	}
 
+	// cache image
+
+	el.image, err = el.load(el.bmp, el.size)
+	if err != nil {
+		return fmt.Errorf("cannot cache image: %s", err.Error())
+	}
+	return nil
+}
+
+func (el *ElementImage) Size() *types.XY {
 	return el.size
 }
 
-func (el *ElementImage) Draw(rect *types.Rect) *types.XY {
+func (el *ElementImage) Draw(rect *types.Rect) {
 	if len(el.bmp) == 0 {
-		return nil
-	}
-
-	var updateSize bool
-
-	if el.image == nil {
-		// cache image
-		var err error
-
-		el.image, err = el.load(el.bmp, el.size)
-		if err != nil {
-			el.renderer.DisplayNotification(types.NOTIFY_ERROR, "Cannot cache image: "+err.Error())
-			rect.End.X = rect.Start.X
-			rect.End.Y = rect.Start.Y
-			return &types.XY{}
-		}
-
-		updateSize = true
-
+		return
 	}
 
 	el.renderer.AddRenderFnToStack(func() {
 		el.image.Draw(el.size, rect)
 	})
-
-	if updateSize {
-		return el.size
-	}
-	return nil
 }
 
 func (el *ElementImage) Close() {

@@ -47,7 +47,7 @@ func (term *Term) printTab() {
 
 func (term *Term) _printTab(tabWidth int32) {
 	for i := 1; i < int(tabWidth); i++ {
-		term.writeCell(' ')
+		term.writeCell(' ', nil)
 	}
 }
 

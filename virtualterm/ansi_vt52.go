@@ -84,6 +84,6 @@ func (term *Term) parseVt52Codes() {
 		term.Reply([]byte{codes.AsciiEscape, '/', 'Z'})
 
 	default:
-		log.Printf("WARNING: VT52 code not recognised: %s", string(r))
+		log.Printf("WARNING: VT52 code not recognized: %s", string(r))
 	}
 }

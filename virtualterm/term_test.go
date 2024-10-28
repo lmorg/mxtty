@@ -90,7 +90,7 @@ func _indent(s string) string {
 // provide a helpful wrapper for unit tests.
 func (term *Term) writeCells(s string) {
 	for _, r := range s {
-		term.writeCell(r)
+		term.writeCell(r, nil)
 	}
 }
 

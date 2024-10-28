@@ -7,9 +7,7 @@ import (
 )
 
 func (term *Term) Render() {
-	if !term._mutex.TryLock() {
-		return
-	}
+	term._mutex.Lock()
 
 	var cells = *term.cells
 	if term._scrollOffset != 0 {
@@ -22,8 +20,8 @@ func (term *Term) Render() {
 	}
 
 	var err error
-	elementStack := make(map[types.Element]*types.Rect)
 	pos := new(types.XY)
+	elementStack := make(map[types.Element]*types.Rect)
 
 	for ; pos.Y < term.size.Y; pos.Y++ {
 		for pos.X = 0; pos.X < term.size.X; pos.X++ {
@@ -31,9 +29,12 @@ func (term *Term) Render() {
 			case cells[pos.Y][pos.X].Element != nil:
 				rect, ok := elementStack[cells[pos.Y][pos.X].Element]
 				if !ok { // create rect
+					//offset := getElementXY(cells[pos.Y][pos.X].Char)
 					elementStack[cells[pos.Y][pos.X].Element] = &types.Rect{
+						//Start: &types.XY{X: pos.X + offset.X, Y: pos.Y + offset.Y},
 						Start: &types.XY{X: pos.X, Y: pos.Y},
-						End:   &types.XY{X: pos.X, Y: pos.Y},
+						//End:   &types.XY{X: pos.X, Y: pos.Y},
+						End: new(types.XY),
 					}
 				} else { // update rect
 					rect.End.X, rect.End.Y = pos.X, pos.Y
@@ -55,10 +56,7 @@ func (term *Term) Render() {
 	}
 
 	for el, rect := range elementStack {
-		size := el.Draw(rect)
-		if size != nil {
-			term._elementResizeGrow(el, rect.Start, size)
-		}
+		el.Draw(rect)
 	}
 
 	term._blinkCursor()

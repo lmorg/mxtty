@@ -86,12 +86,12 @@ func (term *Term) readChar(r rune) {
 		if term._charSetG[term._activeCharSet] != nil {
 			char := term._charSetG[term._activeCharSet][r]
 			if char != 0 {
-				term.writeCell(char)
+				term.writeCell(char, nil)
 				return
 			}
 		}
 
-		term.writeCell(r)
+		term.writeCell(r, nil)
 	}
 }
 

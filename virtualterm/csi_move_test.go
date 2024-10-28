@@ -156,9 +156,7 @@ func TestScrollingRegion(t *testing.T) {
 					term.csiMoveCursorDownwards(10)
 					term.csiScrollDown(1)
 					term.csiMoveCursorDownwards(10)
-					for _, r := range "baz" {
-						term.writeCell(r)
-					}
+					term.writeCells("baz")
 				},
 			},
 		},

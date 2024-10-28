@@ -61,7 +61,6 @@ type Term struct {
 
 	// state
 	_vtMode          _stateVtMode
-	_activeElement   types.Element
 	_slowBlinkState  bool
 	_insertOrReplace _stateIrmT
 

@@ -16,7 +16,7 @@ func (term *Term) csiRepeatPreceding(n int32) {
 	}
 	cell, _ := term.previousCell()
 	for i := int32(0); i < n; i++ {
-		term.writeCell(cell.Char)
+		term.writeCell(cell.Char, nil)
 	}
 }
 
