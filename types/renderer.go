@@ -23,6 +23,6 @@ type Renderer interface {
 type Image interface {
 	Size() *XY
 	Asset() any
-	Draw(size *XY, rect *Rect)
+	Draw(size *XY, pos *XY)
 	Close()
 }

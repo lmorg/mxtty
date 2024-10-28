@@ -21,23 +21,18 @@ func (term *Term) Render() {
 
 	var err error
 	pos := new(types.XY)
-	elementStack := make(map[types.Element]*types.Rect)
+	//elementStack := make(map[types.Element]*types.Rect)
+	elementStack := make(map[types.Element]bool)
 
 	for ; pos.Y < term.size.Y; pos.Y++ {
 		for pos.X = 0; pos.X < term.size.X; pos.X++ {
 			switch {
 			case cells[pos.Y][pos.X].Element != nil:
-				rect, ok := elementStack[cells[pos.Y][pos.X].Element]
-				if !ok { // create rect
-					//offset := getElementXY(cells[pos.Y][pos.X].Char)
-					elementStack[cells[pos.Y][pos.X].Element] = &types.Rect{
-						//Start: &types.XY{X: pos.X + offset.X, Y: pos.Y + offset.Y},
-						Start: &types.XY{X: pos.X, Y: pos.Y},
-						//End:   &types.XY{X: pos.X, Y: pos.Y},
-						End: new(types.XY),
-					}
-				} else { // update rect
-					rect.End.X, rect.End.Y = pos.X, pos.Y
+				_, ok := elementStack[cells[pos.Y][pos.X].Element]
+				if !ok {
+					elementStack[cells[pos.Y][pos.X].Element] = true
+					offset := getElementXY(cells[pos.Y][pos.X].Char)
+					cells[pos.Y][pos.X].Element.Draw(nil, &types.XY{X: pos.X - offset.X, Y: pos.Y - offset.Y})
 				}
 
 			case cells[pos.Y][pos.X].Char == 0:
@@ -55,9 +50,9 @@ func (term *Term) Render() {
 		}
 	}
 
-	for el, rect := range elementStack {
-		el.Draw(rect)
-	}
+	/*for el, pos := range elementStack {
+		el.Draw(nil, pos)
+	}*/
 
 	term._blinkCursor()
 

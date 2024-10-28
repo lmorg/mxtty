@@ -6,16 +6,13 @@ import (
 
 	"github.com/flopp/go-findfont"
 	"github.com/lmorg/mxtty/assets"
+	"github.com/lmorg/mxtty/config"
 	"github.com/lmorg/mxtty/types"
 	"github.com/veandco/go-sdl2/sdl"
 	"github.com/veandco/go-sdl2/ttf"
 )
 
-var (
-	fontSize *types.XY
-	adjustX  int32 = 0
-	adjustY  int32 = 1
-)
+var fontSize *types.XY
 
 func init() {
 	err := ttf.Init()
@@ -56,8 +53,8 @@ func getSize(font *ttf.Font) (*types.XY, error) {
 		return nil, fmt.Errorf("error in font.RenderGlyphBlended(): %s", err.Error())
 	}
 	return &types.XY{
-		X: surface.W + adjustX,
-		Y: surface.H + adjustY,
+		X: surface.W + int32(config.Config.Terminal.TypeFace.AdjustCellWidth),
+		Y: surface.H + int32(config.Config.Terminal.TypeFace.AdjustCellHeight),
 	}, nil
 }
 

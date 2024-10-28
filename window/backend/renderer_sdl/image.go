@@ -5,6 +5,14 @@ import (
 	"github.com/veandco/go-sdl2/sdl"
 )
 
+type image struct {
+	surface   *sdl.Surface
+	sr        *sdlRender
+	sizeCells *types.XY
+	rwops     *sdl.RWops
+	texture   *sdl.Texture
+}
+
 func (sr *sdlRender) loadImage(bmp []byte, size *types.XY) (types.Image, error) {
 	rwops, err := sdl.RWFromMem(bmp)
 	if err != nil {
@@ -18,22 +26,22 @@ func (sr *sdlRender) loadImage(bmp []byte, size *types.XY) (types.Image, error) 
 		return nil, err
 	}
 
-	img.size = &types.XY{
+	img.sizeCells = &types.XY{
 		X: sr.glyphSize.X * size.X,
 		Y: sr.glyphSize.Y * size.Y,
 	}
 
 	if size.X == 0 {
-		img.size.X = int32((float64(img.surface.W) / float64(img.surface.H)) * float64(img.size.Y))
-		size.X = int32((float64(img.size.X) / float64(sr.glyphSize.X)) + 1)
+		img.sizeCells.X = int32((float64(img.surface.W) / float64(img.surface.H)) * float64(img.sizeCells.Y))
+		size.X = int32((float64(img.sizeCells.X) / float64(sr.glyphSize.X)) + 1)
 	}
 
 	winW, _ := sr.window.GetSize()
-	if img.size.X > winW {
-		img.size.X = winW
-		img.size.Y = int32((float64(img.surface.H) / float64(img.surface.W)) * float64(img.size.X))
-		size.X = int32((float64(img.size.X) / float64(sr.glyphSize.X)))
-		size.Y = int32((float64(img.size.Y) / float64(sr.glyphSize.Y)) + 1)
+	if img.sizeCells.X > winW {
+		img.sizeCells.X = winW
+		img.sizeCells.Y = int32((float64(img.surface.H) / float64(img.surface.W)) * float64(img.sizeCells.X))
+		size.X = int32((float64(img.sizeCells.X) / float64(sr.glyphSize.X)))
+		size.Y = int32((float64(img.sizeCells.Y) / float64(sr.glyphSize.Y)) + 1)
 	}
 
 	img.texture, err = img.sr.renderer.CreateTextureFromSurface(img.surface)
@@ -44,31 +52,21 @@ func (sr *sdlRender) loadImage(bmp []byte, size *types.XY) (types.Image, error) 
 	return &img, nil
 }
 
-type image struct {
-	surface *sdl.Surface
-	sr      *sdlRender
-	size    *types.XY
-	rwops   *sdl.RWops
-	texture *sdl.Texture
-}
-
 func (img *image) Size() *types.XY {
-	return img.size
+	return img.sizeCells
 }
 
-func (img *image) Draw(size *types.XY, rect *types.Rect) {
+func (img *image) Draw(size *types.XY, pos *types.XY) {
 	srcRect := sdl.Rect{
 		W: img.surface.W,
 		H: img.surface.H,
 	}
 
-	offset := (size.Y - (rect.End.Y - rect.Start.Y) - 1) * img.sr.glyphSize.Y
-
 	dstRect := sdl.Rect{
-		X: img.sr.border + (rect.Start.X * img.sr.glyphSize.X),
-		Y: img.sr.border + (rect.Start.Y * img.sr.glyphSize.Y) - offset,
-		W: img.size.X,
-		H: img.size.Y,
+		X: img.sr.border + (pos.X * img.sr.glyphSize.X),
+		Y: img.sr.border + (pos.Y * img.sr.glyphSize.Y), // - offset,
+		W: size.X * img.sr.glyphSize.X,
+		H: size.Y * img.sr.glyphSize.Y,
 	}
 
 	err := img.sr.renderer.Copy(img.texture, &srcRect, &dstRect)

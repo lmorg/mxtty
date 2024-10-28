@@ -42,9 +42,11 @@ type configT struct {
 		RefreshInterval     int `yaml:"RefreshInterval"`
 
 		TypeFace struct {
-			FontName   string `yaml:"FontName"`
-			FontSize   int    `yaml:"FontSize"`
-			DropShadow bool   `yaml:"DropShadow"`
+			FontName         string `yaml:"FontName"`
+			FontSize         int    `yaml:"FontSize"`
+			DropShadow       bool   `yaml:"DropShadow"`
+			AdjustCellWidth  int    `yaml:"AdjustCellWidth"`
+			AdjustCellHeight int    `yaml:"AdjustCellHeight"`
 		} `yaml:"TypeFace"`
 	} `yaml:"Terminal"`
 

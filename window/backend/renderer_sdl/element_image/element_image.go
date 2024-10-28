@@ -56,13 +56,20 @@ func (el *ElementImage) Size() *types.XY {
 	return el.size
 }
 
-func (el *ElementImage) Draw(rect *types.Rect) {
+// Draw:
+// size: optional. Defaults to element size
+// pos: required. Position to draw element
+func (el *ElementImage) Draw(size *types.XY, pos *types.XY) {
 	if len(el.bmp) == 0 {
 		return
 	}
 
+	if size == nil {
+		size = el.size
+	}
+
 	el.renderer.AddRenderFnToStack(func() {
-		el.image.Draw(el.size, rect)
+		el.image.Draw(el.size, pos)
 	})
 }
 

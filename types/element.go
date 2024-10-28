@@ -3,7 +3,7 @@ package types
 type Element interface {
 	Generate(*ApcSlice) error
 	Size() *XY
-	Draw(*Rect)
+	Draw(*XY, *XY)
 	MouseClick(uint8, *XY)
 	Close()
 }
