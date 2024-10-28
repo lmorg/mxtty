@@ -259,3 +259,18 @@ func (term *Term) copyCurrentCell(cell *types.Cell) *types.Cell {
 func (term *Term) ShowCursor(v bool) {
 	term._hideCursor = !v
 }
+
+func (term *Term) visibleScreen() [][]types.Cell {
+	if term._scrollOffset == 0 {
+		return *term.cells
+	}
+
+	// render scrollback buffer
+	start := len(term._scrollBuf) - term._scrollOffset
+	cells := term._scrollBuf[start:]
+	if len(cells) < int(term.size.Y) {
+		cells = append(cells, term._normBuf...)
+	}
+
+	return cells
+}

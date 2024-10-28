@@ -9,20 +9,11 @@ import (
 func (term *Term) Render() {
 	term._mutex.Lock()
 
-	var cells = *term.cells
-	if term._scrollOffset != 0 {
-		// render scrollback buffer
-		start := len(term._scrollBuf) - term._scrollOffset
-		cells = term._scrollBuf[start:]
-		if len(cells) < int(term.size.Y) {
-			cells = append(cells, term._normBuf...)
-		}
-	}
+	cells := term.visibleScreen()
 
 	var err error
 	pos := new(types.XY)
-	//elementStack := make(map[types.Element]*types.Rect)
-	elementStack := make(map[types.Element]bool)
+	elementStack := make(map[types.Element]bool) // no duplicates
 
 	for ; pos.Y < term.size.Y; pos.Y++ {
 		for pos.X = 0; pos.X < term.size.X; pos.X++ {
