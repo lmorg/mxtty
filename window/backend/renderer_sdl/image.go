@@ -57,21 +57,30 @@ func (img *image) Size() *types.XY {
 }
 
 func (img *image) Draw(size *types.XY, pos *types.XY) {
-	srcRect := sdl.Rect{
+	srcRect := &sdl.Rect{
 		W: img.surface.W,
 		H: img.surface.H,
 	}
 
-	dstRect := sdl.Rect{
+	dstRect := &sdl.Rect{
 		X: img.sr.border + (pos.X * img.sr.glyphSize.X),
-		Y: img.sr.border + (pos.Y * img.sr.glyphSize.Y), // - offset,
+		Y: img.sr.border + (pos.Y * img.sr.glyphSize.Y),
 		W: size.X * img.sr.glyphSize.X,
 		H: size.Y * img.sr.glyphSize.Y,
 	}
 
-	err := img.sr.renderer.Copy(img.texture, &srcRect, &dstRect)
+	// for rendering
+	err := img.sr.renderer.Copy(img.texture, srcRect, dstRect)
 	if err != nil {
 		img.sr.DisplayNotification(types.NOTIFY_ERROR, "Cannot render image: "+err.Error())
+	}
+
+	if img.sr.highlighter != nil {
+		// for clipboard
+		err := img.surface.BlitScaled(srcRect, img.sr.surface, dstRect)
+		if err != nil {
+			img.sr.DisplayNotification(types.NOTIFY_ERROR, "Cannot render image: "+err.Error())
+		}
 	}
 }
 

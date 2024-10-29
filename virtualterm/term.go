@@ -1,7 +1,9 @@
 package virtualterm
 
 import (
+	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -236,8 +238,11 @@ type scrollRegionT struct {
 	Bottom int32
 }
 
-func (term *Term) Reply(b []byte) error {
-	return term.Pty.Write(b)
+func (term *Term) Reply(b []byte) {
+	err := term.Pty.Write(b)
+	if err != nil {
+		term.renderer.DisplayNotification(types.NOTIFY_ERROR, fmt.Sprintf("Cannot write to PTY: %s", err.Error()))
+	}
 }
 
 func (term *Term) Bg() *types.Colour {
@@ -273,4 +278,42 @@ func (term *Term) visibleScreen() [][]types.Cell {
 	}
 
 	return cells
+}
+
+func (term *Term) CopyLines(top, bottom int32) []byte {
+	cells := term.visibleScreen()
+	var b []byte
+
+	for y := top; y <= bottom; y++ {
+		var line string
+		for x := range cells[y] {
+			line += string(cells[y][x].Rune())
+		}
+		line = strings.TrimRight(line, " ") + "\n"
+		b = append(b, []byte(line)...)
+	}
+
+	if len(b) > 0 {
+		return b[:len(b)-1]
+	}
+	return b
+}
+
+func (term *Term) CopySquare(begin *types.XY, end *types.XY) []byte {
+	cells := term.visibleScreen()
+	var b []byte
+
+	for y := begin.Y; y <= end.Y; y++ {
+		var line string
+		for x := begin.X; x <= end.X; x++ {
+			line += string(cells[y][x].Rune())
+		}
+		line = strings.TrimRight(line, " ") + "\n"
+		b = append(b, []byte(line)...)
+	}
+
+	if len(b) > 0 {
+		return b[:len(b)-1]
+	}
+	return b
 }

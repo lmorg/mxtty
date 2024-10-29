@@ -116,7 +116,7 @@ ticked but not working as expected, then please raise an issue in Github.
 
 #### VT52 mode
 
-- [x] cursor movements
+- [ ] cursor movements
 - [ ] special modes
 
 #### Tektronix 4014 mode
@@ -150,12 +150,12 @@ eg `xterm` and similar terminal emulators
 
 #### Common application support
 
-- [ ] Supports `tmux`
+- [x] Supports `tmux`
   - [x] usable
   - [ ] glitch-free
-- [ ] Supports `vim`
+- [x] Supports `vim`
   - [x] usable
-  - [ ] glitch-free
+  - [x] glitch-free
 - [x] Supports `murex`
   - [x] usable
   - [x] glitch-free
@@ -200,7 +200,7 @@ Support for the following platforms is planned:
 Currently mxtty can only be compiled from source.
 
 To do so you will need the following installed:
-- C compiler (eg gnu c)
+- C compiler (eg GNU C)
 - Go compiler
 - SDL libraries
   - sdl2

@@ -41,10 +41,6 @@ func (term *Term) Render() {
 		}
 	}
 
-	/*for el, pos := range elementStack {
-		el.Draw(nil, pos)
-	}*/
-
 	term._blinkCursor()
 
 	term._mutex.Unlock()

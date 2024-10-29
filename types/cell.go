@@ -11,3 +11,16 @@ func (c *Cell) Clear() {
 	c.Sgr = &Sgr{}
 	c.Element = nil
 }
+
+func (c *Cell) Rune() rune {
+	switch {
+	case c.Element != nil:
+		return ' '
+
+	case c.Char == 0:
+		return ' '
+
+	default:
+		return c.Char
+	}
+}

@@ -11,7 +11,12 @@ import (
 
 const dropShadowOffset = 2
 
-func (sr *sdlRender) PrintCell(cell *types.Cell, pos *types.XY) error {
+var (
+	textShadow    = sdl.Color{R: 0, G: 0, B: 0, A: 255}
+	textHighlight = sdl.Color{R: 50, G: 50, B: 255, A: 255}
+)
+
+func (sr *sdlRender) PrintCell(cell *types.Cell, cellPos *types.XY) error {
 	fg, bg := sgrOpts(cell.Sgr)
 
 	sr.setFontStyle(cell.Sgr.Bitwise)
@@ -21,8 +26,8 @@ func (sr *sdlRender) PrintCell(cell *types.Cell, pos *types.XY) error {
 	}
 
 	rect := &sdl.Rect{
-		X: (sr.glyphSize.X * pos.X) + sr.border,
-		Y: (sr.glyphSize.Y * pos.Y) + sr.border,
+		X: (sr.glyphSize.X * cellPos.X) + sr.border,
+		Y: (sr.glyphSize.Y * cellPos.Y) + sr.border,
 		W: sr.glyphSize.X,
 		H: sr.glyphSize.Y,
 	}
@@ -42,13 +47,19 @@ func (sr *sdlRender) PrintCell(cell *types.Cell, pos *types.XY) error {
 	var rect2 *sdl.Rect
 	if config.Config.Terminal.TypeFace.DropShadow && bg == nil {
 		rect2 = &sdl.Rect{
-			X: (sr.glyphSize.X * pos.X) + sr.border + dropShadowOffset,
-			Y: (sr.glyphSize.Y * pos.Y) + sr.border + dropShadowOffset,
+			X: (sr.glyphSize.X * cellPos.X) + sr.border + dropShadowOffset,
+			Y: (sr.glyphSize.Y * cellPos.Y) + sr.border + dropShadowOffset,
 			W: sr.glyphSize.X,
 			H: sr.glyphSize.Y,
 		}
 
-		text2, err := sr.font.RenderGlyphBlended(r, sdl.Color{R: 0, G: 0, B: 0, A: 255})
+		var c sdl.Color
+		if isCellHighlighted(sr, rect) {
+			c = textHighlight
+		} else {
+			c = textShadow
+		}
+		text2, err := sr.font.RenderGlyphBlended(r, c)
 		if err != nil {
 			return err
 		}

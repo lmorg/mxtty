@@ -1,10 +1,6 @@
 package rendersdl
 
 import (
-	"log"
-	"sync/atomic"
-	"time"
-
 	"github.com/lmorg/mxtty/app"
 	"github.com/lmorg/mxtty/assets"
 	"github.com/lmorg/mxtty/config"
@@ -12,6 +8,7 @@ import (
 	"github.com/lmorg/mxtty/window/backend/typeface"
 	"github.com/veandco/go-sdl2/sdl"
 	"github.com/veandco/go-sdl2/ttf"
+	"golang.design/x/clipboard"
 )
 
 /*
@@ -49,6 +46,11 @@ func Initialise() types.Renderer {
 		panic(err.Error())
 	}
 	sr.setTypeFace(font)
+
+	err = clipboard.Init()
+	if err != nil {
+		panic(err)
+	}
 
 	return sr
 }
@@ -118,101 +120,5 @@ func (sr *sdlRender) getTermSize() *types.XY {
 }
 
 func (sr *sdlRender) Start(term types.Term) {
-	sr.term = term
-
-	for {
-
-		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
-			switch evt := event.(type) {
-
-			case *sdl.QuitEvent:
-				sr.TriggerQuit()
-
-			case *sdl.WindowEvent:
-				sr.eventWindow(evt)
-				sr.TriggerRedraw()
-
-			case *sdl.TextInputEvent:
-				sr.eventTextInput(evt)
-				sr.TriggerRedraw()
-
-			case *sdl.KeyboardEvent:
-				sr.eventKeyPress(evt)
-				sr.TriggerRedraw()
-
-			case *sdl.MouseButtonEvent:
-				sr.eventMouseButton(evt)
-				sr.TriggerRedraw()
-
-			case *sdl.MouseWheelEvent:
-				sr.eventMouseWheel(evt)
-				sr.TriggerRedraw()
-			}
-		}
-
-		select {
-		case <-sr._quit:
-			return
-
-		case <-sr._redraw:
-			update(sr, term)
-			sr.limiter.Unlock()
-
-		case <-time.After(15 * time.Millisecond):
-			continue
-		}
-	}
-}
-
-func (sr *sdlRender) drawBg(term types.Term, rect *sdl.Rect) {
-	bg := term.Bg()
-
-	pixel := sdl.MapRGBA(sr.surface.Format, bg.Red, bg.Green, bg.Blue, 255)
-	err := sr.surface.FillRect(rect, pixel)
-	if err != nil {
-		log.Printf("ERROR: error drawing background: %s", err.Error())
-	}
-}
-
-func update(sr *sdlRender, term types.Term) {
-	var err error
-	x, y := sr.window.GetSize()
-	rect := &sdl.Rect{W: x, H: y}
-
-	sr.surface, err = sdl.CreateRGBSurfaceWithFormat(0, x, y, 32, uint32(sdl.PIXELFORMAT_RGBA32))
-	if err != nil {
-		panic(err) //TODO: don't panic!
-	}
-	defer sr.surface.Free()
-
-	sr.drawBg(term, rect)
-
-	term.Render()
-
-	texture, err := sr.renderer.CreateTextureFromSurface(sr.surface)
-	if err != nil {
-		panic(err) //TODO: don't panic!
-	}
-
-	err = sr.renderer.Copy(texture, rect, rect)
-	if err != nil {
-		panic(err) //TODO: don't panic!
-	}
-
-	for i := range sr.fnStack {
-		sr.fnStack[i]()
-	}
-	sr.fnStack = make([]func(), 0) // clear image stack
-
-	sr.renderNotification(rect)
-
-	if sr.inputBoxActive {
-		sr.renderInputBox(rect)
-	}
-
-	if atomic.CompareAndSwapInt32(&sr.updateTitle, 1, 0) {
-		sr.window.SetTitle(sr.title)
-	}
-
-	sr.renderer.Present()
+	sr.eventLoop(term)
 }

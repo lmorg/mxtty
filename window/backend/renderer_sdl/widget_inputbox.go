@@ -12,21 +12,61 @@ var (
 	questionColorBorder = &types.Colour{0x00, 0xff, 0x00}
 )
 
+type inputBoxCallbackT func(string)
+
+type inputBoxT struct {
+	Message  string
+	Default  string
+	Callback inputBoxCallbackT
+	Value    string
+}
+
 func (sr *sdlRender) DisplayInputBox(message string, defaultValue string, callback func(string)) {
-	sr.inputBoxMessage = message
-	sr.inputBoxActive = true
-	sr.inputBoxCallback = callback
-	sr.inputBoxValue = defaultValue
+	sr.inputBox = &inputBoxT{
+		Message:  message,
+		Default:  defaultValue,
+		Callback: callback,
+	}
+
 	sr.term.ShowCursor(false)
 	go sr.inputBoxCursorBlink()
 }
 
 func (sr *sdlRender) closeInputBox() {
-	sr.inputBoxActive = false
-	sr.inputBoxMessage = ""
-	sr.inputBoxValue = ""
-	sr.inputBoxCallback = nil
+	sr.inputBox = nil
 	sr.term.ShowCursor(true)
+}
+
+func (inputBox *inputBoxT) eventTextInput(sr *sdlRender, evt *sdl.TextInputEvent) {
+	inputBox.Value += evt.GetText()
+}
+
+func (inputBox *inputBoxT) eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) {
+	switch evt.Keysym.Sym {
+	case sdl.K_ESCAPE:
+		sr.closeInputBox()
+	case sdl.K_RETURN:
+		inputBox.Callback(inputBox.Value)
+		sr.closeInputBox()
+	case sdl.K_BACKSPACE:
+		if inputBox.Value != "" {
+			inputBox.Value = inputBox.Value[:len(inputBox.Value)-1]
+		} else {
+			sr.Bell()
+		}
+	}
+}
+
+func (inputBox *inputBoxT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEvent) {
+	// do nothing
+}
+
+func (inputBox *inputBoxT) eventMouseWheel(sr *sdlRender, evt *sdl.MouseWheelEvent) {
+	// do nothing
+}
+
+func (inputBox *inputBoxT) eventMouseMotion(sr *sdlRender, evt *sdl.MouseMotionEvent) {
+	// do nothing
 }
 
 func (sr *sdlRender) renderInputBox(windowRect *sdl.Rect) {
@@ -38,13 +78,13 @@ func (sr *sdlRender) renderInputBox(windowRect *sdl.Rect) {
 
 	sr.setFontStyle(types.SGR_BOLD)
 
-	text, err := sr.font.RenderUTF8BlendedWrapped(sr.inputBoxMessage, sdl.Color{R: 200, G: 200, B: 200, A: 255}, int(sr.surface.W-sr.notifyIconSize.X))
+	text, err := sr.font.RenderUTF8BlendedWrapped(sr.inputBox.Message, sdl.Color{R: 200, G: 200, B: 200, A: 255}, int(sr.surface.W-sr.notifyIconSize.X))
 	if err != nil {
 		panic(err) // TODO: don't panic!
 	}
 	defer text.Free()
 
-	textShadow, err := sr.font.RenderUTF8BlendedWrapped(sr.inputBoxMessage, sdl.Color{R: 0, G: 0, B: 0, A: 150}, int(sr.surface.W-sr.notifyIconSize.X))
+	textShadow, err := sr.font.RenderUTF8BlendedWrapped(sr.inputBox.Message, sdl.Color{R: 0, G: 0, B: 0, A: 150}, int(sr.surface.W-sr.notifyIconSize.X))
 	if err != nil {
 		panic(err) // TODO: don't panic!
 	}
@@ -144,8 +184,8 @@ func (sr *sdlRender) renderInputBox(windowRect *sdl.Rect) {
 	sr.renderer.FillRect(&rect)
 
 	// value
-	if len(sr.inputBoxValue) > 0 {
-		textValue, err := sr.font.RenderUTF8Blended(sr.inputBoxValue, sdl.Color{R: 255, G: 255, B: 255, A: 255})
+	if len(sr.inputBox.Value) > 0 {
+		textValue, err := sr.font.RenderUTF8Blended(sr.inputBox.Value, sdl.Color{R: 255, G: 255, B: 255, A: 255})
 		if err != nil {
 			panic(err) // TODO: don't panic!
 		}
@@ -181,8 +221,7 @@ func (sr *sdlRender) inputBoxCursorBlink() {
 	for {
 		time.Sleep(500 * time.Millisecond)
 		sr.blinkState = !sr.blinkState
-		//sr.TriggerRedraw()
-		if !sr.inputBoxActive {
+		if sr.inputBox == nil {
 			return
 		}
 	}

@@ -41,17 +41,18 @@ type sdlRender struct {
 	notifyIcon     map[int]types.Image
 	notifyIconSize *types.XY
 
-	// input box
-	inputBoxActive   bool
-	inputBoxMessage  string
-	inputBoxValue    string
-	inputBoxCallback func(string)
+	// widgets
+	termWidget  *termWidgetT
+	highlighter *highlighterT
+	inputBox    *inputBoxT
+	menu        *menuT
 
 	// render function stack (AddRenderFnToStack)
 	fnStack []func()
 
 	// state
-	blinkState bool
+	blinkState  bool
+	keyModifier uint16
 }
 
 func (sr *sdlRender) TriggerQuit()  { go sr._triggerQuit() }

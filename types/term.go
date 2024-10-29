@@ -7,8 +7,10 @@ type Term interface {
 	GetSize() *XY
 	Resize(*XY)
 	Render()
+	CopyLines(int32, int32) []byte
+	CopySquare(*XY, *XY) []byte
 	Bg() *Colour
-	Reply([]byte) error
+	Reply([]byte)
 	MouseClick(uint8, *XY)
 	MouseWheel(int)
 	ShowCursor(bool)

@@ -1,32 +1,44 @@
 package rendersdl
 
 import (
-	"github.com/lmorg/mxtty/debug"
-	"github.com/lmorg/mxtty/types"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
 func (sr *sdlRender) eventMouseButton(evt *sdl.MouseButtonEvent) {
-	if sr.inputBoxActive {
-		return
-	}
+	switch {
+	case sr.inputBox != nil:
+		sr.inputBox.eventMouseButton(sr, evt)
 
-	if evt.State == sdl.PRESSED {
-		return
-	}
+	case sr.highlighter != nil:
+		sr.highlighter.eventMouseButton(sr, evt)
 
-	pos := types.XY{
-		X: (evt.X - sr.border) / sr.glyphSize.X,
-		Y: (evt.Y - sr.border) / sr.glyphSize.Y,
+	default:
+		sr.termWidget.eventMouseButton(sr, evt)
 	}
-	sr.term.MouseClick(evt.Button, &pos)
 }
 
 func (sr *sdlRender) eventMouseWheel(evt *sdl.MouseWheelEvent) {
-	debug.Log(evt)
-	if evt.Direction == sdl.MOUSEWHEEL_FLIPPED {
-		sr.term.MouseWheel(int(-evt.Y))
-	} else {
-		sr.term.MouseWheel(int(evt.Y))
+	switch {
+	case sr.inputBox != nil:
+		sr.inputBox.eventMouseWheel(sr, evt)
+
+	case sr.highlighter != nil:
+		sr.highlighter.eventMouseWheel(sr, evt)
+
+	default:
+		sr.termWidget.eventMouseWheel(sr, evt)
+	}
+}
+
+func (sr *sdlRender) eventMouseMotion(evt *sdl.MouseMotionEvent) {
+	switch {
+	case sr.inputBox != nil:
+		sr.inputBox.eventMouseMotion(sr, evt)
+
+	case sr.highlighter != nil:
+		sr.highlighter.eventMouseMotion(sr, evt)
+
+	default:
+		sr.termWidget.eventMouseMotion(sr, evt)
 	}
 }
