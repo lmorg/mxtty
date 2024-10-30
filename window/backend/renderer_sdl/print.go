@@ -42,6 +42,8 @@ func (sr *sdlRender) PrintCell(cell *types.Cell, cellPos *types.XY) error {
 		}
 	}
 
+	isCellHighlighted := isCellHighlighted(sr, rect)
+
 	// render drop shadow
 
 	var rect2 *sdl.Rect
@@ -54,7 +56,7 @@ func (sr *sdlRender) PrintCell(cell *types.Cell, cellPos *types.XY) error {
 		}
 
 		var c sdl.Color
-		if isCellHighlighted(sr, rect) {
+		if isCellHighlighted {
 			c = textHighlight
 		} else {
 			c = textShadow
@@ -78,6 +80,9 @@ func (sr *sdlRender) PrintCell(cell *types.Cell, cellPos *types.XY) error {
 		return err
 	}
 	defer text.Free()
+	if isCellHighlighted {
+		text.SetBlendMode(sdl.BLENDMODE_ADD)
+	}
 
 	err = text.Blit(nil, sr.surface, rect)
 	if err != nil {

@@ -109,7 +109,14 @@ func (sr *sdlRender) selectionHighlighter() {
 		return
 	}
 
-	sr.renderer.SetDrawColor(highlightBorder.Red, highlightBorder.Green, highlightBorder.Blue, 190)
+	var alphaBorder, alphaFill uint8
+	if sr.highlighter.mode == _HIGHLIGHT_MODE_PNG {
+		alphaBorder, alphaFill = 190, 64
+	} else {
+		alphaBorder, alphaFill = 64, 32
+	}
+
+	sr.renderer.SetDrawColor(highlightBorder.Red, highlightBorder.Green, highlightBorder.Blue, alphaBorder)
 	rect := sdl.Rect{
 		X: sr.highlighter.rect.X - 1,
 		Y: sr.highlighter.rect.Y - 1,
@@ -126,7 +133,7 @@ func (sr *sdlRender) selectionHighlighter() {
 	sr.renderer.DrawRect(&rect)
 
 	// fill background
-	sr.renderer.SetDrawColor(highlightFill.Red, highlightFill.Green, highlightFill.Blue, 64)
+	sr.renderer.SetDrawColor(highlightFill.Red, highlightFill.Green, highlightFill.Blue, alphaFill)
 	rect = sdl.Rect{
 		X: sr.highlighter.rect.X + 1,
 		Y: sr.highlighter.rect.Y + 1,
