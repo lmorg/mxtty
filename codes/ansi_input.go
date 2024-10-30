@@ -1,56 +1,267 @@
 package codes
 
-var (
-	AnsiUp        = []byte{27, 91, 65}
-	AnsiDown      = []byte{27, 91, 66}
-	AnsiForwards  = []byte{27, 91, 67}
-	AnsiBackwards = []byte{27, 91, 68}
-	AnsiHome      = []byte{27, 91, 72}
-	AnsiHomeSc    = []byte{27, 91, 49, 126}
-	AnsiEnd       = []byte{27, 91, 70}
-	AnsiEndSc     = []byte{27, 91, 52, 126}
-	AnsiDelete    = []byte{27, 91, 51, 126}
-	AnsiShiftTab  = []byte{27, 91, 90}
-	AnsiPageUp    = []byte{27, 91, 53, 126}
-	AnsiPageDown  = []byte{27, 91, 54, 126}
-	AnsiOptUp     = []byte{27, 27, 91, 65}
-	AnsiOptDown   = []byte{27, 27, 91, 66}
-	AnsiOptLeft   = []byte{27, 27, 91, 68}
-	AnsiOptRight  = []byte{27, 27, 91, 67}
-	AnsiCtrlUp    = []byte{27, 91, 49, 59, 53, 65}
-	AnsiCtrlDown  = []byte{27, 91, 49, 59, 53, 66}
-	AnsiCtrlLeft  = []byte{27, 91, 49, 59, 53, 68}
-	AnsiCtrlRight = []byte{27, 91, 49, 59, 53, 67}
+import (
+	"fmt"
 
-	AnsiF1VT100 = []byte{27, 79, 80}
-	AnsiF2VT100 = []byte{27, 79, 81}
-	AnsiF3VT100 = []byte{27, 79, 82}
-	AnsiF4VT100 = []byte{27, 79, 83}
-	AnsiF1      = []byte{27, 91, 49, 49, 126}
-	AnsiF2      = []byte{27, 91, 49, 50, 126}
-	AnsiF3      = []byte{27, 91, 49, 51, 126}
-	AnsiF4      = []byte{27, 91, 49, 52, 126}
-	AnsiF5      = []byte{27, 91, 49, 53, 126}
-	AnsiF6      = []byte{27, 91, 49, 55, 126}
-	AnsiF7      = []byte{27, 91, 49, 56, 126}
-	AnsiF8      = []byte{27, 91, 49, 57, 126}
-	AnsiF9      = []byte{27, 91, 50, 48, 126}
-	AnsiF10     = []byte{27, 91, 50, 49, 126}
-	AnsiF11     = []byte{27, 91, 50, 51, 126}
-	AnsiF12     = []byte{27, 91, 50, 52, 126}
-
-	AnsiShiftF1  = []byte{27, 91, 49, 59, 50, 80}
-	AnsiShiftF2  = []byte{27, 91, 49, 59, 50, 81}
-	AnsiShiftF3  = []byte{27, 91, 49, 59, 50, 82}
-	AnsiShiftF4  = []byte{27, 91, 49, 59, 50, 83}
-	AnsiShiftF5  = []byte{27, 91, 49, 53, 59, 50, 126}
-	AnsiShiftF6  = []byte{27, 91, 49, 55, 59, 50, 126}
-	AnsiShiftF7  = []byte{27, 91, 49, 56, 59, 50, 126}
-	AnsiShiftF8  = []byte{27, 91, 49, 57, 59, 50, 126}
-	AnsiShiftF9  = []byte{27, 91, 50, 48, 59, 50, 126}
-	AnsiShiftF10 = []byte{27, 91, 50, 49, 59, 50, 126}
-	AnsiShiftF11 = []byte{27, 91, 50, 51, 59, 50, 126}
-	AnsiShiftF12 = []byte{27, 91, 50, 52, 59, 50, 126}
+	"github.com/lmorg/mxtty/debug"
 )
 
-var Csi = string([]byte{27, '['})
+type KeyboardMode int32
+type FunctionKey int
+
+const (
+	KeysNormal KeyboardMode = 0 + iota
+	KeysApplication
+	KeysVT220
+	KeysVT52
+)
+
+const (
+	AnsiUp FunctionKey = 0 + iota
+	AnsiDown
+	AnsiRight
+	AnsiLeft
+	AnsiInsert
+	AnsiHome
+	AnsiEnd
+	AnsiDelete
+	AnsiPageUp
+	AnsiPageDown
+
+	AnsiKeyPadSpace
+	AnsiKeyPadTab
+	AnsiKeyPadEnter
+	AnsiKeyPadMultiply
+	AnsiKeyPadAdd
+	AnsiKeyPadComma
+	AnsiKeyPadMinus
+	AnsiKeyPadPeriod
+	AnsiKeyPadDivide
+	AnsiKeyPad0
+	AnsiKeyPad1
+	AnsiKeyPad2
+	AnsiKeyPad3
+	AnsiKeyPad4
+	AnsiKeyPad5
+	AnsiKeyPad6
+	AnsiKeyPad7
+	AnsiKeyPad8
+	AnsiKeyPad9
+	AnsiKeyPadEqual
+
+	AnsiShiftTab
+
+	AnsiOptUp
+	AnsiOptDown
+	AnsiOptLeft
+	AnsiOptRight
+
+	AnsiCtrlUp
+	AnsiCtrlDown
+	AnsiCtrlLeft
+	AnsiCtrlRight
+
+	AnsiF1
+	AnsiF2
+	AnsiF3
+	AnsiF4
+	AnsiF5
+	AnsiF6
+	AnsiF7
+	AnsiF8
+	AnsiF9
+	AnsiF10
+	AnsiF11
+	AnsiF12
+	AnsiF13
+	AnsiF14
+	AnsiF15
+	AnsiF16
+	AnsiF17
+	AnsiF18
+	AnsiF19
+	AnsiF20
+
+	AnsiShiftF1
+	AnsiShiftF2
+	AnsiShiftF3
+	AnsiShiftF4
+	AnsiShiftF5
+	AnsiShiftF6
+	AnsiShiftF7
+	AnsiShiftF8
+	AnsiShiftF9
+	AnsiShiftF10
+	AnsiShiftF11
+	AnsiShiftF12
+)
+
+const esc = 27
+
+/*
+	Reference documentation used:
+	- ASCII table: https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/ASCII-Table-wide.svg/1280px-ASCII-Table-wide.svg.png
+	- xterm: https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h3-PC-Style-Function-Keys
+*/
+
+var (
+	Ss2 = []byte{esc, 'N'}
+	Ss3 = []byte{esc, 'O'}
+	Csi = []byte{esc, '['}
+)
+
+func ss3(b ...byte) []byte { return append(Ss3, b...) }
+func csi(b ...byte) []byte { return append(Csi, b...) }
+
+var ansiEscapeSeq = map[KeyboardMode]map[FunctionKey][]byte{
+	KeysNormal: {
+		AnsiUp:          csi('A'),
+		AnsiDown:        csi('B'),
+		AnsiRight:       csi('C'),
+		AnsiLeft:        csi('D'),
+		AnsiHome:        csi('H'),
+		AnsiEnd:         csi('E'),
+		AnsiKeyPadSpace: []byte{' '},
+		AnsiKeyPadTab:   []byte{'\t'},
+		AnsiKeyPadEnter: []byte{'\r'},
+		AnsiShiftTab:    csi('Z'),
+		AnsiOptUp:       []byte{esc, esc, '[', 'A'},
+		AnsiOptDown:     []byte{esc, esc, '[', 'B'},
+		AnsiOptLeft:     []byte{esc, esc, '[', 'D'},
+		AnsiOptRight:    []byte{esc, esc, '[', 'C'},
+		AnsiCtrlUp:      csi('1', ';', '5', 'A'),
+		AnsiCtrlDown:    csi('1', ';', '5', 'B'),
+		AnsiCtrlLeft:    csi('1', ';', '5', 'D'),
+		AnsiCtrlRight:   csi('1', ';', '5', 'C'),
+
+		AnsiF1:  ss3('P'),
+		AnsiF2:  ss3('Q'),
+		AnsiF3:  ss3('R'),
+		AnsiF4:  ss3('S'),
+		AnsiF5:  csi('1', '5', '~'),
+		AnsiF6:  csi('1', '7', '~'),
+		AnsiF7:  csi('1', '8', '~'),
+		AnsiF8:  csi('1', '9', '~'),
+		AnsiF9:  csi('2', '0', '~'),
+		AnsiF10: csi('2', '1', '~'),
+		AnsiF11: csi('2', '3', '~'),
+		AnsiF12: csi('2', '4', '~'),
+
+		AnsiShiftF1:  csi('1', ';', '2', 'P'),
+		AnsiShiftF2:  csi('1', ';', '2', 'Q'),
+		AnsiShiftF3:  csi('1', ';', '2', 'R'),
+		AnsiShiftF4:  csi('1', ';', '2', 'S'),
+		AnsiShiftF5:  csi('1', '5', ';', '2', '~'),
+		AnsiShiftF6:  csi('1', '7', ';', '2', '~'),
+		AnsiShiftF7:  csi('1', '8', ';', '2', '~'),
+		AnsiShiftF8:  csi('1', '9', ';', '2', '~'),
+		AnsiShiftF9:  csi('2', '0', ';', '2', '~'),
+		AnsiShiftF10: csi('2', '1', ';', '2', '~'),
+		AnsiShiftF11: csi('2', '3', ';', '2', '~'),
+		AnsiShiftF12: csi('2', '4', ';', '2', '~'),
+	},
+
+	KeysApplication: {
+		AnsiUp:    ss3('A'),
+		AnsiDown:  ss3('B'),
+		AnsiRight: ss3('C'),
+		AnsiLeft:  ss3('D'),
+		AnsiHome:  ss3('H'),
+		AnsiEnd:   ss3('E'),
+	},
+
+	KeysVT220: {
+		AnsiHome:     csi('1', '~'),
+		AnsiInsert:   csi('2', '~'),
+		AnsiDelete:   csi('3', '~'),
+		AnsiEnd:      csi('4', '~'),
+		AnsiPageUp:   csi('5', '~'),
+		AnsiPageDown: csi('6', '~'),
+
+		AnsiKeyPadSpace:    ss3(' '),
+		AnsiKeyPadTab:      ss3('I'),
+		AnsiKeyPadEnter:    ss3('M'),
+		AnsiKeyPadMultiply: ss3('j'),
+		AnsiKeyPadAdd:      ss3('k'),
+		AnsiKeyPadComma:    ss3('l'),
+		AnsiKeyPadMinus:    ss3('m'),
+		AnsiKeyPadPeriod:   ss3('n'),
+		AnsiKeyPadDivide:   ss3('o'),
+		AnsiKeyPad0:        ss3('p'),
+		AnsiKeyPad1:        ss3('q'),
+		AnsiKeyPad2:        ss3('r'),
+		AnsiKeyPad3:        ss3('s'),
+		AnsiKeyPad4:        ss3('t'),
+		AnsiKeyPad5:        ss3('u'),
+		AnsiKeyPad6:        ss3('v'),
+		AnsiKeyPad7:        ss3('w'),
+		AnsiKeyPad8:        ss3('x'),
+		AnsiKeyPad9:        ss3('y'),
+		AnsiKeyPadEqual:    ss3('X'),
+
+		AnsiF13: csi('2', '5', '~'),
+		AnsiF14: csi('2', '6', '~'),
+		AnsiF15: csi('2', '8', '~'),
+		AnsiF16: csi('2', '9', '~'),
+		AnsiF17: csi('3', '1', '~'),
+		AnsiF18: csi('3', '2', '~'),
+		AnsiF19: csi('3', '3', '~'),
+		AnsiF20: csi('3', '4', '~'),
+	},
+
+	KeysVT52: {
+		AnsiUp:    []byte{esc, 'A'},
+		AnsiDown:  []byte{esc, 'B'},
+		AnsiRight: []byte{esc, 'C'},
+		AnsiLeft:  []byte{esc, 'D'},
+
+		AnsiKeyPadSpace:    []byte{esc, '?', ' '},
+		AnsiKeyPadTab:      []byte{esc, '?', '\t'},
+		AnsiKeyPadEnter:    []byte{esc, '?', 'M'},
+		AnsiKeyPadMultiply: []byte{esc, '?', 'j'},
+		AnsiKeyPadAdd:      []byte{esc, '?', 'k'},
+		AnsiKeyPadComma:    []byte{esc, '?', 'l'},
+		AnsiKeyPadMinus:    []byte{esc, '?', 'm'},
+		AnsiKeyPadPeriod:   []byte{esc, '?', 'n'},
+		AnsiKeyPadDivide:   []byte{esc, '?', 'o'},
+		AnsiKeyPad0:        []byte{esc, '?', 'p'},
+		AnsiKeyPad1:        []byte{esc, '?', 'q'},
+		AnsiKeyPad2:        []byte{esc, '?', 'r'},
+		AnsiKeyPad3:        []byte{esc, '?', 's'},
+		AnsiKeyPad4:        []byte{esc, '?', 't'},
+		AnsiKeyPad5:        []byte{esc, '?', 'u'},
+		AnsiKeyPad6:        []byte{esc, '?', 'v'},
+		AnsiKeyPad7:        []byte{esc, '?', 'w'},
+		AnsiKeyPad8:        []byte{esc, '?', 'x'},
+		AnsiKeyPad9:        []byte{esc, '?', 'y'},
+		AnsiKeyPadEqual:    []byte{esc, '?', 'X'},
+	},
+}
+
+func GetAnsiEscSeq(keySet KeyboardMode, keyPress FunctionKey) []byte {
+	b, ok := ansiEscapeSeq[keySet][keyPress]
+	if !ok {
+		if keySet != KeysNormal {
+			return GetAnsiEscSeq(KeysNormal, keyPress)
+		}
+
+		debug.Log(fmt.Sprintf("No sequence available for %d in %d", keyPress, keySet))
+		return b
+	}
+
+	return b
+}
+
+// TODO:
+// As a special case, the SS3  sent before F1 through F4 is altered to CSI when
+// sending a function key modifier as a parameter.
+func GetAnsiEscSeqWithModifier(keySet KeyboardMode, keyPress FunctionKey, modifier Modifier) []byte {
+	b := GetAnsiEscSeq(keySet, keyPress)
+	if len(b) == 0 {
+		return b
+	}
+
+	ending := b[len(b)-1]
+	seq := append(b[:len(b)-1], translateModToCode(modifier)...)
+	return append(seq, ending)
+}

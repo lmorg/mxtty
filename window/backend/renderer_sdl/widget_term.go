@@ -31,45 +31,45 @@ func (tw *termWidgetT) eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) {
 		sr.term.Reply([]byte{codes.AsciiBackspace})
 
 	case sdl.K_UP:
-		sr.term.Reply(codes.AnsiUp)
+		sr.ansiReply(codes.AnsiUp)
 	case sdl.K_DOWN:
-		sr.term.Reply(codes.AnsiDown)
+		sr.ansiReply(codes.AnsiDown)
 	case sdl.K_LEFT:
-		sr.term.Reply(codes.AnsiBackwards)
+		sr.ansiReply(codes.AnsiLeft)
 	case sdl.K_RIGHT:
-		sr.term.Reply(codes.AnsiForwards)
+		sr.ansiReply(codes.AnsiRight)
 
 	case sdl.K_PAGEDOWN:
-		sr.term.Reply(codes.AnsiPageDown)
+		sr.ansiReply(codes.AnsiPageDown)
 	case sdl.K_PAGEUP:
-		sr.term.Reply(codes.AnsiPageUp)
+		sr.ansiReply(codes.AnsiPageUp)
 
 	// F-Keys
 
 	case sdl.K_F1:
-		sr.term.Reply(codes.AnsiF1VT100)
+		sr.ansiReply(codes.AnsiF1)
 	case sdl.K_F2:
-		sr.term.Reply(codes.AnsiF2VT100)
+		sr.ansiReply(codes.AnsiF2)
 	case sdl.K_F3:
-		sr.term.Reply(codes.AnsiF3VT100)
+		sr.ansiReply(codes.AnsiF3)
 	case sdl.K_F4:
-		sr.term.Reply(codes.AnsiF4VT100)
+		sr.ansiReply(codes.AnsiF4)
 	case sdl.K_F5:
-		sr.term.Reply(codes.AnsiF5)
+		sr.ansiReply(codes.AnsiF5)
 	case sdl.K_F6:
-		sr.term.Reply(codes.AnsiF6)
+		sr.ansiReply(codes.AnsiF6)
 	case sdl.K_F7:
-		sr.term.Reply(codes.AnsiF7)
+		sr.ansiReply(codes.AnsiF7)
 	case sdl.K_F8:
-		sr.term.Reply(codes.AnsiF8)
+		sr.ansiReply(codes.AnsiF8)
 	case sdl.K_F9:
-		sr.term.Reply(codes.AnsiF9)
+		sr.ansiReply(codes.AnsiF9)
 	case sdl.K_F10:
-		sr.term.Reply(codes.AnsiF10)
+		sr.ansiReply(codes.AnsiF10)
 	case sdl.K_F11:
-		sr.term.Reply(codes.AnsiF11)
+		sr.ansiReply(codes.AnsiF11)
 	case sdl.K_F12:
-		sr.term.Reply(codes.AnsiF12)
+		sr.ansiReply(codes.AnsiF12)
 
 	}
 }
@@ -96,9 +96,11 @@ func (tw *termWidgetT) eventKeyPressMod(sr *sdlRender, evt *sdl.KeyboardEvent) {
 }
 
 const (
-	_MOUSE_BUTTON_LEFT = 1 << iota
-	_MOUSE_BUTTON_RIGHT
+	_MOUSE_BUTTON_LEFT = 1 + iota
 	_MOUSE_BUTTON_MIDDLE
+	_MOUSE_BUTTON_RIGHT
+	_MOUSE_BUTTON_X1
+	_MOUSE_BUTTON_X2
 )
 
 func (tw *termWidgetT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEvent) {
@@ -106,23 +108,54 @@ func (tw *termWidgetT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEvent
 		return
 	}
 
-	switch evt.Button {
-	case _MOUSE_BUTTON_LEFT, _MOUSE_BUTTON_RIGHT:
-		sr.term.MouseClick(evt.Button, &types.XY{
-			X: (evt.X - sr.border) / sr.glyphSize.X,
-			Y: (evt.Y - sr.border) / sr.glyphSize.Y,
-		})
+	if evt.Which == sdl.TOUCH_MOUSEID {
+		// touchpad events
 
-	case _MOUSE_BUTTON_MIDDLE, _MOUSE_BUTTON_LEFT | _MOUSE_BUTTON_RIGHT:
-		sr.highlighter = &highlighterT{
-			button: evt.Button,
-			rect:   &sdl.Rect{X: evt.X, Y: evt.Y},
+		switch evt.Button {
+		case _MOUSE_BUTTON_LEFT:
+			sr.term.MouseClick(evt.Button, &types.XY{
+				X: (evt.X - sr.border) / sr.glyphSize.X,
+				Y: (evt.Y - sr.border) / sr.glyphSize.Y,
+			})
+
+		case _MOUSE_BUTTON_MIDDLE:
+			highlighterStart(sr, evt)
 		}
-		if sr.keyModifier != 0 {
-			sr.highlighter.modifier(sr.keyModifier)
+
+	} else {
+
+		// mouse events
+
+		switch evt.Button {
+		case _MOUSE_BUTTON_LEFT:
+			sr.term.MouseClick(evt.Button, &types.XY{
+				X: (evt.X - sr.border) / sr.glyphSize.X,
+				Y: (evt.Y - sr.border) / sr.glyphSize.Y,
+			})
+
+		case _MOUSE_BUTTON_MIDDLE:
+			sr.clipboardPasteText()
+
+		case _MOUSE_BUTTON_RIGHT:
+			highlighterStart(sr, evt)
+
+		case _MOUSE_BUTTON_X1:
+			highlighterStart(sr, evt)
+			sr.highlighter.mode = _HIGHLIGHT_MODE_LINES
 		}
-		sr.keyModifier = 0
 	}
+}
+
+func highlighterStart(sr *sdlRender, evt *sdl.MouseButtonEvent) {
+	sr.highlighter = &highlighterT{
+		button: evt.Button,
+		rect:   &sdl.Rect{X: evt.X, Y: evt.Y},
+	}
+	if sr.keyModifier != 0 {
+		sr.highlighter.modifier(sr.keyModifier)
+	}
+	sr.keyModifier = 0
+	sr.highlighter.mode = _HIGHLIGHT_MODE_PNG
 }
 
 func (tw *termWidgetT) eventMouseWheel(sr *sdlRender, evt *sdl.MouseWheelEvent) {

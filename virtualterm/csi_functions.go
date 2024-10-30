@@ -22,7 +22,7 @@ func (term *Term) csiRepeatPreceding(n int32) {
 
 func (term *Term) csiCallback(format string, v ...any) {
 	msg := fmt.Sprintf(format, v...)
-	err := term.Pty.Write([]byte(codes.Csi + msg))
+	err := term.Pty.Write(append(codes.Csi, []byte(msg)...))
 	if err != nil {
 		log.Printf("ERROR: writing callback message '%s': %s", msg, err.Error())
 	}

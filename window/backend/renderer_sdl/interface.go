@@ -4,6 +4,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/lmorg/mxtty/codes"
 	"github.com/lmorg/mxtty/types"
 	"github.com/lmorg/mxtty/window/backend/typeface"
 	"github.com/veandco/go-sdl2/mix"
@@ -51,8 +52,24 @@ type sdlRender struct {
 	fnStack []func()
 
 	// state
-	blinkState  bool
-	keyModifier uint16
+	keyboardMode keyboardModeT
+	blinkState   bool
+	keyModifier  uint16
+}
+
+type keyboardModeT struct {
+	keyboardMode int32
+}
+
+func (km *keyboardModeT) Set(mode codes.KeyboardMode) {
+	atomic.StoreInt32(&km.keyboardMode, int32(mode))
+}
+func (km *keyboardModeT) Get() codes.KeyboardMode {
+	return codes.KeyboardMode(atomic.LoadInt32(&km.keyboardMode))
+}
+
+func (sr *sdlRender) SetKeyboardFnMode(code codes.KeyboardMode) {
+	sr.keyboardMode.Set(code)
 }
 
 func (sr *sdlRender) TriggerQuit()  { go sr._triggerQuit() }

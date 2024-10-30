@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/lmorg/mxtty/codes"
 	"github.com/lmorg/mxtty/types"
 )
 
@@ -91,11 +92,11 @@ func (term *Term) parseC1Codes() {
 
 	case '=':
 		// Application Keypad (DECPAM)
-		log.Printf("TODO: Unhandled C1 code: %s", string(r))
+		term.renderer.SetKeyboardFnMode(codes.KeysApplication)
 
 	case '>':
 		// Normal Keypad (DECPNM)
-		log.Printf("TODO: Unhandled C1 code: %s", string(r))
+		term.renderer.SetKeyboardFnMode(codes.KeysNormal)
 
 	case 'c':
 		// Full Reset (RIS)
@@ -202,12 +203,20 @@ func (term *Term) parseC1Codes() {
 		term.reverseLineFeed()
 
 	case 'N':
-		// Single-Shift 2
+		// Single Shift Select of G2 Character Set (SS2  is 0x8e), VT220.
+		// This affects next character only.
+		charSet := term._activeCharSet
 		term._activeCharSet = 2
+		term.readChar(term.Pty.Read())
+		term._activeCharSet = charSet
 
 	case 'O':
-		// Single-Shift 3
+		// Single Shift Select of G3 Character Set (SS3  is 0x8f), VT220.
+		// This affects next character only.
+		charSet := term._activeCharSet
 		term._activeCharSet = 3
+		term.readChar(term.Pty.Read())
+		term._activeCharSet = charSet
 
 	case 'Q':
 		// Private Use 1

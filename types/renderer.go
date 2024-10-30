@@ -1,5 +1,7 @@
 package types
 
+import "github.com/lmorg/mxtty/codes"
+
 type Renderer interface {
 	Start(Term)
 	FocusWindow()
@@ -17,6 +19,7 @@ type Renderer interface {
 	AddRenderFnToStack(func())
 	GetWindowMeta() any
 	ResizeWindow(*XY)
+	SetKeyboardFnMode(codes.KeyboardMode)
 	Close()
 }
 

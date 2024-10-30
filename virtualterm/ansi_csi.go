@@ -67,7 +67,7 @@ func (term *Term) parseCsiCodes() {
 		case 'c':
 			// Send Device Attributes (Primary DA).
 			// send reply: "\0x1B[?1;" + https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h3-Functions-using-CSI-_-ordered-by-the-final-character_s_
-			reply := append([]byte(codes.Csi), []byte("?65;1;6;15;17;22;28;29c")...)
+			reply := append(codes.Csi, []byte("?65;1;6;15;17;22;28;29c")...)
 			term.Reply(reply)
 
 		case 'C':

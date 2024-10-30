@@ -65,13 +65,7 @@ func (hl *highlighterT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEven
 	switch hl.mode {
 	case _HIGHLIGHT_MODE_PNG:
 		if hl.rect.W < sr.glyphSize.X && hl.rect.H < sr.glyphSize.Y {
-			sr.highlighter = nil
-			b := clipboard.Read(clipboard.FmtText)
-			if len(b) != 0 {
-				sr.term.Reply(b)
-			} else {
-				sr.DisplayNotification(types.NOTIFY_INFO, "Clipboard does not contain text to paste")
-			}
+			sr.clipboardPasteText()
 		}
 		// clipboard copy will happen automatically on next redraw
 		sr.TriggerRedraw()
@@ -91,7 +85,6 @@ func (hl *highlighterT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEven
 		sr.highlighter = nil
 		sr.DisplayNotification(types.NOTIFY_INFO, fmt.Sprintf("%dx%d grid has been copied to clipboard", rect.W-rect.X+1, rect.H-rect.Y+1))
 	}
-
 }
 
 func (hl *highlighterT) eventMouseWheel(sr *sdlRender, evt *sdl.MouseWheelEvent) {

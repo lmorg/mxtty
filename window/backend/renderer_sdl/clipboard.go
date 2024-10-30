@@ -48,3 +48,13 @@ func (sr *sdlRender) _copySurfaceToClipboard(src *sdl.Surface, rect *sdl.Rect) e
 	clipboard.Write(clipboard.FmtImage, buf.Bytes())
 	return nil
 }
+
+func (sr *sdlRender) clipboardPasteText() {
+	sr.highlighter = nil
+	b := clipboard.Read(clipboard.FmtText)
+	if len(b) != 0 {
+		sr.term.Reply(b)
+	} else {
+		sr.DisplayNotification(types.NOTIFY_WARN, "Clipboard does not contain text to paste")
+	}
+}
