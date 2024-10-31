@@ -26,6 +26,8 @@ var SGR_DEFAULT = &Sgr{
 	Bg: SGR_COLOUR_BLACK,
 }
 
+var BgUnfocused = &Colour{0, 34, 46}
+
 var BlinkColour = map[bool]*Colour{
 	true:  SGR_COLOUR_BLACK,
 	false: SGR_COLOUR_WHITE,

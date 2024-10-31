@@ -9,15 +9,17 @@ import (
 	"github.com/lmorg/mxtty/types"
 )
 
-func (term *Term) MouseClick(button uint8, pos *types.XY) {
+func (term *Term) MouseClick(button uint8, pos *types.XY, callback types.MouseClickCallback) {
 	log.Printf("DEBUG: MouseClick(%d: %s)", button, json.LazyLogging(pos))
 
 	cells := term.visibleScreen()
 
-	if cells[pos.Y][pos.X].Element != nil {
-		//relPos := types.XY{X: pos.X, Y: pos.Y - term.findElementStart(pos)}
-		cells[pos.Y][pos.X].Element.MouseClick(button, getElementXY(cells[pos.Y][pos.X].Char))
+	if cells[pos.Y][pos.X].Element == nil {
+		callback()
+		return
 	}
+
+	cells[pos.Y][pos.X].Element.MouseClick(button, getElementXY(cells[pos.Y][pos.X].Char))
 }
 
 func (term *Term) MouseWheel(Y int) {
@@ -32,11 +34,12 @@ func (term *Term) MouseWheel(Y int) {
 	term._scrollOffset += Y * 2
 
 	switch {
-	case term._scrollOffset < 0:
-		term._scrollOffset = 0
-
 	case term._scrollOffset > len(term._scrollBuf):
 		term._scrollOffset = len(term._scrollBuf)
+
+	case term._scrollOffset < 0:
+		term._scrollOffset = 0
+		fallthrough
 
 	case term._scrollOffset == 0:
 		term.ShowCursor(true)
@@ -47,9 +50,11 @@ func (term *Term) MouseWheel(Y int) {
 
 	default:
 		term.ShowCursor(false)
+		msg := fmt.Sprintf("Viewing scrollback history. %d lines from end", term._scrollOffset)
 		if term._scrollMsg == nil {
-			term._scrollMsg = term.renderer.DisplaySticky(types.NOTIFY_SCROLL, "")
+			term._scrollMsg = term.renderer.DisplaySticky(types.NOTIFY_SCROLL, msg)
+		} else {
+			term._scrollMsg.SetMessage(msg)
 		}
-		term._scrollMsg.SetMessage(fmt.Sprintf("Viewing scrollback history. %d lines from end", term._scrollOffset))
 	}
 }

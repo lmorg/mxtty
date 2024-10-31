@@ -33,22 +33,27 @@ func (sr *sdlRender) PrintCell(cell *types.Cell, cellPos *types.XY) error {
 		H: sr.glyphSize.Y,
 	}
 
+	isCellHighlighted := isCellHighlighted(sr, rect)
+
 	// render background colour
 
 	if bg != nil {
-		pixel := sdl.MapRGBA(sr.surface.Format, bg.Red, bg.Green, bg.Blue, 255)
+		var pixel uint32
+		if isCellHighlighted {
+			pixel = sdl.MapRGBA(sr.surface.Format, textHighlight.R, textHighlight.G, textHighlight.B, 255)
+		} else {
+			pixel = sdl.MapRGBA(sr.surface.Format, bg.Red, bg.Green, bg.Blue, 255)
+		}
 		err := sr.surface.FillRect(rect, pixel)
 		if err != nil {
 			return err
 		}
 	}
 
-	isCellHighlighted := isCellHighlighted(sr, rect)
-
 	// render drop shadow
 
 	var rect2 *sdl.Rect
-	if config.Config.Terminal.TypeFace.DropShadow && bg == nil {
+	if config.Config.Terminal.TypeFace.DropShadow && (bg == nil || isCellHighlighted) {
 		rect2 = &sdl.Rect{
 			X: (sr.glyphSize.X * cellPos.X) + sr.border + dropShadowOffset,
 			Y: (sr.glyphSize.Y * cellPos.Y) + sr.border + dropShadowOffset,
@@ -57,7 +62,7 @@ func (sr *sdlRender) PrintCell(cell *types.Cell, cellPos *types.XY) error {
 		}
 
 		var c sdl.Color
-		if isCellHighlighted {
+		if isCellHighlighted && bg == nil {
 			c = textHighlight
 		} else {
 			c = textShadow
@@ -138,9 +143,28 @@ func sgrOpts(sgr *types.Sgr) (fg *types.Colour, bg *types.Colour) {
 	return fg, bg
 }
 
-func (sr *sdlRender) ansiReply(keyCode codes.FunctionKey) {
-	b := codes.GetAnsiEscSeq(sr.keyboardMode.Get(), keyCode)
+func (sr *sdlRender) ansiReply(keyCode codes.FunctionKey, keyMod uint16) {
+	mod := keyEventModToCodesModifier(keyMod)
+	b := codes.GetAnsiEscSeq(sr.keyboardMode.Get(), keyCode, mod)
 	if len(b) > 0 {
 		sr.term.Reply(b)
 	}
+}
+
+func keyEventModToCodesModifier(keyMod uint16) codes.Modifier {
+	var mod codes.Modifier
+
+	if keyMod&sdl.KMOD_CTRL != 0 || keyMod&sdl.KMOD_LCTRL != 0 || keyMod&sdl.KMOD_RCTRL != 0 {
+		mod |= codes.MOD_CTRL
+	}
+
+	if keyMod&sdl.KMOD_ALT != 0 || keyMod&sdl.KMOD_LALT != 0 || keyMod&sdl.KMOD_RALT != 0 {
+		mod |= codes.MOD_ALT
+	}
+
+	if keyMod&sdl.KMOD_SHIFT != 0 || keyMod&sdl.KMOD_LSHIFT != 0 || keyMod&sdl.KMOD_RSHIFT != 0 {
+		mod |= codes.MOD_SHIFT
+	}
+
+	return mod
 }

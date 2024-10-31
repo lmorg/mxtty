@@ -10,6 +10,7 @@ import (
 	"github.com/veandco/go-sdl2/mix"
 	"github.com/veandco/go-sdl2/sdl"
 	"github.com/veandco/go-sdl2/ttf"
+	"golang.design/x/hotkey"
 )
 
 type sdlRender struct {
@@ -55,6 +56,10 @@ type sdlRender struct {
 	keyboardMode keyboardModeT
 	blinkState   bool
 	keyModifier  uint16
+
+	// hotkey
+	hk       *hotkey.Hotkey
+	hkToggle bool
 }
 
 type keyboardModeT struct {
@@ -121,6 +126,8 @@ func (sr *sdlRender) GetWindowTitle() string {
 }
 
 func (sr *sdlRender) FocusWindow() {
+	sr.window.Show()
+	//sr.window.Minimize()
 	sr.window.Raise()
 }
 

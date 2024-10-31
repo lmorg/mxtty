@@ -14,16 +14,19 @@ var (
 	highlightFill   = &types.Colour{0x1c, 0x3e, 0x64}
 )
 
+type _highlightMode uint8
+
 const (
-	_HIGHLIGHT_MODE_PNG = 0 + iota
+	_HIGHLIGHT_MODE_PNG _highlightMode = 0 + iota
 	_HIGHLIGHT_MODE_SQUARE
-	_HIGHLIGHT_MODE_LINES
+	_HIGHLIGHT_MODE_FULL_LINES
+	_HIGHLIGHT_MODE_LINE_RANGE
 )
 
 type highlighterT struct {
 	button uint8
 	rect   *sdl.Rect
-	mode   uint8
+	mode   _highlightMode
 }
 
 func (hl *highlighterT) eventTextInput(sr *sdlRender, evt *sdl.TextInputEvent) {
@@ -33,6 +36,7 @@ func (hl *highlighterT) eventTextInput(sr *sdlRender, evt *sdl.TextInputEvent) {
 func (hl *highlighterT) eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) {
 	if evt.Keysym.Sym == sdl.K_ESCAPE {
 		sr.highlighter = nil
+		sdl.SetCursor(sdl.CreateSystemCursor(sdl.SYSTEM_CURSOR_ARROW))
 		return
 	}
 
@@ -46,21 +50,37 @@ func (hl *highlighterT) modifier(mod uint16) {
 	case mod&sdl.KMOD_LCTRL != 0:
 		fallthrough
 	case mod&sdl.KMOD_RCTRL != 0:
-		hl.mode = _HIGHLIGHT_MODE_SQUARE
+		hl.setMode(_HIGHLIGHT_MODE_SQUARE)
 
 	case mod&sdl.KMOD_SHIFT != 0:
 		fallthrough
 	case mod&sdl.KMOD_LSHIFT != 0:
 		fallthrough
 	case mod&sdl.KMOD_RSHIFT != 0:
-		hl.mode = _HIGHLIGHT_MODE_LINES
+		hl.setMode(_HIGHLIGHT_MODE_LINE_RANGE)
+
+	case mod&sdl.KMOD_ALT != 0:
+		fallthrough
+	case mod&sdl.KMOD_LALT != 0:
+		fallthrough
+	case mod&sdl.KMOD_RALT != 0:
+		hl.setMode(_HIGHLIGHT_MODE_FULL_LINES)
 	}
 }
 
-func (hl *highlighterT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEvent) {
-	hl.button = 0
+func (hl *highlighterT) setMode(mode _highlightMode) {
+	hl.mode = mode
+	switch mode {
+	case _HIGHLIGHT_MODE_LINE_RANGE:
+		sdl.SetCursor(sdl.CreateSystemCursor(sdl.SYSTEM_CURSOR_IBEAM))
+	default:
+		sdl.SetCursor(sdl.CreateSystemCursor(sdl.SYSTEM_CURSOR_ARROW))
+	}
+}
 
-	normaliseRect(hl.rect)
+func (hl *highlighterT) eventMouseButton(sr *sdlRender, _ *sdl.MouseButtonEvent) {
+	hl.button = 0
+	sdl.SetCursor(sdl.CreateSystemCursor(sdl.SYSTEM_CURSOR_ARROW))
 
 	switch hl.mode {
 	case _HIGHLIGHT_MODE_PNG:
@@ -70,7 +90,8 @@ func (hl *highlighterT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEven
 		// clipboard copy will happen automatically on next redraw
 		sr.TriggerRedraw()
 
-	case _HIGHLIGHT_MODE_LINES:
+	case _HIGHLIGHT_MODE_FULL_LINES:
+		normaliseRect(hl.rect)
 		rect := sr.rectPxToCells(hl.rect)
 		lines := sr.term.CopyLines(rect.Y, rect.H)
 		clipboard.Write(clipboard.FmtText, lines)
@@ -79,11 +100,27 @@ func (hl *highlighterT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEven
 		sr.DisplayNotification(types.NOTIFY_INFO, fmt.Sprintf("%d lines have been copied to clipboard", count))
 
 	case _HIGHLIGHT_MODE_SQUARE:
+		normaliseRect(hl.rect)
 		rect := sr.rectPxToCells(hl.rect)
 		lines := sr.term.CopySquare(&types.XY{X: rect.X, Y: rect.Y}, &types.XY{X: rect.W, Y: rect.H})
 		clipboard.Write(clipboard.FmtText, lines)
 		sr.highlighter = nil
 		sr.DisplayNotification(types.NOTIFY_INFO, fmt.Sprintf("%dx%d grid has been copied to clipboard", rect.W-rect.X+1, rect.H-rect.Y+1))
+
+	case _HIGHLIGHT_MODE_LINE_RANGE:
+		rect := sr.rectPxToCells(hl.rect)
+		if rect.X-rect.W < 2 && rect.X-rect.W > -2 && rect.Y-rect.H < 2 && rect.Y-rect.H > -2 {
+			sr.highlighter = nil
+			return
+		}
+		lines := sr.term.CopyRange(&types.XY{X: rect.X, Y: rect.Y}, &types.XY{X: rect.W, Y: rect.H})
+		clipboard.Write(clipboard.FmtText, lines)
+		sr.highlighter = nil
+		count := bytes.Count(lines, []byte{'\n'}) + 1
+		sr.DisplayNotification(types.NOTIFY_INFO, fmt.Sprintf("%d lines have been copied to clipboard", count))
+
+	default:
+		panic(fmt.Sprintf("TODO: unmet conditional '%d'", hl.mode))
 	}
 }
 
@@ -103,37 +140,44 @@ func (sr *sdlRender) selectionHighlighter() {
 	}
 
 	var alphaBorder, alphaFill uint8
-	if sr.highlighter.mode == _HIGHLIGHT_MODE_PNG {
+	var rect *sdl.Rect
+
+	switch sr.highlighter.mode {
+	case _HIGHLIGHT_MODE_PNG:
 		alphaBorder, alphaFill = 190, 64
-	} else {
-		alphaBorder, alphaFill = 64, 32
+		rect = &sdl.Rect{X: sr.highlighter.rect.X, Y: sr.highlighter.rect.Y, W: sr.highlighter.rect.W, H: sr.highlighter.rect.H}
+
+	case _HIGHLIGHT_MODE_SQUARE:
+		alphaBorder, alphaFill = 64, 0
+		rect = &sdl.Rect{X: sr.highlighter.rect.X, Y: sr.highlighter.rect.Y, W: sr.highlighter.rect.W, H: sr.highlighter.rect.H}
+
+	case _HIGHLIGHT_MODE_LINE_RANGE, _HIGHLIGHT_MODE_FULL_LINES:
+		return
+
+	default:
+
 	}
 
 	sr.renderer.SetDrawColor(highlightBorder.Red, highlightBorder.Green, highlightBorder.Blue, alphaBorder)
-	rect := sdl.Rect{
-		X: sr.highlighter.rect.X - 1,
-		Y: sr.highlighter.rect.Y - 1,
-		W: sr.highlighter.rect.W + 2,
-		H: sr.highlighter.rect.H + 2,
-	}
-	sr.renderer.DrawRect(&rect)
-	rect = sdl.Rect{
-		X: sr.highlighter.rect.X,
-		Y: sr.highlighter.rect.Y,
-		W: sr.highlighter.rect.W,
-		H: sr.highlighter.rect.H,
-	}
-	sr.renderer.DrawRect(&rect)
+	rect.X -= 1
+	rect.Y -= 1
+	rect.W += 2
+	rect.H += 2
+
+	sr.renderer.DrawRect(rect)
+	rect.X += 1
+	rect.Y += 1
+	rect.W -= 2
+	rect.H -= 2
+	sr.renderer.DrawRect(rect)
 
 	// fill background
 	sr.renderer.SetDrawColor(highlightFill.Red, highlightFill.Green, highlightFill.Blue, alphaFill)
-	rect = sdl.Rect{
-		X: sr.highlighter.rect.X + 1,
-		Y: sr.highlighter.rect.Y + 1,
-		W: sr.highlighter.rect.W - 2,
-		H: sr.highlighter.rect.H - 2,
-	}
-	sr.renderer.FillRect(&rect)
+	rect.X += 1
+	rect.Y += 1
+	rect.W -= 2
+	rect.H -= 2
+	sr.renderer.FillRect(rect)
 }
 
 func isCellHighlighted(sr *sdlRender, rect *sdl.Rect) bool {
@@ -142,32 +186,67 @@ func isCellHighlighted(sr *sdlRender, rect *sdl.Rect) bool {
 	}
 
 	hlRect := *sr.highlighter.rect
-	normaliseRect(&hlRect)
-
+	if sr.highlighter.mode == _HIGHLIGHT_MODE_LINE_RANGE {
+		normaliseRectRange(&hlRect)
+	} else {
+		normaliseRect(&hlRect)
+	}
 	runeCell := sr.rectPxToCells(rect)
 	hlCell := sr.rectPxToCells(&hlRect)
 
 	switch sr.highlighter.mode {
-	default:
-		return false
-	case _HIGHLIGHT_MODE_LINES:
+	case _HIGHLIGHT_MODE_FULL_LINES:
 		return runeCell.Y >= hlCell.Y && runeCell.Y <= hlCell.H
+
+	case _HIGHLIGHT_MODE_LINE_RANGE:
+		switch {
+		case hlCell.H < hlCell.Y: // select up
+			// start multiline
+			return ((runeCell.X <= hlCell.X && runeCell.Y == hlCell.Y) ||
+				// middle multiline
+				(runeCell.Y < hlCell.Y && runeCell.Y > hlCell.H) ||
+				// end multiline
+				(runeCell.X >= hlCell.W && runeCell.Y == hlCell.H))
+
+		case hlCell.Y == hlCell.H:
+			// midline
+			if hlCell.W < hlCell.X { //backwards
+				return runeCell.X <= hlCell.X && runeCell.X >= hlCell.W && runeCell.Y == hlCell.Y
+			} else { // forwards
+				return runeCell.X >= hlCell.X && runeCell.X <= hlCell.W && runeCell.Y == hlCell.Y
+			}
+
+		default: // select down
+			// start multiline
+			return ((runeCell.X >= hlCell.X && runeCell.Y == hlCell.Y) ||
+				// middle multiline
+				(runeCell.Y > hlCell.Y && runeCell.Y < hlCell.H) ||
+				// end multiline
+				(runeCell.X <= hlCell.W && runeCell.Y == hlCell.H))
+		}
+
 	case _HIGHLIGHT_MODE_SQUARE:
 		return runeCell.X >= hlCell.X && runeCell.X <= hlCell.W &&
 			runeCell.Y >= hlCell.Y && runeCell.Y <= hlCell.H
+
+	default:
+		return false
 	}
 }
 
 func normaliseRect(rect *sdl.Rect) {
 	if rect.W < 0 {
 		rect.X += rect.W
-		rect.W *= -1
+		rect.W = -rect.W
 	}
 
 	if rect.H < 0 {
 		rect.Y += rect.H
-		rect.H *= -1
+		rect.H = -rect.H
 	}
+}
+
+func normaliseRectRange(rect *sdl.Rect) {
 }
 
 func (sr *sdlRender) rectPxToCells(rect *sdl.Rect) *sdl.Rect {

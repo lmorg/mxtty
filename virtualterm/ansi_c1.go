@@ -92,10 +92,12 @@ func (term *Term) parseC1Codes() {
 
 	case '=':
 		// Application Keypad (DECPAM)
+		// TODO: this probably shouldn't redefine every function key
 		term.renderer.SetKeyboardFnMode(codes.KeysApplication)
 
 	case '>':
 		// Normal Keypad (DECPNM)
+		// TODO: this probably shouldn't redefine every function key
 		term.renderer.SetKeyboardFnMode(codes.KeysNormal)
 
 	case 'c':

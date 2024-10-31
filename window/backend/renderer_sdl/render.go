@@ -47,6 +47,14 @@ func (sr *sdlRender) eventLoop(term types.Term) {
 		}
 
 		select {
+		case <-sr.hk.Keydown():
+			if sr.hkToggle {
+				sr.window.Hide()
+			} else {
+				sr.FocusWindow()
+			}
+			sr.hkToggle = !sr.hkToggle
+
 		case <-sr._quit:
 			return
 

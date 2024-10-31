@@ -238,11 +238,11 @@ var ansiEscapeSeq = map[KeyboardMode]map[FunctionKey][]byte{
 	},
 }
 
-func GetAnsiEscSeq(keySet KeyboardMode, keyPress FunctionKey) []byte {
+func getAnsiEscSeq(keySet KeyboardMode, keyPress FunctionKey) []byte {
 	b, ok := ansiEscapeSeq[keySet][keyPress]
 	if !ok {
 		if keySet != KeysNormal {
-			return GetAnsiEscSeq(KeysNormal, keyPress)
+			return getAnsiEscSeq(KeysNormal, keyPress)
 		}
 
 		debug.Log(fmt.Sprintf("No sequence available for %d in %d", keyPress, keySet))
@@ -255,9 +255,9 @@ func GetAnsiEscSeq(keySet KeyboardMode, keyPress FunctionKey) []byte {
 // TODO:
 // As a special case, the SS3  sent before F1 through F4 is altered to CSI when
 // sending a function key modifier as a parameter.
-func GetAnsiEscSeqWithModifier(keySet KeyboardMode, keyPress FunctionKey, modifier Modifier) []byte {
-	b := GetAnsiEscSeq(keySet, keyPress)
-	if len(b) == 0 {
+func GetAnsiEscSeq(keySet KeyboardMode, keyPress FunctionKey, modifier Modifier) []byte {
+	b := getAnsiEscSeq(keySet, keyPress)
+	if len(b) == 0 || modifier == 0 {
 		return b
 	}
 
