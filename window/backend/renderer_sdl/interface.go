@@ -91,16 +91,8 @@ func (sr *sdlRender) TermSize() *types.XY {
 	return sr.termSize
 }
 
-func (sr *sdlRender) resize() *types.XY {
-	/*var err error
-	//sr.surface.Free()
-	//sr.surface, err = sr.window.GetSurface()
-	sr.renderer, err = sr.window.GetRenderer()
-	if err != nil {
-		panic(err) // TODO: this shouldn't panic!
-	}*/
-
-	return sr.getTermSize()
+func (sr *sdlRender) windowResized() {
+	sr.term.Resize(sr.getTermSize())
 }
 
 func (sr *sdlRender) Close() {
@@ -127,7 +119,6 @@ func (sr *sdlRender) GetWindowTitle() string {
 
 func (sr *sdlRender) FocusWindow() {
 	sr.window.Show()
-	//sr.window.Minimize()
 	sr.window.Raise()
 }
 

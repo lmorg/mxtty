@@ -8,7 +8,7 @@ import (
 func (sr *sdlRender) eventWindow(evt *sdl.WindowEvent) {
 	switch evt.Event {
 	case sdl.WINDOWEVENT_RESIZED:
-		//resizeTerm(r, term)
+		sr.windowResized()
 
 	case sdl.WINDOWEVENT_FOCUS_GAINED:
 		sr.term.HasFocus(true)
