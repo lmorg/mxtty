@@ -186,9 +186,7 @@ func isCellHighlighted(sr *sdlRender, rect *sdl.Rect) bool {
 	}
 
 	hlRect := *sr.highlighter.rect
-	if sr.highlighter.mode == _HIGHLIGHT_MODE_LINE_RANGE {
-		normaliseRectRange(&hlRect)
-	} else {
+	if sr.highlighter.mode != _HIGHLIGHT_MODE_LINE_RANGE {
 		normaliseRect(&hlRect)
 	}
 	runeCell := sr.rectPxToCells(rect)
@@ -244,9 +242,6 @@ func normaliseRect(rect *sdl.Rect) {
 		rect.Y += rect.H
 		rect.H = -rect.H
 	}
-}
-
-func normaliseRectRange(rect *sdl.Rect) {
 }
 
 func (sr *sdlRender) rectPxToCells(rect *sdl.Rect) *sdl.Rect {

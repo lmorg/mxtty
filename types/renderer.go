@@ -1,11 +1,9 @@
 package types
 
-import "github.com/lmorg/mxtty/codes"
-
 type Renderer interface {
 	Start(Term)
-	FocusWindow()
-	TermSize() *XY
+	ShowAndFocusWindow()
+	GetTermSize() *XY
 	PrintCell(*Cell, *XY) error
 	GetWindowTitle() string
 	SetWindowTitle(string)
@@ -19,7 +17,7 @@ type Renderer interface {
 	AddRenderFnToStack(func())
 	GetWindowMeta() any
 	ResizeWindow(*XY)
-	SetKeyboardFnMode(codes.KeyboardMode)
+	SetKeyboardFnMode(KeyboardMode)
 	Close()
 }
 

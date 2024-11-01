@@ -1,5 +1,7 @@
 package codes
 
+import "github.com/lmorg/mxtty/types"
+
 /*
 	  Code     Modifiers
 	---------+---------------------------
@@ -82,4 +84,21 @@ func translateModToCode(mod Modifier) []byte {
 	default:
 		panic("invalid modifier")
 	}
+}
+
+func spliceKeysAndModifiers(keySeq []byte, modifier Modifier) []byte {
+	ending := keySeq[len(keySeq)-1]
+	seq := append(keySeq[:len(keySeq)-1], translateModToCode(modifier)...)
+	return append(seq, ending)
+}
+
+func specialCaseSequences(keySet types.KeyboardMode, keyPress KeyCode, modifier Modifier) (b []byte) {
+	switch {
+	case keyPress < 256 && modifier == 0:
+		return []byte{byte(keyPress)}
+	case keyPress > '`' && keyPress < 'z' && modifier == MOD_CTRL:
+		return []byte{byte(keyPress) - 0x60}
+	}
+
+	return nil
 }

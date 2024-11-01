@@ -30,6 +30,7 @@ func (sr *sdlRender) _copySurfaceToClipboard(src *sdl.Surface, rect *sdl.Rect) e
 	if err != nil {
 		return err
 	}
+	defer surf.Free()
 
 	err = src.Blit(rect, surf, &dstRect)
 	if err != nil {

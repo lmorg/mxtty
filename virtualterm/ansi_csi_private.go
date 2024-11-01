@@ -3,8 +3,8 @@ package virtualterm
 import (
 	"log"
 
-	"github.com/lmorg/mxtty/codes"
 	"github.com/lmorg/mxtty/debug"
+	"github.com/lmorg/mxtty/types"
 )
 
 /*
@@ -24,7 +24,7 @@ func lookupPrivateCsi(term *Term, code []rune) {
 		switch param {
 		case "1":
 			// Application Cursor Keys (DECCKM), VT100.
-			term.renderer.SetKeyboardFnMode(codes.KeysApplication)
+			term.renderer.SetKeyboardFnMode(types.KeysApplication)
 
 		case "3":
 			// 132 Column Mode (DECCOLM), VT100.
@@ -83,7 +83,7 @@ func lookupPrivateCsi(term *Term, code []rune) {
 		switch param {
 		case "1":
 			// Normal Cursor Keys (DECCKM), VT100.
-			term.renderer.SetKeyboardFnMode(codes.KeysApplication)
+			term.renderer.SetKeyboardFnMode(types.KeysApplication)
 
 		case "2":
 			// Designate VT52 mode (DECANM), VT100.

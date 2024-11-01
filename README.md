@@ -8,6 +8,7 @@
   - [Escape Codes](#escape-codes)
     - [VT100](#vt100)
     - [VT52 mode](#vt52-mode)
+    - [VT200 mode](#vt200-mode)
     - [Tektronix 4014 mode](#tektronix-4014-mode)
     - [Window management codes](#window-management-codes)
     - [Extended features](#extended-features)
@@ -119,6 +120,8 @@ ticked but not working as expected, then please raise an issue in Github.
 - [ ] cursor movements
 - [ ] special modes
 
+#### VT200 mode
+
 #### Tektronix 4014 mode
 
 - [ ] graphics plotting
@@ -162,15 +165,15 @@ eg `xterm` and similar terminal emulators
 
 ### Application Usability
 
-- [ ] Terminal can be resized
+- [x] Terminal can be resized
 - [x] Scrollback history
   - [x] usability hints added
 - [ ] discoverability hints added
-- [ ] Typeface can be changed
+- [x] Typeface can be changed
 - [ ] Colour scheme can be changed
 - [ ] Bell can be changed
-- [ ] Default term size can be changed
-- [ ] Default command / shell can be changed
+- [x] Default term size can be changed
+- [x] Default command / shell can be changed
 
 ## Supported Platforms
 

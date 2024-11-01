@@ -48,12 +48,7 @@ func (sr *sdlRender) eventLoop(term types.Term) {
 
 		select {
 		case <-sr.hk.Keydown():
-			if sr.hkToggle {
-				sr.window.Hide()
-			} else {
-				sr.FocusWindow()
-			}
-			sr.hkToggle = !sr.hkToggle
+			sr.eventHotkey()
 
 		case <-sr._quit:
 			return
@@ -100,6 +95,7 @@ func render(sr *sdlRender, term types.Term) error {
 	if err != nil {
 		return err
 	}
+	defer texture.Destroy()
 
 	err = sr.renderer.Copy(texture, rect, rect)
 	if err != nil {

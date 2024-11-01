@@ -21,9 +21,3 @@ func (sr *sdlRender) eventWindow(evt *sdl.WindowEvent) {
 		sr.hkToggle = false
 	}
 }
-
-/*func resizeTerm(r types.Renderer, term types.Term) {
-	//r.
-	term.Resize(rect)
-}
-*/

@@ -14,3 +14,12 @@ func (sr *sdlRender) registerHotkey() {
 		sr.DisplayNotification(types.NOTIFY_ERROR, fmt.Sprintf("Unable to set hotkey: %s", err.Error()))
 	}
 }
+
+func (sr *sdlRender) eventHotkey() {
+	if sr.hkToggle {
+		sr.hideWindow()
+	} else {
+		sr.ShowAndFocusWindow()
+	}
+	sr.hkToggle = !sr.hkToggle
+}

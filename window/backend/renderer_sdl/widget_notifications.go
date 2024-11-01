@@ -307,6 +307,7 @@ func (sr *sdlRender) renderNotification(windowRect *sdl.Rect) {
 			if err != nil {
 				panic(err) //TODO: don't panic!
 			}
+			defer texture.Destroy()
 
 			err = sr.renderer.Copy(texture, srcRect, dstRect)
 			if err != nil {
@@ -323,6 +324,7 @@ func (sr *sdlRender) _renderNotificationSurface(surface *sdl.Surface, rect *sdl.
 	if err != nil {
 		panic(err) //TODO: don't panic!
 	}
+	defer texture.Destroy()
 
 	err = sr.renderer.Copy(texture, rect, rect)
 	if err != nil {

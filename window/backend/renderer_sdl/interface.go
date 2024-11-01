@@ -4,7 +4,6 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/lmorg/mxtty/codes"
 	"github.com/lmorg/mxtty/types"
 	"github.com/lmorg/mxtty/window/backend/typeface"
 	"github.com/veandco/go-sdl2/mix"
@@ -18,7 +17,6 @@ type sdlRender struct {
 	surface   *sdl.Surface
 	renderer  *sdl.Renderer
 	glyphSize *types.XY
-	termSize  *types.XY
 	term      types.Term
 	limiter   sync.Mutex
 
@@ -66,14 +64,14 @@ type keyboardModeT struct {
 	keyboardMode int32
 }
 
-func (km *keyboardModeT) Set(mode codes.KeyboardMode) {
+func (km *keyboardModeT) Set(mode types.KeyboardMode) {
 	atomic.StoreInt32(&km.keyboardMode, int32(mode))
 }
-func (km *keyboardModeT) Get() codes.KeyboardMode {
-	return codes.KeyboardMode(atomic.LoadInt32(&km.keyboardMode))
+func (km *keyboardModeT) Get() types.KeyboardMode {
+	return types.KeyboardMode(atomic.LoadInt32(&km.keyboardMode))
 }
 
-func (sr *sdlRender) SetKeyboardFnMode(code codes.KeyboardMode) {
+func (sr *sdlRender) SetKeyboardFnMode(code types.KeyboardMode) {
 	sr.keyboardMode.Set(code)
 }
 
@@ -87,14 +85,6 @@ func (sr *sdlRender) _triggerRedraw() {
 	}
 }
 
-func (sr *sdlRender) TermSize() *types.XY {
-	return sr.termSize
-}
-
-func (sr *sdlRender) windowResized() {
-	sr.term.Resize(sr.getTermSize())
-}
-
 func (sr *sdlRender) Close() {
 	typeface.Close()
 	sr.window.Destroy()
@@ -106,28 +96,4 @@ func (sr *sdlRender) Close() {
 	}
 
 	sdl.Quit()
-}
-
-func (sr *sdlRender) SetWindowTitle(title string) {
-	sr.title = title
-	atomic.CompareAndSwapInt32(&sr.updateTitle, 0, 1)
-}
-
-func (sr *sdlRender) GetWindowTitle() string {
-	return sr.window.GetTitle()
-}
-
-func (sr *sdlRender) FocusWindow() {
-	sr.window.Show()
-	sr.window.Raise()
-}
-
-func (sr *sdlRender) GetWindowMeta() any {
-	return sr.window
-}
-
-func (sr *sdlRender) ResizeWindow(size *types.XY) {
-	w := (size.X * sr.glyphSize.X) + (sr.border * 2)
-	h := (size.Y * sr.glyphSize.Y) + (sr.border * 2)
-	sr.window.SetSize(w, h)
 }

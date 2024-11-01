@@ -108,7 +108,7 @@ func NewTerminal(renderer types.Renderer) *Term {
 	var size *types.XY
 
 	if renderer != nil {
-		size = renderer.TermSize()
+		size = renderer.GetTermSize()
 	}
 
 	term := &Term{

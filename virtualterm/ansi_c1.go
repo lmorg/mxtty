@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/lmorg/mxtty/codes"
 	"github.com/lmorg/mxtty/types"
 )
 
@@ -93,12 +92,12 @@ func (term *Term) parseC1Codes() {
 	case '=':
 		// Application Keypad (DECPAM)
 		// TODO: this probably shouldn't redefine every function key
-		term.renderer.SetKeyboardFnMode(codes.KeysApplication)
+		term.renderer.SetKeyboardFnMode(types.KeysApplication)
 
 	case '>':
 		// Normal Keypad (DECPNM)
 		// TODO: this probably shouldn't redefine every function key
-		term.renderer.SetKeyboardFnMode(codes.KeysNormal)
+		term.renderer.SetKeyboardFnMode(types.KeysNormal)
 
 	case 'c':
 		// Full Reset (RIS)

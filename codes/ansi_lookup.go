@@ -4,96 +4,7 @@ import (
 	"fmt"
 
 	"github.com/lmorg/mxtty/debug"
-)
-
-type KeyboardMode int32
-type FunctionKey int
-
-const (
-	KeysNormal KeyboardMode = 0 + iota
-	KeysApplication
-	KeysVT220
-	KeysVT52
-)
-
-const (
-	AnsiUp FunctionKey = 0 + iota
-	AnsiDown
-	AnsiRight
-	AnsiLeft
-	AnsiInsert
-	AnsiHome
-	AnsiEnd
-	AnsiDelete
-	AnsiPageUp
-	AnsiPageDown
-
-	AnsiKeyPadSpace
-	AnsiKeyPadTab
-	AnsiKeyPadEnter
-	AnsiKeyPadMultiply
-	AnsiKeyPadAdd
-	AnsiKeyPadComma
-	AnsiKeyPadMinus
-	AnsiKeyPadPeriod
-	AnsiKeyPadDivide
-	AnsiKeyPad0
-	AnsiKeyPad1
-	AnsiKeyPad2
-	AnsiKeyPad3
-	AnsiKeyPad4
-	AnsiKeyPad5
-	AnsiKeyPad6
-	AnsiKeyPad7
-	AnsiKeyPad8
-	AnsiKeyPad9
-	AnsiKeyPadEqual
-
-	AnsiShiftTab
-
-	AnsiOptUp
-	AnsiOptDown
-	AnsiOptLeft
-	AnsiOptRight
-
-	AnsiCtrlUp
-	AnsiCtrlDown
-	AnsiCtrlLeft
-	AnsiCtrlRight
-
-	AnsiF1
-	AnsiF2
-	AnsiF3
-	AnsiF4
-	AnsiF5
-	AnsiF6
-	AnsiF7
-	AnsiF8
-	AnsiF9
-	AnsiF10
-	AnsiF11
-	AnsiF12
-	AnsiF13
-	AnsiF14
-	AnsiF15
-	AnsiF16
-	AnsiF17
-	AnsiF18
-	AnsiF19
-	AnsiF20
-
-	AnsiShiftF1
-	AnsiShiftF2
-	AnsiShiftF3
-	AnsiShiftF4
-	AnsiShiftF5
-	AnsiShiftF6
-	AnsiShiftF7
-	AnsiShiftF8
-	AnsiShiftF9
-	AnsiShiftF10
-	AnsiShiftF11
-	AnsiShiftF12
+	"github.com/lmorg/mxtty/types"
 )
 
 const esc = 27
@@ -113,18 +24,27 @@ var (
 func ss3(b ...byte) []byte { return append(Ss3, b...) }
 func csi(b ...byte) []byte { return append(Csi, b...) }
 
-var ansiEscapeSeq = map[KeyboardMode]map[FunctionKey][]byte{
-	KeysNormal: {
-		AnsiUp:          csi('A'),
-		AnsiDown:        csi('B'),
-		AnsiRight:       csi('C'),
-		AnsiLeft:        csi('D'),
-		AnsiHome:        csi('H'),
-		AnsiEnd:         csi('E'),
+var _retryLookUpTable = map[types.KeyboardMode]*[]types.KeyboardMode{
+	types.KeysNormal:      {types.KeysNormal, types.KeysVT220},
+	types.KeysApplication: {types.KeysApplication, types.KeysNormal, types.KeysVT220},
+	types.KeysVT52:        {types.KeysVT52, types.KeysNormal},
+	types.KeysVT220:       {types.KeysVT220, types.KeysNormal},
+}
+
+var _ansiLookUpTable = map[types.KeyboardMode]map[KeyCode][]byte{
+	types.KeysNormal: {
+		AnsiUp:    csi('A'),
+		AnsiDown:  csi('B'),
+		AnsiRight: csi('C'),
+		AnsiLeft:  csi('D'),
+		AnsiHome:  csi('H'),
+		AnsiEnd:   csi('E'),
+
 		AnsiKeyPadSpace: []byte{' '},
 		AnsiKeyPadTab:   []byte{'\t'},
 		AnsiKeyPadEnter: []byte{'\r'},
-		AnsiShiftTab:    csi('Z'),
+
+		/*AnsiShiftTab:    csi('Z'),
 		AnsiOptUp:       []byte{esc, esc, '[', 'A'},
 		AnsiOptDown:     []byte{esc, esc, '[', 'B'},
 		AnsiOptLeft:     []byte{esc, esc, '[', 'D'},
@@ -132,7 +52,7 @@ var ansiEscapeSeq = map[KeyboardMode]map[FunctionKey][]byte{
 		AnsiCtrlUp:      csi('1', ';', '5', 'A'),
 		AnsiCtrlDown:    csi('1', ';', '5', 'B'),
 		AnsiCtrlLeft:    csi('1', ';', '5', 'D'),
-		AnsiCtrlRight:   csi('1', ';', '5', 'C'),
+		AnsiCtrlRight:   csi('1', ';', '5', 'C'),*/
 
 		AnsiF1:  ss3('P'),
 		AnsiF2:  ss3('Q'),
@@ -147,7 +67,7 @@ var ansiEscapeSeq = map[KeyboardMode]map[FunctionKey][]byte{
 		AnsiF11: csi('2', '3', '~'),
 		AnsiF12: csi('2', '4', '~'),
 
-		AnsiShiftF1:  csi('1', ';', '2', 'P'),
+		/*AnsiShiftF1:  csi('1', ';', '2', 'P'),
 		AnsiShiftF2:  csi('1', ';', '2', 'Q'),
 		AnsiShiftF3:  csi('1', ';', '2', 'R'),
 		AnsiShiftF4:  csi('1', ';', '2', 'S'),
@@ -158,10 +78,10 @@ var ansiEscapeSeq = map[KeyboardMode]map[FunctionKey][]byte{
 		AnsiShiftF9:  csi('2', '0', ';', '2', '~'),
 		AnsiShiftF10: csi('2', '1', ';', '2', '~'),
 		AnsiShiftF11: csi('2', '3', ';', '2', '~'),
-		AnsiShiftF12: csi('2', '4', ';', '2', '~'),
+		AnsiShiftF12: csi('2', '4', ';', '2', '~'),*/
 	},
 
-	KeysApplication: {
+	types.KeysApplication: {
 		AnsiUp:    ss3('A'),
 		AnsiDown:  ss3('B'),
 		AnsiRight: ss3('C'),
@@ -170,7 +90,7 @@ var ansiEscapeSeq = map[KeyboardMode]map[FunctionKey][]byte{
 		AnsiEnd:   ss3('E'),
 	},
 
-	KeysVT220: {
+	types.KeysVT220: {
 		AnsiHome:     csi('1', '~'),
 		AnsiInsert:   csi('2', '~'),
 		AnsiDelete:   csi('3', '~'),
@@ -209,7 +129,7 @@ var ansiEscapeSeq = map[KeyboardMode]map[FunctionKey][]byte{
 		AnsiF20: csi('3', '4', '~'),
 	},
 
-	KeysVT52: {
+	types.KeysVT52: {
 		AnsiUp:    []byte{esc, 'A'},
 		AnsiDown:  []byte{esc, 'B'},
 		AnsiRight: []byte{esc, 'C'},
@@ -238,11 +158,11 @@ var ansiEscapeSeq = map[KeyboardMode]map[FunctionKey][]byte{
 	},
 }
 
-func getAnsiEscSeq(keySet KeyboardMode, keyPress FunctionKey) []byte {
-	b, ok := ansiEscapeSeq[keySet][keyPress]
+func getAnsiEscSeq(keySet types.KeyboardMode, keyPress KeyCode) []byte {
+	b, ok := _ansiLookUpTable[keySet][keyPress]
 	if !ok {
-		if keySet != KeysNormal {
-			return getAnsiEscSeq(KeysNormal, keyPress)
+		if keySet != types.KeysNormal {
+			return getAnsiEscSeq(types.KeysNormal, keyPress)
 		}
 
 		debug.Log(fmt.Sprintf("No sequence available for %d in %d", keyPress, keySet))
@@ -253,15 +173,29 @@ func getAnsiEscSeq(keySet KeyboardMode, keyPress FunctionKey) []byte {
 }
 
 // TODO:
-// As a special case, the SS3  sent before F1 through F4 is altered to CSI when
+// As a special case, the SS3 sent before F1 through F4 is altered to CSI when
 // sending a function key modifier as a parameter.
-func GetAnsiEscSeq(keySet KeyboardMode, keyPress FunctionKey, modifier Modifier) []byte {
-	b := getAnsiEscSeq(keySet, keyPress)
-	if len(b) == 0 || modifier == 0 {
+func GetAnsiEscSeq(keySet types.KeyboardMode, keyPress KeyCode, modifier Modifier) []byte {
+	// check for hardcoded exceptions
+	b := specialCaseSequences(keySet, keyPress, modifier)
+	if len(b) != 0 {
 		return b
 	}
 
-	ending := b[len(b)-1]
-	seq := append(b[:len(b)-1], translateModToCode(modifier)...)
-	return append(seq, ending)
+	// fallback to generalized formats
+	lookupSet := _retryLookUpTable[keySet]
+	for _, set := range *lookupSet {
+		b = getAnsiEscSeq(set, keyPress)
+		if len(b) != 0 {
+			// no modifiers
+			if modifier == 0 {
+				return b
+			}
+
+			// contains modifiers
+			return spliceKeysAndModifiers(b, modifier)
+		}
+	}
+
+	return b
 }

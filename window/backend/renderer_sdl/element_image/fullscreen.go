@@ -15,7 +15,7 @@ func (el *ElementImage) fullscreen() error {
 	if err != nil {
 		return err
 	}
-	defer el.renderer.FocusWindow()
+	defer el.renderer.ShowAndFocusWindow()
 	defer window.Destroy()
 
 	renderer, err := sdl.CreateRenderer(window, -1, sdl.RENDERER_ACCELERATED)
@@ -28,6 +28,7 @@ func (el *ElementImage) fullscreen() error {
 	if !ok {
 		return fmt.Errorf("image asset is not a surface")
 	}
+	defer imgSurface.Free()
 
 	texture, err := renderer.CreateTextureFromSurface(imgSurface)
 	if err != nil {

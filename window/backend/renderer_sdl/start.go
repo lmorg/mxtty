@@ -76,7 +76,7 @@ func (sr *sdlRender) createWindow(caption string) error {
 	sr.window, err = sdl.CreateWindow(
 		caption,             // window title
 		X, Y, width, height, // window position & dimensions
-		sdl.WINDOW_SHOWN|sdl.WINDOW_RESIZABLE|sdl.WINDOW_ALWAYS_ON_TOP, // window properties
+		sdl.WINDOW_SHOWN|sdl.WINDOW_RESIZABLE|sdl.WINDOW_ALWAYS_ON_TOP|sdl.WINDOW_HIDDEN, // window properties
 	)
 	if err != nil {
 		return err
@@ -97,6 +97,8 @@ func (sr *sdlRender) createWindow(caption string) error {
 	}
 
 	err = sr.renderer.SetDrawBlendMode(sdl.BLENDMODE_BLEND)
+
+	sr.ShowAndFocusWindow()
 	return err
 }
 
@@ -119,11 +121,10 @@ func (sr *sdlRender) setIcon() error {
 func (sr *sdlRender) setTypeFace(f *ttf.Font) {
 	sr.font = f
 	sr.glyphSize = typeface.GetSize()
-	sr.termSize = sr.getTermSize()
 	sr.preloadNotificationGlyphs()
 }
 
-func (sr *sdlRender) getTermSize() *types.XY {
+func (sr *sdlRender) getTermSizeCells() *types.XY {
 	x, y := sr.window.GetSize()
 
 	return &types.XY{

@@ -3,7 +3,6 @@ package rendersdl
 import (
 	"unsafe"
 
-	"github.com/lmorg/mxtty/codes"
 	"github.com/lmorg/mxtty/config"
 	"github.com/lmorg/mxtty/types"
 	"github.com/veandco/go-sdl2/sdl"
@@ -141,30 +140,4 @@ func sgrOpts(sgr *types.Sgr) (fg *types.Colour, bg *types.Colour) {
 	}
 
 	return fg, bg
-}
-
-func (sr *sdlRender) ansiReply(keyCode codes.FunctionKey, keyMod uint16) {
-	mod := keyEventModToCodesModifier(keyMod)
-	b := codes.GetAnsiEscSeq(sr.keyboardMode.Get(), keyCode, mod)
-	if len(b) > 0 {
-		sr.term.Reply(b)
-	}
-}
-
-func keyEventModToCodesModifier(keyMod uint16) codes.Modifier {
-	var mod codes.Modifier
-
-	if keyMod&sdl.KMOD_CTRL != 0 || keyMod&sdl.KMOD_LCTRL != 0 || keyMod&sdl.KMOD_RCTRL != 0 {
-		mod |= codes.MOD_CTRL
-	}
-
-	if keyMod&sdl.KMOD_ALT != 0 || keyMod&sdl.KMOD_LALT != 0 || keyMod&sdl.KMOD_RALT != 0 {
-		mod |= codes.MOD_ALT
-	}
-
-	if keyMod&sdl.KMOD_SHIFT != 0 || keyMod&sdl.KMOD_LSHIFT != 0 || keyMod&sdl.KMOD_RSHIFT != 0 {
-		mod |= codes.MOD_SHIFT
-	}
-
-	return mod
 }
