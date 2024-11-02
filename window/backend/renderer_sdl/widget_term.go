@@ -26,8 +26,9 @@ func (tw *termWidgetT) eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) {
 		return
 	}
 
-	if evt.Keysym.Sym < 256 && evt.Keysym.Sym > 32 &&
-		(evt.Keysym.Mod == 0 || evt.Keysym.Mod == sdl.KMOD_CAPS) {
+	if evt.Keysym.Sym < 256 && evt.Keysym.Sym > sdl.K_SPACE &&
+		(evt.Keysym.Mod == sdl.KMOD_NONE ||
+			evt.Keysym.Mod&sdl.KMOD_CAPS != 0 || evt.Keysym.Mod&sdl.KMOD_NUM != 0) {
 		// lets let eventTextInput() handle this so we don't need to think
 		// about keyboard layouts and shift chars like if shift+2 == '@' or '"'
 		return
@@ -41,6 +42,7 @@ func (tw *termWidgetT) eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) {
 	}
 }
 
+// SDL doesn't name these, so lets name it ourselves for convenience
 const (
 	_MOUSE_BUTTON_LEFT = 1 + iota
 	_MOUSE_BUTTON_MIDDLE

@@ -132,8 +132,3 @@ func (sr *sdlRender) getTermSizeCells() *types.XY {
 		Y: ((y - (sr.border * 2)) / sr.glyphSize.Y),
 	}
 }
-
-func (sr *sdlRender) Start(term types.Term) {
-	go sr.registerHotkey()
-	sr.eventLoop(term)
-}
