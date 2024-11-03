@@ -12,7 +12,8 @@ func (term *Term) Resize(size *types.XY) {
 	yDiff := int(size.Y - term.size.Y)
 
 	term._mutex.Lock()
-	defer term._mutex.Unlock()
+
+	term.size = size
 
 	switch {
 	case xDiff == 0:
@@ -66,8 +67,8 @@ func (term *Term) Resize(size *types.XY) {
 		term._altBuf = term._altBuf[-yDiff:]
 	}
 
-	term.size = size
 	term.resizePty()
+	defer term._mutex.Unlock()
 }
 
 func (term *Term) resizePty() {

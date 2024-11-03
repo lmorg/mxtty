@@ -255,7 +255,7 @@ func (term *Term) unsetScrollingRegion() {
 func (term *Term) getScrollingRegionIncOrigin() (top int32, bottom int32) {
 	debug.Log(term._scrollRegion)
 
-	if term._scrollRegion == nil || !term._originMode {
+	if term._scrollRegion == nil || !=term._originMode {
 		top = 0
 		bottom = term.size.Y - 1
 	} else {
@@ -323,10 +323,10 @@ func (term *Term) csiScrollDown(n int32) {
 func (term *Term) _scrollDown(top, bottom, shift int32) {
 	screen := term.makeScreen()
 
-	if top+shift > bottom {
-		copy((*term.cells)[top:bottom+1], screen)
-		return
-	}
+	//if top+shift > bottom {
+	//	copy((*term.cells)[top:bottom+1], screen)
+	//	return
+	//}
 
 	copy(screen[top+shift:], (*term.cells)[top:bottom+1])
 	copy((*term.cells)[top:], screen[top:bottom+1])
