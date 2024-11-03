@@ -255,7 +255,7 @@ func (term *Term) unsetScrollingRegion() {
 func (term *Term) getScrollingRegionIncOrigin() (top int32, bottom int32) {
 	debug.Log(term._scrollRegion)
 
-	if term._scrollRegion == nil || !=term._originMode {
+	if term._scrollRegion == nil || !term._originMode {
 		top = 0
 		bottom = term.size.Y - 1
 	} else {
