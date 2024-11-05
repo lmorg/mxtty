@@ -2,15 +2,13 @@ package virtualterm
 
 import (
 	"fmt"
-	"log"
 	"unsafe"
 
-	"github.com/lmorg/murex/utils/json"
 	"github.com/lmorg/mxtty/types"
 )
 
 func (term *Term) MouseClick(pos *types.XY, button uint8, callback types.EventIgnoredCallback) {
-	log.Printf("DEBUG: MouseClick(%d: %s)", button, json.LazyLogging(pos))
+	//log.Printf("DEBUG: MouseClick(%d: %s)", button, json.LazyLogging(pos))
 
 	cells := term.visibleScreen()
 
@@ -22,22 +20,28 @@ func (term *Term) MouseClick(pos *types.XY, button uint8, callback types.EventIg
 	cells[pos.Y][pos.X].Element.MouseClick(cells[pos.Y][pos.X].ElementXY(), button, callback)
 }
 
-func (term *Term) MouseWheel(pos *types.XY, Y int) {
+func (term *Term) MouseWheel(pos *types.XY, movement *types.XY) {
+	//log.Printf("DEBUG: MouseScroll(%d: %s)", Y, json.LazyLogging(pos))
+
 	cells := term.visibleScreen()
 
 	if cells[pos.Y][pos.X].Element == nil {
-		term._mouseWheelCallback(Y)
+		term._mouseWheelCallback(movement)
 		return
 	}
 
 	cells[pos.Y][pos.X].Element.MouseWheel(
 		cells[pos.Y][pos.X].ElementXY(),
-		Y,
-		func() { term._mouseWheelCallback(Y) },
+		movement,
+		func() { term._mouseWheelCallback(movement) },
 	)
 }
 
-func (term *Term) _mouseWheelCallback(Y int) {
+func (term *Term) _mouseWheelCallback(movement *types.XY) {
+	if movement.Y == 0 {
+		return
+	}
+
 	if unsafe.Pointer(term.cells) != unsafe.Pointer(&term._normBuf) {
 		return
 	}
@@ -46,7 +50,7 @@ func (term *Term) _mouseWheelCallback(Y int) {
 		return
 	}
 
-	term._scrollOffset += Y * 2
+	term._scrollOffset += int(movement.Y * 2)
 
 	switch {
 	case term._scrollOffset > len(term._scrollBuf):

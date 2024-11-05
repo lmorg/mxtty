@@ -94,15 +94,28 @@ func highlighterStart(sr *sdlRender, evt *sdl.MouseButtonEvent) {
 }
 
 func (tw *termWidgetT) eventMouseWheel(sr *sdlRender, evt *sdl.MouseWheelEvent) {
-	posCell := &types.XY{
-		X: (evt.X - sr.border) / sr.glyphSize.X,
-		Y: (evt.Y - sr.border) / sr.glyphSize.Y,
-	}
+	posCell := new(types.XY)
+
+	mouseX, mouseY, _ := sdl.GetMouseState()
+	/*winX, winY := sr.window.GetPosition()
+	debug.Log(fmt.Sprintf("mouse (1st): %dx%d, win: %dx%d", mouseX, mouseY, winX, winY))
+	mouseX -= winX
+	mouseY -= winY
+	debug.Log(fmt.Sprintf("mouse (2nd): %dx%d", mouseX, mouseY))
+
+	winW, winH := sr.window.GetSize()
+	debug.Log(fmt.Sprintf("win: %dx%d", winW, winH))
+
+	if mouseX > 0 && mouseX < winW && mouseY > 0 && mouseY < winH {*/
+	posCell.X = (mouseX - sr.border) / sr.glyphSize.X
+	posCell.Y = (mouseY - sr.border) / sr.glyphSize.Y
+	//	debug.Log(fmt.Sprintf("inside: %dx%d", posCell.X, posCell.Y))
+	//}
 
 	if evt.Direction == sdl.MOUSEWHEEL_FLIPPED {
-		sr.term.MouseWheel(posCell, int(-evt.Y))
+		sr.term.MouseWheel(posCell, &types.XY{X: evt.X, Y: -evt.Y})
 	} else {
-		sr.term.MouseWheel(posCell, int(evt.Y))
+		sr.term.MouseWheel(posCell, &types.XY{X: evt.X, Y: evt.Y})
 	}
 }
 

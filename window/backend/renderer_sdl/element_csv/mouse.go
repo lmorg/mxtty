@@ -8,6 +8,8 @@ import (
 )
 
 func (el *ElementCsv) MouseClick(pos *types.XY, button uint8, callback types.EventIgnoredCallback) {
+	pos.X -= el.renderOffset
+
 	if pos.Y != 0 {
 		switch button {
 		case 1:
@@ -41,10 +43,9 @@ func (el *ElementCsv) MouseClick(pos *types.XY, button uint8, callback types.Eve
 		return
 	}
 
-	var column, width int
-	for column = range el.width {
-		width += el.width[column]
-		if int(pos.X) < width-1 {
+	var column int
+	for column = range el.boundaries {
+		if int(pos.X) < int(el.boundaries[column]) {
 			break
 		}
 	}
@@ -70,6 +71,27 @@ func (el *ElementCsv) MouseClick(pos *types.XY, button uint8, callback types.Eve
 	}
 }
 
-func (el *ElementCsv) MouseWheel(_ *types.XY, _ int, callback types.EventIgnoredCallback) {
-	callback()
+func (el *ElementCsv) MouseWheel(_ *types.XY, movement *types.XY, callback types.EventIgnoredCallback) {
+	if movement.X == 0 {
+		callback()
+		return
+	}
+
+	termX := el.renderer.GetTermSize().X
+	width := el.boundaries[len(el.boundaries)-1]
+
+	if width < termX {
+		callback()
+		return
+	}
+
+	el.renderOffset += (-movement.X * el.renderer.GetGlyphSize().X)
+
+	if el.renderOffset > 0 {
+		el.renderOffset = 0
+	}
+
+	if el.renderOffset < -(width - termX) {
+		el.renderOffset = -(width - termX)
+	}
 }

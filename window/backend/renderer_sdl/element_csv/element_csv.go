@@ -31,6 +31,8 @@ type ElementCsv struct {
 	filter       string
 	orderByIndex int  // row
 	orderDesc    bool // ASC or DESC
+
+	renderOffset int32
 }
 
 var arrowGlyph = map[bool]rune{
@@ -116,6 +118,8 @@ func (el *ElementCsv) Size() *types.XY {
 }
 
 func (el *ElementCsv) Rune(pos *types.XY) rune {
+	pos.X -= el.renderOffset
+
 	if pos.Y == 0 {
 		if int(pos.X) >= len(el.top) {
 			return ' '
@@ -132,6 +136,8 @@ func (el *ElementCsv) Rune(pos *types.XY) rune {
 
 func (el *ElementCsv) Draw(size *types.XY, pos *types.XY) {
 	var err error
+
+	pos.X += el.renderOffset
 
 	cell := &types.Cell{Sgr: &types.Sgr{}}
 	cell.Sgr.Reset()
@@ -152,10 +158,10 @@ func (el *ElementCsv) Draw(size *types.XY, pos *types.XY) {
 		goto skipOrderGlyph
 
 	case 1:
-		relPos.X = 0
+		relPos.X = pos.X + 0
 
 	default:
-		relPos.X = el.boundaries[el.orderByIndex-2]
+		relPos.X = pos.X + el.boundaries[el.orderByIndex-2]
 	}
 
 	cell.Char = arrowGlyph[el.orderDesc]
@@ -171,7 +177,7 @@ skipOrderGlyph:
 	cell.Sgr.Bitwise ^= types.SGR_INVERT
 	for y := int32(0); y < el.size.Y-1 && int(y) < len(el.table); y++ {
 		relPos.X = pos.X
-		for x := int32(0); x < el.size.X && int(x) < len(el.table[y]); x++ {
+		for x := int32(0); int(x) < len(el.table[y]); x++ {
 			cell.Char = el.table[y][x]
 			err = el.renderer.PrintCell(cell, relPos)
 			if err != nil {

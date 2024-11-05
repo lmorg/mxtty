@@ -97,3 +97,7 @@ func (sr *sdlRender) Close() {
 
 	sdl.Quit()
 }
+
+func (sr *sdlRender) GetGlyphSize() *types.XY {
+	return sr.glyphSize
+}

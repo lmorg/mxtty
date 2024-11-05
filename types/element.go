@@ -7,7 +7,7 @@ type Element interface {
 	Size() *XY
 	Draw(*XY, *XY)
 	MouseClick(*XY, uint8, EventIgnoredCallback)
-	MouseWheel(*XY, int, EventIgnoredCallback)
+	MouseWheel(*XY, *XY, EventIgnoredCallback)
 
 	Close()
 }

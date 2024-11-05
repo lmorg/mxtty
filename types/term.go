@@ -15,7 +15,7 @@ type Term interface {
 	Bg() *Colour
 	Reply([]byte)
 	MouseClick(*XY, uint8, EventIgnoredCallback)
-	MouseWheel(*XY, int)
+	MouseWheel(*XY, *XY)
 	ShowCursor(bool)
 	HasFocus(bool)
 }
