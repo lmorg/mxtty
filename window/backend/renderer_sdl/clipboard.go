@@ -12,7 +12,7 @@ import (
 )
 
 func (sr *sdlRender) copySurfaceToClipboard() {
-	err := sr._copySurfaceToClipboard(sr.surface, sr.highlighter.rect)
+	err := sr._copySurfaceToClipboard(sr.Surface, sr.highlighter.rect)
 	if err != nil {
 		sr.DisplayNotification(types.NOTIFY_ERROR, fmt.Sprintf("Could not copy to clipboard: %s", err.Error()))
 	} else {

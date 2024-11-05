@@ -4,12 +4,16 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+
+	_ "github.com/mattn/go-sqlite3"
 )
+
+const driverName = "sqlite3"
 
 const (
 	sqlCreateTable  = `CREATE TABLE IF NOT EXISTS '%s' (%s);`
 	sqlInsertRecord = `INSERT INTO '%s' VALUES (%s);`
-	sqlSelect       = `SELECT %s from '%s' %s ORDER BY "%s" %s;`
+	sqlSelect       = `SELECT * from '%s' %s ORDER BY "%s" %s LIMIT %d;`
 )
 
 var orderByStr = map[bool]string{
@@ -27,12 +31,14 @@ func (el *ElementCsv) createDb() error {
 	return nil
 }
 
-func (el *ElementCsv) _openTable(headings []string) (*sql.Tx, error) {
+func (el *ElementCsv) createTable(headings []string) error {
 	var err error
 
 	if len(headings) == 0 {
-		return nil, fmt.Errorf("cannot create table '%s': no titles supplied", el.name)
+		return fmt.Errorf("cannot create table '%s': no titles supplied", el.name)
 	}
+
+	el.name = "csv"
 
 	var sHeadings string
 	for i := range headings {
@@ -43,28 +49,28 @@ func (el *ElementCsv) _openTable(headings []string) (*sql.Tx, error) {
 	query := fmt.Sprintf(sqlCreateTable, el.name, sHeadings)
 	_, err = el.db.Exec(query)
 	if err != nil {
-		return nil, fmt.Errorf("could not create table '%s': %s\n%s", el.name, err.Error(), query)
+		return fmt.Errorf("could not create table '%s': %s\n%s", el.name, err.Error(), query)
 	}
 
-	tx, err := el.db.Begin()
+	el.dbTx, err = el.db.Begin()
 	if err != nil {
-		return nil, fmt.Errorf("could not create transaction: %s", err.Error())
+		return fmt.Errorf("could not create transaction: %s", err.Error())
 	}
 
-	return tx, nil
+	return nil
 }
 
-func (el *ElementCsv) _insertRecords(tx *sql.Tx, records []interface{}) error {
+func (el *ElementCsv) insertRecords(records []string) error {
 	if len(records) == 0 {
 		return fmt.Errorf("no records to insert into transaction on table %s", el.name)
 	}
 
-	values, err := createValues(len(records))
+	values, err := _createValues(len(records))
 	if err != nil {
 		return fmt.Errorf("cannot insert records into transaction on table %s: %s", el.name, err.Error())
 	}
 
-	_, err = tx.Exec(fmt.Sprintf(sqlInsertRecord, el.name, values), records...)
+	_, err = el.dbTx.Exec(fmt.Sprintf(sqlInsertRecord, el.name, values), _strToAny(records)...)
 	if err != nil {
 		return fmt.Errorf("cannot insert records into transaction on table %s: %s", el.name, err.Error())
 	}
@@ -72,7 +78,15 @@ func (el *ElementCsv) _insertRecords(tx *sql.Tx, records []interface{}) error {
 	return nil
 }
 
-func createValues(length int) (string, error) {
+func _strToAny(s []string) []any {
+	a := make([]any, len(s))
+	for i := 0; i < len(s); i++ {
+		a[i] = s[i]
+	}
+	return a
+}
+
+func _createValues(length int) (string, error) {
 	if length == 0 {
 		return "", fmt.Errorf("no records to insert")
 	}

@@ -5,6 +5,7 @@ type Renderer interface {
 	ShowAndFocusWindow()
 	GetTermSize() *XY
 	PrintCell(*Cell, *XY) error
+	DrawTable(*XY, int32, []int32)
 	GetWindowTitle() string
 	SetWindowTitle(string)
 	Bell()

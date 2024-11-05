@@ -66,6 +66,7 @@ type Term struct {
 	_slowBlinkState  bool
 	_insertOrReplace _stateIrmT
 	_hasFocus        bool
+	_activeElement   types.Element
 
 	// character sets
 	_activeCharSet int

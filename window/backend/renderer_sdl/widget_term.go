@@ -56,25 +56,29 @@ func (tw *termWidgetT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEvent
 		return
 	}
 
+	posCell := &types.XY{
+		X: (evt.X - sr.border) / sr.glyphSize.X,
+		Y: (evt.Y - sr.border) / sr.glyphSize.Y,
+	}
+
 	switch evt.Button {
 	case _MOUSE_BUTTON_LEFT:
-		sr.term.MouseClick(evt.Button, &types.XY{
-			X: (evt.X - sr.border) / sr.glyphSize.X,
-			Y: (evt.Y - sr.border) / sr.glyphSize.Y,
-		}, func() {
+		sr.term.MouseClick(evt.Button, posCell, func() {
 			highlighterStart(sr, evt)
 			sr.highlighter.setMode(_HIGHLIGHT_MODE_LINE_RANGE)
 		})
 
 	case _MOUSE_BUTTON_MIDDLE:
-		sr.clipboardPasteText()
+		sr.term.MouseClick(evt.Button, posCell, sr.clipboardPasteText)
 
 	case _MOUSE_BUTTON_RIGHT:
-		highlighterStart(sr, evt)
+		sr.term.MouseClick(evt.Button, posCell, func() { highlighterStart(sr, evt) })
 
 	case _MOUSE_BUTTON_X1:
-		highlighterStart(sr, evt)
-		sr.highlighter.setMode(_HIGHLIGHT_MODE_SQUARE)
+		sr.term.MouseClick(evt.Button, posCell, func() {
+			highlighterStart(sr, evt)
+			sr.highlighter.setMode(_HIGHLIGHT_MODE_SQUARE)
+		})
 	}
 }
 

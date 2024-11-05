@@ -1,6 +1,7 @@
 package elementImage
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/lmorg/mxtty/types"
@@ -27,7 +28,8 @@ func New(renderer types.Renderer, loadFn func([]byte, *types.XY) (types.Image, e
 }
 
 func (el *ElementImage) Generate(apc *types.ApcSlice) error {
-	el.renderer.DisplayNotification(types.NOTIFY_DEBUG, "Importing image from ANSI escape codes....")
+	notify := el.renderer.DisplaySticky(types.NOTIFY_DEBUG, "Importing image from ANSI escape codes....")
+	defer notify.Close()
 
 	apc.Parameters(&el.parameters)
 
@@ -52,20 +54,24 @@ func (el *ElementImage) Generate(apc *types.ApcSlice) error {
 	return nil
 }
 
+func (el *ElementImage) Write(_ rune) error {
+	return errors.New("not supported")
+}
+
 func (el *ElementImage) Size() *types.XY {
 	return el.size
 }
 
 // Draw:
 // size: optional. Defaults to element size
-// pos: required. Position to draw element
+// pos:  required. Position to draw element
 func (el *ElementImage) Draw(size *types.XY, pos *types.XY) {
 	if len(el.bmp) == 0 {
 		return
 	}
 
 	if size == nil {
-		size = el.size
+		size = el.size // TODO: eh???
 	}
 
 	el.renderer.AddRenderFnToStack(func() {
@@ -78,11 +84,18 @@ func (el *ElementImage) Close() {
 	el.image.Close()
 }
 
-func (el *ElementImage) MouseClick(_ uint8, _ *types.XY) {
-	//el.renderer.AddImageToStack(func() {
+func (el *ElementImage) MouseClick(button uint8, _ *types.XY, callback types.MouseClickCallback) {
+	if button != 1 {
+		callback()
+		return
+	}
+
 	err := el.fullscreen()
 	if err != nil {
 		el.renderer.DisplayNotification(types.NOTIFY_ERROR, "Unable to go fullscreen: "+err.Error())
 	}
-	//})
+}
+
+func (el *ElementImage) Rune(_ *types.XY) rune {
+	return ' '
 }

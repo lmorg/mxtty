@@ -39,25 +39,25 @@ func (term *Term) parseApcCodes() {
 	apc := types.NewApcSlice(text)
 
 	switch apc.Index(0) {
-	/*case "begin":
+	case "begin":
 		switch apc.Index(1) {
-		case "table":
-			term.mxapcBegin(types.ELEMENT_ID_TABLE, apc)
+		case "csv":
+			term.mxapcBegin(types.ELEMENT_ID_CSV, apc)
 
 		default:
 			term.renderer.DisplayNotification(types.NOTIFY_DEBUG,
 				fmt.Sprintf("Unknown mxAPC code %s: %s", apc.Index(1), string(text[:len(text)-1])))
-		}*/
+		}
 
-	/*case "end":
+	case "end":
 		switch apc.Index(1) {
-		case "table":
-			term.mxapcEnd()
+		case "csv":
+			term.mxapcEnd(types.ELEMENT_ID_CSV, apc)
 
 		default:
 			term.renderer.DisplayNotification(types.NOTIFY_DEBUG,
 				fmt.Sprintf("Unknown mxAPC code %s: %s", apc.Index(1), string(text[:len(text)-1])))
-		}*/
+		}
 
 	case "insert":
 		switch apc.Index(1) {

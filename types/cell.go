@@ -15,12 +15,21 @@ func (c *Cell) Clear() {
 func (c *Cell) Rune() rune {
 	switch {
 	case c.Element != nil:
-		return ' '
+		return c.Element.Rune(c.ElementXY())
 
 	case c.Char == 0:
 		return ' '
 
 	default:
 		return c.Char
+	}
+}
+
+const cellElementXyMask = (^int32(0)) << 16
+
+func (c *Cell) ElementXY() *XY {
+	return &XY{
+		X: c.Char >> 16,
+		Y: c.Char &^ cellElementXyMask,
 	}
 }

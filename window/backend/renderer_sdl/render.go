@@ -69,8 +69,8 @@ func (sr *sdlRender) eventLoop(term types.Term) {
 func (sr *sdlRender) drawBg(term types.Term, rect *sdl.Rect) {
 	bg := term.Bg()
 
-	pixel := sdl.MapRGBA(sr.surface.Format, bg.Red, bg.Green, bg.Blue, 255)
-	err := sr.surface.FillRect(rect, pixel)
+	pixel := sdl.MapRGBA(sr.Surface.Format, bg.Red, bg.Green, bg.Blue, 255)
+	err := sr.Surface.FillRect(rect, pixel)
 	if err != nil {
 		log.Printf("ERROR: error drawing background: %s", err.Error())
 	}
@@ -81,17 +81,17 @@ func render(sr *sdlRender, term types.Term) error {
 	x, y := sr.window.GetSize()
 	rect := &sdl.Rect{W: x, H: y}
 
-	sr.surface, err = sdl.CreateRGBSurfaceWithFormat(0, x, y, 32, uint32(sdl.PIXELFORMAT_RGBA32))
+	sr.Surface, err = sdl.CreateRGBSurfaceWithFormat(0, x, y, 32, uint32(sdl.PIXELFORMAT_RGBA32))
 	if err != nil {
 		return err
 	}
-	defer sr.surface.Free()
+	defer sr.Surface.Free()
 
 	sr.drawBg(term, rect)
 
 	term.Render()
 
-	texture, err := sr.renderer.CreateTextureFromSurface(sr.surface)
+	texture, err := sr.renderer.CreateTextureFromSurface(sr.Surface)
 	if err != nil {
 		return err
 	}

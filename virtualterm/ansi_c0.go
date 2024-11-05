@@ -42,10 +42,16 @@ func (term *Term) readChar(r rune) {
 
 	case 9:
 		// Ctrl+I: Horizontal Tab (HT) aka \t
+		if term.writeToElement(r) {
+			return
+		}
 		term.printTab()
 
 	case 10:
 		// Ctrl+J: Line Feed (LF) aka \n
+		if term.writeToElement(r) {
+			return
+		}
 		term.lineFeed()
 
 	case 11:

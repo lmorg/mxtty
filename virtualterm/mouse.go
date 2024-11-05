@@ -19,7 +19,7 @@ func (term *Term) MouseClick(button uint8, pos *types.XY, callback types.MouseCl
 		return
 	}
 
-	cells[pos.Y][pos.X].Element.MouseClick(button, getElementXY(cells[pos.Y][pos.X].Char))
+	cells[pos.Y][pos.X].Element.MouseClick(button, getElementXY(cells[pos.Y][pos.X].Char), callback)
 }
 
 func (term *Term) MouseWheel(Y int) {

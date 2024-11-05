@@ -24,59 +24,23 @@ func getElementXY(r rune) *types.XY {
 }
 
 func (term *Term) mxapcBegin(element types.ElementID, parameters *types.ApcSlice) {
-	/*el := term.renderer.NewElement(element)
-	err := el.Generate(parameters)
-	if err != nil {
-		term.renderer.DisplayNotification(types.NOTIFY_ERROR, err.Error())
-		return
-	}
-
-	size := el.Size()
-	lineWrap := term._noAutoLineWrap
-	term._noAutoLineWrap = true
-
-	elPos := new(types.XY)
-	for ; elPos.Y < size.Y; elPos.Y++ {
-		if term.curPos().X != 0 {
-			term.carriageReturn()
-			term.lineFeed()
-		}
-		for elPos.X = 0; elPos.X < size.X && term._curPos.X < term.size.X; elPos.X++ {
-			term.writeCell(setElementXY(elPos), el)
-		}
-	}
-
-	term._noAutoLineWrap = lineWrap*/
+	term._activeElement = term.renderer.NewElement(element)
 }
 
-func (term *Term) mxapcEnd(element types.ElementID, parameters *types.ApcSlice) {
-	/*el := term.renderer.NewElement(element)
-	err := el.Generate(parameters)
-	if err != nil {
-		term.renderer.DisplayNotification(types.NOTIFY_ERROR, err.Error())
+func (term *Term) mxapcEnd(_ types.ElementID, parameters *types.ApcSlice) {
+	if term._activeElement == nil {
 		return
 	}
-
-	size := el.Size()
-	lineWrap := term._noAutoLineWrap
-	term._noAutoLineWrap = true
-
-	elPos := new(types.XY)
-	for ; elPos.Y < size.Y; elPos.Y++ {
-		if term.curPos().X != 0 {
-			term.carriageReturn()
-			term.lineFeed()
-		}
-		for elPos.X = 0; elPos.X < size.X && term._curPos.X < term.size.X; elPos.X++ {
-			term.writeCell(setElementXY(elPos), el)
-		}
-	}
-
-	term._noAutoLineWrap = lineWrap*/
+	el := term._activeElement           // this needs to be in this order because a
+	term._activeElement = nil           // function inside _mxapcGenerate returns
+	term._mxapcGenerate(el, parameters) // without processing if _activeElement set
 }
 
 func (term *Term) mxapcInsert(element types.ElementID, parameters *types.ApcSlice) {
-	el := term.renderer.NewElement(element)
+	term._mxapcGenerate(term.renderer.NewElement(element), parameters)
+}
+
+func (term *Term) _mxapcGenerate(el types.Element, parameters *types.ApcSlice) {
 	err := el.Generate(parameters)
 	if err != nil {
 		term.renderer.DisplayNotification(types.NOTIFY_ERROR, err.Error())

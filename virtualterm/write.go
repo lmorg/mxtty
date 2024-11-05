@@ -15,15 +15,17 @@ type _debugWriteCell struct {
 }
 
 func (term *Term) writeCell(r rune, el types.Element) {
+	if term.writeToElement(r) {
+		return
+	}
+
 	if term._insertOrReplace == _STATE_IRM_INSERT {
 		term.csiInsertCharacters(1)
 	}
 
 	if term._curPos.X >= term.size.X && !term._noAutoLineWrap {
 		term._curPos.X = 0
-		//if term.csiMoveCursorDownwardsExcOrigin(1) > 0 {
 		term.lineFeed()
-		//}
 	}
 
 	cell := term.currentCell()
@@ -42,6 +44,21 @@ func (term *Term) writeCell(r rune, el types.Element) {
 	if term._ssFrequency == 0 {
 		term.renderer.TriggerRedraw()
 	}
+}
+
+func (term *Term) writeToElement(r rune) (ok bool) {
+	if term._activeElement == nil {
+		return false
+	}
+
+	err := term._activeElement.Write(r)
+	if err == nil {
+		return true
+	}
+
+	term.renderer.DisplayNotification(types.NOTIFY_ERROR, err.Error())
+	term._activeElement = nil
+	return false
 }
 
 func (term *Term) appendScrollBuf() {
