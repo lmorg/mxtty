@@ -9,7 +9,7 @@ import (
 	"github.com/lmorg/mxtty/types"
 )
 
-func (term *Term) MouseClick(button uint8, pos *types.XY, callback types.MouseClickCallback) {
+func (term *Term) MouseClick(pos *types.XY, button uint8, callback types.EventIgnoredCallback) {
 	log.Printf("DEBUG: MouseClick(%d: %s)", button, json.LazyLogging(pos))
 
 	cells := term.visibleScreen()
@@ -19,10 +19,25 @@ func (term *Term) MouseClick(button uint8, pos *types.XY, callback types.MouseCl
 		return
 	}
 
-	cells[pos.Y][pos.X].Element.MouseClick(button, getElementXY(cells[pos.Y][pos.X].Char), callback)
+	cells[pos.Y][pos.X].Element.MouseClick(cells[pos.Y][pos.X].ElementXY(), button, callback)
 }
 
-func (term *Term) MouseWheel(Y int) {
+func (term *Term) MouseWheel(pos *types.XY, Y int) {
+	cells := term.visibleScreen()
+
+	if cells[pos.Y][pos.X].Element == nil {
+		term._mouseWheelCallback(Y)
+		return
+	}
+
+	cells[pos.Y][pos.X].Element.MouseWheel(
+		cells[pos.Y][pos.X].ElementXY(),
+		Y,
+		func() { term._mouseWheelCallback(Y) },
+	)
+}
+
+func (term *Term) _mouseWheelCallback(Y int) {
 	if unsafe.Pointer(term.cells) != unsafe.Pointer(&term._normBuf) {
 		return
 	}

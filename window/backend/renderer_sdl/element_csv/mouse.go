@@ -7,7 +7,7 @@ import (
 	"golang.design/x/clipboard"
 )
 
-func (el *ElementCsv) MouseClick(button uint8, pos *types.XY, callback types.MouseClickCallback) {
+func (el *ElementCsv) MouseClick(pos *types.XY, button uint8, callback types.EventIgnoredCallback) {
 	if pos.Y != 0 {
 		switch button {
 		case 1:
@@ -17,7 +17,7 @@ func (el *ElementCsv) MouseClick(button uint8, pos *types.XY, callback types.Mou
 					if i != 0 {
 						start = el.boundaries[i-1]
 					}
-					cell := el.table[pos.Y-1][start:el.boundaries[i]]
+					cell := string(el.table[pos.Y-1][start:el.boundaries[i]])
 					clipboard.Write(clipboard.FmtText, []byte(strings.TrimSpace(cell)))
 					el.renderer.DisplayNotification(types.NOTIFY_INFO, "Cell copied to clipboard")
 					return
@@ -68,4 +68,8 @@ func (el *ElementCsv) MouseClick(button uint8, pos *types.XY, callback types.Mou
 	if err != nil {
 		el.renderer.DisplayNotification(types.NOTIFY_ERROR, "Cannot sort table: "+err.Error())
 	}
+}
+
+func (el *ElementCsv) MouseWheel(_ *types.XY, _ int, callback types.EventIgnoredCallback) {
+	callback()
 }

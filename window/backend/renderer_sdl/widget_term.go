@@ -63,19 +63,19 @@ func (tw *termWidgetT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEvent
 
 	switch evt.Button {
 	case _MOUSE_BUTTON_LEFT:
-		sr.term.MouseClick(evt.Button, posCell, func() {
+		sr.term.MouseClick(posCell, evt.Button, func() {
 			highlighterStart(sr, evt)
 			sr.highlighter.setMode(_HIGHLIGHT_MODE_LINE_RANGE)
 		})
 
 	case _MOUSE_BUTTON_MIDDLE:
-		sr.term.MouseClick(evt.Button, posCell, sr.clipboardPasteText)
+		sr.term.MouseClick(posCell, evt.Button, sr.clipboardPasteText)
 
 	case _MOUSE_BUTTON_RIGHT:
-		sr.term.MouseClick(evt.Button, posCell, func() { highlighterStart(sr, evt) })
+		sr.term.MouseClick(posCell, evt.Button, func() { highlighterStart(sr, evt) })
 
 	case _MOUSE_BUTTON_X1:
-		sr.term.MouseClick(evt.Button, posCell, func() {
+		sr.term.MouseClick(posCell, evt.Button, func() {
 			highlighterStart(sr, evt)
 			sr.highlighter.setMode(_HIGHLIGHT_MODE_SQUARE)
 		})
@@ -94,10 +94,15 @@ func highlighterStart(sr *sdlRender, evt *sdl.MouseButtonEvent) {
 }
 
 func (tw *termWidgetT) eventMouseWheel(sr *sdlRender, evt *sdl.MouseWheelEvent) {
+	posCell := &types.XY{
+		X: (evt.X - sr.border) / sr.glyphSize.X,
+		Y: (evt.Y - sr.border) / sr.glyphSize.Y,
+	}
+
 	if evt.Direction == sdl.MOUSEWHEEL_FLIPPED {
-		sr.term.MouseWheel(int(-evt.Y))
+		sr.term.MouseWheel(posCell, int(-evt.Y))
 	} else {
-		sr.term.MouseWheel(int(evt.Y))
+		sr.term.MouseWheel(posCell, int(evt.Y))
 	}
 }
 

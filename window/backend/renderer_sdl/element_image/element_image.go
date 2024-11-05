@@ -79,12 +79,16 @@ func (el *ElementImage) Draw(size *types.XY, pos *types.XY) {
 	})
 }
 
+func (el *ElementImage) Rune(_ *types.XY) rune {
+	return ' '
+}
+
 func (el *ElementImage) Close() {
 	// clear memory (if required)
 	el.image.Close()
 }
 
-func (el *ElementImage) MouseClick(button uint8, _ *types.XY, callback types.MouseClickCallback) {
+func (el *ElementImage) MouseClick(_ *types.XY, button uint8, callback types.EventIgnoredCallback) {
 	if button != 1 {
 		callback()
 		return
@@ -96,6 +100,6 @@ func (el *ElementImage) MouseClick(button uint8, _ *types.XY, callback types.Mou
 	}
 }
 
-func (el *ElementImage) Rune(_ *types.XY) rune {
-	return ' '
+func (el *ElementImage) MouseWheel(_ *types.XY, _ int, callback types.EventIgnoredCallback) {
+	callback()
 }

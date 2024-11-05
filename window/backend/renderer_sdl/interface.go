@@ -14,7 +14,7 @@ import (
 
 type sdlRender struct {
 	window    *sdl.Window
-	Surface   *sdl.Surface
+	surface   *sdl.Surface
 	renderer  *sdl.Renderer
 	glyphSize *types.XY
 	term      types.Term

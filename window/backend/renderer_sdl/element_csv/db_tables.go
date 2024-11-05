@@ -15,7 +15,7 @@ func (el *ElementCsv) runQuery() error {
 
 	orderBy := _ROW_ID
 	if el.orderByIndex > 0 {
-		orderBy = el.headings[el.orderByIndex-1]
+		orderBy = string(el.headings[el.orderByIndex-1])
 	}
 
 	query := fmt.Sprintf(sqlSelect, el.name, where, orderBy, orderByStr[el.orderDesc], el.size.Y-1)
@@ -42,8 +42,8 @@ func (el *ElementCsv) runQuery() error {
 		}
 
 		for i := range row {
-			if len(row[i]) > width[i] {
-				width[i] = len(row[i])
+			if len([]rune(row[i])) > width[i] {
+				width[i] = len([]rune(row[i]))
 			}
 		}
 
@@ -65,7 +65,7 @@ func (el *ElementCsv) runQuery() error {
 	for _, row := range rows {
 		var s string
 		for i := range row {
-			s += fmt.Sprintf(" %s%s ", row[i], strings.Repeat(" ", width[i]-len(row[i])))
+			s += fmt.Sprintf(" %s%s ", row[i], strings.Repeat(" ", width[i]-len([]rune(row[i]))))
 		}
 
 		table = append(table, s)
@@ -73,7 +73,7 @@ func (el *ElementCsv) runQuery() error {
 
 	var top string
 	for i := range el.headings {
-		top += fmt.Sprintf(" %s%s ", el.headings[i], strings.Repeat(" ", width[i]-len(el.headings[i])))
+		top += fmt.Sprintf(" %s%s ", string(el.headings[i]), strings.Repeat(" ", width[i]-len(el.headings[i])))
 	}
 
 	if err = dbRows.Err(); err != nil {
@@ -85,8 +85,11 @@ func (el *ElementCsv) runQuery() error {
 		return err
 	}
 
-	el.top = top
-	el.table = table
+	el.table = make([][]rune, len(table))
+	for i := range table {
+		el.table[i] = []rune(table[i])
+	}
+	el.top = []rune(top)
 	el.width = width
 	el.boundaries = boundaries
 

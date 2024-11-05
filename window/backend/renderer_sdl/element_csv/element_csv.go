@@ -12,9 +12,9 @@ import (
 type ElementCsv struct {
 	renderer   types.Renderer
 	size       *types.XY
-	headings   []string // columns
-	table      []string // rendered rows
-	top        string   // rendered headings
+	headings   [][]rune // columns
+	table      [][]rune // rendered rows
+	top        []rune   // rendered headings
 	width      []int    // columns
 	boundaries []int32  // column lines
 
@@ -67,6 +67,7 @@ func (el *ElementCsv) Generate(apc *types.ApcSlice) error {
 
 	buf := bytes.NewBufferString(string(el.buf))
 	r := csv.NewReader(buf)
+	r.LazyQuotes = true
 	recs, err := r.ReadAll()
 	if err != nil {
 		return err
@@ -80,7 +81,11 @@ func (el *ElementCsv) Generate(apc *types.ApcSlice) error {
 	if err != nil {
 		return err
 	}
-	el.headings = recs[0]
+
+	el.headings = make([][]rune, len(recs[0]))
+	for i := range recs[0] {
+		el.headings[i] = []rune(recs[0][i])
+	}
 
 	for row := 1; row < len(recs); row++ {
 		err = el.insertRecords(recs[row])
@@ -115,14 +120,14 @@ func (el *ElementCsv) Rune(pos *types.XY) rune {
 		if int(pos.X) >= len(el.top) {
 			return ' '
 		}
-		return rune(el.top[pos.X])
+		return el.top[pos.X]
 	}
 
 	if int(pos.X) >= len(el.table[pos.Y-1]) {
 		return ' '
 	}
 
-	return rune(el.table[pos.Y-1][pos.X])
+	return el.table[pos.Y-1][pos.X]
 }
 
 func (el *ElementCsv) Draw(size *types.XY, pos *types.XY) {
@@ -134,8 +139,7 @@ func (el *ElementCsv) Draw(size *types.XY, pos *types.XY) {
 
 	cell.Sgr.Bitwise |= types.SGR_INVERT
 	for i := range el.top {
-
-		cell.Char = rune(el.top[i])
+		cell.Char = el.top[i]
 		err = el.renderer.PrintCell(cell, relPos)
 		if err != nil {
 			panic(err)
@@ -168,7 +172,7 @@ skipOrderGlyph:
 	for y := int32(0); y < el.size.Y-1 && int(y) < len(el.table); y++ {
 		relPos.X = pos.X
 		for x := int32(0); x < el.size.X && int(x) < len(el.table[y]); x++ {
-			cell.Char = rune(el.table[y][x])
+			cell.Char = el.table[y][x]
 			err = el.renderer.PrintCell(cell, relPos)
 			if err != nil {
 				panic(err)

@@ -13,7 +13,7 @@ const driverName = "sqlite3"
 const (
 	sqlCreateTable  = `CREATE TABLE IF NOT EXISTS '%s' (%s);`
 	sqlInsertRecord = `INSERT INTO '%s' VALUES (%s);`
-	sqlSelect       = `SELECT * from '%s' %s ORDER BY "%s" %s LIMIT %d;`
+	sqlSelect       = `SELECT * from '%s' %s ORDER BY lower("%s") %s LIMIT %d;`
 )
 
 var orderByStr = map[bool]string{

@@ -6,7 +6,9 @@ type Element interface {
 	Rune(*XY) rune
 	Size() *XY
 	Draw(*XY, *XY)
-	MouseClick(uint8, *XY, MouseClickCallback)
+	MouseClick(*XY, uint8, EventIgnoredCallback)
+	MouseWheel(*XY, int, EventIgnoredCallback)
+
 	Close()
 }
 

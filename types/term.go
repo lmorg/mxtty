@@ -2,7 +2,7 @@ package types
 
 import "os"
 
-type MouseClickCallback func()
+type EventIgnoredCallback func()
 
 type Term interface {
 	Start(Pty)
@@ -14,8 +14,8 @@ type Term interface {
 	CopySquare(*XY, *XY) []byte
 	Bg() *Colour
 	Reply([]byte)
-	MouseClick(uint8, *XY, MouseClickCallback)
-	MouseWheel(int)
+	MouseClick(*XY, uint8, EventIgnoredCallback)
+	MouseWheel(*XY, int)
 	ShowCursor(bool)
 	HasFocus(bool)
 }

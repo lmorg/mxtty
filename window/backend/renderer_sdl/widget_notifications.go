@@ -209,13 +209,13 @@ func (sr *sdlRender) renderNotification(windowRect *sdl.Rect) {
 		}
 		defer countdown.Free()
 
-		text, err := sr.font.RenderUTF8BlendedWrapped(notification.Message, sdl.Color{R: 200, G: 200, B: 200, A: 255}, int(sr.Surface.W-sr.notifyIconSize.X-countdown.W))
+		text, err := sr.font.RenderUTF8BlendedWrapped(notification.Message, sdl.Color{R: 200, G: 200, B: 200, A: 255}, int(sr.surface.W-sr.notifyIconSize.X-countdown.W))
 		if err != nil {
 			panic(err) // TODO: don't panic!
 		}
 		defer text.Free()
 
-		textShadow, err := sr.font.RenderUTF8BlendedWrapped(notification.Message, sdl.Color{R: 0, G: 0, B: 0, A: 150}, int(sr.Surface.W-sr.notifyIconSize.X-countdown.W))
+		textShadow, err := sr.font.RenderUTF8BlendedWrapped(notification.Message, sdl.Color{R: 0, G: 0, B: 0, A: 150}, int(sr.surface.W-sr.notifyIconSize.X-countdown.W))
 		if err != nil {
 			panic(err) // TODO: don't panic!
 		}
@@ -245,7 +245,7 @@ func (sr *sdlRender) renderNotification(windowRect *sdl.Rect) {
 		rect = sdl.Rect{
 			X: sr.border + 1,
 			Y: sr.border + 1 + offset,
-			W: sr.Surface.W - padding - 2,
+			W: sr.surface.W - padding - 2,
 			H: text.H + padding - 2,
 		}
 		sr.renderer.FillRect(&rect)
@@ -269,7 +269,7 @@ func (sr *sdlRender) renderNotification(windowRect *sdl.Rect) {
 		rect = sdl.Rect{
 			X: padding + sr.notifyIconSize.X + 2,
 			Y: padding + offset + 2,
-			W: sr.Surface.W - sr.notifyIconSize.X - countdown.W,
+			W: sr.surface.W - sr.notifyIconSize.X - countdown.W,
 			H: text.H + padding - 2,
 		}
 		_ = textShadow.Blit(nil, surface, &rect)
@@ -279,7 +279,7 @@ func (sr *sdlRender) renderNotification(windowRect *sdl.Rect) {
 		rect = sdl.Rect{
 			X: padding + sr.notifyIconSize.X,
 			Y: padding + offset,
-			W: sr.Surface.W - sr.notifyIconSize.X - countdown.W,
+			W: sr.surface.W - sr.notifyIconSize.X - countdown.W,
 			H: text.H + padding - 2,
 		}
 		err = text.Blit(nil, surface, &rect)

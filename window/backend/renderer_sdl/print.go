@@ -39,11 +39,11 @@ func (sr *sdlRender) PrintCell(cell *types.Cell, cellPos *types.XY) error {
 	if bg != nil {
 		var pixel uint32
 		if isCellHighlighted {
-			pixel = sdl.MapRGBA(sr.Surface.Format, textHighlight.R, textHighlight.G, textHighlight.B, 255)
+			pixel = sdl.MapRGBA(sr.surface.Format, textHighlight.R, textHighlight.G, textHighlight.B, 255)
 		} else {
-			pixel = sdl.MapRGBA(sr.Surface.Format, bg.Red, bg.Green, bg.Blue, 255)
+			pixel = sdl.MapRGBA(sr.surface.Format, bg.Red, bg.Green, bg.Blue, 255)
 		}
-		err := sr.Surface.FillRect(rect, pixel)
+		err := sr.surface.FillRect(rect, pixel)
 		if err != nil {
 			return err
 		}
@@ -72,7 +72,7 @@ func (sr *sdlRender) PrintCell(cell *types.Cell, cellPos *types.XY) error {
 		}
 		defer text2.Free()
 
-		err = text2.Blit(nil, sr.Surface, rect2)
+		err = text2.Blit(nil, sr.surface, rect2)
 		if err != nil {
 			return err
 		}
@@ -89,7 +89,7 @@ func (sr *sdlRender) PrintCell(cell *types.Cell, cellPos *types.XY) error {
 		text.SetBlendMode(sdl.BLENDMODE_ADD)
 	}
 
-	err = text.Blit(nil, sr.Surface, rect)
+	err = text.Blit(nil, sr.surface, rect)
 	if err != nil {
 		return err
 	}

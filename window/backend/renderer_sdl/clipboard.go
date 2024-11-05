@@ -12,7 +12,7 @@ import (
 )
 
 func (sr *sdlRender) copySurfaceToClipboard() {
-	err := sr._copySurfaceToClipboard(sr.Surface, sr.highlighter.rect)
+	err := sr._copySurfaceToClipboard(sr.surface, sr.highlighter.rect)
 	if err != nil {
 		sr.DisplayNotification(types.NOTIFY_ERROR, fmt.Sprintf("Could not copy to clipboard: %s", err.Error()))
 	} else {
@@ -39,6 +39,7 @@ func (sr *sdlRender) _copySurfaceToClipboard(src *sdl.Surface, rect *sdl.Rect) e
 
 	img := stdlib_image.NewRGBA(stdlib_image.Rect(0, 0, int(rect.W), int(rect.H)))
 	copy(img.Pix, surf.Pixels())
+	//copy(img.Pix, pixels)
 
 	var buf bytes.Buffer
 	err = png.Encode(&buf, img)
