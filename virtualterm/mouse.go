@@ -77,3 +77,14 @@ func (term *Term) _mouseWheelCallback(movement *types.XY) {
 		}
 	}
 }
+
+func (term *Term) MouseMotion(pos *types.XY, movement *types.XY, callback types.EventIgnoredCallback) {
+	cells := term.visibleScreen()
+
+	if cells[pos.Y][pos.X].Element == nil {
+		callback()
+		return
+	}
+
+	cells[pos.Y][pos.X].Element.MouseMotion(cells[pos.Y][pos.X].ElementXY(), movement, callback)
+}

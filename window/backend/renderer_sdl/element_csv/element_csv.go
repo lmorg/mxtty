@@ -33,6 +33,7 @@ type ElementCsv struct {
 	orderDesc    bool // ASC or DESC
 
 	renderOffset int32
+	highlight    *types.XY
 }
 
 var arrowGlyph = map[bool]rune{
@@ -189,6 +190,25 @@ skipOrderGlyph:
 	}
 
 	el.renderer.DrawTable(pos, int32(len(el.table)), el.boundaries)
+
+	if el.highlight != nil {
+		var start, end int32
+
+		for i := range el.boundaries {
+			if el.highlight.X-el.renderOffset <= el.boundaries[i] {
+				if i != 0 {
+					start = el.boundaries[i-1] + pos.X
+				}
+				end = int32(el.width[i] + 2)
+				break
+			}
+		}
+
+		el.renderer.DrawHighlightRect(
+			&types.XY{X: start, Y: el.highlight.Y + pos.Y},
+			&types.XY{X: end, Y: 1},
+		)
+	}
 }
 
 func (el *ElementCsv) Close() {

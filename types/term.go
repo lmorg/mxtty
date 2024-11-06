@@ -16,6 +16,7 @@ type Term interface {
 	Reply([]byte)
 	MouseClick(*XY, uint8, EventIgnoredCallback)
 	MouseWheel(*XY, *XY)
+	MouseMotion(*XY, *XY, EventIgnoredCallback)
 	ShowCursor(bool)
 	HasFocus(bool)
 }

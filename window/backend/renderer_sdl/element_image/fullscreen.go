@@ -28,7 +28,7 @@ func (el *ElementImage) fullscreen() error {
 	if !ok {
 		return fmt.Errorf("image asset is not a surface")
 	}
-	defer imgSurface.Free()
+	//defer imgSurface.Free() // don't free because it's a pointer
 
 	texture, err := renderer.CreateTextureFromSurface(imgSurface)
 	if err != nil {

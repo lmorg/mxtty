@@ -158,26 +158,7 @@ func (sr *sdlRender) selectionHighlighter() {
 
 	}
 
-	sr.renderer.SetDrawColor(highlightBorder.Red, highlightBorder.Green, highlightBorder.Blue, alphaBorder)
-	rect.X -= 1
-	rect.Y -= 1
-	rect.W += 2
-	rect.H += 2
-
-	sr.renderer.DrawRect(rect)
-	rect.X += 1
-	rect.Y += 1
-	rect.W -= 2
-	rect.H -= 2
-	sr.renderer.DrawRect(rect)
-
-	// fill background
-	sr.renderer.SetDrawColor(highlightFill.Red, highlightFill.Green, highlightFill.Blue, alphaFill)
-	rect.X += 1
-	rect.Y += 1
-	rect.W -= 2
-	rect.H -= 2
-	sr.renderer.FillRect(rect)
+	sr._drawHighlightRect(rect, alphaBorder, alphaFill)
 }
 
 func isCellHighlighted(sr *sdlRender, rect *sdl.Rect) bool {
@@ -229,26 +210,5 @@ func isCellHighlighted(sr *sdlRender, rect *sdl.Rect) bool {
 
 	default:
 		return false
-	}
-}
-
-func normaliseRect(rect *sdl.Rect) {
-	if rect.W < 0 {
-		rect.X += rect.W
-		rect.W = -rect.W
-	}
-
-	if rect.H < 0 {
-		rect.Y += rect.H
-		rect.H = -rect.H
-	}
-}
-
-func (sr *sdlRender) rectPxToCells(rect *sdl.Rect) *sdl.Rect {
-	return &sdl.Rect{
-		X: (rect.X - sr.border) / sr.glyphSize.X,
-		Y: (rect.Y - sr.border) / sr.glyphSize.Y,
-		W: ((rect.X + rect.W - sr.border) / sr.glyphSize.X),
-		H: ((rect.Y + rect.H - sr.border) / sr.glyphSize.Y),
 	}
 }

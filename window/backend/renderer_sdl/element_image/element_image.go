@@ -103,3 +103,7 @@ func (el *ElementImage) MouseClick(_ *types.XY, button uint8, callback types.Eve
 func (el *ElementImage) MouseWheel(_ *types.XY, _ *types.XY, callback types.EventIgnoredCallback) {
 	callback()
 }
+
+func (el *ElementImage) MouseMotion(_ *types.XY, _ *types.XY, callback types.EventIgnoredCallback) {
+	callback()
+}

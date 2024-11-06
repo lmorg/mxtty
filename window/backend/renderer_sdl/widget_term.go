@@ -56,10 +56,11 @@ func (tw *termWidgetT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEvent
 		return
 	}
 
-	posCell := &types.XY{
+	/*posCell := &types.XY{
 		X: (evt.X - sr.border) / sr.glyphSize.X,
 		Y: (evt.Y - sr.border) / sr.glyphSize.Y,
-	}
+	}*/
+	posCell := sr.convertPxToCellXY(evt.X, evt.Y)
 
 	switch evt.Button {
 	case _MOUSE_BUTTON_LEFT:
@@ -94,7 +95,7 @@ func highlighterStart(sr *sdlRender, evt *sdl.MouseButtonEvent) {
 }
 
 func (tw *termWidgetT) eventMouseWheel(sr *sdlRender, evt *sdl.MouseWheelEvent) {
-	posCell := new(types.XY)
+	//posCell := new(types.XY)
 
 	mouseX, mouseY, _ := sdl.GetMouseState()
 	/*winX, winY := sr.window.GetPosition()
@@ -106,19 +107,26 @@ func (tw *termWidgetT) eventMouseWheel(sr *sdlRender, evt *sdl.MouseWheelEvent) 
 	winW, winH := sr.window.GetSize()
 	debug.Log(fmt.Sprintf("win: %dx%d", winW, winH))
 
-	if mouseX > 0 && mouseX < winW && mouseY > 0 && mouseY < winH {*/
+	if mouseX > 0 && mouseX < winW && mouseY > 0 && mouseY < winH {
 	posCell.X = (mouseX - sr.border) / sr.glyphSize.X
 	posCell.Y = (mouseY - sr.border) / sr.glyphSize.Y
-	//	debug.Log(fmt.Sprintf("inside: %dx%d", posCell.X, posCell.Y))
-	//}
+		debug.Log(fmt.Sprintf("inside: %dx%d", posCell.X, posCell.Y))
+	}*/
 
 	if evt.Direction == sdl.MOUSEWHEEL_FLIPPED {
-		sr.term.MouseWheel(posCell, &types.XY{X: evt.X, Y: -evt.Y})
+		sr.term.MouseWheel(sr.convertPxToCellXY(mouseX, mouseY), &types.XY{X: evt.X, Y: -evt.Y})
 	} else {
-		sr.term.MouseWheel(posCell, &types.XY{X: evt.X, Y: evt.Y})
+		sr.term.MouseWheel(sr.convertPxToCellXY(mouseX, mouseY), &types.XY{X: evt.X, Y: evt.Y})
 	}
 }
 
 func (tw *termWidgetT) eventMouseMotion(sr *sdlRender, evt *sdl.MouseMotionEvent) {
-	// do nothing
+	sr.term.MouseMotion(
+		sr.convertPxToCellXY(evt.X, evt.Y),
+		&types.XY{
+			X: evt.XRel / sr.glyphSize.X,
+			Y: evt.YRel / sr.glyphSize.Y,
+		},
+		func() {},
+	)
 }

@@ -4,13 +4,14 @@ import (
 	"log"
 
 	"github.com/lmorg/mxtty/types"
+	"github.com/veandco/go-sdl2/sdl"
 )
 
 func (sr *sdlRender) DrawTable(pos *types.XY, height int32, boundaries []int32) {
 	sr.fnStack = append(sr.fnStack, func() {
 		var err error
 
-		tx :=sr.renderer.GetRenderTarget()
+		tx := sr.renderer.GetRenderTarget()
 		tx.GetTextureUserData()
 
 		sr.renderer.SetDrawColor(255, 255, 255, 64)
@@ -52,5 +53,41 @@ func (sr *sdlRender) DrawTable(pos *types.XY, height int32, boundaries []int32) 
 				return
 			}
 		}
+	})
+}
+
+func (sr *sdlRender) DrawHighlightRect(topLeftCell, bottomRightCell *types.XY) {
+	sr._drawHighlightRect(
+		&sdl.Rect{
+			X: (topLeftCell.X * sr.glyphSize.X) + sr.border,
+			Y: (topLeftCell.Y * sr.glyphSize.Y) + sr.border,
+			W: (bottomRightCell.X * sr.glyphSize.X), // - (topLeftCell.X * sr.glyphSize.X) + sr.border,
+			H: (bottomRightCell.Y * sr.glyphSize.Y), // - (topLeftCell.X * sr.glyphSize.X) + sr.border,
+		},
+		190, 64)
+}
+
+func (sr *sdlRender) _drawHighlightRect(rect *sdl.Rect, alphaBorder, alphaFill byte) {
+	sr.fnStack = append(sr.fnStack, func() {
+		sr.renderer.SetDrawColor(highlightBorder.Red, highlightBorder.Green, highlightBorder.Blue, alphaBorder)
+		rect.X -= 1
+		rect.Y -= 1
+		rect.W += 2
+		rect.H += 2
+
+		sr.renderer.DrawRect(rect)
+		rect.X += 1
+		rect.Y += 1
+		rect.W -= 2
+		rect.H -= 2
+		sr.renderer.DrawRect(rect)
+
+		// fill background
+		sr.renderer.SetDrawColor(highlightFill.Red, highlightFill.Green, highlightFill.Blue, alphaFill)
+		rect.X += 1
+		rect.Y += 1
+		rect.W -= 2
+		rect.H -= 2
+		sr.renderer.FillRect(rect)
 	})
 }

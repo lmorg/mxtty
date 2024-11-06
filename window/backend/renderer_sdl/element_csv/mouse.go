@@ -95,3 +95,24 @@ func (el *ElementCsv) MouseWheel(_ *types.XY, movement *types.XY, callback types
 		el.renderOffset = -(width - termX)
 	}
 }
+
+func (el *ElementCsv) MouseMotion(pos *types.XY, move *types.XY, callback types.EventIgnoredCallback) {
+	/*pos.X -= el.renderOffset
+
+	var column int
+	for column = range el.boundaries {
+		if int(pos.X) < int(el.boundaries[column]) {
+			break
+		}
+	}*/
+
+	if pos.Y < 1 || pos.X > el.boundaries[len(el.boundaries)-1] {
+		el.highlight = nil
+		return
+	}
+
+	el.highlight = pos
+	el.renderer.TriggerRedraw()
+
+	//callback()
+}

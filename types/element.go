@@ -8,7 +8,7 @@ type Element interface {
 	Draw(*XY, *XY)
 	MouseClick(*XY, uint8, EventIgnoredCallback)
 	MouseWheel(*XY, *XY, EventIgnoredCallback)
-
+	MouseMotion(*XY, *XY, EventIgnoredCallback)
 	Close()
 }
 

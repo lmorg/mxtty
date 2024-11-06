@@ -7,6 +7,7 @@ type Renderer interface {
 	GetGlyphSize() *XY
 	PrintCell(*Cell, *XY) error
 	DrawTable(*XY, int32, []int32)
+	DrawHighlightRect(*XY, *XY)
 	GetWindowTitle() string
 	SetWindowTitle(string)
 	Bell()
