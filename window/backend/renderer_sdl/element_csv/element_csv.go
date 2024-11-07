@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/csv"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/lmorg/mxtty/types"
@@ -18,6 +19,7 @@ type ElementCsv struct {
 	top        []rune   // rendered headings
 	width      []int    // columns
 	boundaries []int32  // column lines
+	isNumber   []bool   // columns
 
 	//parameters parametersT
 
@@ -92,8 +94,15 @@ func (el *ElementCsv) Generate(apc *types.ApcSlice) error {
 	for i := range recs[0] {
 		el.headings[i] = []rune(recs[0][i])
 	}
-
 	n := len(el.headings)
+
+	// figure out if number
+	el.isNumber = make([]bool, n)
+	for col := 0; col < n && col < len(recs[1]); col++ {
+		_, e := strconv.ParseFloat(recs[1][col], 64)
+		el.isNumber[col] = e == nil // if no error, then it's probably a number
+	}
+
 	for row := 1; row < len(recs); row++ {
 		if len(recs[row]) > n {
 			recs[row][n-1] = strings.Join(recs[row][n-1:], " ")
