@@ -3,17 +3,8 @@ package rendersdl
 import (
 	"sync/atomic"
 
-	"github.com/lmorg/mxtty/types"
 	"github.com/veandco/go-sdl2/sdl"
 )
-
-func (sr *sdlRender) GetTermSize() *types.XY {
-	return sr.getTermSizeCells()
-}
-
-func (sr *sdlRender) windowResized() {
-	sr.term.Resize(sr.getTermSizeCells())
-}
 
 func (sr *sdlRender) SetWindowTitle(title string) {
 	sr.title = title
@@ -26,12 +17,6 @@ func (sr *sdlRender) GetWindowTitle() string {
 
 func (sr *sdlRender) GetWindowMeta() any {
 	return sr.window
-}
-
-func (sr *sdlRender) ResizeWindow(size *types.XY) {
-	w := (size.X * sr.glyphSize.X) + (sr.border * 2)
-	h := (size.Y * sr.glyphSize.Y) + (sr.border * 2)
-	sr.window.SetSize(w, h)
 }
 
 func (sr *sdlRender) ShowAndFocusWindow() {
@@ -74,8 +59,8 @@ func screenUnderCursor() int {
 			return -1
 		}
 
-		if x >= displayBounds.X && x < displayBounds.X+displayBounds.W &&
-			y >= displayBounds.Y && y < displayBounds.Y+displayBounds.H {
+		if x >= displayBounds.X && x <= displayBounds.W &&
+			y >= displayBounds.Y && y <= displayBounds.H {
 			return i
 		}
 	}

@@ -36,9 +36,9 @@ func (sr *sdlRender) loadImage(bmp []byte, size *types.XY) (types.Image, error) 
 		size.X = int32((float64(img.sizeCells.X) / float64(sr.glyphSize.X)) + 1)
 	}
 
-	winW, _ := sr.window.GetSize()
-	if img.sizeCells.X > winW {
-		img.sizeCells.X = winW
+	wPx, _ := sr.window.GetSize()
+	if img.sizeCells.X > wPx {
+		img.sizeCells.X = wPx
 		img.sizeCells.Y = int32((float64(img.surface.H) / float64(img.surface.W)) * float64(img.sizeCells.X))
 		size.X = int32((float64(img.sizeCells.X) / float64(sr.glyphSize.X)))
 		size.Y = int32((float64(img.sizeCells.Y) / float64(sr.glyphSize.Y)) + 1)

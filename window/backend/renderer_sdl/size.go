@@ -45,3 +45,32 @@ func (sr *sdlRender) rectPxToCells(rect *sdl.Rect) *sdl.Rect {
 		H: ((rect.Y + rect.H - sr.border) / sr.glyphSize.Y),
 	}
 }
+
+// GetTermSize only exists so that elements can get the terminal size without
+// having access to the term interface.
+func (sr *sdlRender) GetTermSize() *types.XY {
+	return sr.term.GetSize()
+}
+
+// _getTermSizeCells should only be called upon terminal resizing.
+// All other checks for terminal size should come from term.GetSize()
+func (sr *sdlRender) _getTermSizeCells() *types.XY {
+	x, y := sr.window.GetSize()
+
+	return &types.XY{
+		X: ((x - (sr.border * 2)) / sr.glyphSize.X),
+		Y: ((y - (sr.border * 2)) / sr.glyphSize.Y) - footer, // inc footer
+	}
+}
+
+///// resize
+
+func (sr *sdlRender) windowResized() {
+	sr.term.Resize(sr._getTermSizeCells())
+}
+
+func (sr *sdlRender) ResizeWindow(size *types.XY) {
+	w := (size.X * sr.glyphSize.X) + (sr.border * 2)
+	h := ((size.Y + footer) * sr.glyphSize.Y) + (sr.border * 2)
+	sr.window.SetSize(w, h)
+}

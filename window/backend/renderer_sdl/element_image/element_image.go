@@ -71,11 +71,11 @@ func (el *ElementImage) Draw(size *types.XY, pos *types.XY) {
 	}
 
 	if size == nil {
-		size = el.size // TODO: eh???
+		size = el.size
 	}
 
 	el.renderer.AddRenderFnToStack(func() {
-		el.image.Draw(el.size, pos)
+		el.image.Draw(size, pos)
 	})
 }
 
@@ -103,7 +103,7 @@ func (el *ElementImage) MouseClick(_ *types.XY, button uint8, _ uint8, callback 
 func (el *ElementImage) MouseWheel(_ *types.XY, _ *types.XY, callback types.EventIgnoredCallback) {
 	callback()
 }
-
 func (el *ElementImage) MouseMotion(_ *types.XY, _ *types.XY, callback types.EventIgnoredCallback) {
 	callback()
 }
+func (el *ElementImage) MouseOut() {}

@@ -17,9 +17,14 @@ const (
 	sqlSelectByNumeric = `SELECT * from '%s' %s ORDER BY "%s" %s LIMIT %d;`
 )
 
+const (
+	selectAlpha   = false
+	selectNumeric = true
+)
+
 var sqlSelect = map[bool]string{
-	false: sqlSelectByAlpha,
-	true:  sqlSelectByNumeric,
+	selectAlpha:   sqlSelectByAlpha,
+	selectNumeric: sqlSelectByNumeric,
 }
 
 var orderByStr = map[bool]string{

@@ -66,6 +66,7 @@ type Term struct {
 	_insertOrReplace _stateIrmT
 	_hasFocus        bool
 	_activeElement   types.Element
+	_mouseIn         types.Element
 
 	// character sets
 	_activeCharSet int
@@ -104,15 +105,10 @@ func (term *Term) lfRedraw() {
 }
 
 // NewTerminal creates a new virtual term
-func NewTerminal(renderer types.Renderer) *Term {
-	var size *types.XY
-
-	if renderer != nil {
-		size = renderer.GetTermSize()
-	}
-
+func NewTerminal(renderer types.Renderer, size *types.XY) *Term {
 	term := &Term{
 		renderer: renderer,
+		size:     size,
 	}
 
 	term.reset(size)

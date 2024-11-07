@@ -85,8 +85,18 @@ func (term *Term) MouseMotion(pos *types.XY, movement *types.XY, callback types.
 	cells := term.visibleScreen()
 
 	if cells[pos.Y][pos.X].Element == nil {
+		if term._mouseIn != nil {
+			term._mouseIn.MouseOut()
+		}
 		callback()
 		return
+	}
+
+	if cells[pos.Y][pos.X].Element != term._mouseIn {
+		if term._mouseIn != nil {
+			term._mouseIn.MouseOut()
+		}
+		term._mouseIn = cells[pos.Y][pos.X].Element
 	}
 
 	cells[pos.Y][pos.X].Element.MouseMotion(cells[pos.Y][pos.X].ElementXY(), movement, callback)

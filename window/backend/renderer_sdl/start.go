@@ -25,7 +25,7 @@ var (
 	Y      int32 = sdl.WINDOWPOS_UNDEFINED
 )
 
-func Initialise() types.Renderer {
+func Initialise() (types.Renderer, *types.XY) {
 	err := sdl.Init(sdl.INIT_VIDEO)
 	if err != nil {
 		panic(err.Error())
@@ -66,7 +66,9 @@ func Initialise() types.Renderer {
 		panic(err)
 	}
 
-	return sr
+	sr.preloadNotificationGlyphs()
+
+	return sr, sr._getTermSizeCells()
 }
 
 func (sr *sdlRender) createWindow(caption string) error {
@@ -97,9 +99,12 @@ func (sr *sdlRender) createWindow(caption string) error {
 	}
 
 	err = sr.renderer.SetDrawBlendMode(sdl.BLENDMODE_BLEND)
+	if err != nil {
+		return err
+	}
 
 	sr.ShowAndFocusWindow()
-	return err
+	return nil
 }
 
 func (sr *sdlRender) setIcon() error {
@@ -121,14 +126,4 @@ func (sr *sdlRender) setIcon() error {
 func (sr *sdlRender) setTypeFace(f *ttf.Font) {
 	sr.font = f
 	sr.glyphSize = typeface.GetSize()
-	sr.preloadNotificationGlyphs()
-}
-
-func (sr *sdlRender) getTermSizeCells() *types.XY {
-	x, y := sr.window.GetSize()
-
-	return &types.XY{
-		X: ((x - (sr.border * 2)) / sr.glyphSize.X),
-		Y: ((y - (sr.border * 2)) / sr.glyphSize.Y),
-	}
 }

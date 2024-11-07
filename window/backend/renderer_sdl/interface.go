@@ -12,6 +12,8 @@ import (
 	"golang.design/x/hotkey"
 )
 
+const footer = 0
+
 type sdlRender struct {
 	window    *sdl.Window
 	surface   *sdl.Surface

@@ -13,7 +13,7 @@ import (
 
 type ElementCsv struct {
 	renderer   types.Renderer
-	size       *types.XY
+	size       types.XY
 	headings   [][]rune // columns
 	table      [][]rune // rendered rows
 	top        []rune   // rendered headings
@@ -90,11 +90,12 @@ func (el *ElementCsv) Generate(apc *types.ApcSlice) error {
 		return err
 	}
 
-	el.headings = make([][]rune, len(recs[0]))
+	n := len(recs[0])
+
+	el.headings = make([][]rune, n)
 	for i := range recs[0] {
 		el.headings[i] = []rune(recs[0][i])
 	}
-	n := len(el.headings)
 
 	// figure out if number
 	el.isNumber = make([]bool, n)
@@ -118,7 +119,7 @@ func (el *ElementCsv) Generate(apc *types.ApcSlice) error {
 		return fmt.Errorf("cannot commit sqlite3 transaction: %v", err)
 	}
 
-	el.size = el.renderer.GetTermSize()
+	el.size = *el.renderer.GetTermSize()
 	if el.size.Y > 8 {
 		el.size.Y -= 5
 	}
@@ -135,7 +136,7 @@ func (el *ElementCsv) Generate(apc *types.ApcSlice) error {
 }
 
 func (el *ElementCsv) Size() *types.XY {
-	return el.size
+	return &el.size
 }
 
 func (el *ElementCsv) Rune(pos *types.XY) rune {

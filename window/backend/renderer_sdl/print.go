@@ -51,9 +51,8 @@ func (sr *sdlRender) PrintCell(cell *types.Cell, cellPos *types.XY) error {
 
 	// render drop shadow
 
-	var rect2 *sdl.Rect
 	if config.Config.Terminal.TypeFace.DropShadow && (bg == nil || isCellHighlighted) {
-		rect2 = &sdl.Rect{
+		rect2 := &sdl.Rect{
 			X: (sr.glyphSize.X * cellPos.X) + sr.border + dropShadowOffset,
 			Y: (sr.glyphSize.Y * cellPos.Y) + sr.border + dropShadowOffset,
 			W: sr.glyphSize.X,
@@ -79,7 +78,6 @@ func (sr *sdlRender) PrintCell(cell *types.Cell, cellPos *types.XY) error {
 	}
 
 	// render cell char
-
 	text, err := sr.font.RenderGlyphBlended(r, sdl.Color{R: fg.Red, G: fg.Green, B: fg.Blue, A: 255})
 	if err != nil {
 		return err

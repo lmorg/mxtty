@@ -9,6 +9,7 @@ type Element interface {
 	MouseClick(*XY, uint8, uint8, EventIgnoredCallback)
 	MouseWheel(*XY, *XY, EventIgnoredCallback)
 	MouseMotion(*XY, *XY, EventIgnoredCallback)
+	MouseOut()
 	Close()
 }
 

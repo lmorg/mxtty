@@ -84,7 +84,8 @@ func (hl *highlighterT) eventMouseButton(sr *sdlRender, _ *sdl.MouseButtonEvent)
 
 	switch hl.mode {
 	case _HIGHLIGHT_MODE_PNG:
-		if hl.rect.W < sr.glyphSize.X && hl.rect.H < sr.glyphSize.Y {
+		normaliseRect(hl.rect)
+		if hl.rect.W <= sr.glyphSize.X && hl.rect.H <= sr.glyphSize.Y {
 			sr.clipboardPasteText()
 		}
 		// clipboard copy will happen automatically on next redraw

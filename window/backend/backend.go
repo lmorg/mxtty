@@ -5,7 +5,7 @@ import (
 	rendersdl "github.com/lmorg/mxtty/window/backend/renderer_sdl"
 )
 
-func Initialise() types.Renderer {
+func Initialise() (types.Renderer, *types.XY) {
 	return rendersdl.Initialise()
 }
 

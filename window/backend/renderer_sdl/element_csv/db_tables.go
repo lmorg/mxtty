@@ -14,11 +14,14 @@ func (el *ElementCsv) runQuery() error {
 	}
 
 	orderBy := _ROW_ID
+	var sql string
 	if el.orderByIndex > 0 {
 		orderBy = string(el.headings[el.orderByIndex-1])
+		sql = sqlSelect[el.isNumber[el.orderByIndex-1]]
+	} else {
+		sql = sqlSelect[selectNumeric]
 	}
 
-	sql := sqlSelect[el.isNumber[el.orderByIndex]]
 	query := fmt.Sprintf(sql, el.name, where, orderBy, orderByStr[el.orderDesc], el.size.Y-1)
 
 	dbRows, err := el.db.Query(query)
