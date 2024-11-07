@@ -37,9 +37,10 @@ type configT struct {
 	} `yaml:"Shell"`
 
 	Terminal struct {
-		ScrollbackHistory   int `yaml:"ScrollbackHistory"`
-		JumpScrollLineCount int `yaml:"JumpScrollLineCount"`
-		RefreshInterval     int `yaml:"RefreshInterval"`
+		ScrollbackHistory       int  `yaml:"ScrollbackHistory"`
+		ScrollbackCloseKeyPress bool `yaml:"ScrollbackCloseKeyPress"`
+		JumpScrollLineCount     int  `yaml:"JumpScrollLineCount"`
+		RefreshInterval         int  `yaml:"RefreshInterval"`
 
 		TypeFace struct {
 			FontName         string `yaml:"FontName"`

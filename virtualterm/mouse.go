@@ -51,7 +51,10 @@ func (term *Term) _mouseWheelCallback(movement *types.XY) {
 	}
 
 	term._scrollOffset += int(movement.Y * 2)
+	term.updateScrollback()
+}
 
+func (term *Term) updateScrollback() {
 	switch {
 	case term._scrollOffset > len(term._scrollBuf):
 		term._scrollOffset = len(term._scrollBuf)

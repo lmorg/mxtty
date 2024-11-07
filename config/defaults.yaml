@@ -10,6 +10,7 @@ Terminal:
     AdjustCellWidth:  0
     AdjustCellHeight: +1
   ScrollbackHistory: 10000 # lines
+  ScrollbackCloseKeyPress: true # close scrollback on key press
   JumpScrollLineCount: -1  # lines, 0 is per character, -1 is per page
   RefreshInterval: 200     # 0 disables
 
