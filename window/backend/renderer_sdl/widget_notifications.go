@@ -34,10 +34,11 @@ const (
 func (sr *sdlRender) preloadNotificationGlyphs() {
 	var err error
 	sr.notifyIcon = map[int]types.Image{
-		types.NOTIFY_DEBUG: nil,
-		types.NOTIFY_INFO:  nil,
-		types.NOTIFY_WARN:  nil,
-		types.NOTIFY_ERROR: nil,
+		types.NOTIFY_DEBUG:    nil,
+		types.NOTIFY_INFO:     nil,
+		types.NOTIFY_WARN:     nil,
+		types.NOTIFY_ERROR:    nil,
+		types.NOTIFY_QUESTION: nil,
 	}
 	sr.notifyIconSize = &types.XY{
 		X: sr.glyphSize.Y + (sr.border * 4),
@@ -65,6 +66,11 @@ func (sr *sdlRender) preloadNotificationGlyphs() {
 	}
 
 	sr.notifyIcon[types.NOTIFY_SCROLL], err = sr.loadImage(assets.Get(assets.ICON_DOWN), sr.notifyIconSize)
+	if err != nil {
+		panic(err)
+	}
+
+	sr.notifyIcon[types.NOTIFY_QUESTION], err = sr.loadImage(assets.Get(assets.ICON_QUESTION), sr.notifyIconSize)
 	if err != nil {
 		panic(err)
 	}

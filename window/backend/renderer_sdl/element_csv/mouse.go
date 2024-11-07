@@ -17,6 +17,10 @@ func (el *ElementCsv) MouseClick(pos *types.XY, button uint8, clicks uint8, call
 		}
 		switch clicks {
 		case 1:
+			if int(pos.Y) > len(el.table) {
+				callback()
+				return
+			}
 			for i := range el.boundaries {
 				if pos.X <= el.boundaries[i] {
 					var start int32
@@ -30,6 +34,7 @@ func (el *ElementCsv) MouseClick(pos *types.XY, button uint8, clicks uint8, call
 				}
 			}
 			callback()
+			return
 
 		case 2:
 			el.renderer.DisplayInputBox("Please input desired SQL filter:", el.filter, func(filter string) {
@@ -42,6 +47,7 @@ func (el *ElementCsv) MouseClick(pos *types.XY, button uint8, clicks uint8, call
 
 		default:
 			callback()
+			return
 		}
 
 		return

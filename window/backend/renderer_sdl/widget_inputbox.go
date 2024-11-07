@@ -205,6 +205,33 @@ func (sr *sdlRender) renderInputBox(windowRect *sdl.Rect) {
 		width = textValue.W
 	}
 
+	if surface, ok := sr.notifyIcon[types.NOTIFY_QUESTION].Asset().(*sdl.Surface); ok {
+		srcRect := &sdl.Rect{
+			X: 0,
+			Y: 0,
+			W: surface.W,
+			H: surface.H,
+		}
+
+		dstRect := &sdl.Rect{
+			X: sr.border + 2,
+			Y: offset + text.H - sr.notifyIconSize.Y,
+			W: sr.notifyIconSize.X,
+			H: sr.notifyIconSize.X,
+		}
+
+		texture, err := sr.renderer.CreateTextureFromSurface(surface)
+		if err != nil {
+			panic(err) //TODO: don't panic!
+		}
+		defer texture.Destroy()
+
+		err = sr.renderer.Copy(texture, srcRect, dstRect)
+		if err != nil {
+			panic(err) //TODO: don't panic!
+		}
+	}
+
 	if sr.blinkState {
 		sr.renderer.SetDrawColor(255, 255, 255, 255)
 		rect = sdl.Rect{

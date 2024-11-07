@@ -18,12 +18,13 @@ const (
 	BELL     = "bell.mp3"
 	ICON_APP = "icon.bmp"
 	//TYPEFACE   = "Hasklig-Regular.ttf"
-	TYPEFACE   = "SourceCodePro-Regular.ttf"
-	ICON_DEBUG = "icon-message.bmp"
-	ICON_INFO  = "icon-info.bmp"
-	ICON_WARN  = "icon-warn.bmp"
-	ICON_ERROR = "icon-error.bmp"
-	ICON_DOWN  = "icon-down.bmp"
+	TYPEFACE      = "SourceCodePro-Regular.ttf"
+	ICON_DEBUG    = "icon-message.bmp"
+	ICON_INFO     = "icon-info.bmp"
+	ICON_WARN     = "icon-warn.bmp"
+	ICON_ERROR    = "icon-error.bmp"
+	ICON_DOWN     = "icon-down.bmp"
+	ICON_QUESTION = "icon-question.bmp"
 )
 
 //go:embed bell.mp3

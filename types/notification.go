@@ -8,6 +8,7 @@ const (
 	NOTIFY_WARN
 	NOTIFY_ERROR
 	NOTIFY_SCROLL
+	NOTIFY_QUESTION
 )
 
 type Notification interface {

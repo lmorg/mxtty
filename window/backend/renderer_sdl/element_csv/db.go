@@ -11,15 +11,15 @@ import (
 const driverName = "sqlite3"
 
 const (
-	sqlCreateTable    = `CREATE TABLE IF NOT EXISTS '%s' (%s);`
-	sqlInsertRecord   = `INSERT INTO '%s' VALUES (%s);`
-	sqlSelectByAlpha  = `SELECT * from '%s' %s ORDER BY lower("%s") %s LIMIT %d;`
-	sqlSelectByNumber = `SELECT * from '%s' %s ORDER BY "%s" %s LIMIT %d;`
+	sqlCreateTable     = `CREATE TABLE IF NOT EXISTS '%s' (%s);`
+	sqlInsertRecord    = `INSERT INTO '%s' VALUES (%s);`
+	sqlSelectByAlpha   = `SELECT * from '%s' %s ORDER BY lower("%s") %s LIMIT %d;`
+	sqlSelectByNumeric = `SELECT * from '%s' %s ORDER BY "%s" %s LIMIT %d;`
 )
 
 var sqlSelect = map[bool]string{
 	false: sqlSelectByAlpha,
-	true:  sqlSelectByNumber,
+	true:  sqlSelectByNumeric,
 }
 
 var orderByStr = map[bool]string{
