@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/csv"
 	"fmt"
+	"strings"
 
 	"github.com/lmorg/mxtty/types"
 )
@@ -71,9 +72,11 @@ func (el *ElementCsv) Generate(apc *types.ApcSlice) error {
 	buf := bytes.NewBufferString(string(el.buf))
 	r := csv.NewReader(buf)
 	r.LazyQuotes = true
+	r.TrimLeadingSpace = true
+	r.FieldsPerRecord = -1
 	recs, err := r.ReadAll()
 	if err != nil {
-		return err
+		return fmt.Errorf("error reading CSV: %v", err)
 	}
 
 	if len(recs) < 2 {
@@ -90,7 +93,12 @@ func (el *ElementCsv) Generate(apc *types.ApcSlice) error {
 		el.headings[i] = []rune(recs[0][i])
 	}
 
+	n := len(el.headings)
 	for row := 1; row < len(recs); row++ {
+		if len(recs[row]) > n {
+			recs[row][n-1] = strings.Join(recs[row][n-1:], " ")
+			recs[row] = recs[row][:n]
+		}
 		err = el.insertRecords(recs[row])
 		if err != nil {
 			return err
@@ -98,10 +106,13 @@ func (el *ElementCsv) Generate(apc *types.ApcSlice) error {
 	}
 
 	if el.dbTx.Commit() != nil {
-		return err
+		return fmt.Errorf("cannot commit sqlite3 transaction: %v", err)
 	}
 
 	el.size = el.renderer.GetTermSize()
+	if el.size.Y > 8 {
+		el.size.Y -= 5
+	}
 	if el.size.Y > el.lines {
 		el.size.Y = el.lines
 	}
@@ -174,11 +185,11 @@ func (el *ElementCsv) Draw(size *types.XY, pos *types.XY) {
 skipOrderGlyph:
 
 	relPos.Y++
-
 	cell.Sgr.Bitwise ^= types.SGR_INVERT
+
 	for y := int32(0); y < el.size.Y-1 && int(y) < len(el.table); y++ {
-		relPos.X = pos.X
-		for x := int32(0); int(x) < len(el.table[y]); x++ {
+		relPos.X = 0 //pos.X
+		for x := -el.renderOffset; x+el.renderOffset < el.size.X && int(x) < len(el.table[y]); x++ {
 			cell.Char = el.table[y][x]
 			err = el.renderer.PrintCell(cell, relPos)
 			if err != nil {

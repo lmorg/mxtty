@@ -105,10 +105,12 @@ ticked but not working as expected, then please raise an issue in Github.
   - [x] xterm compatible
 - [x] Alt character sets
 - [ ] Wide characters
+  - [ ] vt100 (ASCII characters)
+  - [ ] Unicode (eg logograph-centric languages)
 - Keyboard
   - [x] Ctrl modifiers
-  - [ ] Alt modifiers
-  - [ ] Shift modifiers
+  - [x] Alt modifiers
+  - [x] Shift modifiers
   - [ ] special keys (eg function keys, number pad, etc)
 - Mouse tracking
   - [ ] common: can run most CLI applications
@@ -149,7 +151,7 @@ eg `xterm` and similar terminal emulators
   - [ ] stable: available to use in Murex
 - Table sorting
   - [x] alpha: available but expect changes to the API
-  - [ ] stable: available to use in Murex
+  - [x] stable: available to use in Murex
 
 #### Common application support
 

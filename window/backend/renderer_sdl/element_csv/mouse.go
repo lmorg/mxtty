@@ -7,11 +7,15 @@ import (
 	"golang.design/x/clipboard"
 )
 
-func (el *ElementCsv) MouseClick(pos *types.XY, button uint8, callback types.EventIgnoredCallback) {
+func (el *ElementCsv) MouseClick(pos *types.XY, button uint8, clicks uint8, callback types.EventIgnoredCallback) {
 	pos.X -= el.renderOffset
 
 	if pos.Y != 0 {
-		switch button {
+		if button != 1 {
+			callback()
+			return
+		}
+		switch clicks {
 		case 1:
 			for i := range el.boundaries {
 				if pos.X <= el.boundaries[i] {
@@ -27,7 +31,7 @@ func (el *ElementCsv) MouseClick(pos *types.XY, button uint8, callback types.Eve
 			}
 			callback()
 
-		case 3:
+		case 2:
 			el.renderer.DisplayInputBox("Please input desired SQL filter:", el.filter, func(filter string) {
 				el.filter = filter
 				err := el.runQuery()
