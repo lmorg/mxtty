@@ -19,3 +19,32 @@ func (s *Sgr) Copy() *Sgr {
 		Bitwise: s.Bitwise,
 	}
 }
+
+func (s *Sgr) HashValue() uint64 {
+	return (uint64(s.Bitwise) << 48) | (uint64(s.Fg.RGB24()) << 24) | uint64(s.Bg.RGB24())
+}
+
+type SgrFlag uint16
+
+// Flags
+const (
+	SGR_NORMAL SgrFlag = 0
+	SGR_BOLD   SgrFlag = 1 << iota
+	SGR_ITALIC
+	SGR_UNDERLINE
+	SGR_STRIKETHROUGH
+	SGR_SLOW_BLINK
+	SGR_INVERT
+)
+
+func (f SgrFlag) Is(flag SgrFlag) bool {
+	return f&flag != 0
+}
+
+func (f *SgrFlag) Set(flag SgrFlag) {
+	*f |= flag
+}
+
+func (f *SgrFlag) Unset(flag SgrFlag) {
+	*f &^= flag
+}

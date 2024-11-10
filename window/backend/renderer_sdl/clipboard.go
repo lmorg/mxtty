@@ -2,7 +2,6 @@ package rendersdl
 
 import (
 	"bytes"
-	"fmt"
 	stdlib_image "image"
 	"image/png"
 
@@ -12,13 +11,13 @@ import (
 )
 
 func (sr *sdlRender) copySurfaceToClipboard() {
-	err := sr._copySurfaceToClipboard(sr.surface, sr.highlighter.rect)
+	/*err := sr._copySurfaceToClipboard(sr.surface, sr.highlighter.rect)
 	if err != nil {
 		sr.DisplayNotification(types.NOTIFY_ERROR, fmt.Sprintf("Could not copy to clipboard: %s", err.Error()))
 	} else {
 		sr.DisplayNotification(types.NOTIFY_INFO, "Copied to clipboard as PNG")
 	}
-	sr.highlighter = nil
+	sr.highlighter = nil*/
 }
 
 func (sr *sdlRender) _copySurfaceToClipboard(src *sdl.Surface, rect *sdl.Rect) error {

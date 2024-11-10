@@ -69,38 +69,41 @@ func (sr *sdlRender) eventLoop(term types.Term) {
 func (sr *sdlRender) drawBg(term types.Term, rect *sdl.Rect) {
 	bg := term.Bg()
 
-	pixel := sdl.MapRGBA(sr.surface.Format, bg.Red, bg.Green, bg.Blue, 255)
-	err := sr.surface.FillRect(rect, pixel)
+	err := sr.renderer.SetDrawColor(bg.Red, bg.Green, bg.Blue, 255)
+	if err != nil {
+		log.Printf("ERROR: error drawing background: %s", err.Error())
+	}
+	err = sr.renderer.FillRect(rect)
 	if err != nil {
 		log.Printf("ERROR: error drawing background: %s", err.Error())
 	}
 }
 
 func render(sr *sdlRender, term types.Term) error {
-	var err error
+	//var err error
 	x, y := sr.window.GetSize()
 	rect := &sdl.Rect{W: x, H: y}
 
-	sr.surface, err = sdl.CreateRGBSurfaceWithFormat(0, x, y, 32, uint32(sdl.PIXELFORMAT_RGBA32))
+	/*sr.surface, err = sdl.CreateRGBSurfaceWithFormat(0, x, y, 32, uint32(sdl.PIXELFORMAT_RGBA32))
 	if err != nil {
 		return err
 	}
-	defer sr.surface.Free()
+	defer sr.surface.Free()*/
 
 	sr.drawBg(term, rect)
 
 	term.Render()
 
-	texture, err := sr.renderer.CreateTextureFromSurface(sr.surface)
+	/*texture, err := sr.renderer.CreateTextureFromSurface(sr.surface)
 	if err != nil {
 		return err
 	}
-	defer texture.Destroy()
+	defer texture.Destroy()*/
 
-	err = sr.renderer.Copy(texture, rect, rect)
+	/*err = sr.renderer.Copy(texture, rect, rect)
 	if err != nil {
 		return err
-	}
+	}*/
 
 	for i := range sr.fnStack {
 		sr.fnStack[i]()

@@ -16,8 +16,8 @@ const footer = 0
 
 type sdlRender struct {
 	window    *sdl.Window
-	surface   *sdl.Surface
 	renderer  *sdl.Renderer
+	fontCache *fontCacheT
 	glyphSize *types.XY
 	term      types.Term
 	limiter   sync.Mutex

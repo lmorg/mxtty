@@ -67,6 +67,7 @@ func Initialise() (types.Renderer, *types.XY) {
 	}
 
 	sr.preloadNotificationGlyphs()
+	sr.fontCache = NewFontCache(sr)
 
 	return sr, sr._getTermSizeCells()
 }
@@ -93,7 +94,7 @@ func (sr *sdlRender) createWindow(caption string) error {
 
 	sr.initBell()
 
-	sr.renderer, err = sdl.CreateRenderer(sr.window, -1, sdl.RENDERER_ACCELERATED) //|sdl.RENDERER_PRESENTVSYNC|sdl.RENDERER_TARGETTEXTURE)
+	sr.renderer, err = sdl.CreateRenderer(sr.window, -1, sdl.RENDERER_ACCELERATED)
 	if err != nil {
 		return err
 	}

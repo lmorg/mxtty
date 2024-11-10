@@ -75,13 +75,13 @@ func (img *image) Draw(size *types.XY, pos *types.XY) {
 		img.sr.DisplayNotification(types.NOTIFY_ERROR, "Cannot render image: "+err.Error())
 	}
 
-	if img.sr.highlighter != nil {
+	/*if img.sr.highlighter != nil {
 		// for clipboard
 		err := img.surface.BlitScaled(srcRect, img.sr.surface, dstRect)
 		if err != nil {
 			img.sr.DisplayNotification(types.NOTIFY_ERROR, "Cannot render image: "+err.Error())
 		}
-	}
+	}*/
 }
 
 func (img *image) Asset() any {
