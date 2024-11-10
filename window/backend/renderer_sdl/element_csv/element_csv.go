@@ -157,8 +157,6 @@ func (el *ElementCsv) Rune(pos *types.XY) rune {
 }
 
 func (el *ElementCsv) Draw(size *types.XY, pos *types.XY) {
-	var err error
-
 	pos.X += el.renderOffset
 
 	cell := &types.Cell{Sgr: &types.Sgr{}}
@@ -168,10 +166,7 @@ func (el *ElementCsv) Draw(size *types.XY, pos *types.XY) {
 	cell.Sgr.Bitwise |= types.SGR_INVERT
 	for i := range el.top {
 		cell.Char = el.top[i]
-		err = el.renderer.PrintCell(cell, relPos)
-		if err != nil {
-			panic(err)
-		}
+		el.renderer.PrintCell(cell, relPos)
 		relPos.X++
 	}
 
@@ -187,10 +182,7 @@ func (el *ElementCsv) Draw(size *types.XY, pos *types.XY) {
 	}
 
 	cell.Char = arrowGlyph[el.orderDesc]
-	err = el.renderer.PrintCell(cell, relPos)
-	if err != nil {
-		panic(err)
-	}
+	el.renderer.PrintCell(cell, relPos)
 
 skipOrderGlyph:
 
@@ -201,10 +193,7 @@ skipOrderGlyph:
 		relPos.X = 0 //pos.X
 		for x := -el.renderOffset; x+el.renderOffset < el.size.X && int(x) < len(el.table[y]); x++ {
 			cell.Char = el.table[y][x]
-			err = el.renderer.PrintCell(cell, relPos)
-			if err != nil {
-				panic(err)
-			}
+			el.renderer.PrintCell(cell, relPos)
 			relPos.X++
 		}
 		relPos.Y++

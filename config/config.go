@@ -45,6 +45,7 @@ type configT struct {
 		TypeFace struct {
 			FontName         string `yaml:"FontName"`
 			FontSize         int    `yaml:"FontSize"`
+			Ligatures        bool   `yaml:"Ligatures"`
 			DropShadow       bool   `yaml:"DropShadow"`
 			AdjustCellWidth  int    `yaml:"AdjustCellWidth"`
 			AdjustCellHeight int    `yaml:"AdjustCellHeight"`

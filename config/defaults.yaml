@@ -4,8 +4,9 @@ Shell:
 
 Terminal:
   TypeFace:
-    #FontName: "SpecialElite-Regular"
+    FontName: "Hasklig-Regular"
     FontSize: 14
+    #Ligatures: true # experimental!! disables font texture caching
     DropShadow: true
     AdjustCellWidth:  0
     AdjustCellHeight: +1

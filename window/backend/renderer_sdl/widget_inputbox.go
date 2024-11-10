@@ -70,7 +70,7 @@ func (inputBox *inputBoxT) eventMouseMotion(sr *sdlRender, evt *sdl.MouseMotionE
 }
 
 func (sr *sdlRender) renderInputBox(windowRect *sdl.Rect) {
-	surface, err := sdl.CreateRGBSurfaceWithFormat(0, windowRect.W, windowRect.H, 32, uint32(sdl.PIXELFORMAT_RGBA32))
+	surface, err := sdl.CreateRGBSurfaceWithFormat(0, windowRect.W, windowRect.H, 32, uint32(sdl.PIXELFORMAT_RGBA8888))
 	if err != nil {
 		panic(err) //TODO: don't panic!
 	}

@@ -1,8 +1,7 @@
 package virtualterm
 
 import (
-	"log"
-
+	"github.com/lmorg/mxtty/config"
 	"github.com/lmorg/mxtty/types"
 )
 
@@ -11,7 +10,18 @@ func (term *Term) Render() {
 
 	cells := term.visibleScreen()
 
-	var err error
+	if config.Config.Terminal.TypeFace.Ligatures {
+		term._renderLigatures(cells)
+	} else {
+		term._renderCells(cells)
+	}
+
+	term._blinkCursor()
+
+	term._mutex.Unlock()
+}
+
+func (term *Term) _renderCells(cells [][]types.Cell) {
 	pos := new(types.XY)
 	elementStack := make(map[types.Element]bool) // no duplicates
 
@@ -33,17 +43,65 @@ func (term *Term) Render() {
 				continue
 
 			default:
-				err = term.renderer.PrintCell(&cells[pos.Y][pos.X], pos)
-				if err != nil {
-					log.Printf("ERROR: error in %s [x: %d, y: %d, value: '%s']: %s", "(t *Term) Render()", pos.X, pos.Y, string(cells[pos.Y][pos.X].Char), err.Error())
-				}
+				term.renderer.PrintCell(&cells[pos.Y][pos.X], pos)
 			}
 		}
 	}
+}
 
-	term._blinkCursor()
+func (term *Term) _renderLigatures(cells [][]types.Cell) {
+	var (
+		pos          = new(types.XY)
+		elementStack = make(map[types.Element]bool) // no duplicates
+		hash         uint64
+		defaultHash  = types.SGR_DEFAULT.HashValue()
+	)
 
-	term._mutex.Unlock()
+	for ; pos.Y < term.size.Y; pos.Y++ {
+		if cells[pos.Y][0].Sgr == nil {
+			hash = defaultHash
+		} else {
+			hash = cells[pos.Y][0].Sgr.HashValue()
+		}
+
+		var start int32
+		for pos.X = 0; pos.X < term.size.X; pos.X++ {
+			switch {
+			case cells[pos.Y][pos.X].Element != nil:
+				_, ok := elementStack[cells[pos.Y][pos.X].Element]
+				if !ok {
+					elementStack[cells[pos.Y][pos.X].Element] = true
+					offset := getElementXY(cells[pos.Y][pos.X].Char)
+					cells[pos.Y][pos.X].Element.Draw(nil, &types.XY{X: pos.X - offset.X, Y: pos.Y - offset.Y})
+				}
+
+			case cells[pos.Y][pos.X].Char == 0:
+				fallthrough
+
+			case cells[pos.Y][pos.X].Sgr == nil:
+				continue
+				if pos.X == 0 || cells[pos.Y][pos.X-1].Sgr == nil {
+					continue
+				}
+
+				term.renderer.PrintCellBlock(cells[pos.Y][start:pos.X-1], &types.XY{X: start, Y: pos.Y})
+				start = pos.X
+				hash = defaultHash
+
+			default:
+				newHash := cells[pos.Y][pos.X].Sgr.HashValue()
+				if hash != newHash {
+					term.renderer.PrintCellBlock(cells[pos.Y][start:pos.X], &types.XY{X: start, Y: pos.Y})
+					start = pos.X
+					hash = newHash
+				}
+			}
+		}
+
+		if start < pos.X {
+			term.renderer.PrintCellBlock(cells[pos.Y][start:], &types.XY{X: start, Y: pos.Y})
+		}
+	}
 }
 
 func (term *Term) _blinkCursor() {
@@ -68,8 +126,5 @@ func (term *Term) _blinkCursor() {
 	}
 
 	// print cell
-	err := term.renderer.PrintCell(cell, term.curPos())
-	if err != nil {
-		log.Printf("ERROR: error in %s [cursorBlink]: %s", "(t *Term) _blinkCursor()", err.Error())
-	}
+	term.renderer.PrintCell(cell, term.curPos())
 }

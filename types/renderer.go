@@ -5,7 +5,8 @@ type Renderer interface {
 	ShowAndFocusWindow()
 	GetTermSize() *XY
 	GetGlyphSize() *XY
-	PrintCell(*Cell, *XY) error
+	PrintCell(*Cell, *XY)
+	PrintCellBlock([]Cell, *XY)
 	DrawTable(*XY, int32, []int32)
 	DrawHighlightRect(*XY, *XY)
 	GetWindowTitle() string

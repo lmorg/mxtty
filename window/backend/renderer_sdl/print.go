@@ -10,7 +10,7 @@ import (
 	"github.com/veandco/go-sdl2/ttf"
 )
 
-const dropShadowOffset = 2
+const dropShadowOffset int32 = 2
 
 var (
 	textShadow    = sdl.Color{R: 0, G: 0, B: 0, A: 255}
@@ -27,7 +27,8 @@ var (
 		"`",                          // backtick
 		`!"£$%^&*()-=_+`,             // special, top row
 		`[]{};'#:@~\|,./<>?`,         // special others
-		`»`,                          // murex
+		`»…`,                         // murex
+		`┏┓┗┛━─╶┃┠┨╔╗╚╝═║╟╢█`, //        box drawings
 	}
 )
 
@@ -82,12 +83,11 @@ func _newFontCacheDefaultLookup(chars []rune, glyphSize *types.XY) fontCacheDefa
 	return m
 }
 
-func _newFontTexture(chars []rune, sgr *types.Sgr, glyphSize *types.XY, renderer *sdl.Renderer, font *ttf.Font, isCellHighlighted bool) *sdl.Texture {
-	surface, err := sdl.CreateRGBSurfaceWithFormat(0, glyphSize.X*int32(len(chars)), glyphSize.Y, 32, uint32(sdl.PIXELFORMAT_RGBA32))
+func _newFontSurface(glyphSize *types.XY, nCharacters int32) *sdl.Surface {
+	surface, err := sdl.CreateRGBSurfaceWithFormat(0, glyphSize.X*nCharacters, glyphSize.Y, 32, uint32(sdl.PIXELFORMAT_RGBA8888))
 	if err != nil {
 		panic(err) // TODO: better error handling please!
 	}
-	defer surface.Free()
 
 	pixel := sdl.MapRGBA(surface.Format, types.SGR_DEFAULT.Bg.Red, types.SGR_DEFAULT.Bg.Green, types.SGR_DEFAULT.Bg.Blue, 255)
 	err = surface.FillRect(&sdl.Rect{W: surface.W, H: surface.H}, pixel)
@@ -100,15 +100,23 @@ func _newFontTexture(chars []rune, sgr *types.Sgr, glyphSize *types.XY, renderer
 		panic(err) // TODO: better error handling please!
 	}
 
+	return surface
+}
+
+func _newFontTexture(chars []rune, sgr *types.Sgr, glyphSize *types.XY, renderer *sdl.Renderer, font *ttf.Font, isCellHighlighted bool) *sdl.Texture {
+	surface := _newFontSurface(glyphSize, int32(len(chars)))
+	defer surface.Free()
+
 	cell := &types.Cell{
 		Sgr: sgr,
 	}
 
-	var i int
 	cellRect := &sdl.Rect{W: glyphSize.X, H: glyphSize.Y}
 
 	font.SetStyle(fontStyle(cell.Sgr.Bitwise))
 
+	var i int
+	var err error
 	for i, cell.Char = range chars {
 		cellRect.X = int32(i) * glyphSize.X
 		err = _printCellToSurface(cell, cellRect, font, surface, isCellHighlighted)
@@ -127,31 +135,25 @@ func _newFontTexture(chars []rune, sgr *types.Sgr, glyphSize *types.XY, renderer
 	return texture
 }
 
-func (fa *fontAtlasT) Render(renderer *sdl.Renderer, dstRect *sdl.Rect, r rune, hash uint64, isCellHighlighted bool) (bool, error) {
+func (fa *fontAtlasT) Render(renderer *sdl.Renderer, dstRect *sdl.Rect, r rune, hash uint64, isCellHighlighted bool) func() {
 	if hash != fa.sgrHash {
-		return false, nil
+		return nil
 	}
 
 	srcRect, ok := fa.lookup[r]
 	if ok {
 		if isCellHighlighted {
-			return true, renderer.Copy(fa.highlight, srcRect, dstRect)
+			return func() { renderer.Copy(fa.highlight, srcRect, dstRect) }
 		} else {
-			return true, renderer.Copy(fa.normal, srcRect, dstRect)
+			return func() { renderer.Copy(fa.normal, srcRect, dstRect) }
 		}
 	}
 
-	return false, nil
+	return nil
 }
 
 func _printCellToSurface(cell *types.Cell, cellRect *sdl.Rect, font *ttf.Font, surface *sdl.Surface, isCellHighlighted bool) error {
 	fg, bg := sgrOpts(cell.Sgr)
-
-	/*sr.setFontStyle(cell.Sgr.Bitwise)
-	r := cell.Char
-	if r == 0 {
-		r = ' '
-	}*/
 
 	// render background colour
 
@@ -185,6 +187,7 @@ func _printCellToSurface(cell *types.Cell, cellRect *sdl.Rect, font *ttf.Font, s
 			c = textShadow
 		}
 		shadowText, err := font.RenderGlyphBlended(cell.Char, c)
+		//shadowText, err := font.RenderUTF8Blended(string(cell.Char), c)
 		if err != nil {
 			return err
 		}
@@ -198,6 +201,7 @@ func _printCellToSurface(cell *types.Cell, cellRect *sdl.Rect, font *ttf.Font, s
 
 	// render cell char
 	text, err := font.RenderGlyphBlended(cell.Char, sdl.Color{R: fg.Red, G: fg.Green, B: fg.Blue, A: 255})
+	//text, err := font.RenderUTF8Blended(string(cell.Char), sdl.Color{R: fg.Red, G: fg.Green, B: fg.Blue, A: 255})
 	if err != nil {
 		return err
 	}
@@ -226,7 +230,7 @@ func (sr *sdlRender) setFontStyle(style types.SgrFlag) {
 func fontStyle(style types.SgrFlag) int {
 	var i int
 
-	if style.Is(types.SGR_BOLD) {
+	if style.Is(types.SGR_BOLD) && !config.Config.Terminal.TypeFace.Ligatures {
 		i |= ttf.STYLE_BOLD
 	}
 
@@ -259,9 +263,9 @@ func sgrOpts(sgr *types.Sgr) (fg *types.Colour, bg *types.Colour) {
 	return fg, bg
 }
 
-func (sr *sdlRender) PrintCell(cell *types.Cell, cellPos *types.XY) error {
+func (sr *sdlRender) PrintCell(cell *types.Cell, cellPos *types.XY) {
 	if cell.Char == 0 {
-		return nil
+		return
 	}
 
 	dstRect := &sdl.Rect{
@@ -274,23 +278,24 @@ func (sr *sdlRender) PrintCell(cell *types.Cell, cellPos *types.XY) error {
 	isCellHighlighted := isCellHighlighted(sr, dstRect)
 	hash := cell.Sgr.HashValue()
 
-	ok, err := sr.fontCache.atlas.Render(sr.renderer, dstRect, cell.Char, hash, isCellHighlighted)
-	if ok || err != nil {
-		return err
+	fn := sr.fontCache.atlas.Render(sr.renderer, dstRect, cell.Char, hash, isCellHighlighted)
+	if fn != nil {
+		sr.AddRenderFnToStack(fn)
+		return
 	}
 
 	extAtlases, ok := sr.fontCache.extended[hash]
 	if ok {
 		for i := range extAtlases {
-			ok, err = extAtlases[i].Render(sr.renderer, dstRect, cell.Char, hash, isCellHighlighted)
-			if ok || err != nil {
-				return err
+			fn = extAtlases[i].Render(sr.renderer, dstRect, cell.Char, hash, isCellHighlighted)
+			if fn != nil {
+				sr.AddRenderFnToStack(fn)
+				return
 			}
 		}
 	}
 
 	atlas := newFontAtlas([]rune{cell.Char}, cell.Sgr, sr.glyphSize, sr.renderer, sr.font)
 	sr.fontCache.extended[hash] = append(sr.fontCache.extended[hash], atlas)
-	_, err = atlas.Render(sr.renderer, dstRect, cell.Char, hash, isCellHighlighted)
-	return err
+	sr.AddRenderFnToStack(func() { atlas.Render(sr.renderer, dstRect, cell.Char, hash, isCellHighlighted) })
 }

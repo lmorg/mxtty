@@ -80,30 +80,26 @@ func (sr *sdlRender) drawBg(term types.Term, rect *sdl.Rect) {
 }
 
 func render(sr *sdlRender, term types.Term) error {
-	//var err error
 	x, y := sr.window.GetSize()
 	rect := &sdl.Rect{W: x, H: y}
 
-	/*sr.surface, err = sdl.CreateRGBSurfaceWithFormat(0, x, y, 32, uint32(sdl.PIXELFORMAT_RGBA32))
-	if err != nil {
-		return err
+	if sr.highlighter != nil && sr.highlighter.button == 0 {
+		texture, err := sr.renderer.CreateTexture(sdl.PIXELFORMAT_RGB888, sdl.TEXTUREACCESS_TARGET, x, y)
+		if err != nil {
+			sr.highlighter = nil
+			return err
+		}
+		defer texture.Destroy()
+		err = sr.renderer.SetRenderTarget(texture)
+		if err != nil {
+			sr.highlighter = nil
+			return err
+		}
 	}
-	defer sr.surface.Free()*/
 
 	sr.drawBg(term, rect)
 
 	term.Render()
-
-	/*texture, err := sr.renderer.CreateTextureFromSurface(sr.surface)
-	if err != nil {
-		return err
-	}
-	defer texture.Destroy()*/
-
-	/*err = sr.renderer.Copy(texture, rect, rect)
-	if err != nil {
-		return err
-	}*/
 
 	for i := range sr.fnStack {
 		sr.fnStack[i]()
@@ -111,7 +107,8 @@ func render(sr *sdlRender, term types.Term) error {
 	sr.fnStack = make([]func(), 0) // clear image stack
 
 	if sr.highlighter != nil && sr.highlighter.button == 0 {
-		sr.copySurfaceToClipboard()
+		sr.copyRendererToClipboard()
+		return nil
 	}
 
 	sr.renderNotification(rect)
