@@ -1,8 +1,6 @@
 package rendersdl
 
 import (
-	"strings"
-
 	"github.com/lmorg/mxtty/config"
 	"github.com/lmorg/mxtty/types"
 	"github.com/lmorg/mxtty/window/backend/renderer_sdl/layer"
@@ -11,22 +9,20 @@ import (
 
 // PrintCellBlock is much slower because it doesn't cache textures
 func (sr *sdlRender) PrintCellBlock(cells []types.Cell, cellPos *types.XY) {
-	if len(cells) == 0 {
+	var r []rune
+	for i := range cells {
+		if cells[i].Char == 0 || cells[i].Element != nil {
+			break
+		}
+
+		r = append(r, cells[i].Char)
+	}
+
+	if len(r) == 0 {
 		return
 	}
 
-	r := make([]rune, len(cells))
-	for i := range cells {
-		if cells[i].Char == 0 || cells[i].Element != nil {
-			r[i] = ' '
-		} else {
-			r[i] = cells[i].Char
-		}
-	}
-	s := strings.TrimRight(string(r), " ")
-	if s == "" {
-		return
-	}
+	s := string(r)
 
 	surface := _newFontSurface(sr.glyphSize, int32(len(cells)))
 	defer surface.Free()
