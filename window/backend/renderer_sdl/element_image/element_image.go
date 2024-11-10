@@ -74,9 +74,7 @@ func (el *ElementImage) Draw(size *types.XY, pos *types.XY) {
 		size = el.size
 	}
 
-	el.renderer.AddRenderFnToStack(func() {
-		el.image.Draw(size, pos)
-	})
+	el.image.Draw(size, pos)
 }
 
 func (el *ElementImage) Rune(_ *types.XY) rune {

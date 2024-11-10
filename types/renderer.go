@@ -18,7 +18,6 @@ type Renderer interface {
 	DisplayNotification(NotificationType, string)
 	DisplaySticky(NotificationType, string) Notification
 	DisplayInputBox(string, string, func(string))
-	AddRenderFnToStack(func())
 	GetWindowMeta() any
 	ResizeWindow(*XY)
 	SetKeyboardFnMode(KeyboardMode)

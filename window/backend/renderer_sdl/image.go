@@ -2,6 +2,7 @@ package rendersdl
 
 import (
 	"github.com/lmorg/mxtty/types"
+	"github.com/lmorg/mxtty/window/backend/renderer_sdl/layer"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
@@ -70,18 +71,11 @@ func (img *image) Draw(size *types.XY, pos *types.XY) {
 	}
 
 	// for rendering
-	err := img.sr.renderer.Copy(img.texture, srcRect, dstRect)
-	if err != nil {
-		img.sr.DisplayNotification(types.NOTIFY_ERROR, "Cannot render image: "+err.Error())
-	}
-
-	/*if img.sr.highlighter != nil {
-		// for clipboard
-		err := img.surface.BlitScaled(srcRect, img.sr.surface, dstRect)
-		if err != nil {
-			img.sr.DisplayNotification(types.NOTIFY_ERROR, "Cannot render image: "+err.Error())
-		}
-	}*/
+	//err := img.sr.renderer.Copy(img.texture, srcRect, dstRect)
+	//if err != nil {
+	//	img.sr.DisplayNotification(types.NOTIFY_ERROR, "Cannot render image: "+err.Error())
+	//}
+	img.sr.AddToElementStack(&layer.RenderStackT{img.texture, srcRect, dstRect, false})
 }
 
 func (img *image) Asset() any {
@@ -92,8 +86,4 @@ func (img *image) Close() {
 	img.texture.Destroy()
 	img.surface.Free()
 	img.rwops.Free()
-}
-
-func (sr *sdlRender) AddRenderFnToStack(fn func()) {
-	sr.fnStack = append(sr.fnStack, fn)
 }

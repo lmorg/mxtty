@@ -7,7 +7,6 @@ import (
 	"image/png"
 	"unsafe"
 
-	"github.com/lmorg/mxtty/debug"
 	"github.com/lmorg/mxtty/types"
 	"github.com/veandco/go-sdl2/sdl"
 	"golang.design/x/clipboard"
@@ -20,24 +19,18 @@ func (sr *sdlRender) copyRendererToClipboard() {
 		sr.TriggerRedraw()
 	}()
 
-	w, h := sr.window.GetSize()
-	debug.Log(fmt.Sprintf("w:%d, h:%d", w, h))
+	pitch := sr.highlighter.rect.W * 4
 
-	pitch := w * 4
-	pixelData := make([]uint8, pitch*h)
+	img := stdlib_image.NewRGBA(stdlib_image.Rect(0, 0, int(sr.highlighter.rect.W), int(sr.highlighter.rect.H)))
 
-	debug.Log("readpixels")
-	err := sr.renderer.ReadPixels(&sdl.Rect{W: w, H: h}, uint32(sdl.PIXELFORMAT_RGBA8888), unsafe.Pointer(&pixelData), int(pitch))
+	err := sr.renderer.ReadPixels(sr.highlighter.rect, uint32(sdl.PIXELFORMAT_RGBA32), unsafe.Pointer(&img.Pix[0]), int(pitch))
 	if err != nil {
-		debug.Log(err)
 		sr.DisplayNotification(types.NOTIFY_ERROR, fmt.Sprintf("Could not copy to clipboard: %s", err.Error()))
 		return
 	}
-	return
-	img := stdlib_image.NewRGBA(stdlib_image.Rect(0, 0, int(w), int(h)))
-	copy(img.Pix, pixelData)
 
 	var buf bytes.Buffer
+
 	err = png.Encode(&buf, img)
 	if err != nil {
 		sr.DisplayNotification(types.NOTIFY_ERROR, fmt.Sprintf("Could not copy to clipboard: %s", err.Error()))
@@ -47,36 +40,6 @@ func (sr *sdlRender) copyRendererToClipboard() {
 	clipboard.Write(clipboard.FmtImage, buf.Bytes())
 	sr.DisplayNotification(types.NOTIFY_INFO, "Copied to clipboard as PNG")
 }
-
-/*func (sr *sdlRender) _copySurfaceToClipboard(src *sdl.Surface, rect *sdl.Rect) error {
-	dstRect := sdl.Rect{
-		W: rect.W,
-		H: rect.H,
-	}
-	surf, err := sdl.CreateRGBSurfaceWithFormat(0, rect.W, rect.H, 32, uint32(sdl.PIXELFORMAT_RGBA8888))
-	if err != nil {
-		return err
-	}
-	defer surf.Free()
-
-	err = src.Blit(rect, surf, &dstRect)
-	if err != nil {
-		return err
-	}
-
-	img := stdlib_image.NewRGBA(stdlib_image.Rect(0, 0, int(rect.W), int(rect.H)))
-	copy(img.Pix, surf.Pixels())
-	//copy(img.Pix, pixels)
-
-	var buf bytes.Buffer
-	err = png.Encode(&buf, img)
-	if err != nil {
-		return err
-	}
-
-	clipboard.Write(clipboard.FmtImage, buf.Bytes())
-	return nil
-}*/
 
 func (sr *sdlRender) clipboardPasteText() {
 	sr.highlighter = nil

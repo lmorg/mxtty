@@ -46,7 +46,7 @@ func (menu *menuT) eventMouseMotion(sr *sdlRender, evt *sdl.MouseMotionEvent) {
 }
 
 func (sr *sdlRender) renderMenu(windowRect *sdl.Rect) {
-	surface, err := sdl.CreateRGBSurfaceWithFormat(0, windowRect.W, windowRect.H, 32, uint32(sdl.PIXELFORMAT_RGBA8888))
+	surface, err := sdl.CreateRGBSurfaceWithFormat(0, windowRect.W, windowRect.H, 32, uint32(sdl.PIXELFORMAT_RGBA32))
 	if err != nil {
 		panic(err) //TODO: don't panic!
 	}

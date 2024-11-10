@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 
 	"github.com/lmorg/mxtty/types"
+	"github.com/lmorg/mxtty/window/backend/renderer_sdl/layer"
 	"github.com/lmorg/mxtty/window/backend/typeface"
 	"github.com/veandco/go-sdl2/mix"
 	"github.com/veandco/go-sdl2/sdl"
@@ -23,9 +24,9 @@ type sdlRender struct {
 	limiter   sync.Mutex
 
 	// preferences
-	font       *ttf.Font
-	_fontStyle types.SgrFlag
-	border     int32
+	font *ttf.Font
+	//_fontStyle types.SgrFlag
+	border int32
 
 	// title
 	title       string
@@ -49,8 +50,9 @@ type sdlRender struct {
 	inputBox    *inputBoxT
 	menu        *menuT
 
-	// render function stack (AddRenderFnToStack)
-	fnStack []func()
+	// render function stacks
+	_elementStack []*layer.RenderStackT
+	_overlayStack []*layer.RenderStackT
 
 	// state
 	keyboardMode keyboardModeT

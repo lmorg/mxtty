@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/lmorg/mxtty/types"
+	"github.com/lmorg/mxtty/window/backend/renderer_sdl/layer"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
@@ -69,47 +70,100 @@ func (sr *sdlRender) eventLoop(term types.Term) {
 func (sr *sdlRender) drawBg(term types.Term, rect *sdl.Rect) {
 	bg := term.Bg()
 
-	err := sr.renderer.SetDrawColor(bg.Red, bg.Green, bg.Blue, 255)
-	if err != nil {
-		log.Printf("ERROR: error drawing background: %s", err.Error())
+	texture := sr.createRendererTexture()
+	if texture == nil {
+		return
 	}
+	defer sr.restoreRendererTexture()
+
+	var err error
+
+	err = sr.renderer.SetDrawColor(bg.Red, bg.Green, bg.Blue, 255)
+	if err != nil {
+		log.Printf("ERROR: error drawing background: %v", err)
+	}
+
 	err = sr.renderer.FillRect(rect)
 	if err != nil {
-		log.Printf("ERROR: error drawing background: %s", err.Error())
+		log.Printf("ERROR: error drawing background: %v", err)
 	}
+}
+
+func (sr *sdlRender) AddToElementStack(item *layer.RenderStackT) {
+	sr._elementStack = append(sr._elementStack, item)
+}
+
+func (sr *sdlRender) AddToOverlayStack(item *layer.RenderStackT) {
+	sr._overlayStack = append(sr._overlayStack, item)
+}
+
+func (sr *sdlRender) createRendererTexture() *sdl.Texture {
+	winW, winH := sr.window.GetSize()
+	texture, err := sr.renderer.CreateTexture(uint32(sdl.PIXELFORMAT_RGBA32), sdl.TEXTUREACCESS_TARGET, winW, winH)
+	if err != nil {
+		log.Printf("ERROR: %v", err)
+		return nil
+	}
+	err = sr.renderer.SetRenderTarget(texture)
+	if err != nil {
+		log.Printf("ERROR: %v", err)
+		return nil
+	}
+	err = texture.SetBlendMode(sdl.BLENDMODE_BLEND)
+	if err != nil {
+		log.Printf("ERROR: %v", err)
+		return nil
+	}
+	return texture
+}
+
+func (sr *sdlRender) restoreRendererTexture() {
+	texture := sr.renderer.GetRenderTarget()
+	sr.AddToElementStack(&layer.RenderStackT{texture, nil, nil, true})
+	err := sr.renderer.SetRenderTarget(nil)
+	if err != nil {
+		log.Printf("ERROR: %v", err)
+	}
+}
+
+func (sr *sdlRender) renderStack(stack *[]*layer.RenderStackT) {
+	var err error
+	for _, item := range *stack {
+		err = sr.renderer.Copy(item.Texture, item.SrcRect, item.DstRect)
+		if err != nil {
+			log.Printf("ERROR: %v", err)
+		}
+		if item.Destroy {
+			_ = item.Texture.Destroy()
+		}
+	}
+	*stack = make([]*layer.RenderStackT, 0) // clear image stack
 }
 
 func render(sr *sdlRender, term types.Term) error {
 	x, y := sr.window.GetSize()
 	rect := &sdl.Rect{W: x, H: y}
 
-	if sr.highlighter != nil && sr.highlighter.button == 0 {
-		texture, err := sr.renderer.CreateTexture(sdl.PIXELFORMAT_RGB888, sdl.TEXTUREACCESS_TARGET, x, y)
-		if err != nil {
-			sr.highlighter = nil
-			return err
-		}
-		defer texture.Destroy()
-		err = sr.renderer.SetRenderTarget(texture)
-		if err != nil {
-			sr.highlighter = nil
-			return err
-		}
-	}
-
 	sr.drawBg(term, rect)
-
 	term.Render()
 
-	for i := range sr.fnStack {
-		sr.fnStack[i]()
+	if sr.highlighter != nil && sr.highlighter.button == 0 {
+		texture := sr.createRendererTexture()
+		if texture == nil {
+			sr.highlighter = nil
+			return nil
+		}
+		defer texture.Destroy()
 	}
-	sr.fnStack = make([]func(), 0) // clear image stack
+
+	sr.renderStack(&sr._elementStack)
 
 	if sr.highlighter != nil && sr.highlighter.button == 0 {
 		sr.copyRendererToClipboard()
 		return nil
 	}
+
+	sr.renderStack(&sr._overlayStack)
 
 	sr.renderNotification(rect)
 

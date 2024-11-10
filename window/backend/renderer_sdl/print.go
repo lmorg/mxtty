@@ -6,6 +6,7 @@ import (
 
 	"github.com/lmorg/mxtty/config"
 	"github.com/lmorg/mxtty/types"
+	"github.com/lmorg/mxtty/window/backend/renderer_sdl/layer"
 	"github.com/veandco/go-sdl2/sdl"
 	"github.com/veandco/go-sdl2/ttf"
 )
@@ -84,7 +85,7 @@ func _newFontCacheDefaultLookup(chars []rune, glyphSize *types.XY) fontCacheDefa
 }
 
 func _newFontSurface(glyphSize *types.XY, nCharacters int32) *sdl.Surface {
-	surface, err := sdl.CreateRGBSurfaceWithFormat(0, glyphSize.X*nCharacters, glyphSize.Y, 32, uint32(sdl.PIXELFORMAT_RGBA8888))
+	surface, err := sdl.CreateRGBSurfaceWithFormat(0, glyphSize.X*nCharacters, glyphSize.Y, 32, uint32(sdl.PIXELFORMAT_RGBA32))
 	if err != nil {
 		panic(err) // TODO: better error handling please!
 	}
@@ -135,21 +136,20 @@ func _newFontTexture(chars []rune, sgr *types.Sgr, glyphSize *types.XY, renderer
 	return texture
 }
 
-func (fa *fontAtlasT) Render(renderer *sdl.Renderer, dstRect *sdl.Rect, r rune, hash uint64, isCellHighlighted bool) func() {
+func (fa *fontAtlasT) Render(sr *sdlRender, dstRect *sdl.Rect, r rune, hash uint64, isCellHighlighted bool) bool {
 	if hash != fa.sgrHash {
-		return nil
+		return false
 	}
 
 	srcRect, ok := fa.lookup[r]
 	if ok {
 		if isCellHighlighted {
-			return func() { renderer.Copy(fa.highlight, srcRect, dstRect) }
+			sr.AddToElementStack(&layer.RenderStackT{fa.highlight, srcRect, dstRect, false})
 		} else {
-			return func() { renderer.Copy(fa.normal, srcRect, dstRect) }
+			sr.AddToElementStack(&layer.RenderStackT{fa.normal, srcRect, dstRect, false})
 		}
 	}
-
-	return nil
+	return ok
 }
 
 func _printCellToSurface(cell *types.Cell, cellRect *sdl.Rect, font *ttf.Font, surface *sdl.Surface, isCellHighlighted bool) error {
@@ -278,18 +278,16 @@ func (sr *sdlRender) PrintCell(cell *types.Cell, cellPos *types.XY) {
 	isCellHighlighted := isCellHighlighted(sr, dstRect)
 	hash := cell.Sgr.HashValue()
 
-	fn := sr.fontCache.atlas.Render(sr.renderer, dstRect, cell.Char, hash, isCellHighlighted)
-	if fn != nil {
-		sr.AddRenderFnToStack(fn)
+	ok := sr.fontCache.atlas.Render(sr, dstRect, cell.Char, hash, isCellHighlighted)
+	if ok {
 		return
 	}
 
 	extAtlases, ok := sr.fontCache.extended[hash]
 	if ok {
 		for i := range extAtlases {
-			fn = extAtlases[i].Render(sr.renderer, dstRect, cell.Char, hash, isCellHighlighted)
-			if fn != nil {
-				sr.AddRenderFnToStack(fn)
+			ok = extAtlases[i].Render(sr, dstRect, cell.Char, hash, isCellHighlighted)
+			if ok {
 				return
 			}
 		}
@@ -297,5 +295,5 @@ func (sr *sdlRender) PrintCell(cell *types.Cell, cellPos *types.XY) {
 
 	atlas := newFontAtlas([]rune{cell.Char}, cell.Sgr, sr.glyphSize, sr.renderer, sr.font)
 	sr.fontCache.extended[hash] = append(sr.fontCache.extended[hash], atlas)
-	sr.AddRenderFnToStack(func() { atlas.Render(sr.renderer, dstRect, cell.Char, hash, isCellHighlighted) })
+	atlas.Render(sr, dstRect, cell.Char, hash, isCellHighlighted)
 }
