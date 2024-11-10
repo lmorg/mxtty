@@ -5,6 +5,7 @@ import (
 
 	"github.com/lmorg/mxtty/types"
 	"github.com/veandco/go-sdl2/sdl"
+	"github.com/veandco/go-sdl2/ttf"
 )
 
 var (
@@ -76,7 +77,7 @@ func (sr *sdlRender) renderInputBox(windowRect *sdl.Rect) {
 	}
 	defer surface.Free()
 
-	sr.setFontStyle(types.SGR_BOLD)
+	sr.font.SetStyle(ttf.STYLE_BOLD)
 
 	text, err := sr.font.RenderUTF8BlendedWrapped(sr.inputBox.Message, sdl.Color{R: 200, G: 200, B: 200, A: 255}, int(surface.W-sr.notifyIconSize.X))
 	if err != nil {

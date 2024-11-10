@@ -6,7 +6,7 @@ Terminal:
   TypeFace:
     FontName: "Hasklig-Regular"
     FontSize: 14
-    #Ligatures: true # experimental!! disables font texture caching
+    Ligatures: true # disables font texture caching
     DropShadow: true
     AdjustCellWidth:  0
     AdjustCellHeight: +1

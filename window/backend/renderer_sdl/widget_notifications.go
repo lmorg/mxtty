@@ -9,6 +9,7 @@ import (
 	"github.com/lmorg/mxtty/assets"
 	"github.com/lmorg/mxtty/types"
 	"github.com/veandco/go-sdl2/sdl"
+	"github.com/veandco/go-sdl2/ttf"
 )
 
 var notifyColour = map[int]*types.Colour{
@@ -202,7 +203,7 @@ func (sr *sdlRender) renderNotification(windowRect *sdl.Rect) {
 	}
 	defer surface.Free()
 
-	sr.setFontStyle(types.SGR_BOLD)
+	sr.font.SetStyle(ttf.STYLE_BOLD)
 
 	padding := sr.border * 2
 	var offset int32

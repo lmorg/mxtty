@@ -78,7 +78,11 @@ func (hl *highlighterT) setMode(mode _highlightMode) {
 	}
 }
 
-func (hl *highlighterT) eventMouseButton(sr *sdlRender, _ *sdl.MouseButtonEvent) {
+func (hl *highlighterT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEvent) {
+	if evt.State == sdl.RELEASED {
+		sr.term.MouseClick(nil, 0, 0, false, func() {})
+	}
+
 	hl.button = 0
 	sdl.SetCursor(sdl.CreateSystemCursor(sdl.SYSTEM_CURSOR_ARROW))
 

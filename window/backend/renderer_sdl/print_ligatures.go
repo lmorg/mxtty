@@ -5,6 +5,7 @@ import (
 
 	"github.com/lmorg/mxtty/config"
 	"github.com/lmorg/mxtty/types"
+	"github.com/lmorg/mxtty/window/backend/renderer_sdl/layer"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
@@ -16,7 +17,11 @@ func (sr *sdlRender) PrintCellBlock(cells []types.Cell, cellPos *types.XY) {
 
 	r := make([]rune, len(cells))
 	for i := range cells {
-		r[i] = cells[i].Rune()
+		if cells[i].Char == 0 || cells[i].Element != nil {
+			r[i] = ' '
+		} else {
+			r[i] = cells[i].Char
+		}
 	}
 	s := strings.TrimRight(string(r), " ")
 	if s == "" {
@@ -109,14 +114,13 @@ func (sr *sdlRender) PrintCellBlock(cells []types.Cell, cellPos *types.XY) {
 	if err != nil {
 		panic(err) // TODO: better error handling please!
 	}
-	defer texture.Destroy()
 
 	dstRect := &sdl.Rect{
 		X: (sr.glyphSize.X * cellPos.X) + sr.border,
 		Y: (sr.glyphSize.Y * cellPos.Y) + sr.border,
-		W: cellBlockRect.W + dropShadowOffset,
-		H: cellBlockRect.H + dropShadowOffset,
+		W: cellBlockRect.W, // + dropShadowOffset,
+		H: cellBlockRect.H, // + dropShadowOffset,
 	}
 
-	sr.renderer.Copy(texture, cellBlockRect, dstRect)
+	sr.AddToElementStack(&layer.RenderStackT{texture, cellBlockRect, dstRect, true})
 }

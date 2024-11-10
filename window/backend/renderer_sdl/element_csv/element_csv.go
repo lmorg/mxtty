@@ -190,7 +190,7 @@ skipOrderGlyph:
 	cell.Sgr.Bitwise ^= types.SGR_INVERT
 
 	for y := int32(0); y < el.size.Y-1 && int(y) < len(el.table); y++ {
-		relPos.X = 0 //pos.X
+		relPos.X = 0
 		for x := -el.renderOffset; x+el.renderOffset < el.size.X && int(x) < len(el.table[y]); x++ {
 			cell.Char = el.table[y][x]
 			el.renderer.PrintCell(cell, relPos)

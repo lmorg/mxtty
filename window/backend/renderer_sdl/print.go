@@ -58,9 +58,14 @@ func NewFontCache(sr *sdlRender) *fontCacheT {
 }
 
 func newFontAtlas(chars []rune, sgr *types.Sgr, glyphSize *types.XY, renderer *sdl.Renderer, font *ttf.Font) *fontAtlasT {
+	var offset int32
+	if unsafe.Pointer(sgr.Bg) == unsafe.Pointer(types.SGR_DEFAULT.Bg) {
+		offset = dropShadowOffset
+	}
+
 	glyphSizePlusShadow := &types.XY{
-		X: glyphSize.X + dropShadowOffset,
-		Y: glyphSize.Y + dropShadowOffset,
+		X: glyphSize.X + offset,
+		Y: glyphSize.Y + offset,
 	}
 
 	return &fontAtlasT{
@@ -72,7 +77,9 @@ func newFontAtlas(chars []rune, sgr *types.Sgr, glyphSize *types.XY, renderer *s
 }
 
 func _newFontCacheDefaultLookup(chars []rune, glyphSize *types.XY) fontCacheDefaultLookupT {
+
 	m := make(fontCacheDefaultLookupT)
+
 	for i, r := range chars {
 		m[r] = &sdl.Rect{
 			X: int32(i) * glyphSize.X,
@@ -187,7 +194,6 @@ func _printCellToSurface(cell *types.Cell, cellRect *sdl.Rect, font *ttf.Font, s
 			c = textShadow
 		}
 		shadowText, err := font.RenderGlyphBlended(cell.Char, c)
-		//shadowText, err := font.RenderUTF8Blended(string(cell.Char), c)
 		if err != nil {
 			return err
 		}
@@ -201,18 +207,21 @@ func _printCellToSurface(cell *types.Cell, cellRect *sdl.Rect, font *ttf.Font, s
 
 	// render cell char
 	text, err := font.RenderGlyphBlended(cell.Char, sdl.Color{R: fg.Red, G: fg.Green, B: fg.Blue, A: 255})
-	//text, err := font.RenderUTF8Blended(string(cell.Char), sdl.Color{R: fg.Red, G: fg.Green, B: fg.Blue, A: 255})
 	if err != nil {
 		return err
 	}
 	defer text.Free()
 	if isCellHighlighted {
-		text.SetBlendMode(sdl.BLENDMODE_ADD)
+		_ = text.SetBlendMode(sdl.BLENDMODE_ADD)
 	}
 
 	err = text.Blit(nil, surface, cellRect)
 	if err != nil {
 		return err
+	}
+	if config.Config.Terminal.TypeFace.Ligatures && cell.Sgr.Bitwise.Is(types.SGR_BOLD) {
+		_ = text.SetBlendMode(sdl.BLENDMODE_ADD)
+		_ = text.Blit(nil, surface, cellRect)
 	}
 
 	return nil
@@ -268,11 +277,16 @@ func (sr *sdlRender) PrintCell(cell *types.Cell, cellPos *types.XY) {
 		return
 	}
 
+	var offset int32
+	if unsafe.Pointer(cell.Sgr.Bg) == unsafe.Pointer(types.SGR_DEFAULT.Bg) {
+		offset = dropShadowOffset
+	}
+
 	dstRect := &sdl.Rect{
 		X: (sr.glyphSize.X * cellPos.X) + sr.border,
 		Y: (sr.glyphSize.Y * cellPos.Y) + sr.border,
-		W: sr.glyphSize.X + dropShadowOffset,
-		H: sr.glyphSize.Y + dropShadowOffset,
+		W: sr.glyphSize.X + offset,
+		H: sr.glyphSize.Y + offset,
 	}
 
 	isCellHighlighted := isCellHighlighted(sr, dstRect)

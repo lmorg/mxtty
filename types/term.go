@@ -14,7 +14,7 @@ type Term interface {
 	CopySquare(*XY, *XY) []byte
 	Bg() *Colour
 	Reply([]byte)
-	MouseClick(*XY, uint8, uint8, EventIgnoredCallback)
+	MouseClick(*XY, uint8, uint8, bool, EventIgnoredCallback)
 	MouseWheel(*XY, *XY)
 	MouseMotion(*XY, *XY, EventIgnoredCallback)
 	ShowCursor(bool)

@@ -52,31 +52,28 @@ const (
 )
 
 func (tw *termWidgetT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEvent) {
+	posCell := sr.convertPxToCellXY(evt.X, evt.Y)
+
 	if evt.State == sdl.RELEASED {
+		sr.term.MouseClick(posCell, evt.Button, evt.Clicks, false, func() {})
 		return
 	}
 
-	/*posCell := &types.XY{
-		X: (evt.X - sr.border) / sr.glyphSize.X,
-		Y: (evt.Y - sr.border) / sr.glyphSize.Y,
-	}*/
-	posCell := sr.convertPxToCellXY(evt.X, evt.Y)
-
 	switch evt.Button {
 	case _MOUSE_BUTTON_LEFT:
-		sr.term.MouseClick(posCell, evt.Button, evt.Clicks, func() {
+		sr.term.MouseClick(posCell, evt.Button, evt.Clicks, true, func() {
 			highlighterStart(sr, evt)
 			sr.highlighter.setMode(_HIGHLIGHT_MODE_LINE_RANGE)
 		})
 
 	case _MOUSE_BUTTON_MIDDLE:
-		sr.term.MouseClick(posCell, evt.Button, evt.Clicks, sr.clipboardPasteText)
+		sr.term.MouseClick(posCell, evt.Button, evt.Clicks, true, sr.clipboardPasteText)
 
 	case _MOUSE_BUTTON_RIGHT:
-		sr.term.MouseClick(posCell, evt.Button, evt.Clicks, func() { highlighterStart(sr, evt) })
+		sr.term.MouseClick(posCell, evt.Button, evt.Clicks, true, func() { highlighterStart(sr, evt) })
 
 	case _MOUSE_BUTTON_X1:
-		sr.term.MouseClick(posCell, evt.Button, evt.Clicks, func() {
+		sr.term.MouseClick(posCell, evt.Button, evt.Clicks, true, func() {
 			highlighterStart(sr, evt)
 			sr.highlighter.setMode(_HIGHLIGHT_MODE_SQUARE)
 		})

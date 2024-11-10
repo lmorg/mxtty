@@ -10,10 +10,12 @@ func (term *Term) Render() {
 
 	cells := term.visibleScreen()
 
-	if config.Config.Terminal.TypeFace.Ligatures {
-		term._renderLigatures(cells)
-	} else {
+	term._blinkCursor()
+
+	if !config.Config.Terminal.TypeFace.Ligatures || term._mouseButtonDown {
 		term._renderCells(cells)
+	} else {
+		term._renderLigatures(cells)
 	}
 
 	term._blinkCursor()
@@ -76,7 +78,7 @@ func (term *Term) _renderLigatures(cells [][]types.Cell) {
 				}
 
 			case cells[pos.Y][pos.X].Char == 0:
-				fallthrough
+				continue
 
 			case cells[pos.Y][pos.X].Sgr == nil:
 				continue
@@ -85,8 +87,8 @@ func (term *Term) _renderLigatures(cells [][]types.Cell) {
 				newHash := cells[pos.Y][pos.X].Sgr.HashValue()
 				if hash != newHash {
 					term.renderer.PrintCellBlock(cells[pos.Y][start:pos.X], &types.XY{X: start, Y: pos.Y})
-					start = pos.X
 					hash = newHash
+					start = pos.X
 				}
 			}
 		}
@@ -102,7 +104,11 @@ func (term *Term) _blinkCursor() {
 		return
 	}
 
-	// copy cell
+	if term._slowBlinkState {
+		term.renderer.DrawHighlightRect(term.curPos(), &types.XY{1, 1})
+	}
+
+	/*// copy cell
 	cell := term.copyCurrentCell(term.currentCell())
 
 	// format cell
@@ -119,5 +125,5 @@ func (term *Term) _blinkCursor() {
 	}
 
 	// print cell
-	term.renderer.PrintCell(cell, term.curPos())
+	term.renderer.PrintCell(cell, term.curPos())*/
 }

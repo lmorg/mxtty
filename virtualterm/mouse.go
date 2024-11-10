@@ -7,8 +7,14 @@ import (
 	"github.com/lmorg/mxtty/types"
 )
 
-func (term *Term) MouseClick(pos *types.XY, button uint8, clicks uint8, callback types.EventIgnoredCallback) {
+func (term *Term) MouseClick(pos *types.XY, button uint8, clicks uint8, pressed bool, callback types.EventIgnoredCallback) {
 	//log.Printf("DEBUG: MouseClick(%d: %s)", button, json.LazyLogging(pos))
+
+	term._mouseButtonDown = pressed
+
+	if !pressed {
+		return
+	}
 
 	cells := term.visibleScreen()
 

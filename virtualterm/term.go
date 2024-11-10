@@ -67,6 +67,7 @@ type Term struct {
 	_hasFocus        bool
 	_activeElement   types.Element
 	_mouseIn         types.Element
+	_mouseButtonDown bool
 	_hasKeypress     chan bool
 
 	// character sets
