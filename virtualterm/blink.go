@@ -6,12 +6,16 @@ import (
 
 func (term *Term) slowBlink() {
 	for {
-		time.Sleep(500 * time.Millisecond)
-		if !term._hasFocus {
-			continue
-		}
+		select {
+		case <-time.After(500 * time.Millisecond):
+			if !term._hasFocus {
+				continue
+			}
+			term._slowBlinkState = !term._slowBlinkState
+			term.renderer.TriggerRedraw()
 
-		term._slowBlinkState = !term._slowBlinkState
-		term.renderer.TriggerRedraw()
+		case <-term._hasKeypress:
+			term._slowBlinkState = true
+		}
 	}
 }

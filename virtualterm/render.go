@@ -80,13 +80,6 @@ func (term *Term) _renderLigatures(cells [][]types.Cell) {
 
 			case cells[pos.Y][pos.X].Sgr == nil:
 				continue
-				if pos.X == 0 || cells[pos.Y][pos.X-1].Sgr == nil {
-					continue
-				}
-
-				term.renderer.PrintCellBlock(cells[pos.Y][start:pos.X-1], &types.XY{X: start, Y: pos.Y})
-				start = pos.X
-				hash = defaultHash
 
 			default:
 				newHash := cells[pos.Y][pos.X].Sgr.HashValue()

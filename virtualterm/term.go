@@ -67,6 +67,7 @@ type Term struct {
 	_hasFocus        bool
 	_activeElement   types.Element
 	_mouseIn         types.Element
+	_hasKeypress     chan bool
 
 	// character sets
 	_activeCharSet int
@@ -107,8 +108,9 @@ func (term *Term) lfRedraw() {
 // NewTerminal creates a new virtual term
 func NewTerminal(renderer types.Renderer, size *types.XY) *Term {
 	term := &Term{
-		renderer: renderer,
-		size:     size,
+		renderer:     renderer,
+		size:         size,
+		_hasKeypress: make(chan bool),
 	}
 
 	term.reset(size)
@@ -229,7 +231,13 @@ type scrollRegionT struct {
 	Bottom int32
 }
 
+func (term *Term) hasKeypress() {
+	term._hasKeypress <- true
+}
+
 func (term *Term) Reply(b []byte) {
+	go term.hasKeypress()
+
 	if term._scrollOffset != 0 && config.Config.Terminal.ScrollbackCloseKeyPress {
 		term._scrollOffset = 0
 		term.updateScrollback()

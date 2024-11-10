@@ -208,8 +208,10 @@ skipOrderGlyph:
 			if el.highlight.X-el.renderOffset <= el.boundaries[i] {
 				if i != 0 {
 					start = el.boundaries[i-1] + pos.X
+					end = int32(el.width[i]) + 2
+				} else {
+					end = int32(el.width[i]) + 2 + el.renderOffset
 				}
-				end = int32(el.width[i] + 2)
 				break
 			}
 		}
