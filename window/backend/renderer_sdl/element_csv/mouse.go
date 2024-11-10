@@ -116,7 +116,7 @@ func (el *ElementCsv) MouseMotion(pos *types.XY, move *types.XY, callback types.
 		}
 	}*/
 
-	if pos.Y < 1 || pos.X > el.boundaries[len(el.boundaries)-1] {
+	if pos.Y < 1 || int(pos.Y) > len(el.table) || pos.X > el.boundaries[len(el.boundaries)-1] {
 		el.highlight = nil
 		return
 	}

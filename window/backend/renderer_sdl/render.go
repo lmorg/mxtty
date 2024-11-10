@@ -163,15 +163,15 @@ func render(sr *sdlRender, term types.Term) error {
 		return nil
 	}
 
-	sr.renderStack(&sr._overlayStack)
-
-	sr.renderNotification(rect)
-
 	if sr.inputBox != nil {
 		sr.renderInputBox(rect)
 	} else {
 		sr.selectionHighlighter()
 	}
+
+	sr.renderStack(&sr._overlayStack)
+
+	sr.renderNotification(rect)
 
 	if atomic.CompareAndSwapInt32(&sr.updateTitle, 1, 0) {
 		sr.window.SetTitle(sr.title)

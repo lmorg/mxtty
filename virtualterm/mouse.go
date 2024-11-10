@@ -24,6 +24,7 @@ func (term *Term) MouseClick(pos *types.XY, button uint8, clicks uint8, pressed 
 	}
 
 	cells[pos.Y][pos.X].Element.MouseClick(cells[pos.Y][pos.X].ElementXY(), button, clicks, callback)
+	term._mouseButtonDown = false
 }
 
 func (term *Term) MouseWheel(pos *types.XY, movement *types.XY) {

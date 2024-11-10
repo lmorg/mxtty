@@ -149,6 +149,10 @@ func (el *ElementCsv) Rune(pos *types.XY) rune {
 		return el.top[pos.X]
 	}
 
+	if int(pos.Y) > len(el.table) {
+		return ' '
+	}
+
 	if int(pos.X) >= len(el.table[pos.Y-1]) {
 		return ' '
 	}

@@ -234,14 +234,15 @@ func (sr *sdlRender) renderInputBox(windowRect *sdl.Rect) {
 	}
 
 	if sr.blinkState {
-		sr.renderer.SetDrawColor(255, 255, 255, 255)
+		//sr.renderer.SetDrawColor(255, 255, 255, 255)
 		rect = sdl.Rect{
 			X: padding + sr.notifyIconSize.X + sr.border + width,
 			Y: sr.border + offset,
 			W: sr.glyphSize.X,
 			H: sr.glyphSize.Y,
 		}
-		sr.renderer.FillRect(&rect)
+		//sr.renderer.FillRect(&rect)
+		sr._drawHighlightRect(&rect, 255, 200)
 	}
 
 	texture, err := sr.renderer.CreateTextureFromSurface(surface)

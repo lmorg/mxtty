@@ -60,6 +60,11 @@ func (sr *sdlRender) DrawTable(pos *types.XY, height int32, boundaries []int32) 
 	}
 }
 
+const (
+	highlightAlphaBorder = 190
+	highlightAlphaFill   = 128
+)
+
 func (sr *sdlRender) DrawHighlightRect(topLeftCell, bottomRightCell *types.XY) {
 	sr._drawHighlightRect(
 		&sdl.Rect{
@@ -68,7 +73,7 @@ func (sr *sdlRender) DrawHighlightRect(topLeftCell, bottomRightCell *types.XY) {
 			W: (bottomRightCell.X * sr.glyphSize.X),
 			H: (bottomRightCell.Y * sr.glyphSize.Y),
 		},
-		190, 128)
+		highlightAlphaBorder, highlightAlphaFill)
 }
 
 func (sr *sdlRender) _drawHighlightRect(rect *sdl.Rect, alphaBorder, alphaFill byte) {
