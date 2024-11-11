@@ -12,7 +12,7 @@ func (term *Term) readLoop() {
 
 	for {
 		r = term.Pty.Read()
-		term._slowBlinkState = false
+		term._slowBlinkState = true
 
 		term._mutex.Lock()
 		term.readChar(r)
