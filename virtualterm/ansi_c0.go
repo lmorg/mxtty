@@ -31,8 +31,6 @@ func (term *Term) readChar(r rune) {
 
 	switch r {
 
-	case 0:
-
 	case 7:
 		// Ctrl+G: Bell (BELL)
 		term.renderer.Bell()
