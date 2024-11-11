@@ -10,7 +10,7 @@ func (term *Term) Render() {
 
 	cells := term.visibleScreen()
 
-	term._blinkCursor()
+	//term._blinkCursor()
 
 	if !config.Config.Terminal.TypeFace.Ligatures || term._mouseButtonDown {
 		term._renderCells(cells)
@@ -68,28 +68,29 @@ func (term *Term) _renderLigatures(cells [][]types.Cell) {
 
 		var start int32
 		for pos.X = 0; pos.X < term.size.X; pos.X++ {
-			switch {
-			case cells[pos.Y][pos.X].Element != nil:
+			newHash := ^uint64(0)
+			if cells[pos.Y][pos.X].Sgr != nil {
+				newHash = cells[pos.Y][pos.X].Sgr.HashValue()
+			}
+
+			if cells[pos.Y][pos.X].Element != nil {
 				_, ok := elementStack[cells[pos.Y][pos.X].Element]
 				if !ok {
 					elementStack[cells[pos.Y][pos.X].Element] = true
 					offset := getElementXY(cells[pos.Y][pos.X].Char)
 					cells[pos.Y][pos.X].Element.Draw(nil, &types.XY{X: pos.X - offset.X, Y: pos.Y - offset.Y})
 				}
+				newHash = ^uint64(0)
+			}
 
-			case cells[pos.Y][pos.X].Char == 0:
-				continue
+			if hash != newHash {
+				term.renderer.PrintCellBlock(cells[pos.Y][start:pos.X], &types.XY{X: start, Y: pos.Y})
+				hash = newHash
+				start = pos.X
+			}
 
-			case cells[pos.Y][pos.X].Sgr == nil:
-				continue
-
-			default:
-				newHash := cells[pos.Y][pos.X].Sgr.HashValue()
-				if hash != newHash {
-					term.renderer.PrintCellBlock(cells[pos.Y][start:pos.X], &types.XY{X: start, Y: pos.Y})
-					hash = newHash
-					start = pos.X
-				}
+			if cells[pos.Y][pos.X].Char == 0 || cells[pos.Y][pos.X].Element != nil {
+				start = pos.X + 1
 			}
 		}
 
@@ -106,24 +107,6 @@ func (term *Term) _blinkCursor() {
 
 	if term._slowBlinkState {
 		term.renderer.DrawHighlightRect(term.curPos(), &types.XY{1, 1})
+		term.renderer.DrawHighlightRect(term.curPos(), &types.XY{1, 1})
 	}
-
-	/*// copy cell
-	cell := term.copyCurrentCell(term.currentCell())
-
-	// format cell
-	if cell.Char == 0 {
-		cell.Char = ' '
-		cell.Sgr.Fg, cell.Sgr.Bg = types.BlinkColour[true], types.BlinkColour[false]
-		cell.Sgr.Bitwise = 0
-	} else {
-		cell.Sgr.Bg = term.sgr.Bg
-	}
-
-	if term._slowBlinkState {
-		cell.Sgr.Fg, cell.Sgr.Bg = cell.Sgr.Bg, cell.Sgr.Fg
-	}
-
-	// print cell
-	term.renderer.PrintCell(cell, term.curPos())*/
 }

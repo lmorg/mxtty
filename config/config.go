@@ -41,6 +41,7 @@ type configT struct {
 		ScrollbackCloseKeyPress bool `yaml:"ScrollbackCloseKeyPress"`
 		JumpScrollLineCount     int  `yaml:"JumpScrollLineCount"`
 		RefreshInterval         int  `yaml:"RefreshInterval"`
+		LightMode               bool `yaml:"LightMode"`
 
 		TypeFace struct {
 			FontName         string `yaml:"FontName"`

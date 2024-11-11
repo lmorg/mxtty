@@ -1,21 +1,78 @@
 package rendersdl
 
 import (
+	"time"
+
 	"github.com/lmorg/mxtty/config"
 	"github.com/lmorg/mxtty/types"
 	"github.com/lmorg/mxtty/window/backend/renderer_sdl/layer"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
+type cachedLigatureT struct {
+	texture *sdl.Texture
+	rect    *sdl.Rect
+	ttl     time.Time
+}
+
+type cachedLigaturesT struct {
+	cache map[uint64]map[string]*cachedLigatureT
+}
+
+var cachedLigatures = newCachedLigatures()
+
+func newCachedLigatures() *cachedLigaturesT {
+	cl := &cachedLigaturesT{
+		cache: make(map[uint64]map[string]*cachedLigatureT),
+	}
+
+	go func() {
+		time.Sleep(60 * time.Second)
+		for _, m := range cl.cache {
+			for s, cache := range m {
+				if cache.ttl.Before(time.Now()) {
+					cache.texture.Destroy()
+					delete(m, s)
+				}
+			}
+		}
+	}()
+
+	return cl
+}
+
+// Get returns nil if unsuccessful
+func (cl *cachedLigaturesT) Get(hash uint64, text string) *cachedLigatureT {
+	m, ok := cl.cache[hash]
+	if !ok {
+		return nil
+	}
+
+	cache, ok := m[text]
+	if ok {
+		cache.ttl = time.Now().Add(5 * time.Second)
+	}
+	return cache
+}
+
+func (cl *cachedLigaturesT) Store(hash uint64, text string, texture *sdl.Texture, rect *sdl.Rect) {
+	m, ok := cl.cache[hash]
+	if !ok {
+		cl.cache[hash] = make(map[string]*cachedLigatureT)
+		m = cl.cache[hash]
+	}
+	m[text] = &cachedLigatureT{
+		texture: texture,
+		rect:    rect,
+		ttl:     time.Now().Add(20 * time.Second),
+	}
+}
+
 // PrintCellBlock is much slower because it doesn't cache textures
 func (sr *sdlRender) PrintCellBlock(cells []types.Cell, cellPos *types.XY) {
-	var r []rune
-	for i := range cells {
-		if cells[i].Char == 0 || cells[i].Element != nil {
-			break
-		}
-
-		r = append(r, cells[i].Char)
+	r := make([]rune, len(cells))
+	for i := 0; i < len(r); i++ {
+		r[i] = cells[i].Char
 	}
 
 	if len(r) == 0 {
@@ -23,6 +80,18 @@ func (sr *sdlRender) PrintCellBlock(cells []types.Cell, cellPos *types.XY) {
 	}
 
 	s := string(r)
+	hash := cells[0].Sgr.HashValue()
+	cache := cachedLigatures.Get(hash, s)
+	if cache != nil {
+		dstRect := &sdl.Rect{
+			X: (sr.glyphSize.X * cellPos.X) + sr.border,
+			Y: (sr.glyphSize.Y * cellPos.Y) + sr.border,
+			W: cache.rect.W,
+			H: cache.rect.H,
+		}
+		sr.AddToElementStack(&layer.RenderStackT{cache.texture, cache.rect, dstRect, false})
+		return
+	}
 
 	surface := _newFontSurface(sr.glyphSize, int32(len(cells)))
 	defer surface.Free()
@@ -44,19 +113,14 @@ func (sr *sdlRender) PrintCellBlock(cells []types.Cell, cellPos *types.XY) {
 	// render background colour
 
 	if bg != nil {
-		var pixel uint32
-		//if isCellHighlighted {
-		//	pixel = sdl.MapRGBA(surface.Format, textHighlight.R, textHighlight.G, textHighlight.B, 255)
-		//} else {
-		pixel = sdl.MapRGBA(surface.Format, bg.Red, bg.Green, bg.Blue, 255)
-		//}
+		pixel := sdl.MapRGBA(surface.Format, bg.Red, bg.Green, bg.Blue, 255)
 		err := surface.FillRect(cellBlockRect, pixel)
 		if err != nil {
 			panic(err) // TODO: better error handling please!
 		}
 	}
 
-	if config.Config.Terminal.TypeFace.DropShadow && bg == nil { // (bg == nil) || isCellHighlighted) {
+	if config.Config.Terminal.TypeFace.DropShadow && bg == nil {
 		shadowRect := &sdl.Rect{
 			X: cellBlockRect.X + dropShadowOffset,
 			Y: cellBlockRect.Y + dropShadowOffset,
@@ -64,13 +128,7 @@ func (sr *sdlRender) PrintCellBlock(cells []types.Cell, cellPos *types.XY) {
 			H: cellBlockRect.H,
 		}
 
-		var c sdl.Color
-		//if isCellHighlighted && bg == nil {
-		//	c = textHighlight
-		//} else {
-		c = textShadow
-		//}
-		//shadowText, err := font.RenderGlyphBlended(cell.Char, c)
+		c := textShadow
 		shadowText, err := sr.font.RenderUTF8Blended(s, c)
 		if err != nil {
 			panic(err) // TODO: better error handling please!
@@ -84,15 +142,11 @@ func (sr *sdlRender) PrintCellBlock(cells []types.Cell, cellPos *types.XY) {
 	}
 
 	// render cell char
-	//text, err := font.RenderGlyphBlended(cell.Char, sdl.Color{R: fg.Red, G: fg.Green, B: fg.Blue, A: 255})
 	text, err := sr.font.RenderUTF8Blended(s, sdl.Color{R: fg.Red, G: fg.Green, B: fg.Blue, A: 255})
 	if err != nil {
 		panic(err) // TODO: better error handling please!
 	}
 	defer text.Free()
-	//if isCellHighlighted {
-	//	text.SetBlendMode(sdl.BLENDMODE_ADD)
-	//}
 
 	err = text.Blit(nil, surface, cellBlockRect)
 	if err != nil {
@@ -118,5 +172,6 @@ func (sr *sdlRender) PrintCellBlock(cells []types.Cell, cellPos *types.XY) {
 		H: cellBlockRect.H, // + dropShadowOffset,
 	}
 
-	sr.AddToElementStack(&layer.RenderStackT{texture, cellBlockRect, dstRect, true})
+	sr.AddToElementStack(&layer.RenderStackT{texture, cellBlockRect, dstRect, false})
+	cachedLigatures.Store(hash, s, texture, cellBlockRect)
 }

@@ -4,9 +4,9 @@ Shell:
 
 Terminal:
   TypeFace:
-    FontName: "Hasklig-Regular"
+    #FontName: "Hasklig-Regular"
     FontSize: 14
-    Ligatures: true # disables font texture caching
+    Ligatures: true # increases system requirements
     DropShadow: true
     AdjustCellWidth:  0
     AdjustCellHeight: +1
@@ -14,6 +14,7 @@ Terminal:
   ScrollbackCloseKeyPress: true # close scrollback on key press
   JumpScrollLineCount: -1  # lines, 0 is per character, -1 is per page
   RefreshInterval: 200     # 0 disables
+  #LightMode: true
 
 Window:
   Opacity: 90 # %age

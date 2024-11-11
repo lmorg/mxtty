@@ -3,14 +3,13 @@ package main
 import (
 	"github.com/lmorg/mxtty/debug/pprof"
 	"github.com/lmorg/mxtty/ptty"
-	"github.com/lmorg/mxtty/utils/exit"
 	"github.com/lmorg/mxtty/virtualterm"
 	"github.com/lmorg/mxtty/window/backend"
 )
 
 func main() {
 	pprof.Start()
-	defer exit.Exit(0)
+	//defer exit.Exit(0)
 
 	getFlags()
 

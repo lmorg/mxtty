@@ -94,6 +94,8 @@ func (sr *sdlRender) createWindow(caption string) error {
 
 	sr.initBell()
 
+	setLghtOrDarkMode()
+
 	sr.renderer, err = sdl.CreateRenderer(sr.window, -1, sdl.RENDERER_ACCELERATED)
 	if err != nil {
 		return err
@@ -127,4 +129,15 @@ func (sr *sdlRender) setIcon() error {
 func (sr *sdlRender) setTypeFace(f *ttf.Font) {
 	sr.font = f
 	sr.glyphSize = typeface.GetSize()
+}
+
+func setLghtOrDarkMode() {
+	if config.Config.Terminal.LightMode {
+		highlightBlendMode = sdl.BLENDMODE_BLEND
+		textShadow.A = 32
+		types.SGR_DEFAULT.Fg, types.SGR_DEFAULT.Bg = types.SGR_DEFAULT.Bg, types.SGR_DEFAULT.Fg
+	} else {
+		highlightBlendMode = sdl.BLENDMODE_ADD
+		textShadow.A = 255
+	}
 }

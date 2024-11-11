@@ -14,7 +14,7 @@ import (
 const dropShadowOffset int32 = 2
 
 var (
-	textShadow    = sdl.Color{R: 0, G: 0, B: 0, A: 255}
+	textShadow    = sdl.Color{R: 0, G: 0, B: 0, A: 0} // A controlled by LightMode
 	textHighlight = sdl.Color{R: 50, G: 50, B: 255, A: 255}
 )
 

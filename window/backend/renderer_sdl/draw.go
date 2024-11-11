@@ -65,6 +65,8 @@ const (
 	highlightAlphaFill   = 128
 )
 
+var highlightBlendMode sdl.BlendMode // controlled by LightMode
+
 func (sr *sdlRender) DrawHighlightRect(topLeftCell, bottomRightCell *types.XY) {
 	sr._drawHighlightRect(
 		&sdl.Rect{
@@ -83,7 +85,7 @@ func (sr *sdlRender) _drawHighlightRect(rect *sdl.Rect, alphaBorder, alphaFill b
 	}
 	defer sr.renderer.SetRenderTarget(nil)
 
-	err := texture.SetBlendMode(sdl.BLENDMODE_ADD)
+	err := texture.SetBlendMode(highlightBlendMode)
 	if err != nil {
 		log.Printf("ERROR: %v", err)
 	}

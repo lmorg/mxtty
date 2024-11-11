@@ -323,11 +323,6 @@ func (term *Term) csiScrollDown(n int32) {
 func (term *Term) _scrollDown(top, bottom, shift int32) {
 	screen := term.makeScreen()
 
-	//if top+shift > bottom {
-	//	copy((*term.cells)[top:bottom+1], screen)
-	//	return
-	//}
-
 	copy(screen[top+shift:], (*term.cells)[top:bottom+1])
 	copy((*term.cells)[top:], screen[top:bottom+1])
 }
