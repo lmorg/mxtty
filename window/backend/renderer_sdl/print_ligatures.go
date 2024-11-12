@@ -1,6 +1,7 @@
 package rendersdl
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/lmorg/mxtty/config"
@@ -80,6 +81,7 @@ func (sr *sdlRender) PrintCellBlock(cells []types.Cell, cellPos *types.XY) {
 	}
 
 	s := string(r)
+
 	hash := cells[0].Sgr.HashValue()
 	cache := cachedLigatures.Get(hash, s)
 	if cache != nil {
@@ -116,7 +118,7 @@ func (sr *sdlRender) PrintCellBlock(cells []types.Cell, cellPos *types.XY) {
 		pixel := sdl.MapRGBA(surface.Format, bg.Red, bg.Green, bg.Blue, 255)
 		err := surface.FillRect(cellBlockRect, pixel)
 		if err != nil {
-			panic(err) // TODO: better error handling please!
+			panic(fmt.Sprintf("error printing '%s' (%d): %v", s, len(s), err)) // TODO: better error handling please!
 		}
 	}
 
@@ -131,20 +133,20 @@ func (sr *sdlRender) PrintCellBlock(cells []types.Cell, cellPos *types.XY) {
 		c := textShadow
 		shadowText, err := sr.font.RenderUTF8Blended(s, c)
 		if err != nil {
-			panic(err) // TODO: better error handling please!
+			panic(fmt.Sprintf("error printing '%s' (%d): %v", s, len(s), err)) // TODO: better error handling please!
 		}
 		defer shadowText.Free()
 
 		err = shadowText.Blit(nil, surface, shadowRect)
 		if err != nil {
-			panic(err) // TODO: better error handling please!
+			panic(fmt.Sprintf("error printing '%s' (%d): %v", s, len(s), err)) // TODO: better error handling please!
 		}
 	}
 
 	// render cell char
 	text, err := sr.font.RenderUTF8Blended(s, sdl.Color{R: fg.Red, G: fg.Green, B: fg.Blue, A: 255})
 	if err != nil {
-		panic(err) // TODO: better error handling please!
+		panic(fmt.Sprintf("error printing '%s' (%d): %v", s, len(s), err)) // TODO: better error handling please!
 	}
 	defer text.Free()
 
@@ -156,13 +158,13 @@ func (sr *sdlRender) PrintCellBlock(cells []types.Cell, cellPos *types.XY) {
 		text.SetBlendMode(sdl.BLENDMODE_ADD)
 		err = text.Blit(nil, surface, cellBlockRect)
 		if err != nil {
-			panic(err) // TODO: better error handling please!
+			panic(fmt.Sprintf("error printing '%s' (%d): %v", s, len(s), err)) // TODO: better error handling please!
 		}
 	}
 
 	texture, err := sr.renderer.CreateTextureFromSurface(surface)
 	if err != nil {
-		panic(err) // TODO: better error handling please!
+		panic(fmt.Sprintf("error printing '%s' (%d): %v", s, len(s), err)) // TODO: better error handling please!
 	}
 
 	dstRect := &sdl.Rect{

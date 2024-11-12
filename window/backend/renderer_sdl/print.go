@@ -58,14 +58,9 @@ func NewFontCache(sr *sdlRender) *fontCacheT {
 }
 
 func newFontAtlas(chars []rune, sgr *types.Sgr, glyphSize *types.XY, renderer *sdl.Renderer, font *ttf.Font) *fontAtlasT {
-	var offset int32
-	if unsafe.Pointer(sgr.Bg) == unsafe.Pointer(types.SGR_DEFAULT.Bg) {
-		offset = dropShadowOffset
-	}
-
 	glyphSizePlusShadow := &types.XY{
-		X: glyphSize.X + offset,
-		Y: glyphSize.Y + offset,
+		X: glyphSize.X + dropShadowOffset,
+		Y: glyphSize.Y + dropShadowOffset,
 	}
 
 	return &fontAtlasT{
@@ -149,13 +144,19 @@ func (fa *fontAtlasT) Render(sr *sdlRender, dstRect *sdl.Rect, r rune, hash uint
 	}
 
 	srcRect, ok := fa.lookup[r]
-	if ok {
-		if isCellHighlighted {
-			sr.AddToElementStack(&layer.RenderStackT{fa.highlight, srcRect, dstRect, false})
-		} else {
-			sr.AddToElementStack(&layer.RenderStackT{fa.normal, srcRect, dstRect, false})
-		}
+	if !ok {
+		return false
 	}
+
+	var texture *sdl.Texture
+	if isCellHighlighted {
+		texture = fa.highlight
+	} else {
+		texture = fa.normal
+	}
+
+	sr.AddToElementStack(&layer.RenderStackT{texture, srcRect, dstRect, false})
+
 	return ok
 }
 
@@ -171,7 +172,13 @@ func _printCellToSurface(cell *types.Cell, cellRect *sdl.Rect, font *ttf.Font, s
 		} else {
 			pixel = sdl.MapRGBA(surface.Format, bg.Red, bg.Green, bg.Blue, 255)
 		}
-		err := surface.FillRect(cellRect, pixel)
+		fillRect := &sdl.Rect{
+			X: cellRect.X,
+			Y: cellRect.Y,
+			W: cellRect.W - dropShadowOffset,
+			H: cellRect.H - dropShadowOffset - 1,
+		}
+		err := surface.FillRect(fillRect, pixel)
 		if err != nil {
 			return err
 		}
@@ -211,6 +218,7 @@ func _printCellToSurface(cell *types.Cell, cellRect *sdl.Rect, font *ttf.Font, s
 		return err
 	}
 	defer text.Free()
+
 	if isCellHighlighted {
 		_ = text.SetBlendMode(sdl.BLENDMODE_ADD)
 	}
@@ -277,16 +285,11 @@ func (sr *sdlRender) PrintCell(cell *types.Cell, cellPos *types.XY) {
 		return
 	}
 
-	var offset int32
-	if unsafe.Pointer(cell.Sgr.Bg) == unsafe.Pointer(types.SGR_DEFAULT.Bg) {
-		offset = dropShadowOffset
-	}
-
 	dstRect := &sdl.Rect{
 		X: (sr.glyphSize.X * cellPos.X) + sr.border,
 		Y: (sr.glyphSize.Y * cellPos.Y) + sr.border,
-		W: sr.glyphSize.X + offset,
-		H: sr.glyphSize.Y + offset,
+		W: sr.glyphSize.X + dropShadowOffset,
+		H: sr.glyphSize.Y + dropShadowOffset,
 	}
 
 	isCellHighlighted := isCellHighlighted(sr, dstRect)

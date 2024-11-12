@@ -1,6 +1,8 @@
 package rendersdl
 
 import (
+	"fmt"
+
 	"github.com/lmorg/mxtty/codes"
 	"github.com/lmorg/mxtty/debug"
 	"github.com/lmorg/mxtty/types"
@@ -10,10 +12,12 @@ import (
 type termWidgetT struct{}
 
 func (tw *termWidgetT) eventTextInput(sr *sdlRender, evt *sdl.TextInputEvent) {
+	sr.footerText = ""
 	sr.term.Reply([]byte(evt.GetText()))
 }
 
 func (tw *termWidgetT) eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) {
+	sr.footerText = ""
 	sr.keyModifier = evt.Keysym.Mod
 
 	debug.Log(evt.Keysym.Sym)
@@ -70,17 +74,21 @@ func (tw *termWidgetT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEvent
 		sr.term.MouseClick(posCell, evt.Button, evt.Clicks, true, sr.clipboardPasteText)
 
 	case _MOUSE_BUTTON_RIGHT:
-		sr.term.MouseClick(posCell, evt.Button, evt.Clicks, true, func() { highlighterStart(sr, evt) })
+		sr.term.MouseClick(posCell, evt.Button, evt.Clicks, true, sr.clipboardPasteText)
 
 	case _MOUSE_BUTTON_X1:
-		sr.term.MouseClick(posCell, evt.Button, evt.Clicks, true, func() {
-			highlighterStart(sr, evt)
-			sr.highlighter.setMode(_HIGHLIGHT_MODE_SQUARE)
-		})
+		sr.term.MouseClick(posCell, evt.Button, evt.Clicks, true, func() {})
 	}
 }
 
+var _highlighterStartFooterText = fmt.Sprintf(
+	"Copy to clipboard: [%s] Square region  |  [%s] Text region  |  [%s] Entire line(s)  |  [%s] PNG",
+	types.KEY_STR_CTRL, types.KEY_STR_SHIFT, types.KEY_STR_ALT, types.KEY_STR_META,
+)
+
 func highlighterStart(sr *sdlRender, evt *sdl.MouseButtonEvent) {
+	sr.footerText = _highlighterStartFooterText
+
 	sr.highlighter = &highlighterT{
 		button: evt.Button,
 		rect:   &sdl.Rect{X: evt.X, Y: evt.Y},
@@ -92,23 +100,7 @@ func highlighterStart(sr *sdlRender, evt *sdl.MouseButtonEvent) {
 }
 
 func (tw *termWidgetT) eventMouseWheel(sr *sdlRender, evt *sdl.MouseWheelEvent) {
-	//posCell := new(types.XY)
-
 	mouseX, mouseY, _ := sdl.GetMouseState()
-	/*winX, winY := sr.window.GetPosition()
-	debug.Log(fmt.Sprintf("mouse (1st): %dx%d, win: %dx%d", mouseX, mouseY, winX, winY))
-	mouseX -= winX
-	mouseY -= winY
-	debug.Log(fmt.Sprintf("mouse (2nd): %dx%d", mouseX, mouseY))
-
-	winW, winH := sr.window.GetSize()
-	debug.Log(fmt.Sprintf("win: %dx%d", winW, winH))
-
-	if mouseX > 0 && mouseX < winW && mouseY > 0 && mouseY < winH {
-	posCell.X = (mouseX - sr.border) / sr.glyphSize.X
-	posCell.Y = (mouseY - sr.border) / sr.glyphSize.Y
-		debug.Log(fmt.Sprintf("inside: %dx%d", posCell.X, posCell.Y))
-	}*/
 
 	if evt.Direction == sdl.MOUSEWHEEL_FLIPPED {
 		sr.term.MouseWheel(sr.convertPxToCellXY(mouseX, mouseY), &types.XY{X: evt.X, Y: -evt.Y})
@@ -124,6 +116,10 @@ func (tw *termWidgetT) eventMouseMotion(sr *sdlRender, evt *sdl.MouseMotionEvent
 			X: evt.XRel / sr.glyphSize.X,
 			Y: evt.YRel / sr.glyphSize.Y,
 		},
-		func() {},
+		sr._termMouseMotionCallback,
 	)
+}
+
+func (sr *sdlRender) _termMouseMotionCallback() {
+	sr.footerText = "[left click] Copy  |  [right click] Paste  |  [wheel] Scrollback buffer"
 }

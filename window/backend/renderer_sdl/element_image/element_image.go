@@ -102,6 +102,9 @@ func (el *ElementImage) MouseWheel(_ *types.XY, _ *types.XY, callback types.Even
 	callback()
 }
 func (el *ElementImage) MouseMotion(_ *types.XY, _ *types.XY, callback types.EventIgnoredCallback) {
+	el.renderer.StatusbarText("[click] Open image full screen")
 	callback()
 }
-func (el *ElementImage) MouseOut() {}
+func (el *ElementImage) MouseOut() {
+	el.renderer.StatusbarText("")
+}

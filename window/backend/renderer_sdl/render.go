@@ -146,6 +146,7 @@ func render(sr *sdlRender, term types.Term) error {
 
 	sr.drawBg(term, rect)
 	term.Render()
+	sr.renderFooter()
 
 	if sr.highlighter != nil && sr.highlighter.button == 0 {
 		texture := sr.createRendererTexture()

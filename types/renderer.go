@@ -11,6 +11,7 @@ type Renderer interface {
 	DrawHighlightRect(*XY, *XY)
 	GetWindowTitle() string
 	SetWindowTitle(string)
+	StatusbarText(string)
 	Bell()
 	TriggerRedraw()
 	TriggerQuit()

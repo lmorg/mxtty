@@ -65,6 +65,13 @@ func (hl *highlighterT) modifier(mod uint16) {
 		fallthrough
 	case mod&sdl.KMOD_RALT != 0:
 		hl.setMode(_HIGHLIGHT_MODE_FULL_LINES)
+
+	case mod&sdl.KMOD_GUI != 0:
+		fallthrough
+	case mod&sdl.KMOD_LGUI != 0:
+		fallthrough
+	case mod&sdl.KMOD_RGUI != 0:
+		hl.setMode(_HIGHLIGHT_MODE_PNG)
 	}
 }
 
@@ -80,6 +87,7 @@ func (hl *highlighterT) setMode(mode _highlightMode) {
 
 func (hl *highlighterT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEvent) {
 	if evt.State == sdl.RELEASED {
+		sr.StatusbarText("")
 		sr.term.MouseClick(nil, 0, 0, false, func() {})
 	}
 

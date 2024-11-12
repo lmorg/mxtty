@@ -107,14 +107,16 @@ func (el *ElementCsv) MouseWheel(_ *types.XY, movement *types.XY, callback types
 }
 
 func (el *ElementCsv) MouseMotion(pos *types.XY, move *types.XY, callback types.EventIgnoredCallback) {
-	/*pos.X -= el.renderOffset
+	switch {
+	case pos.Y == 0:
+		el.renderer.StatusbarText("[left click] Sort row (ASC|DESC)  |  [right click] Remove sort  |  [left|right scroll] Scroll table width")
 
-	var column int
-	for column = range el.boundaries {
-		if int(pos.X) < int(el.boundaries[column]) {
-			break
-		}
-	}*/
+	case int(pos.Y) <= len(el.table):
+		el.renderer.StatusbarText("[click] Copy cell text to clipboard  |  [2x click] Filter table (SQL)  |  [left|right scroll] Scroll table width")
+
+	default:
+		el.renderer.StatusbarText("")
+	}
 
 	if pos.Y < 1 || int(pos.Y) > len(el.table) || pos.X > el.boundaries[len(el.boundaries)-1] {
 		el.highlight = nil
@@ -123,11 +125,10 @@ func (el *ElementCsv) MouseMotion(pos *types.XY, move *types.XY, callback types.
 
 	el.highlight = pos
 	el.renderer.TriggerRedraw()
-
-	//callback()
 }
 
 func (el *ElementCsv) MouseOut() {
+	el.renderer.StatusbarText("")
 	el.highlight = nil
 	el.renderer.TriggerRedraw()
 }

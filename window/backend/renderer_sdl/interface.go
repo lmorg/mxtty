@@ -13,8 +13,6 @@ import (
 	"golang.design/x/hotkey"
 )
 
-const footer = 0
-
 type sdlRender struct {
 	window    *sdl.Window
 	renderer  *sdl.Renderer
@@ -31,6 +29,7 @@ type sdlRender struct {
 	// title
 	title       string
 	updateTitle int32
+	footerText  string
 
 	// audio
 	bell *mix.Music

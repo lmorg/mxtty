@@ -29,11 +29,13 @@ func (sr *sdlRender) DisplayInputBox(message string, defaultValue string, callba
 		Callback: callback,
 	}
 
+	sr.footerText = "[RETURN] Ok  |  [ESC] Cancel"
 	sr.term.ShowCursor(false)
 	go sr.inputBoxCursorBlink()
 }
 
 func (sr *sdlRender) closeInputBox() {
+	sr.footerText = ""
 	sr.inputBox = nil
 	sr.term.ShowCursor(true)
 }

@@ -45,6 +45,9 @@ func (term *Term) _renderCells(cells [][]types.Cell) {
 				continue
 
 			default:
+				if cells[pos.Y][pos.X].Sgr.Bitwise.Is(types.SGR_SLOW_BLINK) && !term._slowBlinkState {
+					continue // blink
+				}
 				term.renderer.PrintCell(&cells[pos.Y][pos.X], pos)
 			}
 		}
@@ -84,6 +87,9 @@ func (term *Term) _renderLigatures(cells [][]types.Cell) {
 			}
 
 			if hash != newHash {
+				if cells[pos.Y][start].Sgr != nil && cells[pos.Y][start].Sgr.Bitwise.Is(types.SGR_SLOW_BLINK) && !term._slowBlinkState {
+					continue // blink
+				}
 				term.renderer.PrintCellBlock(cells[pos.Y][start:pos.X], &types.XY{X: start, Y: pos.Y})
 				hash = newHash
 				start = pos.X
@@ -95,6 +101,9 @@ func (term *Term) _renderLigatures(cells [][]types.Cell) {
 		}
 
 		if start < pos.X {
+			if cells[pos.Y][start].Sgr != nil && cells[pos.Y][start].Sgr.Bitwise.Is(types.SGR_SLOW_BLINK) && !term._slowBlinkState {
+				continue // blink
+			}
 			term.renderer.PrintCellBlock(cells[pos.Y][start:], &types.XY{X: start, Y: pos.Y})
 		}
 	}

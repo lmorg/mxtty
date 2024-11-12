@@ -1,13 +1,15 @@
 package rendersdl
 
 import (
+	"fmt"
 	"sync/atomic"
 
+	"github.com/lmorg/mxtty/app"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
 func (sr *sdlRender) SetWindowTitle(title string) {
-	sr.title = title
+	sr.title = fmt.Sprintf("%s: %s", app.Name, title)
 	atomic.CompareAndSwapInt32(&sr.updateTitle, 0, 1)
 }
 
