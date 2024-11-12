@@ -157,7 +157,7 @@ eg `xterm` and similar terminal emulators
 
 - [x] Supports `tmux`
   - [x] usable
-  - [ ] glitch-free
+  - [x] glitch-free
 - [x] Supports `vim`
   - [x] usable
   - [x] glitch-free
@@ -170,7 +170,7 @@ eg `xterm` and similar terminal emulators
 - [x] Terminal can be resized
 - [x] Scrollback history
   - [x] usability hints added
-- [ ] discoverability hints added
+- [x] discoverability hints added
 - [x] Typeface can be changed
 - [ ] Colour scheme can be changed
 - [ ] Bell can be changed
