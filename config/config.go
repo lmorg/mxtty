@@ -57,4 +57,8 @@ type configT struct {
 		Opacity  int      `yaml:"Opacity"`
 		Fallback []string `yaml:"Fallback"`
 	} `yaml:"Window"`
+
+	Tmux struct {
+		Enabled bool `yaml:"Enabled"`
+	} `yaml:"Tmux"`
 }

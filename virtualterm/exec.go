@@ -21,6 +21,10 @@ func init() {
 }
 
 func (term *Term) exec() {
+	if term.Pty.File() == nil {
+		return
+	}
+
 	var defaultErr, fallbackErr error
 	if len(config.Config.Shell.Default) == 0 {
 		goto fallback

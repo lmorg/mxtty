@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/lmorg/mxtty/codes"
-	"github.com/lmorg/mxtty/debug"
 	"github.com/lmorg/mxtty/types"
 	"github.com/veandco/go-sdl2/sdl"
 )
@@ -19,8 +18,6 @@ func (tw *termWidgetT) eventTextInput(sr *sdlRender, evt *sdl.TextInputEvent) {
 func (tw *termWidgetT) eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) {
 	sr.footerText = ""
 	sr.keyModifier = evt.Keysym.Mod
-
-	debug.Log(evt.Keysym.Sym)
 
 	switch evt.Keysym.Sym {
 	case sdl.K_LSHIFT, sdl.K_RSHIFT, sdl.K_LALT, sdl.K_RALT,

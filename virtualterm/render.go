@@ -6,6 +6,10 @@ import (
 )
 
 func (term *Term) Render() {
+	if term.hidden {
+		return
+	}
+
 	term._mutex.Lock()
 
 	cells := term.visibleScreen()

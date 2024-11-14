@@ -19,7 +19,6 @@ var (
 )
 
 var (
-	//fontAtlas                 fontAtlasT
 	fontAtlasCharacterPreload = []string{
 		" ",                          // whitespace
 		"1234567890",                 // numeric
@@ -27,9 +26,10 @@ var (
 		"ABCDEFGHIJKLMNOPQRSTUVWXYZ", // alpha, upper
 		"`",                          // backtick
 		`!"£$%^&*()-=_+`,             // special, top row
-		`[]{};'#:@~\|,./<>?`,         // special others
+		`[]{};'#:@~\|,./<>?`,         // special, others ascii
+		`↑↓`,                         // special, mxtty
 		`»…`,                         // murex
-		`┏┓┗┛━─╶┃┠┨╔╗╚╝═║╟╢█`, //        box drawings
+		`┏┓┗┛━─╶┃┠┨╔╗╚╝═║╟╢█`, //     // box drawing
 	}
 )
 
