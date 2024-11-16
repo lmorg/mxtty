@@ -51,6 +51,7 @@ func Initialise() (types.Renderer, *types.XY) {
 
 	sr._quit = make(chan bool)
 	sr._redraw = make(chan bool)
+	sr.ligCache = newCachedLigatures(sr)
 
 	font, err := typeface.Open(
 		config.Config.Terminal.TypeFace.FontName,

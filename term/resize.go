@@ -1,7 +1,6 @@
 package virtualterm
 
 import (
-	"github.com/creack/pty"
 	"github.com/lmorg/mxtty/debug"
 	"github.com/lmorg/mxtty/types"
 	"golang.org/x/sys/unix"
@@ -72,21 +71,21 @@ func (term *Term) Resize(size *types.XY) {
 }
 
 func (term *Term) resizePty() {
-	if term.Pty == nil || term.process == nil {
-		debug.Log("cannot resize pty")
+	if term.Pty == nil {
+		debug.Log("cannot resize pt: term.Pty == nil")
 		return
 	}
 
-	err := pty.Setsize(term.Pty.File(), &pty.Winsize{
-		Cols: uint16(term.size.X),
-		Rows: uint16(term.size.Y),
-	})
+	err := term.Pty.Resize(term.size)
 	if err != nil {
-		debug.Log(err)
+		term.renderer.DisplayNotification(types.NOTIFY_ERROR, err.Error())
 	}
-	err = term.process.Signal(unix.SIGWINCH)
-	if err != nil {
-		debug.Log(err)
+
+	if term.process != nil {
+		err = term.process.Signal(unix.SIGWINCH)
+		if err != nil {
+			debug.Log(err)
+		}
 	}
 }
 

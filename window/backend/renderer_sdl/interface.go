@@ -18,6 +18,7 @@ type sdlRender struct {
 	window    *sdl.Window
 	renderer  *sdl.Renderer
 	fontCache *fontCacheT
+	ligCache  *cachedLigaturesT
 	glyphSize *types.XY
 	term      types.Term
 	limiter   sync.Mutex

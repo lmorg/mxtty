@@ -43,52 +43,28 @@ import (
 	window_zoomed_flag           1 if window is zoomed
 */
 
-var CMD_LIST_WINDOWS = &cmdDefinitionT{
-	cmd: "list-windows",
-	fields: []cmdFieldT{
-		{
-			name:   "Name",
-			format: "window_name",
-		},
-		{
-			name:   "Id",
-			format: "window_id",
-		},
-		{
-			name:   "Width",
-			format: "window_width",
-		},
-		{
-			name:   "Height",
-			format: "window_height",
-		},
-		{
-			name:   "Active",
-			format: "?window_active,true,false",
-		},
-	},
-}
+var CMD_LIST_WINDOWS = "list-windows"
 
-type windowT struct {
-	Name       string
-	Id         string
-	Width      int
-	Height     int
-	Active     bool
-	panes      map[string]*paneT
-	activePane *paneT
+type WINDOW_T struct {
+	Name       string `tmux:"window_name"`
+	Id         string `tmux:"window_id"`
+	Width      int    `tmux:"window_width"`
+	Height     int    `tmux:"window_height"`
+	Active     bool   `tmux:"?window_active,true,false"`
+	panes      map[string]*PANE_T
+	activePane *PANE_T
 }
 
 func (tmux *Tmux) initSessionWindows() error {
-	windows, err := tmux.sendCommand(CMD_LIST_WINDOWS, reflect.TypeOf(windowT{}))
+	windows, err := tmux.sendCommand(CMD_LIST_WINDOWS, reflect.TypeOf(WINDOW_T{}))
 	if err != nil {
 		return err
 	}
 
-	tmux.wins = make(map[string]*windowT)
+	tmux.wins = make(map[string]*WINDOW_T)
 
 	for i := range windows.([]any) {
-		win := windows.([]any)[i].(*windowT)
+		win := windows.([]any)[i].(*WINDOW_T)
 		tmux.wins[win.Id] = win
 		if win.Active {
 			tmux.activeWindow = win

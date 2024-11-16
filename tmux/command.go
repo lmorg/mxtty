@@ -9,29 +9,8 @@ import (
 
 const _SEPARATOR = `|||`
 
-type cmdDefinitionT struct {
-	cmd    string
-	fields []cmdFieldT
-}
-
-type cmdFieldT struct {
-	name   string
-	format string
-}
-
-func (def *cmdDefinitionT) CmdLine(parameters ...string) []byte {
-	var fields []string
-	for i := range def.fields {
-		fields = append(fields, fmt.Sprintf(`%s:#{%s}`, def.fields[i].name, def.fields[i].format))
-	}
-
-	s := fmt.Sprintf("%s %s -F '%s'", def.cmd, strings.Join(parameters, " "), strings.Join(fields, _SEPARATOR))
-
-	return []byte(s)
-}
-
-func (tmux *Tmux) sendCommand(cmd *cmdDefinitionT, t reflect.Type, parameters ...string) (any, error) {
-	resp, err := tmux.SendCommand(cmd.CmdLine(parameters...))
+func (tmux *Tmux) sendCommand(command string, t reflect.Type, parameters ...string) (any, error) {
+	resp, err := tmux.SendCommand(mkCmdLine(command, t, parameters...))
 	if err != nil {
 		return nil, err
 	}
@@ -48,6 +27,38 @@ func (tmux *Tmux) sendCommand(cmd *cmdDefinitionT, t reflect.Type, parameters ..
 	}
 
 	return slice, nil
+}
+
+func mkCmdLine(command string, t reflect.Type, parameters ...string) []byte {
+	var fields []string
+
+	structTags := getStructTags(t)
+
+	for i := range structTags {
+		fields = append(fields, fmt.Sprintf(`%s:#{%s}`, structTags[i][0], structTags[i][1]))
+	}
+
+	cmdLine := fmt.Sprintf("%s %s -F '%s'", command, strings.Join(parameters, " "), strings.Join(fields, _SEPARATOR))
+	return []byte(cmdLine)
+}
+
+func getStructTags(t reflect.Type) [][2]string {
+	if t.Kind() != reflect.Struct {
+		panic("Provided value is not a struct")
+	}
+
+	var structTags [][2]string
+
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		tag, ok := field.Tag.Lookup("tmux")
+		if !ok {
+			continue
+		}
+		structTags = append(structTags, [2]string{field.Name, tag})
+	}
+
+	return structTags
 }
 
 func parseMxttyLine(b []byte, v reflect.Value) error {

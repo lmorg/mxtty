@@ -6,6 +6,7 @@ import (
 	"reflect"
 
 	"github.com/lmorg/mxtty/debug"
+	"github.com/lmorg/mxtty/types"
 )
 
 /*
@@ -51,66 +52,43 @@ import (
 	pane_width                 Width of pane
 */
 
-var CMD_LIST_PANES = &cmdDefinitionT{
-	cmd: "list-panes",
-	fields: []cmdFieldT{
-		{
-			name:   "Name",
-			format: "pane_name",
-		},
-		{
-			name:   "Id",
-			format: "pane_id",
-		},
-		{
-			name:   "Width",
-			format: "pane_width",
-		},
-		{
-			name:   "Height",
-			format: "pane_height",
-		},
-		{
-			name:   "Active",
-			format: "?pane_active,true,false",
-		},
-	},
-}
+var CMD_LIST_PANES = "list-panes"
 
-type paneT struct {
-	Name   string
-	Id     string
-	Width  int
-	Height int
-	Active bool
+type PANE_T struct {
+	Title  string `tmux:"pane_title"`
+	Id     string `tmux:"pane_id"`
+	Width  int    `tmux:"pane_width"`
+	Height int    `tmux:"pane_height"`
+	Active bool   `tmux:"?pane_active,true,false"`
 	tmux   *Tmux
 	buf    chan rune
+	closed bool
 }
 
-func (p *paneT) File() *os.File { return nil }
+func (p *PANE_T) File() *os.File { return nil }
 
-func (p *paneT) respFromTmux(b []byte) {
+func (p *PANE_T) respFromTmux(b []byte) {
 	//debug.Log(p.Id)
 	for _, r := range []rune(string(b)) {
 		p.buf <- r
 	}
 }
 
-func (p *paneT) Read() rune {
+func (p *PANE_T) Read() rune {
 	return <-p.buf
 }
 
 func (tmux *Tmux) initSessionPanes() error {
 	for _, win := range tmux.wins {
-		win.panes = make(map[string]*paneT)
+		win.panes = make(map[string]*PANE_T)
 
-		panes, err := tmux.sendCommand(CMD_LIST_PANES, reflect.TypeOf(paneT{}), "-t", win.Id)
+		panes, err := tmux.sendCommand(CMD_LIST_PANES, reflect.TypeOf(PANE_T{}), "-t", win.Id)
 		if err != nil {
 			return err
 		}
 
 		for i := range panes.([]any) {
-			pane := panes.([]any)[i].(*paneT)
+			pane := panes.([]any)[i].(*PANE_T)
 			pane.tmux = tmux
 			pane.buf = make(chan rune)
 			debug.Log(pane)
@@ -125,13 +103,17 @@ func (tmux *Tmux) initSessionPanes() error {
 	return nil
 }
 
-func (p *paneT) Write(b []byte) error {
+func (p *PANE_T) Write(b []byte) error {
 	command := []byte(fmt.Sprintf(`send-keys -t %s `, p.Id))
 	command = append(command, b...)
 	_, err := p.tmux.SendCommand(command)
 	return err
 }
 
-func (tmux *Tmux) ActivePane() *paneT {
+func (p *PANE_T) Resize(size *types.XY) error {
+	return p.tmux.RefreshClient(size)
+}
+
+func (tmux *Tmux) ActivePane() *PANE_T {
 	return tmux.activeWindow.activePane
 }

@@ -10,32 +10,38 @@ import (
 	"github.com/veandco/go-sdl2/sdl"
 )
 
+type cachedLigaturesT struct {
+	cache map[uint64]map[string]*cachedLigatureT
+}
+
 type cachedLigatureT struct {
 	texture *sdl.Texture
 	rect    *sdl.Rect
 	ttl     time.Time
 }
 
-type cachedLigaturesT struct {
-	cache map[uint64]map[string]*cachedLigatureT
-}
-
-var cachedLigatures = newCachedLigatures()
-
-func newCachedLigatures() *cachedLigaturesT {
+func newCachedLigatures(renderer *sdlRender) *cachedLigaturesT {
 	cl := &cachedLigaturesT{
 		cache: make(map[uint64]map[string]*cachedLigatureT),
 	}
 
 	go func() {
-		time.Sleep(60 * time.Second)
-		for _, m := range cl.cache {
-			for s, cache := range m {
-				if cache.ttl.Before(time.Now()) {
-					cache.texture.Destroy()
-					delete(m, s)
+		for {
+			time.Sleep(60 * time.Second)
+			if !renderer.limiter.TryLock() {
+				continue // we don't want to be flushing the cache while rendering to screen
+			}
+
+			for _, m := range cl.cache {
+				for s, cache := range m {
+					if cache.ttl.Before(time.Now()) {
+						cache.texture.Destroy()
+						delete(m, s)
+					}
 				}
 			}
+
+			renderer.limiter.Unlock()
 		}
 	}()
 
@@ -83,7 +89,7 @@ func (sr *sdlRender) PrintCellBlock(cells []types.Cell, cellPos *types.XY) {
 	s := string(r)
 
 	hash := cells[0].Sgr.HashValue()
-	cache := cachedLigatures.Get(hash, s)
+	cache := sr.ligCache.Get(hash, s)
 	if cache != nil {
 		dstRect := &sdl.Rect{
 			X: (sr.glyphSize.X * cellPos.X) + sr.border,
@@ -175,5 +181,5 @@ func (sr *sdlRender) PrintCellBlock(cells []types.Cell, cellPos *types.XY) {
 	}
 
 	sr.AddToElementStack(&layer.RenderStackT{texture, cellBlockRect, dstRect, false})
-	cachedLigatures.Store(hash, s, texture, cellBlockRect)
+	sr.ligCache.Store(hash, s, texture, cellBlockRect)
 }

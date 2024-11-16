@@ -100,3 +100,10 @@ func runeLength(b byte) int {
 func (p *PTY) Read() rune {
 	return <-p.stream
 }
+
+func (p *PTY) Resize(size *types.XY) error {
+	return pty.Setsize(p.File(), &pty.Winsize{
+		Cols: uint16(size.X),
+		Rows: uint16(size.Y),
+	})
+}

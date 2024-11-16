@@ -1,37 +1,29 @@
 package tmux
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 func TestCommandLine(t *testing.T) {
 	expected := `list-windows  -F 'Name:#{window_name}|||Id:#{window_id}|||Width:#{window_width}|||Height:#{window_height}|||Active:#{?window_active,true,false}'`
 
-	def := cmdDefinitionT{
-		cmd: "list-windows",
-		fields: []cmdFieldT{
-			{
-				name:   "Name",
-				format: "window_name",
-			},
-			{
-				name:   "Id",
-				format: "window_id",
-			},
-			{
-				name:   "Width",
-				format: "window_width",
-			},
-			{
-				name:   "Height",
-				format: "window_height",
-			},
-			{
-				name:   "Active",
-				format: "?window_active,true,false",
-			},
-		},
+	var _test_CMD_LIST_WINDOWS = "list-windows"
+
+	type _test_CMD_LIST_WINDOWS_T struct {
+		Name       string `tmux:"window_name"`
+		Id         string `tmux:"window_id"`
+		Width      int    `tmux:"window_width"`
+		Height     int    `tmux:"window_height"`
+		Active     bool   `tmux:"?window_active,true,false"`
+		panes      map[string]*PANE_T
+		activePane *PANE_T
 	}
 
-	actual := string(def.CmdLine())
+	actual := string(mkCmdLine(
+		_test_CMD_LIST_WINDOWS,
+		reflect.TypeOf(_test_CMD_LIST_WINDOWS_T{}),
+	))
 
 	if expected != actual {
 		t.Errorf("Incorrect string returned:")
