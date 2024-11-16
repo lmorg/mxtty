@@ -27,5 +27,9 @@ func SetEnv() []string {
 		envvars = append(envvars, fmt.Sprintf("%s=%s", env, value))
 	}
 
+	if Config.Tmux.Enabled {
+		envvars = append(envvars, "MXTTY_TMUX=true")
+	}
+
 	return envvars
 }

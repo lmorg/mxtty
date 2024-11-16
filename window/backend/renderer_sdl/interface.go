@@ -4,6 +4,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/lmorg/mxtty/config"
 	"github.com/lmorg/mxtty/types"
 	"github.com/lmorg/mxtty/window/backend/renderer_sdl/layer"
 	"github.com/lmorg/mxtty/window/backend/typeface"
@@ -68,6 +69,9 @@ type keyboardModeT struct {
 }
 
 func (km *keyboardModeT) Set(mode types.KeyboardMode) {
+	if config.Config.Tmux.Enabled {
+		mode = types.KeysTmuxClient // override keyboard mode if in tmux control mode
+	}
 	atomic.StoreInt32(&km.keyboardMode, int32(mode))
 }
 func (km *keyboardModeT) Get() types.KeyboardMode {

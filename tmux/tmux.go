@@ -8,6 +8,7 @@ import (
 	"os/exec"
 
 	"github.com/creack/pty"
+	"github.com/lmorg/mxtty/config"
 	"github.com/lmorg/mxtty/debug"
 	virtualterm "github.com/lmorg/mxtty/term"
 	"github.com/lmorg/mxtty/utils/octal"
@@ -48,6 +49,7 @@ func NewTmuxAttachSession() error {
 	}()
 
 	tmux.cmd = exec.Command("tmux", "-CC", "attach-session")
+	tmux.cmd.Env = config.SetEnv()
 	tmux.tty, err = pty.Start(tmux.cmd)
 	if err != nil {
 		return err
