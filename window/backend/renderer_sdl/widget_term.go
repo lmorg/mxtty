@@ -4,7 +4,9 @@ import (
 	"fmt"
 
 	"github.com/lmorg/mxtty/codes"
+	"github.com/lmorg/mxtty/config"
 	"github.com/lmorg/mxtty/types"
+	"github.com/lmorg/mxtty/utils/octal"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
@@ -12,7 +14,13 @@ type termWidgetT struct{}
 
 func (tw *termWidgetT) eventTextInput(sr *sdlRender, evt *sdl.TextInputEvent) {
 	sr.footerText = ""
-	sr.term.Reply([]byte(evt.GetText()))
+	b := []byte(evt.GetText())
+
+	if config.Config.Tmux.Enabled {
+		b = octal.Escape(b)
+	}
+
+	sr.term.Reply(b)
 }
 
 func (tw *termWidgetT) eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) {
@@ -37,6 +45,7 @@ func (tw *termWidgetT) eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) {
 
 	mod := keyEventModToCodesModifier(evt.Keysym.Mod)
 	keyCode := sr.keyCodeLookup(evt.Keysym.Sym)
+
 	b := codes.GetAnsiEscSeq(sr.keyboardMode.Get(), keyCode, mod)
 	if len(b) > 0 {
 		sr.term.Reply(b)

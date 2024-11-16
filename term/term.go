@@ -165,6 +165,10 @@ func (term *Term) reset(size *types.XY) {
 	term._charSetG[1] = charset.DecSpecialChar
 
 	term.setJumpScroll()
+
+	if config.Config.Tmux.Enabled {
+		term.renderer.SetKeyboardFnMode(types.KeysTmuxClient)
+	}
 }
 
 func (term *Term) makeScreen() [][]types.Cell {

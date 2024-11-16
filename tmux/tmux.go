@@ -9,7 +9,8 @@ import (
 
 	"github.com/creack/pty"
 	"github.com/lmorg/mxtty/debug"
-	"github.com/lmorg/mxtty/virtualterm"
+	virtualterm "github.com/lmorg/mxtty/term"
+	"github.com/lmorg/mxtty/utils/octal"
 	"github.com/lmorg/mxtty/window/backend"
 )
 
@@ -69,7 +70,7 @@ func NewTmuxAttachSession() error {
 				if !ok {
 					panic(fmt.Sprintf("unknown pane ID: %s", string(params[1])))
 				}
-				pane.respFromTmux(unescapeOctal(params[2]))
+				pane.respFromTmux(octal.Unescape(params[2]))
 
 			case bytes.HasPrefix(b, _RESP_BEGIN):
 				resp = new(tmuxResponseT)
@@ -106,8 +107,8 @@ func NewTmuxAttachSession() error {
 	term := virtualterm.NewTerminal(renderer, size, false)
 	term.Start(tmux.ActivePane())
 
-	s := fmt.Sprintf("refresh-client -l %s\n", tmux.ActivePane().Id)
-	_, err = tmux.SendCommand([]byte(s))
+	//s := fmt.Sprintf("refresh-client", tmux.ActivePane().Id)
+	_, err = tmux.SendCommand([]byte("refresh-client"))
 	if err != nil {
 		return err
 	}
@@ -118,12 +119,13 @@ func NewTmuxAttachSession() error {
 
 func (tmux *Tmux) SendCommand(b []byte) (*tmuxResponseT, error) {
 	debug.Log(string(b))
-	_, err := tmux.tty.Write(b)
+	_, err := tmux.tty.Write(append(b, '\n'))
 	if err != nil {
 		return nil, err
 	}
 
 	resp := <-tmux.resp
+
 	if resp.IsErr {
 		return nil, fmt.Errorf("tmux command failed: %s", string(bytes.Join(resp.Message, []byte(": "))))
 	}

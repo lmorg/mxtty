@@ -14,6 +14,7 @@
     - [Extended features](#extended-features)
     - [Common application support](#common-application-support)
   - [Application Usability](#application-usability)
+  - [Tmux Integration](#tmux-integration)
 - [Supported Platforms](#supported-platforms)
 - [Install Guide](#install-guide)
 - [How To Support](#how-to-support)
@@ -176,6 +177,13 @@ eg `xterm` and similar terminal emulators
 - [ ] Bell can be changed
 - [x] Default term size can be changed
 - [x] Default command / shell can be changed
+
+### Tmux Integration
+
+- [x] Supports single pane
+- [ ] Supports multiple panes
+- [ ] Supports multiple windows
+- [ ] Hotkey passthrough
 
 ## Supported Platforms
 

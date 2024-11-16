@@ -3,7 +3,7 @@ package tmux
 import "testing"
 
 func TestCommandLine(t *testing.T) {
-	expected := `list-windows -F 'Name:#{window_name}|||Id:#{window_id}|||Width:#{window_width}|||Height:#{window_height}|||Active:#{?window_active,true,false}'` + "\n"
+	expected := `list-windows  -F 'Name:#{window_name}|||Id:#{window_id}|||Width:#{window_width}|||Height:#{window_height}|||Active:#{?window_active,true,false}'`
 
 	def := cmdDefinitionT{
 		cmd: "list-windows",

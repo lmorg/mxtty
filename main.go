@@ -4,8 +4,8 @@ import (
 	"github.com/lmorg/mxtty/config"
 	"github.com/lmorg/mxtty/debug/pprof"
 	"github.com/lmorg/mxtty/ptty"
+	virtualterm "github.com/lmorg/mxtty/term"
 	"github.com/lmorg/mxtty/tmux"
-	"github.com/lmorg/mxtty/virtualterm"
 	"github.com/lmorg/mxtty/window/backend"
 )
 

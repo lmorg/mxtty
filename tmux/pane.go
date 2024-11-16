@@ -126,9 +126,8 @@ func (tmux *Tmux) initSessionPanes() error {
 }
 
 func (p *paneT) Write(b []byte) error {
-	command := []byte(fmt.Sprintf("send-keys -t %s -l ", p.Id))
-	command = append(command, escapeOctal(b)...)
-	command = append(command, '\n')
+	command := []byte(fmt.Sprintf(`send-keys -t %s `, p.Id))
+	command = append(command, b...)
 	_, err := p.tmux.SendCommand(command)
 	return err
 }

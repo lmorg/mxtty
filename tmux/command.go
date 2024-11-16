@@ -25,7 +25,7 @@ func (def *cmdDefinitionT) CmdLine(parameters ...string) []byte {
 		fields = append(fields, fmt.Sprintf(`%s:#{%s}`, def.fields[i].name, def.fields[i].format))
 	}
 
-	s := fmt.Sprintf("%s %s -F '%s'\n", def.cmd, strings.Join(parameters, " "), strings.Join(fields, _SEPARATOR))
+	s := fmt.Sprintf("%s %s -F '%s'", def.cmd, strings.Join(parameters, " "), strings.Join(fields, _SEPARATOR))
 
 	return []byte(s)
 }

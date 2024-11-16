@@ -7,4 +7,5 @@ const (
 	KeysApplication
 	KeysVT220
 	KeysVT52
+	KeysTmuxClient
 )

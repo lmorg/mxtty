@@ -1,11 +1,25 @@
-package tmux
+package octal
 
 import (
 	"fmt"
 	"strconv"
 )
 
-func unescapeOctal(b []byte) []byte {
+func Escape(b []byte) []byte {
+	var escaped []byte
+
+	for _, c := range b {
+		//if c <= ' ' || c {
+		escaped = append(escaped, []byte(fmt.Sprintf(`\%03o`, c))...)
+		//	continue
+		//}
+		//escaped = append(escaped, b...)
+	}
+
+	return escaped
+}
+
+func Unescape(b []byte) []byte {
 	var (
 		c = make([]byte, len(b))
 		j int
@@ -27,18 +41,4 @@ func unescapeOctal(b []byte) []byte {
 	}
 
 	return c[:j]
-}
-
-func escapeOctal(b []byte) []byte {
-	var escaped []byte
-
-	for _, c := range b {
-		if c <= ' ' {
-			escaped = append(escaped, []byte(fmt.Sprintf(`\%03o`, c))...)
-			continue
-		}
-		escaped = append(escaped, b...)
-	}
-
-	return escaped
 }

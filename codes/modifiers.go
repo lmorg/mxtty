@@ -1,6 +1,9 @@
 package codes
 
-import "github.com/lmorg/mxtty/types"
+import (
+	"github.com/lmorg/mxtty/types"
+	"github.com/lmorg/mxtty/utils/octal"
+)
 
 /*
 	  Code     Modifiers
@@ -92,10 +95,17 @@ func spliceKeysAndModifiers(keySeq []byte, modifier Modifier) []byte {
 	return append(seq, ending)
 }
 
-func specialCaseSequences(keySet types.KeyboardMode, keyPress KeyCode, modifier Modifier) (b []byte) {
+func specialCaseSequences(keySet types.KeyboardMode, keyPress KeyCode, modifier Modifier) []byte {
 	switch {
+	case keySet == types.KeysTmuxClient:
+		if keyPress > '`' && keyPress < 'z' && modifier == MOD_CTRL {
+			return octal.Escape([]byte{byte(keyPress) - 0x60})
+		}
+		return nil
+
 	case keyPress < 256 && modifier == 0:
 		return []byte{byte(keyPress)}
+
 	case keyPress > '`' && keyPress < 'z' && modifier == MOD_CTRL:
 		return []byte{byte(keyPress) - 0x60}
 	}
