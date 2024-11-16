@@ -7,7 +7,7 @@ import (
 	"golang.design/x/hotkey"
 )
 
-func (sr *sdlRender) registerHotkey() {
+func (sr *sdlRender) _registerHotkey() {
 	sr.hk = hotkey.New([]hotkey.Modifier{}, hotkey.KeyF5)
 	err := sr.hk.Register()
 	if err != nil {

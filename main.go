@@ -6,6 +6,7 @@ import (
 	"github.com/lmorg/mxtty/ptty"
 	virtualterm "github.com/lmorg/mxtty/term"
 	"github.com/lmorg/mxtty/tmux"
+	"github.com/lmorg/mxtty/types"
 	"github.com/lmorg/mxtty/window/backend"
 )
 
@@ -33,12 +34,17 @@ func regularSession() {
 	}
 
 	term.Start(pty)
-	backend.Start(renderer, term)
+	backend.Start(renderer, term, nil)
 }
 
 func tmuxSession() {
-	err := tmux.NewTmuxAttachSession()
+	renderer, size := backend.Initialise()
+	defer renderer.Close()
+
+	tmux, err := tmux.NewTmuxAttachSession(renderer, size)
 	if err != nil {
-		panic(err)
+		renderer.DisplaySticky(types.NOTIFY_ERROR, err.Error())
 	}
+
+	backend.Start(renderer, tmux.ActivePane().Term(), tmux)
 }

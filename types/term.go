@@ -21,6 +21,7 @@ type Term interface {
 	MouseMotion(*XY, *XY, EventIgnoredCallback)
 	ShowCursor(bool)
 	HasFocus(bool)
+	MakeVisible(bool)
 }
 
 type Pty interface {

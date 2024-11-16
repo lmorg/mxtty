@@ -9,6 +9,6 @@ func Initialise() (types.Renderer, *types.XY) {
 	return rendersdl.Initialise()
 }
 
-func Start(r types.Renderer, term types.Term) {
-	r.Start(term)
+func Start(r types.Renderer, term types.Term, tmuxClient any) {
+	r.Start(term, tmuxClient)
 }

@@ -3,9 +3,6 @@
 
 package rendersdl
 
-import "github.com/lmorg/mxtty/types"
-
-func (sr *sdlRender) Start(term types.Term) {
-	sr.registerHotkey()
-	sr.eventLoop(term)
+func (sr *sdlRender) registerHotkey() {
+	sr._registerHotkey()
 }

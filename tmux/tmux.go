@@ -10,10 +10,8 @@ import (
 	"github.com/creack/pty"
 	"github.com/lmorg/mxtty/config"
 	"github.com/lmorg/mxtty/debug"
-	virtualterm "github.com/lmorg/mxtty/term"
 	"github.com/lmorg/mxtty/types"
 	"github.com/lmorg/mxtty/utils/octal"
-	"github.com/lmorg/mxtty/window/backend"
 )
 
 /*
@@ -145,15 +143,14 @@ var respIgnored = [][]byte{
 	_RESP_WINDOW_ADD,
 	_RESP_WINDOW_CLOSE,
 	_RESP_WINDOW_PANE_CHANGED,
-	_RESP_WINDOW_RENAMED,
 }
 
 type Tmux struct {
-	cmd   *exec.Cmd
-	tty   *os.File
-	resp  chan *tmuxResponseT
-	wins  map[string]*WINDOW_T
-	panes map[string]*PANE_T
+	cmd  *exec.Cmd
+	tty  *os.File
+	resp chan *tmuxResponseT
+	win  map[string]*WINDOW_T
+	pane map[string]*PANE_T
 
 	activeWindow *WINDOW_T
 }
@@ -163,13 +160,10 @@ type tmuxResponseT struct {
 	IsErr   bool
 }
 
-func NewTmuxAttachSession() error {
-	renderer, size := backend.Initialise()
-	defer renderer.Close()
-
+func NewTmuxAttachSession(renderer types.Renderer, size *types.XY) (*Tmux, error) {
 	tmux := new(Tmux)
 	tmux.resp = make(chan *tmuxResponseT)
-	tmux.panes = make(map[string]*PANE_T)
+	tmux.pane = make(map[string]*PANE_T)
 
 	var err error
 	resp := new(tmuxResponseT)
@@ -181,7 +175,7 @@ func NewTmuxAttachSession() error {
 	tmux.cmd.Env = config.SetEnv()
 	tmux.tty, err = pty.Start(tmux.cmd)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	_, _ = tmux.tty.Read(make([]byte, 7))
@@ -197,7 +191,7 @@ func NewTmuxAttachSession() error {
 			switch {
 			case bytes.HasPrefix(b, _RESP_OUTPUT):
 				params := bytes.SplitN(b, []byte{' '}, 3)
-				pane, ok := tmux.panes[string(params[1])]
+				pane, ok := tmux.pane[string(params[1])]
 				if !ok {
 					panic(fmt.Sprintf("unknown pane ID: %s", string(params[1])))
 				}
@@ -217,6 +211,11 @@ func NewTmuxAttachSession() error {
 				msg := b[len(_RESP_MESSAGE):]
 				renderer.DisplayNotification(types.NOTIFY_INFO, string(msg))
 
+			case bytes.HasPrefix(b, _RESP_WINDOW_RENAMED):
+				params := bytes.SplitN(b, []byte{' '}, 3)
+				tmux.win[string(params[1])].Name = string(params[2])
+				renderer.RefreshWindowList()
+
 			default:
 				// ignore anything that looks like a notification
 				if ignoreResponse(b) {
@@ -230,30 +229,22 @@ func NewTmuxAttachSession() error {
 
 	err = tmux.RefreshClient(size)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	err = tmux.initSessionWindows()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	err = tmux.initSessionPanes()
+	err = tmux.initSessionPanes(renderer, size)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	term := virtualterm.NewTerminal(renderer, size, false)
-	term.Start(tmux.ActivePane())
+	tmux.ActivePane().term.MakeVisible(true)
 
-	//s := fmt.Sprintf("refresh-client", tmux.ActivePane().Id)
-	_, err = tmux.SendCommand([]byte("refresh-client"))
-	if err != nil {
-		return err
-	}
-
-	backend.Start(renderer, term)
-	return nil // could shouldn't reach this point
+	return tmux, nil // could shouldn't reach this point
 }
 
 func ignoreResponse(b []byte) bool {

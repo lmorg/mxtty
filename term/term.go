@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"sync"
-	"time"
 
 	"github.com/lmorg/mxtty/charset"
 	"github.com/lmorg/mxtty/config"
@@ -31,7 +30,7 @@ import (
 
 // Term is the display state of the virtual term
 type Term struct {
-	hidden   bool
+	visible  bool
 	size     *types.XY
 	sgr      *types.Sgr
 	renderer types.Renderer
@@ -108,12 +107,12 @@ func (term *Term) lfRedraw() {
 }
 
 // NewTerminal creates a new virtual term
-func NewTerminal(renderer types.Renderer, size *types.XY, hidden bool) *Term {
+func NewTerminal(renderer types.Renderer, size *types.XY, visible bool) *Term {
 	term := &Term{
 		renderer:     renderer,
 		size:         size,
 		_hasKeypress: make(chan bool),
-		hidden:       hidden,
+		visible:      visible,
 	}
 
 	term.reset(size)
@@ -127,20 +126,6 @@ func (term *Term) Start(pty types.Pty) {
 	go term.exec()
 	go term.readLoop()
 	go term.slowBlink()
-	go term.refreshInterval()
-}
-
-func (term *Term) refreshInterval() {
-	if config.Config.Terminal.RefreshInterval == 0 {
-		return
-	}
-
-	d := time.Duration(config.Config.Terminal.RefreshInterval) * time.Millisecond
-	//time.Sleep(3 * time.Second) // lets let everything start first
-	for {
-		time.Sleep(d)
-		term.renderer.TriggerRedraw()
-	}
 }
 
 func (term *Term) reset(size *types.XY) {
@@ -267,7 +252,7 @@ func (term *Term) Bg() *types.Colour {
 	return types.BgUnfocused
 }
 
-func (term *Term) copyCurrentCell(cell *types.Cell) *types.Cell {
+/*func (term *Term) copyCurrentCell(cell *types.Cell) *types.Cell {
 	copy := new(types.Cell)
 	copy.Char = cell.Char
 	if term.currentCell().Sgr == nil {
@@ -277,7 +262,7 @@ func (term *Term) copyCurrentCell(cell *types.Cell) *types.Cell {
 	}
 
 	return copy
-}
+}*/
 
 func (term *Term) ShowCursor(v bool) {
 	term._hideCursor = !v
@@ -301,4 +286,8 @@ func (term *Term) visibleScreen() [][]types.Cell {
 func (term *Term) HasFocus(state bool) {
 	term._hasFocus = state
 	term._slowBlinkState = true
+}
+
+func (term *Term) MakeVisible(visible bool) {
+	term.visible = visible
 }

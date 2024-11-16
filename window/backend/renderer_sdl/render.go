@@ -5,14 +5,25 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/lmorg/mxtty/config"
 	"github.com/lmorg/mxtty/types"
 	"github.com/lmorg/mxtty/window/backend/renderer_sdl/layer"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
-func (sr *sdlRender) eventLoop(term types.Term) {
-	sr.term = term
+func (sr *sdlRender) refreshInterval() {
+	if config.Config.Window.RefreshInterval == 0 {
+		return
+	}
 
+	d := time.Duration(config.Config.Window.RefreshInterval) * time.Millisecond
+	for {
+		time.Sleep(d)
+		sr.TriggerRedraw()
+	}
+}
+
+func (sr *sdlRender) eventLoop() {
 	for {
 
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
@@ -55,7 +66,7 @@ func (sr *sdlRender) eventLoop(term types.Term) {
 			return
 
 		case <-sr._redraw:
-			err := render(sr, term)
+			err := render(sr)
 			if err != nil {
 				log.Printf("ERROR: %s", err.Error())
 			}
@@ -140,12 +151,12 @@ func (sr *sdlRender) renderStack(stack *[]*layer.RenderStackT) {
 	*stack = make([]*layer.RenderStackT, 0) // clear image stack
 }
 
-func render(sr *sdlRender, term types.Term) error {
+func render(sr *sdlRender) error {
 	x, y := sr.window.GetSize()
 	rect := &sdl.Rect{W: x, H: y}
 
-	sr.drawBg(term, rect)
-	term.Render()
+	sr.drawBg(sr.term, rect)
+	sr.term.Render()
 	sr.renderFooter()
 
 	if sr.highlighter != nil && sr.highlighter.button == 0 {

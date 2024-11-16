@@ -6,6 +6,7 @@ import (
 	"reflect"
 
 	"github.com/lmorg/mxtty/debug"
+	virtualterm "github.com/lmorg/mxtty/term"
 	"github.com/lmorg/mxtty/types"
 )
 
@@ -63,6 +64,7 @@ type PANE_T struct {
 	tmux   *Tmux
 	buf    chan rune
 	closed bool
+	term   types.Term
 }
 
 func (p *PANE_T) File() *os.File { return nil }
@@ -78,8 +80,8 @@ func (p *PANE_T) Read() rune {
 	return <-p.buf
 }
 
-func (tmux *Tmux) initSessionPanes() error {
-	for _, win := range tmux.wins {
+func (tmux *Tmux) initSessionPanes(renderer types.Renderer, size *types.XY) error {
+	for _, win := range tmux.win {
 		win.panes = make(map[string]*PANE_T)
 
 		panes, err := tmux.sendCommand(CMD_LIST_PANES, reflect.TypeOf(PANE_T{}), "-t", win.Id)
@@ -90,13 +92,18 @@ func (tmux *Tmux) initSessionPanes() error {
 		for i := range panes.([]any) {
 			pane := panes.([]any)[i].(*PANE_T)
 			pane.tmux = tmux
+
 			pane.buf = make(chan rune)
 			debug.Log(pane)
 			win.panes[pane.Id] = pane
 			if pane.Active {
 				win.activePane = pane
 			}
-			tmux.panes[pane.Id] = pane
+			tmux.pane[pane.Id] = pane
+
+			term := virtualterm.NewTerminal(renderer, size, false)
+			term.Start(pane)
+			pane.term = term
 		}
 	}
 
@@ -116,4 +123,8 @@ func (p *PANE_T) Resize(size *types.XY) error {
 
 func (tmux *Tmux) ActivePane() *PANE_T {
 	return tmux.activeWindow.activePane
+}
+
+func (p *PANE_T) Term() types.Term {
+	return p.term
 }

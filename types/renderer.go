@@ -1,7 +1,7 @@
 package types
 
 type Renderer interface {
-	Start(Term)
+	Start(Term, any)
 	ShowAndFocusWindow()
 	GetTermSize() *XY
 	GetGlyphSize() *XY
@@ -11,7 +11,8 @@ type Renderer interface {
 	DrawHighlightRect(*XY, *XY)
 	GetWindowTitle() string
 	SetWindowTitle(string)
-	StatusbarText(string)
+	StatusBarText(string)
+	RefreshWindowList()
 	Bell()
 	TriggerRedraw()
 	TriggerQuit()

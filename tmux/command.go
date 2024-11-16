@@ -7,6 +7,10 @@ import (
 	"strings"
 )
 
+const (
+	CMD_SELECT_WINDOW = `select-window`
+)
+
 const _SEPARATOR = `|||`
 
 func (tmux *Tmux) sendCommand(command string, t reflect.Type, parameters ...string) (any, error) {

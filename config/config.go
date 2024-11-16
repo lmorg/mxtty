@@ -40,7 +40,6 @@ type configT struct {
 		ScrollbackHistory       int  `yaml:"ScrollbackHistory"`
 		ScrollbackCloseKeyPress bool `yaml:"ScrollbackCloseKeyPress"`
 		JumpScrollLineCount     int  `yaml:"JumpScrollLineCount"`
-		RefreshInterval         int  `yaml:"RefreshInterval"`
 		LightMode               bool `yaml:"LightMode"`
 
 		TypeFace struct {
@@ -54,8 +53,9 @@ type configT struct {
 	} `yaml:"Terminal"`
 
 	Window struct {
-		Opacity  int      `yaml:"Opacity"`
-		Fallback []string `yaml:"Fallback"`
+		Opacity         int  `yaml:"Opacity"`
+		StatusBar       bool `yaml:"StatusBar"`
+		RefreshInterval int  `yaml:"RefreshInterval"`
 	} `yaml:"Window"`
 
 	Tmux struct {

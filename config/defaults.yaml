@@ -5,7 +5,7 @@ Shell:
 Terminal:
   TypeFace:
     #FontName: "Hasklig-Regular"
-    FontSize: 12
+    FontSize: 14
     Ligatures: true # increases system requirements
     DropShadow: true
     AdjustCellWidth:  0
@@ -13,11 +13,13 @@ Terminal:
   ScrollbackHistory: 10000 # lines
   ScrollbackCloseKeyPress: true # close scrollback on key press
   JumpScrollLineCount: -1  # lines, 0 is per character, -1 is per page
-  RefreshInterval: 200     # 0 disables
   #LightMode: true
 
+
 Window:
-  Opacity: 90 # %age
+  Opacity: 90 # percentage
+  StatusBar: true
+  RefreshInterval: 200     # 0 disables
 
 Tmux:
   Enabled: true 

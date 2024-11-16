@@ -5,6 +5,7 @@ import (
 
 	"github.com/lmorg/mxtty/codes"
 	"github.com/lmorg/mxtty/config"
+	"github.com/lmorg/mxtty/tmux"
 	"github.com/lmorg/mxtty/types"
 	"github.com/lmorg/mxtty/utils/octal"
 	"github.com/veandco/go-sdl2/sdl"
@@ -64,6 +65,24 @@ const (
 func (tw *termWidgetT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEvent) {
 	posCell := sr.convertPxToCellXY(evt.X, evt.Y)
 
+	if config.Config.Tmux.Enabled && sr.windowTabs != nil &&
+		(evt.Y-sr.border)/sr.glyphSize.Y == sr.term.GetSize().Y+sr.footer-1 {
+		// window tab bar
+		if evt.State == sdl.PRESSED {
+			return
+		}
+
+		x := ((evt.X - sr.border) / sr.glyphSize.X) - sr.windowTabs.offset.X
+		for i := range sr.windowTabs.boundaries {
+			if x < sr.windowTabs.boundaries[i] {
+				sr._switchWindow(i - 1)
+				return
+			}
+		}
+
+		return
+	}
+
 	if evt.State == sdl.RELEASED {
 		sr.term.MouseClick(posCell, evt.Button, evt.Clicks, false, func() {})
 		return
@@ -116,6 +135,21 @@ func (tw *termWidgetT) eventMouseWheel(sr *sdlRender, evt *sdl.MouseWheelEvent) 
 }
 
 func (tw *termWidgetT) eventMouseMotion(sr *sdlRender, evt *sdl.MouseMotionEvent) {
+	if config.Config.Tmux.Enabled && sr.windowTabs != nil {
+
+		if (evt.Y-sr.border)/sr.glyphSize.Y == sr.term.GetSize().Y+sr.footer-1 {
+			x := ((evt.X - sr.border) / sr.glyphSize.X) - sr.windowTabs.offset.X
+			for i := range sr.windowTabs.boundaries {
+				if x < sr.windowTabs.boundaries[i] {
+					sr.windowTabs.mouseOver = i - 1
+					return
+				}
+			}
+		}
+
+		sr.windowTabs.mouseOver = -1
+	}
+
 	sr.term.MouseMotion(
 		sr.convertPxToCellXY(evt.X, evt.Y),
 		&types.XY{
@@ -128,4 +162,29 @@ func (tw *termWidgetT) eventMouseMotion(sr *sdlRender, evt *sdl.MouseMotionEvent
 
 func (sr *sdlRender) _termMouseMotionCallback() {
 	sr.footerText = "[left click] Copy  |  [right click] Paste  |  [wheel] Scrollback buffer"
+}
+
+func (sr *sdlRender) _switchWindow(winIndex int) {
+	// update old
+	sr.windowTabs.windows[sr.windowTabs.active].Active = false
+	sr.windowTabs.windows[winIndex].ActivePane().Term().MakeVisible(false)
+
+	// select new
+	sr.windowTabs.active = winIndex
+
+	// update new
+	sr.windowTabs.windows[winIndex].Active = true
+	sr.windowTabs.windows[winIndex].ActivePane().Term().MakeVisible(true)
+	command := fmt.Sprintf("%s -t %s", tmux.CMD_SELECT_WINDOW, sr.windowTabs.windows[winIndex].Id)
+	_, err := sr.tmux.SendCommand([]byte(command))
+	if err != nil {
+		sr.DisplayNotification(types.NOTIFY_ERROR, err.Error())
+	}
+	sr.term = sr.windowTabs.windows[winIndex].ActivePane().Term()
+}
+
+func (sr *sdlRender) RefreshWindowList() {
+	sr.limiter.Lock()
+	sr.windowTabs = nil
+	sr.limiter.Unlock()
 }

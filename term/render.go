@@ -6,15 +6,13 @@ import (
 )
 
 func (term *Term) Render() {
-	if term.hidden {
+	if !term.visible {
 		return
 	}
 
 	term._mutex.Lock()
 
 	cells := term.visibleScreen()
-
-	//term._blinkCursor()
 
 	if !config.Config.Terminal.TypeFace.Ligatures || term._mouseButtonDown {
 		term._renderCells(cells)

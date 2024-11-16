@@ -2,6 +2,7 @@ package tmux
 
 import (
 	"reflect"
+	"sort"
 
 	"github.com/lmorg/mxtty/debug"
 )
@@ -61,11 +62,11 @@ func (tmux *Tmux) initSessionWindows() error {
 		return err
 	}
 
-	tmux.wins = make(map[string]*WINDOW_T)
+	tmux.win = make(map[string]*WINDOW_T)
 
 	for i := range windows.([]any) {
 		win := windows.([]any)[i].(*WINDOW_T)
-		tmux.wins[win.Id] = win
+		tmux.win[win.Id] = win
 		if win.Active {
 			tmux.activeWindow = win
 		}
@@ -73,4 +74,22 @@ func (tmux *Tmux) initSessionWindows() error {
 
 	debug.Log(windows.([]any))
 	return nil
+}
+
+func (tmux *Tmux) Windows() []*WINDOW_T {
+	var wins []*WINDOW_T
+
+	for _, win := range tmux.win {
+		wins = append(wins, win)
+	}
+
+	sort.Slice(wins, func(i, j int) bool {
+		return wins[i].Id < wins[j].Id
+	})
+
+	return wins
+}
+
+func (win *WINDOW_T) ActivePane() *PANE_T {
+	return win.activePane
 }

@@ -52,25 +52,25 @@ func (sr *sdlRender) GetTermSize() *types.XY {
 	return sr.term.GetSize()
 }
 
-// _getTermSizeCells should only be called upon terminal resizing.
+// _getSizeCells should only be called upon terminal resizing.
 // All other checks for terminal size should come from term.GetSize()
-func (sr *sdlRender) _getTermSizeCells() *types.XY {
+func (sr *sdlRender) _getSizeCells() *types.XY {
 	x, y := sr.window.GetSize()
 
 	return &types.XY{
 		X: ((x - (sr.border * 2)) / sr.glyphSize.X),
-		Y: ((y - (sr.border * 2)) / sr.glyphSize.Y) - footer, // inc footer
+		Y: ((y - (sr.border * 2)) / sr.glyphSize.Y) - sr.footer, // inc footer
 	}
 }
 
 ///// resize
 
 func (sr *sdlRender) windowResized() {
-	sr.term.Resize(sr._getTermSizeCells())
+	sr.term.Resize(sr._getSizeCells())
 }
 
 func (sr *sdlRender) ResizeWindow(size *types.XY) {
 	w := (size.X * sr.glyphSize.X) + (sr.border * 2)
-	h := ((size.Y + footer) * sr.glyphSize.Y) + (sr.border * 2)
+	h := ((size.Y + sr.footer) * sr.glyphSize.Y) + (sr.border * 2)
 	sr.window.SetSize(w, h)
 }

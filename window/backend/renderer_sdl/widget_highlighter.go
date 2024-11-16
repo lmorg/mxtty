@@ -87,7 +87,7 @@ func (hl *highlighterT) setMode(mode _highlightMode) {
 
 func (hl *highlighterT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEvent) {
 	if evt.State == sdl.RELEASED {
-		sr.StatusbarText("")
+		sr.StatusBarText("")
 		sr.term.MouseClick(nil, 0, 0, false, func() {})
 	}
 

@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 
 	"github.com/lmorg/mxtty/config"
+	"github.com/lmorg/mxtty/tmux"
 	"github.com/lmorg/mxtty/types"
 	"github.com/lmorg/mxtty/window/backend/renderer_sdl/layer"
 	"github.com/lmorg/mxtty/window/backend/typeface"
@@ -21,6 +22,7 @@ type sdlRender struct {
 	ligCache  *cachedLigaturesT
 	glyphSize *types.XY
 	term      types.Term
+	tmux      *tmux.Tmux
 	limiter   sync.Mutex
 
 	// preferences
@@ -31,7 +33,6 @@ type sdlRender struct {
 	// title
 	title       string
 	updateTitle int32
-	footerText  string
 
 	// audio
 	bell *mix.Music
@@ -63,6 +64,20 @@ type sdlRender struct {
 	// hotkey
 	hk       *hotkey.Hotkey
 	hkToggle bool
+
+	// footer
+	footer     int32
+	footerText string
+	windowTabs *tabListT
+}
+
+type tabListT struct {
+	windows    []*tmux.WINDOW_T
+	boundaries []int32
+	offset     *types.XY
+	active     int
+	mouseOver  int
+	cells      []types.Cell
 }
 
 type keyboardModeT struct {

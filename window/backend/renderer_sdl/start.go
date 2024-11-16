@@ -6,6 +6,7 @@ import (
 	"github.com/lmorg/mxtty/app"
 	"github.com/lmorg/mxtty/assets"
 	"github.com/lmorg/mxtty/config"
+	"github.com/lmorg/mxtty/tmux"
 	"github.com/lmorg/mxtty/types"
 	"github.com/lmorg/mxtty/window/backend/typeface"
 	"github.com/veandco/go-sdl2/sdl"
@@ -48,6 +49,12 @@ func Initialise() (types.Renderer, *types.XY) {
 	}
 
 	sr.border = 5
+	if config.Config.Window.StatusBar {
+		sr.footer++
+	}
+	if config.Config.Tmux.Enabled {
+		sr.footer++
+	}
 
 	sr._quit = make(chan bool)
 	sr._redraw = make(chan bool)
@@ -70,7 +77,7 @@ func Initialise() (types.Renderer, *types.XY) {
 	sr.preloadNotificationGlyphs()
 	sr.fontCache = NewFontCache(sr)
 
-	return sr, sr._getTermSizeCells()
+	return sr, sr._getSizeCells()
 }
 
 func (sr *sdlRender) createWindow(caption string) error {
@@ -141,4 +148,14 @@ func setLghtOrDarkMode() {
 		highlightBlendMode = sdl.BLENDMODE_ADD
 		textShadow.A = 255
 	}
+}
+
+func (sr *sdlRender) Start(term types.Term, tmuxClient any) {
+	sr.term = term
+	sr.tmux = tmuxClient.(*tmux.Tmux)
+
+	sr.registerHotkey()
+	go sr.refreshInterval()
+
+	sr.eventLoop()
 }
