@@ -195,7 +195,7 @@ func NewTmuxAttachSession(renderer types.Renderer, size *types.XY) (*Tmux, error
 				if !ok {
 					panic(fmt.Sprintf("unknown pane ID: %s", string(params[1])))
 				}
-				pane.respFromTmux(octal.Unescape(params[2]))
+				pane.buf.Write(octal.Unescape(params[2]))
 
 			case bytes.HasPrefix(b, _RESP_BEGIN):
 				resp = new(tmuxResponseT)

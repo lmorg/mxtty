@@ -1,7 +1,6 @@
 package ptty
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -9,12 +8,13 @@ import (
 
 	"github.com/creack/pty"
 	"github.com/lmorg/mxtty/types"
+	runebuf "github.com/lmorg/mxtty/utils/rune_buf"
 )
 
 type PTY struct {
 	primary   *os.File
 	secondary *os.File
-	stream    chan rune
+	buf       *runebuf.Buf
 }
 
 func NewPTY(size *types.XY) (types.Pty, error) {
@@ -34,7 +34,7 @@ func NewPTY(size *types.XY) (types.Pty, error) {
 	p := &PTY{
 		primary:   primary,
 		secondary: secondary,
-		stream:    make(chan rune),
+		buf:       runebuf.New(),
 	}
 
 	go p.read(secondary)
@@ -52,53 +52,20 @@ func (p *PTY) Write(b []byte) error {
 }
 
 func (p *PTY) read(f *os.File) {
-	var (
-		b    = make([]byte, 10*1024)
-		utf8 []byte
-		l    int
-	)
-
 	for {
-		n, err := f.Read(b)
+		b := make([]byte, 10*1024)
+		i, err := f.Read(b)
 		if err != nil && err.Error() != io.EOF.Error() {
-			log.Printf("ERROR: problem reading from PTY (%d bytes dropped): %s", n, err.Error())
+			log.Printf("ERROR: problem reading from PTY (%d bytes dropped): %v", i, err)
 			continue
 		}
 
-		for i := 0; i < n; i++ {
-			if l == 0 {
-				l = runeLength(b[i])
-				utf8 = make([]byte, l)
-			}
-
-			utf8[len(utf8)-l] = b[i]
-
-			if l == 1 {
-				r := bytes.Runes(utf8)
-				p.stream <- r[0]
-			}
-			l--
-		}
-	}
-}
-
-func runeLength(b byte) int {
-	switch {
-	case b&128 == 0:
-		return 1
-	case b&32 == 0:
-		return 2
-	case b&16 == 0:
-		return 3
-	case b&8 == 0:
-		return 4
-	default:
-		return 0
+		p.buf.Write(b[:i])
 	}
 }
 
 func (p *PTY) Read() rune {
-	return <-p.stream
+	return p.buf.Read()
 }
 
 func (p *PTY) Resize(size *types.XY) error {

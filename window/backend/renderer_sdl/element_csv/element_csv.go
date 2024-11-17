@@ -185,8 +185,10 @@ func (el *ElementCsv) Draw(size *types.XY, pos *types.XY) {
 		relPos.X = pos.X + el.boundaries[el.orderByIndex-2]
 	}
 
+	cell.Sgr.Bitwise |= types.SGR_BOLD
 	cell.Char = arrowGlyph[el.orderDesc]
 	el.renderer.PrintCell(cell, relPos)
+	cell.Sgr.Bitwise ^= types.SGR_BOLD
 
 skipOrderGlyph:
 

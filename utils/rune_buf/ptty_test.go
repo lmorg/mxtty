@@ -1,4 +1,4 @@
-package ptty
+package runebuf
 
 import "testing"
 

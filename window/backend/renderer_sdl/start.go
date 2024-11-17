@@ -151,8 +151,12 @@ func setLghtOrDarkMode() {
 }
 
 func (sr *sdlRender) Start(term types.Term, tmuxClient any) {
+	switch tmuxClient.(type) {
+	case *tmux.Tmux:
+		sr.tmux = tmuxClient.(*tmux.Tmux)
+	}
+
 	sr.term = term
-	sr.tmux = tmuxClient.(*tmux.Tmux)
 
 	sr.registerHotkey()
 	go sr.refreshInterval()

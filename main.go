@@ -27,7 +27,7 @@ func regularSession() {
 	renderer, size := backend.Initialise()
 	defer renderer.Close()
 
-	term := virtualterm.NewTerminal(renderer, size, false)
+	term := virtualterm.NewTerminal(renderer, size, true)
 	pty, err := ptty.NewPTY(size)
 	if err != nil {
 		panic(err)

@@ -8,6 +8,7 @@ import (
 	"github.com/lmorg/mxtty/debug"
 	virtualterm "github.com/lmorg/mxtty/term"
 	"github.com/lmorg/mxtty/types"
+	runebuf "github.com/lmorg/mxtty/utils/rune_buf"
 )
 
 /*
@@ -62,22 +63,15 @@ type PANE_T struct {
 	Height int    `tmux:"pane_height"`
 	Active bool   `tmux:"?pane_active,true,false"`
 	tmux   *Tmux
-	buf    chan rune
+	buf    *runebuf.Buf
 	closed bool
 	term   types.Term
 }
 
 func (p *PANE_T) File() *os.File { return nil }
 
-func (p *PANE_T) respFromTmux(b []byte) {
-	//debug.Log(p.Id)
-	for _, r := range []rune(string(b)) {
-		p.buf <- r
-	}
-}
-
 func (p *PANE_T) Read() rune {
-	return <-p.buf
+	return p.buf.Read()
 }
 
 func (tmux *Tmux) initSessionPanes(renderer types.Renderer, size *types.XY) error {
@@ -93,7 +87,7 @@ func (tmux *Tmux) initSessionPanes(renderer types.Renderer, size *types.XY) erro
 			pane := panes.([]any)[i].(*PANE_T)
 			pane.tmux = tmux
 
-			pane.buf = make(chan rune)
+			pane.buf = runebuf.New()
 			debug.Log(pane)
 			win.panes[pane.Id] = pane
 			if pane.Active {

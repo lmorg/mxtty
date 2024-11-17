@@ -27,7 +27,7 @@ var (
 		"`",                          // backtick
 		`!"£$%^&*()-=_+`,             // special, top row
 		`[]{};'#:@~\|,./<>?`,         // special, others ascii
-		`↑↓`,                         // special, mxtty
+		`↑↓←→`,                       // special, mxtty
 		`»…`,                         // murex
 		`┏┓┗┛━─╶┃┠┨╔╗╚╝═║╟╢█`, //     // box drawing
 	}

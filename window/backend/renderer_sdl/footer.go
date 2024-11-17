@@ -85,7 +85,7 @@ func (sr *sdlRender) _footerCacheTmuxWindowTabs(pos *types.XY) {
 		mouseOver: -1,
 	}
 
-	heading := "Windows:   "
+	heading := []rune("Window tab list →  ")
 
 	cell := types.Cell{
 		Char: ' ',
@@ -138,8 +138,8 @@ func (sr *sdlRender) _footerRenderTmuxWindowTabs(pos *types.XY) {
 	activeRect := &sdl.Rect{
 		X: (topLeftCellX * sr.glyphSize.X) + sr.border,
 		Y: (topLeftCellY * sr.glyphSize.Y) + sr.border,
-		W: (bottomRightCellX * sr.glyphSize.X),
-		H: (bottomRightCellY * sr.glyphSize.Y),
+		W: (bottomRightCellX * sr.glyphSize.X) + 1,
+		H: (bottomRightCellY * sr.glyphSize.Y) + 1,
 	}
 	sr._drawHighlightRect(activeRect, 0, 230)
 
