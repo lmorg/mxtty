@@ -47,6 +47,19 @@ func (tw *termWidgetT) eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) {
 	mod := keyEventModToCodesModifier(evt.Keysym.Mod)
 	keyCode := sr.keyCodeLookup(evt.Keysym.Sym)
 
+	/*if config.Config.Tmux.Enabled {
+		if mod == 0 && keyCode == codes.AnsiF2 {
+			command := fmt.Sprintf("%s -t %s\n%%send-keys '-'", tmux.CMD_SEND_PREFIX, sr.tmux.ActivePane().Id)
+			_, err := sr.tmux.SendCommand([]byte(command))
+			if err != nil {
+				sr.DisplayNotification(types.NOTIFY_ERROR, err.Error())
+			} else {
+				sr.DisplayNotification(types.NOTIFY_INFO, "Prefix sent to tmux")
+			}
+			return
+		}
+	}*/
+
 	b := codes.GetAnsiEscSeq(sr.keyboardMode.Get(), keyCode, mod)
 	if len(b) > 0 {
 		sr.term.Reply(b)
@@ -140,14 +153,16 @@ func (tw *termWidgetT) eventMouseMotion(sr *sdlRender, evt *sdl.MouseMotionEvent
 		if (evt.Y-sr.border)/sr.glyphSize.Y == sr.term.GetSize().Y+sr.footer-1 {
 			x := ((evt.X - sr.border) / sr.glyphSize.X) - sr.windowTabs.offset.X
 			for i := range sr.windowTabs.boundaries {
-				if x < sr.windowTabs.boundaries[i] {
+				if x >= 0 && x < sr.windowTabs.boundaries[i] {
 					sr.windowTabs.mouseOver = i - 1
+					sr.footerText = fmt.Sprintf("[click]  Switch to window '%s' (%s)", sr.windowTabs.windows[i-1].Name, sr.windowTabs.windows[i-1].Id)
 					return
 				}
 			}
 		}
 
 		sr.windowTabs.mouseOver = -1
+		sr.footerText = ""
 	}
 
 	sr.term.MouseMotion(
@@ -165,6 +180,10 @@ func (sr *sdlRender) _termMouseMotionCallback() {
 }
 
 func (sr *sdlRender) _switchWindow(winIndex int) {
+	if winIndex < 0 || winIndex >= len(sr.windowTabs.windows) {
+		return
+	}
+
 	// update old
 	sr.windowTabs.windows[sr.windowTabs.active].Active = false
 	sr.windowTabs.windows[winIndex].ActivePane().Term().MakeVisible(false)

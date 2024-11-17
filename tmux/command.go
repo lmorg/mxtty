@@ -9,6 +9,7 @@ import (
 
 const (
 	CMD_SELECT_WINDOW = `select-window`
+	CMD_SEND_PREFIX   = `send-prefix`
 )
 
 const _SEPARATOR = `|||`
