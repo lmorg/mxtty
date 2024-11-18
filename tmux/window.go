@@ -1,6 +1,7 @@
 package tmux
 
 import (
+	"fmt"
 	"reflect"
 	"sort"
 
@@ -49,11 +50,13 @@ var CMD_LIST_WINDOWS = "list-windows"
 type WINDOW_T struct {
 	Name       string `tmux:"window_name"`
 	Id         string `tmux:"window_id"`
+	Index      int    `tmux:"window_index"`
 	Width      int    `tmux:"window_width"`
 	Height     int    `tmux:"window_height"`
 	Active     bool   `tmux:"?window_active,true,false"`
 	panes      map[string]*PANE_T
 	activePane *PANE_T
+	closed     bool
 }
 
 func (tmux *Tmux) initSessionWindows() error {
@@ -66,6 +69,7 @@ func (tmux *Tmux) initSessionWindows() error {
 
 	for i := range windows.([]any) {
 		win := windows.([]any)[i].(*WINDOW_T)
+		win.panes = make(map[string]*PANE_T)
 		tmux.win[win.Id] = win
 		if win.Active {
 			tmux.activeWindow = win
@@ -76,15 +80,80 @@ func (tmux *Tmux) initSessionWindows() error {
 	return nil
 }
 
-func (tmux *Tmux) Windows() []*WINDOW_T {
+func (tmux *Tmux) newWindow(winId string) *WINDOW_T {
+	win := &WINDOW_T{
+		Id:    winId,
+		panes: make(map[string]*PANE_T),
+	}
+
+	tmux.win[winId] = win
+	//tmux.activeWindow = win
+	return win
+}
+
+type winInfo struct {
+	Id     string `tmux:"window_id"`
+	Index  int    `tmux:"window_index"`
+	Name   string `tmux:"window_name"`
+	Width  int    `tmux:"window_width"`
+	Height int    `tmux:"window_height"`
+	Active bool   `tmux:"?window_active,true,false"`
+}
+
+// updateWinInfo, winId is optional. Leave blank to update all windows
+func (tmux *Tmux) updateWinInfo(winId string) error {
+	var filter string
+	if winId != "" {
+		filter = fmt.Sprintf("-f '#{m:#{window_id},%s}'", winId)
+	}
+
+	v, err := tmux.sendCommand(CMD_LIST_WINDOWS, reflect.TypeOf(winInfo{}), filter)
+	if err != nil {
+		return err
+	}
+
+	wins, ok := v.([]any)
+	if !ok {
+		return fmt.Errorf("expecting an array of windows, instead got %T", v)
+	}
+
+	for i := range wins {
+
+		info, ok := wins[i].(*winInfo)
+		if !ok {
+			return fmt.Errorf("expecting info on a window, instead got %T", info)
+		}
+
+		win, ok := tmux.win[info.Id]
+		if !ok {
+			win = tmux.newWindow(info.Id)
+		}
+		win.Index = info.Index
+		win.Name = info.Name
+		win.Width = info.Width
+		win.Height = info.Height
+		win.Active = info.Active
+
+		if win.Active {
+			tmux.activeWindow = win
+		}
+	}
+
+	return nil
+}
+
+func (tmux *Tmux) RenderWindows() []*WINDOW_T {
 	var wins []*WINDOW_T
 
 	for _, win := range tmux.win {
+		if win.closed {
+			continue
+		}
 		wins = append(wins, win)
 	}
 
 	sort.Slice(wins, func(i, j int) bool {
-		return wins[i].Id < wins[j].Id
+		return wins[i].Index < wins[j].Index
 	})
 
 	return wins
@@ -92,4 +161,17 @@ func (tmux *Tmux) Windows() []*WINDOW_T {
 
 func (win *WINDOW_T) ActivePane() *PANE_T {
 	return win.activePane
+}
+
+func (win *WINDOW_T) Rename(name string) error {
+	command := fmt.Sprintf("rename-window -t %s '%s'", win.Id, name)
+	_, err := win.activePane.tmux.SendCommand([]byte(command))
+	return err
+}
+
+func (tmux *Tmux) SelectWindow(winId string) error {
+	command := fmt.Sprintf("select-window -t %s", winId)
+	_, err := tmux.SendCommand([]byte(command))
+	go tmux.UpdateSession()
+	return err
 }

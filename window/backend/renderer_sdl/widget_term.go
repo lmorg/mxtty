@@ -5,7 +5,6 @@ import (
 
 	"github.com/lmorg/mxtty/codes"
 	"github.com/lmorg/mxtty/config"
-	"github.com/lmorg/mxtty/tmux"
 	"github.com/lmorg/mxtty/types"
 	"github.com/lmorg/mxtty/utils/octal"
 	"github.com/veandco/go-sdl2/sdl"
@@ -88,11 +87,23 @@ func (tw *termWidgetT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEvent
 		x := ((evt.X - sr.border) / sr.glyphSize.X) - sr.windowTabs.offset.X
 		for i := range sr.windowTabs.boundaries {
 			if x < sr.windowTabs.boundaries[i] {
-				sr._switchWindow(i - 1)
+				switch evt.Clicks {
+				case 1:
+					sr.selectWindow(i - 1)
+				case 2:
+					sr.DisplayInputBox("Please enter a new name for this window:", sr.windowTabs.windows[i-1].Name, func(name string) {
+						err := sr.windowTabs.windows[i-1].Rename(name)
+						if err != nil {
+							sr.DisplayNotification(types.NOTIFY_ERROR, err.Error())
+						}
+					})
+				}
 				return
 			}
 		}
-
+		if evt.Clicks == 2 {
+			sr.tmux.NewWindow()
+		}
 		return
 	}
 
@@ -159,6 +170,9 @@ func (tw *termWidgetT) eventMouseMotion(sr *sdlRender, evt *sdl.MouseMotionEvent
 					return
 				}
 			}
+			sr.footerText = "[2x click]  Start new window"
+			sr.windowTabs.mouseOver = -1
+			return
 		}
 
 		sr.windowTabs.mouseOver = -1
@@ -179,31 +193,23 @@ func (sr *sdlRender) _termMouseMotionCallback() {
 	sr.footerText = "[left click] Copy  |  [right click] Paste  |  [wheel] Scrollback buffer"
 }
 
-func (sr *sdlRender) _switchWindow(winIndex int) {
+func (sr *sdlRender) selectWindow(winIndex int) {
 	if winIndex < 0 || winIndex >= len(sr.windowTabs.windows) {
 		return
 	}
 
-	// update old
-	sr.windowTabs.windows[sr.windowTabs.active].Active = false
-	sr.windowTabs.windows[winIndex].ActivePane().Term().MakeVisible(false)
-
-	// select new
-	sr.windowTabs.active = winIndex
-
-	// update new
-	sr.windowTabs.windows[winIndex].Active = true
-	sr.windowTabs.windows[winIndex].ActivePane().Term().MakeVisible(true)
-	command := fmt.Sprintf("%s -t %s", tmux.CMD_SELECT_WINDOW, sr.windowTabs.windows[winIndex].Id)
-	_, err := sr.tmux.SendCommand([]byte(command))
+	winId := sr.windowTabs.windows[winIndex].Id
+	err := sr.tmux.SelectWindow(winId)
 	if err != nil {
 		sr.DisplayNotification(types.NOTIFY_ERROR, err.Error())
 	}
-	sr.term = sr.windowTabs.windows[winIndex].ActivePane().Term()
 }
 
 func (sr *sdlRender) RefreshWindowList() {
 	sr.limiter.Lock()
+
 	sr.windowTabs = nil
+	sr.term = sr.tmux.ActivePane().Term()
+
 	sr.limiter.Unlock()
 }

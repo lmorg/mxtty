@@ -102,7 +102,7 @@ func (sr *sdlRender) _footerCacheTmuxWindowTabs(pos *types.XY) {
 	tabList.boundaries = []int32{0}
 	var x int32
 
-	tabList.windows = sr.tmux.Windows()
+	tabList.windows = sr.tmux.RenderWindows()
 	for i, win := range tabList.windows {
 		if win.Active {
 			tabList.active = i

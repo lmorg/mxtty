@@ -3,14 +3,17 @@ package tmux
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
+	"sync"
 
 	"github.com/creack/pty"
 	"github.com/lmorg/mxtty/config"
 	"github.com/lmorg/mxtty/debug"
 	"github.com/lmorg/mxtty/types"
+	"github.com/lmorg/mxtty/utils/exit"
 	"github.com/lmorg/mxtty/utils/octal"
 )
 
@@ -125,7 +128,6 @@ var respIgnored = [][]byte{
 	_RESP_CLIENT_SESSION_CHANGED,
 	_RESP_CONFIG_ERROR,
 	_RESP_CONTINUE,
-	_RESP_EXIT,
 	_RESP_EXTENDED_OUTPUT,
 	_RESP_LAYOUT_CHANGE,
 	_RESP_PANE_MODE_CHANGED,
@@ -140,8 +142,6 @@ var respIgnored = [][]byte{
 	_RESP_UNLINKED_WINDOW_ADD,
 	_RESP_UNLINKED_WINDOW_CLOSE,
 	_RESP_UNLINKED_WINDOW_RENAMED,
-	_RESP_WINDOW_ADD,
-	_RESP_WINDOW_CLOSE,
 	_RESP_WINDOW_PANE_CHANGED,
 }
 
@@ -153,6 +153,9 @@ type Tmux struct {
 	pane map[string]*PANE_T
 
 	activeWindow *WINDOW_T
+	renderer     types.Renderer
+
+	limiter sync.Mutex
 }
 
 type tmuxResponseT struct {
@@ -160,27 +163,33 @@ type tmuxResponseT struct {
 	IsErr   bool
 }
 
-func NewTmuxAttachSession(renderer types.Renderer, size *types.XY) (*Tmux, error) {
-	tmux := new(Tmux)
-	tmux.resp = make(chan *tmuxResponseT)
-	tmux.pane = make(map[string]*PANE_T)
+const (
+	START_ATTACH_SESSION = "attach-session"
+	START_NEW_SESSION    = "new-session"
+)
+
+func NewStartSession(renderer types.Renderer, size *types.XY, startCommand string) (*Tmux, error) {
+	tmux := &Tmux{
+		resp:     make(chan *tmuxResponseT),
+		win:      make(map[string]*WINDOW_T),
+		pane:     make(map[string]*PANE_T),
+		renderer: renderer,
+	}
 
 	var err error
+	var allowExit bool
 	resp := new(tmuxResponseT)
-	go func() {
-		<-tmux.resp // ignore the first block
-	}()
 
-	tmux.cmd = exec.Command("tmux", "-CC", "attach-session")
+	tmux.cmd = exec.Command("tmux", "-CC", startCommand)
 	tmux.cmd.Env = config.SetEnv()
 	tmux.tty, err = pty.Start(tmux.cmd)
 	if err != nil {
 		return nil, err
 	}
 
-	_, _ = tmux.tty.Read(make([]byte, 7))
 	// Discard the following because it's just setting mode:
 	//    \u001bP1000p
+	_, _ = tmux.tty.Read(make([]byte, 7))
 
 	go func() {
 		scanner := bufio.NewScanner(tmux.tty)
@@ -191,9 +200,11 @@ func NewTmuxAttachSession(renderer types.Renderer, size *types.XY) (*Tmux, error
 			switch {
 			case bytes.HasPrefix(b, _RESP_OUTPUT):
 				params := bytes.SplitN(b, []byte{' '}, 3)
-				pane, ok := tmux.pane[string(params[1])]
+				paneId := string(params[1])
+				pane, ok := tmux.pane[paneId]
 				if !ok {
-					panic(fmt.Sprintf("unknown pane ID: %s", string(params[1])))
+					pane = tmux.newPane(paneId)
+					go tmux.UpdateSession()
 				}
 				pane.buf.Write(octal.Unescape(params[2]))
 
@@ -211,10 +222,32 @@ func NewTmuxAttachSession(renderer types.Renderer, size *types.XY) (*Tmux, error
 				msg := b[len(_RESP_MESSAGE):]
 				renderer.DisplayNotification(types.NOTIFY_INFO, string(msg))
 
+			case bytes.HasPrefix(b, _RESP_WINDOW_ADD):
+				params := bytes.SplitN(b, []byte{' '}, 2)
+				winId := string(params[1])
+				_ = tmux.newWindow(winId)
+				//go tmux.UpdateSession()
+
 			case bytes.HasPrefix(b, _RESP_WINDOW_RENAMED):
 				params := bytes.SplitN(b, []byte{' '}, 3)
 				tmux.win[string(params[1])].Name = string(params[2])
-				renderer.RefreshWindowList()
+				go renderer.RefreshWindowList()
+				//go tmux.UpdateSession()
+
+			case bytes.HasPrefix(b, _RESP_WINDOW_CLOSE) || bytes.HasPrefix(b, _RESP_UNLINKED_WINDOW_CLOSE):
+				params := bytes.SplitN(b, []byte{' '}, 3)
+				win, ok := tmux.win[string(params[1])]
+				if !ok {
+					// window doesn't exist so lets not fret about it being closed
+					continue
+				}
+				win.closed = true
+				go tmux.UpdateSession()
+
+			case bytes.HasPrefix(b, _RESP_EXIT):
+				if allowExit {
+					exit.Exit(0)
+				}
 
 			default:
 				// ignore anything that looks like a notification
@@ -227,24 +260,54 @@ func NewTmuxAttachSession(renderer types.Renderer, size *types.XY) (*Tmux, error
 		}
 	}()
 
-	err = tmux.RefreshClient(size)
+	startMessage := <-tmux.resp
+	if startMessage.IsErr {
+		err := errors.New(string(bytes.Join(startMessage.Message, []byte(": "))))
+		return nil, err
+	}
+
+	allowExit = true
+
+	err = tmux.initSession(renderer, size)
 	if err != nil {
 		return nil, err
+	}
+
+	return tmux, nil // could shouldn't reach this point
+}
+
+func (tmux *Tmux) initSession(renderer types.Renderer, size *types.XY) error {
+	err := tmux.RefreshClient(size)
+	if err != nil {
+		return err
 	}
 
 	err = tmux.initSessionWindows()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	err = tmux.initSessionPanes(renderer, size)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	tmux.ActivePane().term.MakeVisible(true)
+	return nil
+}
 
-	return tmux, nil // could shouldn't reach this point
+func (tmux *Tmux) UpdateSession() {
+	err := tmux.updateWinInfo("")
+	if err != nil {
+		tmux.renderer.DisplayNotification(types.NOTIFY_ERROR, err.Error())
+	}
+
+	err = tmux.updatePaneInfo("")
+	if err != nil {
+		tmux.renderer.DisplayNotification(types.NOTIFY_ERROR, err.Error())
+	}
+
+	tmux.renderer.RefreshWindowList()
 }
 
 func ignoreResponse(b []byte) bool {
@@ -260,6 +323,7 @@ func ignoreResponse(b []byte) bool {
 }
 
 func (tmux *Tmux) SendCommand(b []byte) (*tmuxResponseT, error) {
+	tmux.limiter.Lock()
 	debug.Log(string(b))
 	_, err := tmux.tty.Write(append(b, '\n'))
 	if err != nil {
@@ -267,10 +331,18 @@ func (tmux *Tmux) SendCommand(b []byte) (*tmuxResponseT, error) {
 	}
 
 	resp := <-tmux.resp
+	tmux.limiter.Unlock()
 
 	if resp.IsErr {
 		return nil, fmt.Errorf("tmux command failed: %s", string(bytes.Join(resp.Message, []byte(": "))))
 	}
 
 	return resp, nil
+}
+
+func (tmux *Tmux) NewWindow() {
+	_, err := tmux.SendCommand([]byte("new-window"))
+	if err != nil {
+		tmux.renderer.DisplayNotification(types.NOTIFY_ERROR, err.Error())
+	}
 }

@@ -16,8 +16,8 @@ var (
 type inputBoxCallbackT func(string)
 
 type inputBoxT struct {
-	Message  string
-	Default  string
+	Message string
+	//Default  string
 	Callback inputBoxCallbackT
 	Value    string
 }
@@ -25,7 +25,7 @@ type inputBoxT struct {
 func (sr *sdlRender) DisplayInputBox(message string, defaultValue string, callback func(string)) {
 	sr.inputBox = &inputBoxT{
 		Message:  message,
-		Default:  defaultValue,
+		Value:    defaultValue,
 		Callback: callback,
 	}
 

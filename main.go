@@ -1,12 +1,13 @@
 package main
 
 import (
+	"log"
+
 	"github.com/lmorg/mxtty/config"
 	"github.com/lmorg/mxtty/debug/pprof"
 	"github.com/lmorg/mxtty/ptty"
 	virtualterm "github.com/lmorg/mxtty/term"
 	"github.com/lmorg/mxtty/tmux"
-	"github.com/lmorg/mxtty/types"
 	"github.com/lmorg/mxtty/window/backend"
 )
 
@@ -41,10 +42,19 @@ func tmuxSession() {
 	renderer, size := backend.Initialise()
 	defer renderer.Close()
 
-	tmux, err := tmux.NewTmuxAttachSession(renderer, size)
+	tmuxClient, err := tmux.NewStartSession(renderer, size, tmux.START_ATTACH_SESSION)
 	if err != nil {
-		renderer.DisplaySticky(types.NOTIFY_ERROR, err.Error())
+		if err.Error() != "no sessions" {
+			panic(err)
+		}
+
+		log.Println("No sessions to attach to. Creating new session.")
+
+		tmuxClient, err = tmux.NewStartSession(renderer, size, tmux.START_NEW_SESSION)
+		if err != nil {
+			panic(err)
+		}
 	}
 
-	backend.Start(renderer, tmux.ActivePane().Term(), tmux)
+	backend.Start(renderer, tmuxClient.ActivePane().Term(), tmuxClient)
 }
