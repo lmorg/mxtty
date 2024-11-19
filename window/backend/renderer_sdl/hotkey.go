@@ -8,7 +8,7 @@ import (
 )
 
 func (sr *sdlRender) _registerHotkey() {
-	sr.hk = hotkey.New([]hotkey.Modifier{}, hotkey.KeyF5)
+	sr.hk = hotkey.New([]hotkey.Modifier{}, hotkey.KeyF12)
 	err := sr.hk.Register()
 	if err != nil {
 		sr.DisplayNotification(types.NOTIFY_ERROR, fmt.Sprintf("Unable to set hotkey: %s", err.Error()))

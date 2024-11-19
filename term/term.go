@@ -291,3 +291,13 @@ func (term *Term) HasFocus(state bool) {
 func (term *Term) MakeVisible(visible bool) {
 	term.visible = visible
 }
+
+func (term *Term) search(find string) {
+	term._mutex.Lock()
+	defer term._mutex.Unlock()
+
+	for i := term.size.Y; i >= 0; i-- {
+
+	}
+
+}

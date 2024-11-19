@@ -7,6 +7,19 @@ import (
 )
 
 func (term *Term) CopyRange(topLeft, bottomRight *types.XY) []byte {
+	if topLeft.X < 0 {
+		topLeft.X = 0
+	}
+	if topLeft.Y < 0 {
+		topLeft.Y = 0
+	}
+	if bottomRight.X > term.size.X {
+		bottomRight.X = term.size.X
+	}
+	if bottomRight.X > term.size.X {
+		bottomRight.Y = term.size.Y
+	}
+
 	// This is some ugly ass code. Sorry!
 	// It is also called infrequently and not worth my time optimizing right now
 	var (
@@ -68,6 +81,13 @@ func (term *Term) CopyRange(topLeft, bottomRight *types.XY) []byte {
 }
 
 func (term *Term) CopyLines(top, bottom int32) []byte {
+	if top < 0 {
+		top = 0
+	}
+	if bottom > term.size.Y {
+		bottom = term.size.Y
+	}
+
 	cells := term.visibleScreen()
 	var b []byte
 
@@ -87,6 +107,19 @@ func (term *Term) CopyLines(top, bottom int32) []byte {
 }
 
 func (term *Term) CopySquare(begin *types.XY, end *types.XY) []byte {
+	if begin.X < 0 {
+		begin.X = 0
+	}
+	if begin.Y < 0 {
+		begin.Y = 0
+	}
+	if end.X > term.size.X {
+		end.X = term.size.X
+	}
+	if end.X > term.size.X {
+		end.Y = term.size.Y
+	}
+
 	cells := term.visibleScreen()
 	var b []byte
 
