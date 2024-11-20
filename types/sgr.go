@@ -13,6 +13,9 @@ func (s *Sgr) Reset() {
 }
 
 func (s *Sgr) Copy() *Sgr {
+	if s == nil {
+		return SGR_DEFAULT.Copy()
+	}
 	return &Sgr{
 		Fg:      s.Fg,
 		Bg:      s.Bg,
@@ -35,6 +38,17 @@ const (
 	SGR_STRIKETHROUGH
 	SGR_SLOW_BLINK
 	SGR_INVERT
+
+	SGR_HIGHLIGHT_SEARCH_RESULT
+
+	// _SGR_PLACEHOLDER1
+	// _SGR_PLACEHOLDER2
+	// _SGR_PLACEHOLDER3
+	// _SGR_PLACEHOLDER4
+	// _SGR_PLACEHOLDER5
+	// _SGR_PLACEHOLDER6
+	// _SGR_PLACEHOLDER7
+	// _SGR_PLACEHOLDER8
 )
 
 func (f SgrFlag) Is(flag SgrFlag) bool {

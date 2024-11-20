@@ -4,6 +4,7 @@ type Cell struct {
 	Char    rune
 	Sgr     *Sgr
 	Element Element
+	Phrase  *[]rune
 }
 
 func (c *Cell) Clear() {

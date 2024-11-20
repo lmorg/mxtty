@@ -142,11 +142,11 @@ func (sr *sdlRender) setTypeFace(f *ttf.Font) {
 func setLghtOrDarkMode() {
 	if config.Config.Terminal.LightMode {
 		highlightBlendMode = sdl.BLENDMODE_BLEND
-		textShadow.A = 32
+		textShadow[_HLTEXTURE_NONE].A = 32
 		types.SGR_DEFAULT.Fg, types.SGR_DEFAULT.Bg = types.SGR_DEFAULT.Bg, types.SGR_DEFAULT.Fg
 	} else {
 		highlightBlendMode = sdl.BLENDMODE_ADD
-		textShadow.A = 255
+		textShadow[_HLTEXTURE_NONE].A = 255
 	}
 }
 

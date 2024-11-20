@@ -14,7 +14,7 @@ func (term *Term) Render() {
 
 	cells := term.visibleScreen()
 
-	if !config.Config.Terminal.TypeFace.Ligatures || term._mouseButtonDown {
+	if !config.Config.Terminal.TypeFace.Ligatures || term._mouseButtonDown || term._searchHighlight {
 		term._renderCells(cells)
 	} else {
 		term._renderLigatures(cells)

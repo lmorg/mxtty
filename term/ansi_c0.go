@@ -29,6 +29,10 @@ func (term *Term) readLoop() {
 func (term *Term) readChar(r rune) {
 	//writeDebuggingRune(r)
 
+	if r < ' ' {
+		term._phrase = nil
+	}
+
 	switch r {
 
 	case 7:

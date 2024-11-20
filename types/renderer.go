@@ -23,6 +23,7 @@ type Renderer interface {
 	GetWindowMeta() any
 	ResizeWindow(*XY)
 	SetKeyboardFnMode(KeyboardMode)
+	ClearFontCache()
 	Close()
 }
 

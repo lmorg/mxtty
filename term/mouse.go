@@ -2,7 +2,6 @@ package virtualterm
 
 import (
 	"fmt"
-	"unsafe"
 
 	"github.com/lmorg/mxtty/types"
 )
@@ -49,7 +48,7 @@ func (term *Term) _mouseWheelCallback(movement *types.XY) {
 		return
 	}
 
-	if unsafe.Pointer(term.cells) != unsafe.Pointer(&term._normBuf) {
+	if term.IsAltBuf() {
 		return
 	}
 
@@ -62,22 +61,22 @@ func (term *Term) _mouseWheelCallback(movement *types.XY) {
 }
 
 func (term *Term) updateScrollback() {
-	switch {
-	case term._scrollOffset > len(term._scrollBuf):
+	if term._scrollOffset > len(term._scrollBuf) {
 		term._scrollOffset = len(term._scrollBuf)
+	}
 
-	case term._scrollOffset < 0:
+	if term._scrollOffset < 0 {
 		term._scrollOffset = 0
-		fallthrough
+	}
 
-	case term._scrollOffset == 0:
+	if term._scrollOffset == 0 {
 		term.ShowCursor(true)
 		if term._scrollMsg != nil {
 			term._scrollMsg.Close()
 			term._scrollMsg = nil
 		}
 
-	default:
+	} else {
 		term.ShowCursor(false)
 		msg := fmt.Sprintf("Viewing scrollback history. %d lines from end", term._scrollOffset)
 		if term._scrollMsg == nil {

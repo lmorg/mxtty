@@ -13,10 +13,18 @@ import (
 
 const dropShadowOffset int32 = 2
 
-var (
-	textShadow    = sdl.Color{R: 0, G: 0, B: 0, A: 0} // A controlled by LightMode
-	textHighlight = sdl.Color{R: 50, G: 50, B: 255, A: 255}
+const (
+	_HLTEXTURE_NONE = iota
+	_HLTEXTURE_SELECTION
+	_HLTEXTURE_SEARCH_RESULT
+	_HLTEXTURE_LAST // placeholder for rect calculations. Must always come last
 )
+
+var textShadow = []sdl.Color{
+	_HLTEXTURE_NONE:          {R: 0, G: 0, B: 0, A: 0}, // A controlled by LightMode
+	_HLTEXTURE_SELECTION:     {R: 50, G: 50, B: 255, A: 255},
+	_HLTEXTURE_SEARCH_RESULT: {R: 255, G: 0, B: 0, A: 255},
+}
 
 var (
 	fontAtlasCharacterPreload = []string{
@@ -28,17 +36,18 @@ var (
 		`!"£$%^&*()-=_+`,             // special, top row
 		`[]{};'#:@~\|,./<>?`,         // special, others ascii
 		`↑↓←→`,                       // special, mxtty
-		`»…`,                         // murex
+		`»…`,                         // special, murex
 		`┏┓┗┛━─╶┃┠┨╔╗╚╝═║╟╢█`, //     // box drawing
 	}
 )
 
 type fontCacheDefaultLookupT map[rune]*sdl.Rect
 type fontAtlasT struct {
-	sgrHash   uint64
-	lookup    fontCacheDefaultLookupT
-	normal    *sdl.Texture
-	highlight *sdl.Texture
+	sgrHash uint64
+	lookup  fontCacheDefaultLookupT
+	//normal      *sdl.Texture
+	//highlight *sdl.Texture
+	texture []*sdl.Texture
 }
 type fontTextureLookupTableT map[uint64][]*fontAtlasT
 type fontCacheT struct {
@@ -64,10 +73,15 @@ func newFontAtlas(chars []rune, sgr *types.Sgr, glyphSize *types.XY, renderer *s
 	}
 
 	return &fontAtlasT{
-		sgrHash:   sgr.HashValue(),
-		lookup:    _newFontCacheDefaultLookup(chars, glyphSizePlusShadow),
-		normal:    _newFontTexture(chars, sgr, glyphSizePlusShadow, renderer, font, false),
-		highlight: _newFontTexture(chars, sgr, glyphSizePlusShadow, renderer, font, true),
+		sgrHash: sgr.HashValue(),
+		lookup:  _newFontCacheDefaultLookup(chars, glyphSizePlusShadow),
+		//normal:      _newFontTexture(chars, sgr, glyphSizePlusShadow, renderer, font, false),
+		//highlight: _newFontTexture(chars, sgr, glyphSizePlusShadow, renderer, font, true),
+		texture: []*sdl.Texture{
+			_HLTEXTURE_NONE:          _newFontTexture(chars, sgr, glyphSizePlusShadow, renderer, font, _HLTEXTURE_NONE),
+			_HLTEXTURE_SELECTION:     _newFontTexture(chars, sgr, glyphSizePlusShadow, renderer, font, _HLTEXTURE_SELECTION),
+			_HLTEXTURE_SEARCH_RESULT: _newFontTexture(chars, sgr, glyphSizePlusShadow, renderer, font, _HLTEXTURE_SEARCH_RESULT),
+		},
 	}
 }
 
@@ -87,7 +101,7 @@ func _newFontCacheDefaultLookup(chars []rune, glyphSize *types.XY) fontCacheDefa
 }
 
 func _newFontSurface(glyphSize *types.XY, nCharacters int32) *sdl.Surface {
-	surface, err := sdl.CreateRGBSurfaceWithFormat(0, glyphSize.X*nCharacters, glyphSize.Y, 32, uint32(sdl.PIXELFORMAT_RGBA32))
+	surface, err := sdl.CreateRGBSurfaceWithFormat(0, glyphSize.X*nCharacters, glyphSize.Y*_HLTEXTURE_LAST, 32, uint32(sdl.PIXELFORMAT_RGBA32))
 	if err != nil {
 		panic(err) // TODO: better error handling please!
 	}
@@ -106,7 +120,7 @@ func _newFontSurface(glyphSize *types.XY, nCharacters int32) *sdl.Surface {
 	return surface
 }
 
-func _newFontTexture(chars []rune, sgr *types.Sgr, glyphSize *types.XY, renderer *sdl.Renderer, font *ttf.Font, isCellHighlighted bool) *sdl.Texture {
+func _newFontTexture(chars []rune, sgr *types.Sgr, glyphSize *types.XY, renderer *sdl.Renderer, font *ttf.Font, hlTexture int) *sdl.Texture {
 	surface := _newFontSurface(glyphSize, int32(len(chars)))
 	defer surface.Free()
 
@@ -122,7 +136,7 @@ func _newFontTexture(chars []rune, sgr *types.Sgr, glyphSize *types.XY, renderer
 	var err error
 	for i, cell.Char = range chars {
 		cellRect.X = int32(i) * glyphSize.X
-		err = _printCellToSurface(cell, cellRect, font, surface, isCellHighlighted)
+		err = _printCellToSurface(cell, cellRect, font, surface, hlTexture)
 		if err != nil {
 			panic(err) // TODO: better error handling please!
 		}
@@ -138,7 +152,7 @@ func _newFontTexture(chars []rune, sgr *types.Sgr, glyphSize *types.XY, renderer
 	return texture
 }
 
-func (fa *fontAtlasT) Render(sr *sdlRender, dstRect *sdl.Rect, r rune, hash uint64, isCellHighlighted bool) bool {
+func (fa *fontAtlasT) Render(sr *sdlRender, dstRect *sdl.Rect, r rune, hash uint64, hlMode int) bool {
 	if hash != fa.sgrHash {
 		return false
 	}
@@ -148,27 +162,28 @@ func (fa *fontAtlasT) Render(sr *sdlRender, dstRect *sdl.Rect, r rune, hash uint
 		return false
 	}
 
-	var texture *sdl.Texture
-	if isCellHighlighted {
-		texture = fa.highlight
+	/*var texture *sdl.Texture
+	switch isHighlighted
+		texture = fa.selected
 	} else {
 		texture = fa.normal
-	}
+	}*/
+	texture := fa.texture[hlMode]
 
 	sr.AddToElementStack(&layer.RenderStackT{texture, srcRect, dstRect, false})
 
 	return ok
 }
 
-func _printCellToSurface(cell *types.Cell, cellRect *sdl.Rect, font *ttf.Font, surface *sdl.Surface, isCellHighlighted bool) error {
+func _printCellToSurface(cell *types.Cell, cellRect *sdl.Rect, font *ttf.Font, surface *sdl.Surface, hlTexture int) error {
 	fg, bg := sgrOpts(cell.Sgr)
 
 	// render background colour
 
 	if bg != nil {
 		var pixel uint32
-		if isCellHighlighted {
-			pixel = sdl.MapRGBA(surface.Format, textHighlight.R, textHighlight.G, textHighlight.B, 255)
+		if hlTexture != 0 {
+			pixel = sdl.MapRGBA(surface.Format, textShadow[hlTexture].R, textShadow[hlTexture].G, textShadow[hlTexture].B, 255)
 		} else {
 			pixel = sdl.MapRGBA(surface.Format, bg.Red, bg.Green, bg.Blue, 255)
 		}
@@ -186,7 +201,7 @@ func _printCellToSurface(cell *types.Cell, cellRect *sdl.Rect, font *ttf.Font, s
 
 	// render drop shadow
 
-	if config.Config.Terminal.TypeFace.DropShadow && (bg == nil || isCellHighlighted) {
+	if config.Config.Terminal.TypeFace.DropShadow && (bg == nil || hlTexture != 0) {
 		shadowRect := &sdl.Rect{
 			X: cellRect.X + dropShadowOffset,
 			Y: cellRect.Y + dropShadowOffset,
@@ -194,13 +209,13 @@ func _printCellToSurface(cell *types.Cell, cellRect *sdl.Rect, font *ttf.Font, s
 			H: cellRect.H,
 		}
 
-		var c sdl.Color
-		if isCellHighlighted && bg == nil {
+		/*var c sdl.Color
+		if hlTexture != 0 && bg == nil {
 			c = textHighlight
 		} else {
 			c = textShadow
-		}
-		shadowText, err := font.RenderGlyphBlended(cell.Char, c)
+		}*/
+		shadowText, err := font.RenderGlyphBlended(cell.Char, textShadow[hlTexture]) // c
 		if err != nil {
 			return err
 		}
@@ -219,7 +234,7 @@ func _printCellToSurface(cell *types.Cell, cellRect *sdl.Rect, font *ttf.Font, s
 	}
 	defer text.Free()
 
-	if isCellHighlighted {
+	if hlTexture != 0 {
 		_ = text.SetBlendMode(sdl.BLENDMODE_ADD)
 	}
 
@@ -292,10 +307,16 @@ func (sr *sdlRender) PrintCell(cell *types.Cell, cellPos *types.XY) {
 		H: sr.glyphSize.Y + dropShadowOffset,
 	}
 
-	isCellHighlighted := isCellHighlighted(sr, dstRect)
+	hlTexture := _HLTEXTURE_NONE
+	if cell.Sgr.Bitwise.Is(types.SGR_HIGHLIGHT_SEARCH_RESULT) {
+		hlTexture = _HLTEXTURE_SEARCH_RESULT
+	}
+	if isCellHighlighted(sr, dstRect) {
+		hlTexture = _HLTEXTURE_SELECTION
+	}
 	hash := cell.Sgr.HashValue()
 
-	ok := sr.fontCache.atlas.Render(sr, dstRect, cell.Char, hash, isCellHighlighted)
+	ok := sr.fontCache.atlas.Render(sr, dstRect, cell.Char, hash, hlTexture)
 	if ok {
 		return
 	}
@@ -303,7 +324,7 @@ func (sr *sdlRender) PrintCell(cell *types.Cell, cellPos *types.XY) {
 	extAtlases, ok := sr.fontCache.extended[hash]
 	if ok {
 		for i := range extAtlases {
-			ok = extAtlases[i].Render(sr, dstRect, cell.Char, hash, isCellHighlighted)
+			ok = extAtlases[i].Render(sr, dstRect, cell.Char, hash, hlTexture)
 			if ok {
 				return
 			}
@@ -312,5 +333,5 @@ func (sr *sdlRender) PrintCell(cell *types.Cell, cellPos *types.XY) {
 
 	atlas := newFontAtlas([]rune{cell.Char}, cell.Sgr, sr.glyphSize, sr.renderer, sr.font)
 	sr.fontCache.extended[hash] = append(sr.fontCache.extended[hash], atlas)
-	atlas.Render(sr, dstRect, cell.Char, hash, isCellHighlighted)
+	atlas.Render(sr, dstRect, cell.Char, hash, hlTexture)
 }

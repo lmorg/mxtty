@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"unsafe"
 
 	"github.com/lmorg/mxtty/charset"
 	"github.com/lmorg/mxtty/config"
@@ -69,6 +70,11 @@ type Term struct {
 	_mouseIn         types.Element
 	_mouseButtonDown bool
 	_hasKeypress     chan bool
+	_phrase          *[]rune
+
+	_searchHighlight  bool
+	_searchLastString string
+	_searchHlHistory  []*types.Cell
 
 	// character sets
 	_activeCharSet int
@@ -292,12 +298,6 @@ func (term *Term) MakeVisible(visible bool) {
 	term.visible = visible
 }
 
-func (term *Term) search(find string) {
-	term._mutex.Lock()
-	defer term._mutex.Unlock()
-
-	for i := term.size.Y; i >= 0; i-- {
-
-	}
-
+func (term *Term) IsAltBuf() bool {
+	return unsafe.Pointer(term.cells) != unsafe.Pointer(&term._normBuf)
 }

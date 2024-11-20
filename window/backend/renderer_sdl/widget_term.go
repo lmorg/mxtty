@@ -59,6 +59,12 @@ func (tw *termWidgetT) eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) {
 		}
 	}*/
 
+	switch {
+	case keyCode == codes.AnsiF3 && mod == 0:
+		sr.term.Search()
+		return
+	}
+
 	b := codes.GetAnsiEscSeq(sr.keyboardMode.Get(), keyCode, mod)
 	if len(b) > 0 {
 		sr.term.Reply(b)

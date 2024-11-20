@@ -22,6 +22,7 @@ type Term interface {
 	ShowCursor(bool)
 	HasFocus(bool)
 	MakeVisible(bool)
+	Search()
 }
 
 type Pty interface {

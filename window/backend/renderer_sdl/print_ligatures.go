@@ -48,6 +48,19 @@ func newCachedLigatures(renderer *sdlRender) *cachedLigaturesT {
 	return cl
 }
 
+func (sr *sdlRender) ClearFontCache() {
+	sr.limiter.Lock()
+
+	for _, m := range sr.ligCache.cache {
+		for s, cache := range m {
+			cache.texture.Destroy()
+			delete(m, s)
+		}
+	}
+
+	sr.limiter.Unlock()
+}
+
 // Get returns nil if unsuccessful
 func (cl *cachedLigaturesT) Get(hash uint64, text string) *cachedLigatureT {
 	m, ok := cl.cache[hash]
@@ -136,8 +149,7 @@ func (sr *sdlRender) PrintCellBlock(cells []types.Cell, cellPos *types.XY) {
 			H: cellBlockRect.H,
 		}
 
-		c := textShadow
-		shadowText, err := sr.font.RenderUTF8Blended(s, c)
+		shadowText, err := sr.font.RenderUTF8Blended(s, textShadow[_HLTEXTURE_NONE]) // c
 		if err != nil {
 			panic(fmt.Sprintf("error printing '%s' (%d): %v", s, len(s), err)) // TODO: better error handling please!
 		}
@@ -176,8 +188,8 @@ func (sr *sdlRender) PrintCellBlock(cells []types.Cell, cellPos *types.XY) {
 	dstRect := &sdl.Rect{
 		X: (sr.glyphSize.X * cellPos.X) + sr.border,
 		Y: (sr.glyphSize.Y * cellPos.Y) + sr.border,
-		W: cellBlockRect.W, // + dropShadowOffset,
-		H: cellBlockRect.H, // + dropShadowOffset,
+		W: cellBlockRect.W,
+		H: cellBlockRect.H,
 	}
 
 	sr.AddToElementStack(&layer.RenderStackT{texture, cellBlockRect, dstRect, false})

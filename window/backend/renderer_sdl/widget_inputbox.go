@@ -3,6 +3,7 @@ package rendersdl
 import (
 	"time"
 
+	"github.com/lmorg/mxtty/codes"
 	"github.com/lmorg/mxtty/types"
 	"github.com/veandco/go-sdl2/sdl"
 	"github.com/veandco/go-sdl2/ttf"
@@ -29,7 +30,7 @@ func (sr *sdlRender) DisplayInputBox(message string, defaultValue string, callba
 		Callback: callback,
 	}
 
-	sr.footerText = "[RETURN] Ok  |  [ESC] Cancel"
+	sr.footerText = "[RETURN] Ok  |  [ESC] Cancel  |  [CTRL+u] Clear text"
 	sr.term.ShowCursor(false)
 	go sr.inputBoxCursorBlink()
 }
@@ -45,6 +46,7 @@ func (inputBox *inputBoxT) eventTextInput(sr *sdlRender, evt *sdl.TextInputEvent
 }
 
 func (inputBox *inputBoxT) eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) {
+	mod := keyEventModToCodesModifier(evt.Keysym.Mod)
 	switch evt.Keysym.Sym {
 	case sdl.K_ESCAPE:
 		sr.closeInputBox()
@@ -56,6 +58,10 @@ func (inputBox *inputBoxT) eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) 
 			inputBox.Value = inputBox.Value[:len(inputBox.Value)-1]
 		} else {
 			sr.Bell()
+		}
+	case sdl.K_u:
+		if mod == codes.MOD_CTRL {
+			inputBox.Value = ""
 		}
 	}
 }
