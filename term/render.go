@@ -73,7 +73,7 @@ func (term *Term) _renderLigatures(cells [][]types.Cell) {
 
 		var start int32
 		for pos.X = 0; pos.X < term.size.X; pos.X++ {
-			newHash := ^uint64(0)
+			newHash := defaultHash // ^uint64(0)
 			if cells[pos.Y][pos.X].Sgr != nil {
 				newHash = cells[pos.Y][pos.X].Sgr.HashValue()
 			}
@@ -85,7 +85,7 @@ func (term *Term) _renderLigatures(cells [][]types.Cell) {
 					offset := getElementXY(cells[pos.Y][pos.X].Char)
 					cells[pos.Y][pos.X].Element.Draw(nil, &types.XY{X: pos.X - offset.X, Y: pos.Y - offset.Y})
 				}
-				newHash = ^uint64(0)
+				newHash = defaultHash //^uint64(0)
 			}
 
 			if hash != newHash {
@@ -98,6 +98,7 @@ func (term *Term) _renderLigatures(cells [][]types.Cell) {
 			}
 
 			if cells[pos.Y][pos.X].Char == 0 || cells[pos.Y][pos.X].Element != nil {
+				term.renderer.PrintCellBlock(cells[pos.Y][start:pos.X], &types.XY{X: start, Y: pos.Y})
 				start = pos.X + 1
 			}
 		}

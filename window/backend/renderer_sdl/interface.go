@@ -60,6 +60,7 @@ type sdlRender struct {
 	keyboardMode keyboardModeT
 	blinkState   bool
 	keyModifier  uint16
+	keyIgnore    chan bool
 
 	// hotkey
 	hk       *hotkey.Hotkey

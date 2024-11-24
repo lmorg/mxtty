@@ -36,18 +36,6 @@ const (
 	AnsiKeyPad9
 	AnsiKeyPadEqual
 
-	/*AnsiShiftTab
-
-	AnsiOptUp
-	AnsiOptDown
-	AnsiOptLeft
-	AnsiOptRight
-
-	AnsiCtrlUp
-	AnsiCtrlDown
-	AnsiCtrlLeft
-	AnsiCtrlRight*/
-
 	AnsiF1
 	AnsiF2
 	AnsiF3
@@ -68,17 +56,4 @@ const (
 	AnsiF18
 	AnsiF19
 	AnsiF20
-
-	/*AnsiShiftF1
-	AnsiShiftF2
-	AnsiShiftF3
-	AnsiShiftF4
-	AnsiShiftF5
-	AnsiShiftF6
-	AnsiShiftF7
-	AnsiShiftF8
-	AnsiShiftF9
-	AnsiShiftF10
-	AnsiShiftF11
-	AnsiShiftF12*/
 )

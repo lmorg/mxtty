@@ -2,6 +2,7 @@ package rendersdl
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/lmorg/mxtty/codes"
 	"github.com/lmorg/mxtty/config"
@@ -16,6 +17,30 @@ func (tw *termWidgetT) eventTextInput(sr *sdlRender, evt *sdl.TextInputEvent) {
 	sr.footerText = ""
 	b := []byte(evt.GetText())
 
+	if len(b) == 1 {
+		switch b[0] {
+		case '1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
+			'+', '-', '*', '/':
+			go func() {
+				select {
+				case ignore := <-sr.keyIgnore:
+					if ignore {
+						return
+					}
+					tw._eventTextInput(sr, b)
+
+				case <-time.After(15 * time.Millisecond):
+					tw._eventTextInput(sr, b)
+				}
+
+			}()
+			return
+		}
+	}
+	tw._eventTextInput(sr, b)
+}
+
+func (tw *termWidgetT) _eventTextInput(sr *sdlRender, b []byte) {
 	if config.Config.Tmux.Enabled {
 		b = octal.Escape(b)
 	}
@@ -24,6 +49,22 @@ func (tw *termWidgetT) eventTextInput(sr *sdlRender, evt *sdl.TextInputEvent) {
 }
 
 func (tw *termWidgetT) eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) {
+	go func() {
+		switch evt.Keysym.Sym {
+		case sdl.K_KP_1, sdl.K_KP_2, sdl.K_KP_3, sdl.K_KP_4, sdl.K_KP_5,
+			sdl.K_KP_6, sdl.K_KP_7, sdl.K_KP_8, sdl.K_KP_9, sdl.K_KP_0,
+			sdl.K_KP_PLUS, sdl.K_KP_MINUS, sdl.K_KP_MULTIPLY, sdl.K_KP_DIVIDE:
+			go func() {
+				sr.keyIgnore <- true
+			}()
+		}
+		//log.Printf("key: %d", evt.Keysym.Sym)
+
+	}()
+	tw._eventKeyPress(sr, evt)
+}
+
+func (tw *termWidgetT) _eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) {
 	sr.footerText = ""
 	sr.keyModifier = evt.Keysym.Mod
 
@@ -45,19 +86,6 @@ func (tw *termWidgetT) eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) {
 
 	mod := keyEventModToCodesModifier(evt.Keysym.Mod)
 	keyCode := sr.keyCodeLookup(evt.Keysym.Sym)
-
-	/*if config.Config.Tmux.Enabled {
-		if mod == 0 && keyCode == codes.AnsiF2 {
-			command := fmt.Sprintf("%s -t %s\n%%send-keys '-'", tmux.CMD_SEND_PREFIX, sr.tmux.ActivePane().Id)
-			_, err := sr.tmux.SendCommand([]byte(command))
-			if err != nil {
-				sr.DisplayNotification(types.NOTIFY_ERROR, err.Error())
-			} else {
-				sr.DisplayNotification(types.NOTIFY_INFO, "Prefix sent to tmux")
-			}
-			return
-		}
-	}*/
 
 	switch {
 	case keyCode == codes.AnsiF3 && mod == 0:
