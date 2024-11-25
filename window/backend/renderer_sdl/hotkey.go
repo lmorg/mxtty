@@ -15,6 +15,13 @@ func (sr *sdlRender) _registerHotkey() {
 	}
 }
 
+func (sr *sdlRender) pollEventHotkey() <-chan hotkey.Event {
+	if sr.hk != nil {
+		return sr.hk.Keydown()
+	}
+	return nil
+}
+
 func (sr *sdlRender) eventHotkey() {
 	if sr.hkToggle {
 		sr.hideWindow()

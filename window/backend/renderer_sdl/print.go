@@ -45,8 +45,6 @@ type fontCacheDefaultLookupT map[rune]*sdl.Rect
 type fontAtlasT struct {
 	sgrHash uint64
 	lookup  fontCacheDefaultLookupT
-	//normal      *sdl.Texture
-	//highlight *sdl.Texture
 	texture []*sdl.Texture
 }
 type fontTextureLookupTableT map[uint64][]*fontAtlasT
@@ -75,8 +73,6 @@ func newFontAtlas(chars []rune, sgr *types.Sgr, glyphSize *types.XY, renderer *s
 	return &fontAtlasT{
 		sgrHash: sgr.HashValue(),
 		lookup:  _newFontCacheDefaultLookup(chars, glyphSizePlusShadow),
-		//normal:      _newFontTexture(chars, sgr, glyphSizePlusShadow, renderer, font, false),
-		//highlight: _newFontTexture(chars, sgr, glyphSizePlusShadow, renderer, font, true),
 		texture: []*sdl.Texture{
 			_HLTEXTURE_NONE:          _newFontTexture(chars, sgr, glyphSizePlusShadow, renderer, font, _HLTEXTURE_NONE),
 			_HLTEXTURE_SELECTION:     _newFontTexture(chars, sgr, glyphSizePlusShadow, renderer, font, _HLTEXTURE_SELECTION),
@@ -162,12 +158,6 @@ func (fa *fontAtlasT) Render(sr *sdlRender, dstRect *sdl.Rect, r rune, hash uint
 		return false
 	}
 
-	/*var texture *sdl.Texture
-	switch isHighlighted
-		texture = fa.selected
-	} else {
-		texture = fa.normal
-	}*/
 	texture := fa.texture[hlMode]
 
 	sr.AddToElementStack(&layer.RenderStackT{texture, srcRect, dstRect, false})
@@ -209,13 +199,7 @@ func _printCellToSurface(cell *types.Cell, cellRect *sdl.Rect, font *ttf.Font, s
 			H: cellRect.H,
 		}
 
-		/*var c sdl.Color
-		if hlTexture != 0 && bg == nil {
-			c = textHighlight
-		} else {
-			c = textShadow
-		}*/
-		shadowText, err := font.RenderGlyphBlended(cell.Char, textShadow[hlTexture]) // c
+		shadowText, err := font.RenderGlyphBlended(cell.Char, textShadow[hlTexture])
 		if err != nil {
 			return err
 		}

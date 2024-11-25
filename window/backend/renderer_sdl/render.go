@@ -59,7 +59,7 @@ func (sr *sdlRender) eventLoop() {
 		}
 
 		select {
-		case <-sr.hk.Keydown():
+		case <-sr.pollEventHotkey():
 			sr.eventHotkey()
 
 		case <-sr._quit:
