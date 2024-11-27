@@ -90,9 +90,14 @@ func (term *Term) resizePty() {
 }
 
 func (term *Term) resize80() {
-	term.reset(&types.XY{X: 80, Y: 24})
+	term.setSize(&types.XY{X: 80, Y: 24})
 }
 
 func (term *Term) resize132() {
-	term.reset(&types.XY{X: 132, Y: 24})
+	term.setSize(&types.XY{X: 132, Y: 24})
+}
+
+func (term *Term) setSize(size *types.XY) {
+	term.reset(size)
+	term.renderer.ResizeWindow(size)
 }

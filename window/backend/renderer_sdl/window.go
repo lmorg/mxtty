@@ -34,14 +34,19 @@ func (sr *sdlRender) ShowAndFocusWindow() {
 		return
 	}
 
-	winW, _ := sr.window.GetSize()
+	winW, winH := sr.window.GetSize()
 
 	posX := displayBounds.W - winW
 	if width < 0 {
 		winW, posX = displayBounds.W, 0
 	}
+
+	if winH > displayBounds.H {
+		winH = displayBounds.H
+	}
+
 	sr.window.SetPosition(posX, displayBounds.Y)
-	sr.window.SetSize(winW, displayBounds.H)
+	sr.window.SetSize(winW, winH)
 }
 
 func (sr *sdlRender) hideWindow() {

@@ -40,6 +40,7 @@ type sdlRender struct {
 	// events
 	_quit   chan bool
 	_redraw chan bool
+	_resize chan *types.XY
 
 	// notifications
 	notifications  notifyT

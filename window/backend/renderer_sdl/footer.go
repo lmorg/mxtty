@@ -25,7 +25,7 @@ func (sr *sdlRender) renderFooter() {
 		X: 0,
 		Y: (sr.term.GetSize().Y * sr.glyphSize.Y) + sr.border,
 		W: (sr.term.GetSize().X * sr.glyphSize.X) + (sr.border * 3),
-		H: (sr.glyphSize.Y * sr.footer) + (sr.border * 2),
+		H: (sr.footer * sr.glyphSize.Y) + (sr.border * 2),
 	}
 
 	fill := types.SGR_COLOUR_BLACK_BRIGHT
@@ -41,7 +41,7 @@ func (sr *sdlRender) renderFooter() {
 	}
 
 	if sr.footerText == "" {
-		sr.footerText = fmt.Sprintf("%s (version %s)  |  [F5] Show / hide window", app.Title, app.Version())
+		sr.footerText = fmt.Sprintf("%s (version %s)  |  [F3] Search%s", app.Title, app.Version(), sr._footerHotkeyMessage())
 	}
 
 	sr._footerRenderStatusBar(pos)
@@ -65,6 +65,14 @@ tmuxIntegration:
 	}
 
 	sr._footerRenderTmuxWindowTabs(pos)
+}
+
+func (sr *sdlRender) _footerHotkeyMessage() string {
+	if sr.hk == nil {
+		return ""
+	}
+
+	return "  |  [F12] Show / hide window"
 }
 
 func (sr *sdlRender) _footerRenderStatusBar(pos *types.XY) {

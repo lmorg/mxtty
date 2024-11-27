@@ -1,6 +1,7 @@
 package tmux
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"reflect"
@@ -8,6 +9,7 @@ import (
 	"github.com/lmorg/mxtty/debug"
 	virtualterm "github.com/lmorg/mxtty/term"
 	"github.com/lmorg/mxtty/types"
+	"github.com/lmorg/mxtty/utils/octal"
 	runebuf "github.com/lmorg/mxtty/utils/rune_buf"
 )
 
@@ -182,6 +184,16 @@ func (tmux *Tmux) updatePaneInfo(paneId string) error {
 }
 
 func (p *PANE_T) Write(b []byte) error {
+	if len(b) == 0 {
+		return errors.New("nothing to write")
+	}
+
+	if b[0] == 0 {
+		b = b[1:]
+	} else {
+		b = octal.Escape(b)
+	}
+
 	command := []byte(fmt.Sprintf(`send-keys -t %s `, p.Id))
 	command = append(command, b...)
 	_, err := p.tmux.SendCommand(command)

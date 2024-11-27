@@ -7,7 +7,6 @@ import (
 	"github.com/lmorg/mxtty/codes"
 	"github.com/lmorg/mxtty/config"
 	"github.com/lmorg/mxtty/types"
-	"github.com/lmorg/mxtty/utils/octal"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
@@ -27,22 +26,15 @@ func (tw *termWidgetT) eventTextInput(sr *sdlRender, evt *sdl.TextInputEvent) {
 					if ignore {
 						return
 					}
-					tw._eventTextInput(sr, b)
+					sr.term.Reply(b)
 
-				case <-time.After(15 * time.Millisecond):
-					tw._eventTextInput(sr, b)
+				case <-time.After(5 * time.Millisecond):
+					sr.term.Reply(b)
 				}
 
 			}()
 			return
 		}
-	}
-	tw._eventTextInput(sr, b)
-}
-
-func (tw *termWidgetT) _eventTextInput(sr *sdlRender, b []byte) {
-	if config.Config.Tmux.Enabled {
-		b = octal.Escape(b)
 	}
 
 	sr.term.Reply(b)
@@ -240,6 +232,10 @@ func (sr *sdlRender) selectWindow(winIndex int) {
 }
 
 func (sr *sdlRender) RefreshWindowList() {
+	if sr.tmux == nil {
+		return
+	}
+
 	sr.limiter.Lock()
 
 	sr.windowTabs = nil

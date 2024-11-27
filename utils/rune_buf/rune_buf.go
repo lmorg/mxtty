@@ -29,6 +29,9 @@ func (buf *Buf) loop() {
 		for i := 0; i < len(b); i++ {
 			if buf.l == 0 {
 				buf.l = runeLength(b[i])
+				if buf.l == 0 {
+					panic("zero(0)")
+				}
 				buf.utf8 = make([]byte, buf.l)
 			}
 

@@ -58,6 +58,7 @@ func Initialise() (types.Renderer, *types.XY) {
 
 	sr._quit = make(chan bool)
 	sr._redraw = make(chan bool)
+	sr._resize = make(chan *types.XY)
 	sr.ligCache = newCachedLigatures(sr)
 	sr.keyIgnore = make(chan bool)
 
@@ -69,6 +70,10 @@ func Initialise() (types.Renderer, *types.XY) {
 		panic(err.Error())
 	}
 	sr.setTypeFace(font)
+
+	sr.window.SetMinimumSize(
+		(40*sr.glyphSize.X)+(sr.border*2),
+		(10*sr.glyphSize.Y)+(sr.border*2))
 
 	err = clipboard.Init()
 	if err != nil {

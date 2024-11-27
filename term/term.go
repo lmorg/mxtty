@@ -135,9 +135,6 @@ func (term *Term) Start(pty types.Pty) {
 }
 
 func (term *Term) reset(size *types.XY) {
-	/*if term.renderer != nil {
-		term.renderer.ResizeWindow(size)
-	}*/
 	term.size = size
 	term.resizePty()
 	term._curPos = types.XY{}

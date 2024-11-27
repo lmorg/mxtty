@@ -44,8 +44,7 @@ func (term *Term) CopyRange(topLeft, bottomRight *types.XY) []byte {
 					line += string(cells[y][x].Rune())
 				}
 
-			case topLeft.Y == bottomRight.Y:
-				// midline
+			case topLeft.Y == bottomRight.Y: // midline
 				if bottomRight.X < topLeft.X { //backwards
 					if x <= topLeft.X && x >= bottomRight.X && y == topLeft.Y {
 						line += string(cells[y][x].Rune())

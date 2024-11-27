@@ -22,4 +22,4 @@ Window:
   RefreshInterval: 200     # 0 disables
 
 Tmux:
-  Enabled: true 
+  #Enabled: true 

@@ -72,6 +72,9 @@ func (sr *sdlRender) eventLoop() {
 			}
 			sr.limiter.Unlock()
 
+		case size := <-sr._resize:
+			sr._resizeWindow(size)
+
 		case <-time.After(15 * time.Millisecond):
 			continue
 		}
