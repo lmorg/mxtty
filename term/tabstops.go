@@ -11,7 +11,7 @@ import (
 */
 
 func (term *Term) c1AddTabStop() {
-	debug.Log(term.curPos)
+	debug.Log(term.curPos())
 
 	term._tabStops = append(term._tabStops, term.curPos().X)
 	sort.Slice(term._tabStops, func(i, j int) bool { return term._tabStops[i] < term._tabStops[j] })
@@ -19,9 +19,6 @@ func (term *Term) c1AddTabStop() {
 
 func (term *Term) csiResetTabStops() {
 	term._tabStops = make([]int32, 0)
-	/*for i := term._tabWidth; i < term.size.X; i += term._tabWidth {
-		term._tabStops = append(term._tabStops, i)
-	}*/
 }
 
 func (term *Term) nextTabStop() int32 {

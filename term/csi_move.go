@@ -321,7 +321,13 @@ func (term *Term) csiScrollDown(n int32) {
 // _scrollDown does not take into account term size nor scrolling region. Any
 // error handling should be done by the calling function.
 func (term *Term) _scrollDown(top, bottom, shift int32) {
+	debug.Log(map[string]int32{"top": top, "bottom": bottom, "shift": shift})
+
 	screen := term.makeScreen()
+
+	if shift > bottom-top {
+		shift = bottom - top
+	}
 
 	copy(screen[top+shift:], (*term.cells)[top:bottom+1])
 	copy((*term.cells)[top:], screen[top:bottom+1])
@@ -360,5 +366,9 @@ func (term *Term) csiInsertLines(n int32) {
 
 	_, bottom := term.getScrollingRegionExcOrigin()
 
-	term._scrollDown(term.curPos().Y, bottom, n)
+	top := term.curPos().Y
+	if top > bottom {
+		top = bottom
+	}
+	term._scrollDown(top, bottom, n)
 }
