@@ -2,7 +2,6 @@ package codes
 
 import (
 	"github.com/lmorg/mxtty/types"
-	"github.com/lmorg/mxtty/utils/octal"
 )
 
 /*
@@ -98,8 +97,8 @@ func spliceKeysAndModifiers(keySeq []byte, modifier Modifier) []byte {
 func specialCaseSequences(keySet types.KeyboardMode, keyPress KeyCode, modifier Modifier) []byte {
 	switch {
 	case keySet == types.KeysTmuxClient:
-		if keyPress > '`' && keyPress < 'z' && modifier == MOD_CTRL {
-			return octal.Escape([]byte{byte(keyPress) - 0x60})
+		if keyPress >= '@' && keyPress <= '}' && modifier == MOD_CTRL {
+			return []byte{'C', '-', byte(keyPress)}
 		}
 		return nil
 

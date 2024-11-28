@@ -1,6 +1,7 @@
 package tmux
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -70,12 +71,6 @@ type PANE_T struct {
 	term     types.Term
 }
 
-func (p *PANE_T) File() *os.File { return nil }
-
-func (p *PANE_T) Read() rune {
-	return p.buf.Read()
-}
-
 func (tmux *Tmux) initSessionPanes(renderer types.Renderer, size *types.XY) error {
 	panes, err := tmux.sendCommand(CMD_LIST_PANES, reflect.TypeOf(PANE_T{}), "-s")
 	if err != nil {
@@ -95,8 +90,18 @@ func (tmux *Tmux) initSessionPanes(renderer types.Renderer, size *types.XY) erro
 		tmux.pane[pane.Id] = pane
 
 		term := virtualterm.NewTerminal(renderer, size, false)
-		term.Start(pane)
 		pane.term = term
+
+		command := fmt.Sprintf("capture-pane -e -p -t %s", pane.Id)
+		resp, err := tmux.SendCommand([]byte(command))
+		if err != nil {
+			renderer.DisplayNotification(types.NOTIFY_ERROR, err.Error())
+		} else {
+			b := bytes.Join(resp.Message, []byte{'\r', '\n'})
+			pane.buf.Write(b)
+		}
+
+		term.Start(pane)
 	}
 
 	return nil
@@ -181,6 +186,12 @@ func (tmux *Tmux) updatePaneInfo(paneId string) error {
 	}
 
 	return nil
+}
+
+func (p *PANE_T) File() *os.File { return nil }
+
+func (p *PANE_T) Read() rune {
+	return p.buf.Read()
 }
 
 func (p *PANE_T) Write(b []byte) error {

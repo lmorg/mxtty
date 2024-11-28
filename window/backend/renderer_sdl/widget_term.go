@@ -17,9 +17,10 @@ func (tw *termWidgetT) eventTextInput(sr *sdlRender, evt *sdl.TextInputEvent) {
 	b := []byte(evt.GetText())
 
 	if len(b) == 1 {
-		switch b[0] {
-		case '1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
-			'+', '-', '*', '/':
+		if (b[0] >= '0' && b[0] <= '9') || // keypad numeric
+			b[0] == '+' || b[0] == '-' || b[0] == '*' || b[0] == '/' || b[0] == '.' || // keypad syms
+			b[0] == '`' { // ctrl+\ in tmux
+
 			go func() {
 				select {
 				case ignore := <-sr.keyIgnore:
@@ -42,15 +43,13 @@ func (tw *termWidgetT) eventTextInput(sr *sdlRender, evt *sdl.TextInputEvent) {
 
 func (tw *termWidgetT) eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) {
 	go func() {
-		switch evt.Keysym.Sym {
-		case sdl.K_KP_1, sdl.K_KP_2, sdl.K_KP_3, sdl.K_KP_4, sdl.K_KP_5,
-			sdl.K_KP_6, sdl.K_KP_7, sdl.K_KP_8, sdl.K_KP_9, sdl.K_KP_0,
-			sdl.K_KP_PLUS, sdl.K_KP_MINUS, sdl.K_KP_MULTIPLY, sdl.K_KP_DIVIDE:
+		// basically this just tells tw.eventTextInput() to ignore input
+		if (evt.Keysym.Sym >= sdl.K_KP_DIVIDE && evt.Keysym.Sym <= sdl.K_KP_PERIOD) ||
+			(evt.Keysym.Sym == '\\' && (evt.Keysym.Mod == sdl.KMOD_LCTRL || evt.Keysym.Mod == sdl.KMOD_RCTRL)) {
 			go func() {
 				sr.keyIgnore <- true
 			}()
 		}
-		//log.Printf("key: %d", evt.Keysym.Sym)
 
 	}()
 	tw._eventKeyPress(sr, evt)
@@ -68,11 +67,9 @@ func (tw *termWidgetT) _eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) {
 		return
 	}
 
-	if evt.Keysym.Sym < 256 && evt.Keysym.Sym > sdl.K_SPACE &&
-		(evt.Keysym.Mod == sdl.KMOD_NONE ||
-			evt.Keysym.Mod&sdl.KMOD_CAPS != 0 || evt.Keysym.Mod&sdl.KMOD_NUM != 0) {
-		// lets let eventTextInput() handle this so we don't need to think
-		// about keyboard layouts and shift chars like if shift+2 == '@' or '"'
+	if evt.Keysym.Sym > ' ' && evt.Keysym.Sym < 127 && evt.Keysym.Mod == sdl.KMOD_NONE {
+		// lets let eventTextInput() handle this so we don't need to think about
+		// keyboard layouts and shift chars like whether shift+'2' == '@' or '"'
 		return
 	}
 

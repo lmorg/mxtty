@@ -28,7 +28,7 @@ var keyCodeLookupTable = map[sdl.Keycode]codes.KeyCode{
 	sdl.K_KP_MULTIPLY: codes.AnsiKeyPadMultiply,
 	sdl.K_KP_MINUS:    codes.AnsiKeyPadMinus,
 	sdl.K_KP_PLUS:     codes.AnsiKeyPadAdd,
-	sdl.K_KP_DECIMAL:  codes.AnsiKeyPadPeriod,
+	sdl.K_KP_PERIOD:   codes.AnsiKeyPadPeriod,
 	sdl.K_KP_0:        codes.AnsiKeyPad0,
 	sdl.K_KP_1:        codes.AnsiKeyPad1,
 	sdl.K_KP_2:        codes.AnsiKeyPad2,

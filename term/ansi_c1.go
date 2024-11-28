@@ -103,6 +103,12 @@ func (term *Term) parseC1Codes() {
 		// Full Reset (RIS)
 		log.Printf("TODO: Unhandled C1 code: %s", string(r))
 
+	case 'k':
+		// Tmux: allow-rename [on | off]
+		// Allow programs in the pane to change the window name
+		// using a terminal escape sequence (\ek...\e\\).
+		term.tmuxRenameWindow()
+
 	case 'l':
 		// Memory Lock (per HP terminals). Locks memory above the cursor.
 		//log.Printf("TODO: Unhandled C1 code: %s", string(r))

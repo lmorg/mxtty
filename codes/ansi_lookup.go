@@ -159,60 +159,87 @@ var _ansiLookUpTable = map[types.KeyboardMode]map[KeyCode][]byte{
 	},
 
 	types.KeysTmuxClient: {
-		8:    _tmuxKeyResponce("BSpace"),
-		'\t': _tmuxKeyResponce("Tab"),
-		'\r': _tmuxKeyResponce("Enter"),
-		'\n': _tmuxKeyResponce("Enter"),
-		' ':  _tmuxKeyResponce("Space"),
-		esc:  _tmuxKeyResponce("Escape"),
-		'"':  _tmuxKeyResponce(`'"'`),
-		'\'': _tmuxKeyResponce(`"'"`),
-		128:  _tmuxKeyResponce("BSpace"),
+		0:    _tmuxKeyResponse(`\000`),   // 00, null
+		1:    _tmuxKeyResponse(`C-a`),    // 01, start of heading
+		2:    _tmuxKeyResponse(`C-b`),    // 02, start of text
+		3:    _tmuxKeyResponse(`C-c`),    // 03, end of text
+		4:    _tmuxKeyResponse(`C-d`),    // 04, end of file
+		5:    _tmuxKeyResponse(`C-e`),    // 05, enquiry
+		6:    _tmuxKeyResponse(`C-f`),    // 06, acknowledge
+		7:    _tmuxKeyResponse(`C-g`),    // 07, bell
+		8:    _tmuxKeyResponse(`BSpace`), // 08, backspace
+		'\t': _tmuxKeyResponse(`Tab`),    // 09, horizontal tab
+		'\n': _tmuxKeyResponse(`Enter`),  // 0a, line feed
+		11:   _tmuxKeyResponse(`C-k`),    // 0b, vertical tab
+		12:   _tmuxKeyResponse(`C-l`),    // 0c, form feed
+		'\r': _tmuxKeyResponse(`Enter`),  // 0d, carriage return
+		14:   _tmuxKeyResponse(`C-n`),    // 0e, shift out
+		15:   _tmuxKeyResponse(`C-o`),    // 0f, shift in
+		16:   _tmuxKeyResponse(`C-p`),    // 10, data link escape
+		17:   _tmuxKeyResponse(`C-q`),    // 11, device control 1
+		18:   _tmuxKeyResponse(`C-r`),    // 12, device control 2
+		19:   _tmuxKeyResponse(`C-s`),    // 13, device control 3
+		20:   _tmuxKeyResponse(`C-t`),    // 14, device control 4
+		21:   _tmuxKeyResponse(`C-u`),    // 15, negative acknowledge
+		22:   _tmuxKeyResponse(`C-v`),    // 16, synchronous idle
+		23:   _tmuxKeyResponse(`C-w`),    // 17, end of transmission block
+		24:   _tmuxKeyResponse(`C-x`),    // 18, cancel
+		25:   _tmuxKeyResponse(`C-y`),    // 19, end of medium
+		26:   _tmuxKeyResponse(`C-z`),    // 1a, substitute
+		esc:  _tmuxKeyResponse(`Escape`), // 1b. escape
+		28:   _tmuxKeyResponse(`\034`),   // 1c, file separator
+		29:   _tmuxKeyResponse(`\035`),   // 1d, group separator
+		30:   _tmuxKeyResponse(`\036`),   // 1e, record separator
+		31:   _tmuxKeyResponse(`\034`),   // 1f, unit separator
+		' ':  _tmuxKeyResponse(`Space`),  // 20, space
+		'"':  _tmuxKeyResponse(`'"'`),    // 22, double quote
+		'\'': _tmuxKeyResponse(`"'"`),    // 27, single quote
+		127:  _tmuxKeyResponse(`Delete`), // 7f, del
 
-		AnsiUp:       _tmuxKeyResponce("Up"),
-		AnsiDown:     _tmuxKeyResponce("Down"),
-		AnsiRight:    _tmuxKeyResponce("Right"),
-		AnsiLeft:     _tmuxKeyResponce("Left"),
-		AnsiHome:     _tmuxKeyResponce("Home"),
-		AnsiEnd:      _tmuxKeyResponce("End"),
-		AnsiInsert:   _tmuxKeyResponce("Insert"),
-		AnsiDelete:   _tmuxKeyResponce("Delete"),
-		AnsiPageUp:   _tmuxKeyResponce("PageUp"),
-		AnsiPageDown: _tmuxKeyResponce("PageDown"),
+		AnsiUp:       _tmuxKeyResponse("Up"),
+		AnsiDown:     _tmuxKeyResponse("Down"),
+		AnsiRight:    _tmuxKeyResponse("Right"),
+		AnsiLeft:     _tmuxKeyResponse("Left"),
+		AnsiHome:     _tmuxKeyResponse("Home"),
+		AnsiEnd:      _tmuxKeyResponse("End"),
+		AnsiInsert:   _tmuxKeyResponse("Insert"),
+		AnsiDelete:   _tmuxKeyResponse("Delete"),
+		AnsiPageUp:   _tmuxKeyResponse("PageUp"),
+		AnsiPageDown: _tmuxKeyResponse("PageDown"),
 
-		AnsiKeyPadSpace:    _tmuxKeyResponce("Space"),
-		AnsiKeyPadTab:      _tmuxKeyResponce("Tab"),
-		AnsiKeyPadEnter:    _tmuxKeyResponce("KPEnter"),
-		AnsiKeyPadMultiply: _tmuxKeyResponce("KP*"),
-		AnsiKeyPadAdd:      _tmuxKeyResponce("KP+"),
-		AnsiKeyPadComma:    _tmuxKeyResponce("KP,"),
-		AnsiKeyPadMinus:    _tmuxKeyResponce("KP-"),
-		AnsiKeyPadPeriod:   _tmuxKeyResponce("KP."),
-		AnsiKeyPadDivide:   _tmuxKeyResponce("KP/"),
-		AnsiKeyPad0:        _tmuxKeyResponce("KP0"),
-		AnsiKeyPad1:        _tmuxKeyResponce("KP1"),
-		AnsiKeyPad2:        _tmuxKeyResponce("KP2"),
-		AnsiKeyPad3:        _tmuxKeyResponce("KP3"),
-		AnsiKeyPad4:        _tmuxKeyResponce("KP4"),
-		AnsiKeyPad5:        _tmuxKeyResponce("KP5"),
-		AnsiKeyPad6:        _tmuxKeyResponce("KP6"),
-		AnsiKeyPad7:        _tmuxKeyResponce("KP7"),
-		AnsiKeyPad8:        _tmuxKeyResponce("KP8"),
-		AnsiKeyPad9:        _tmuxKeyResponce("KP9"),
-		AnsiKeyPadEqual:    _tmuxKeyResponce("KP="),
+		AnsiKeyPadSpace:    _tmuxKeyResponse("Space"),
+		AnsiKeyPadTab:      _tmuxKeyResponse("Tab"),
+		AnsiKeyPadEnter:    _tmuxKeyResponse("KPEnter"),
+		AnsiKeyPadMultiply: _tmuxKeyResponse("KP*"),
+		AnsiKeyPadAdd:      _tmuxKeyResponse("KP+"),
+		AnsiKeyPadComma:    _tmuxKeyResponse("KP,"),
+		AnsiKeyPadMinus:    _tmuxKeyResponse("KP-"),
+		AnsiKeyPadPeriod:   _tmuxKeyResponse("KP."),
+		AnsiKeyPadDivide:   _tmuxKeyResponse("KP/"),
+		AnsiKeyPad0:        _tmuxKeyResponse("KP0"),
+		AnsiKeyPad1:        _tmuxKeyResponse("KP1"),
+		AnsiKeyPad2:        _tmuxKeyResponse("KP2"),
+		AnsiKeyPad3:        _tmuxKeyResponse("KP3"),
+		AnsiKeyPad4:        _tmuxKeyResponse("KP4"),
+		AnsiKeyPad5:        _tmuxKeyResponse("KP5"),
+		AnsiKeyPad6:        _tmuxKeyResponse("KP6"),
+		AnsiKeyPad7:        _tmuxKeyResponse("KP7"),
+		AnsiKeyPad8:        _tmuxKeyResponse("KP8"),
+		AnsiKeyPad9:        _tmuxKeyResponse("KP9"),
+		AnsiKeyPadEqual:    _tmuxKeyResponse("KP="),
 
-		AnsiF1:  _tmuxKeyResponce("F1"),
-		AnsiF2:  _tmuxKeyResponce("F2"),
-		AnsiF3:  _tmuxKeyResponce("F3"),
-		AnsiF4:  _tmuxKeyResponce("F4"),
-		AnsiF5:  _tmuxKeyResponce("F5"),
-		AnsiF6:  _tmuxKeyResponce("F6"),
-		AnsiF7:  _tmuxKeyResponce("F7"),
-		AnsiF8:  _tmuxKeyResponce("F8"),
-		AnsiF9:  _tmuxKeyResponce("F9"),
-		AnsiF10: _tmuxKeyResponce("F10"),
-		AnsiF11: _tmuxKeyResponce("F11"),
-		AnsiF12: _tmuxKeyResponce("F12"),
+		AnsiF1:  _tmuxKeyResponse("F1"),
+		AnsiF2:  _tmuxKeyResponse("F2"),
+		AnsiF3:  _tmuxKeyResponse("F3"),
+		AnsiF4:  _tmuxKeyResponse("F4"),
+		AnsiF5:  _tmuxKeyResponse("F5"),
+		AnsiF6:  _tmuxKeyResponse("F6"),
+		AnsiF7:  _tmuxKeyResponse("F7"),
+		AnsiF8:  _tmuxKeyResponse("F8"),
+		AnsiF9:  _tmuxKeyResponse("F9"),
+		AnsiF10: _tmuxKeyResponse("F10"),
+		AnsiF11: _tmuxKeyResponse("F11"),
+		AnsiF12: _tmuxKeyResponse("F12"),
 		// F13->F20 are not supported in tmux
 	},
 }
@@ -259,6 +286,6 @@ func GetAnsiEscSeq(keySet types.KeyboardMode, keyPress KeyCode, modifier Modifie
 	return b
 }
 
-func _tmuxKeyResponce(keyName string) []byte {
+func _tmuxKeyResponse(keyName string) []byte {
 	return append([]byte{0}, []byte(keyName+" ")...)
 }

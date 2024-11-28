@@ -112,8 +112,12 @@ func (sr *sdlRender) AddToOverlayStack(item *layer.RenderStackT) {
 }
 
 func (sr *sdlRender) createRendererTexture() *sdl.Texture {
-	winW, winH := sr.window.GetSize()
-	texture, err := sr.renderer.CreateTexture(uint32(sdl.PIXELFORMAT_RGBA32), sdl.TEXTUREACCESS_TARGET, winW, winH)
+	w, h, err := sr.renderer.GetOutputSize()
+	if err != nil {
+		log.Printf("ERROR: %v", err)
+		return nil
+	}
+	texture, err := sr.renderer.CreateTexture(uint32(sdl.PIXELFORMAT_RGBA32), sdl.TEXTUREACCESS_TARGET, w, h)
 	if err != nil {
 		log.Printf("ERROR: %v", err)
 		return nil
