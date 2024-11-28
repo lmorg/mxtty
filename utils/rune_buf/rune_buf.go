@@ -2,6 +2,7 @@ package runebuf
 
 import (
 	"bytes"
+	"log"
 )
 
 type Buf struct {
@@ -30,7 +31,8 @@ func (buf *Buf) loop() {
 			if buf.l == 0 {
 				buf.l = runeLength(b[i])
 				if buf.l == 0 {
-					panic("zero(0)")
+					log.Printf("ERROR: skipping invalid byte: %d", b[i])
+					continue
 				}
 				buf.utf8 = make([]byte, buf.l)
 			}
