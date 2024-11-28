@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"strings"
 
 	"github.com/lmorg/mxtty/config"
 	"github.com/lmorg/mxtty/debug/pprof"
@@ -44,7 +45,7 @@ func tmuxSession() {
 
 	tmuxClient, err := tmux.NewStartSession(renderer, size, tmux.START_ATTACH_SESSION)
 	if err != nil {
-		if err.Error() != "no sessions" {
+		if !strings.HasPrefix(err.Error(), "no sessions") {
 			panic(err)
 		}
 

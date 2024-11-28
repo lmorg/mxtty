@@ -92,6 +92,7 @@ func (tmux *Tmux) initSessionPanes(renderer types.Renderer, size *types.XY) erro
 
 		term := virtualterm.NewTerminal(renderer, size, false)
 		pane.term = term
+		term.Start(pane)
 
 		command := fmt.Sprintf("capture-pane -J -e -p -t %s", pane.Id)
 		resp, err := tmux.SendCommand([]byte(command))
@@ -102,18 +103,12 @@ func (tmux *Tmux) initSessionPanes(renderer types.Renderer, size *types.XY) erro
 			pane.buf.Write(b)
 		}
 
-		var b []byte
 		command = fmt.Sprintf(`display-message -p -t %s "#{e|+:#{cursor_y},1};#{e|+:#{cursor_x},1}H"`, pane.Id)
 		resp, err = tmux.SendCommand([]byte(command))
 		if err != nil {
 			renderer.DisplayNotification(types.NOTIFY_ERROR, err.Error())
 		} else {
-			b = append([]byte{codes.AsciiEscape, '['}, resp.Message[0]...)
-		}
-
-		term.Start(pane)
-
-		if len(b) > 0 {
+			b := append([]byte{codes.AsciiEscape, '['}, resp.Message[0]...)
 			pane.buf.Write(b)
 		}
 	}
