@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os/exec"
 	"strings"
 
 	"github.com/lmorg/mxtty/config"
@@ -18,7 +19,7 @@ func main() {
 
 	getFlags()
 
-	if config.Config.Tmux.Enabled {
+	if config.Config.Tmux.Enabled && tmuxInstalled() {
 		tmuxSession()
 	} else {
 		regularSession()
@@ -58,4 +59,9 @@ func tmuxSession() {
 	}
 
 	backend.Start(renderer, tmuxClient.ActivePane().Term(), tmuxClient)
+}
+
+func tmuxInstalled() bool {
+	path, err := exec.LookPath("tmux")
+	return path != "" && err == nil
 }
