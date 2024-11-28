@@ -9,11 +9,7 @@ func Escape(b []byte) []byte {
 	var escaped []byte
 
 	for _, c := range b {
-		//if c <= ' ' || c {
 		escaped = append(escaped, []byte(fmt.Sprintf(`\%03o`, c))...)
-		//	continue
-		//}
-		//escaped = append(escaped, b...)
 	}
 
 	return escaped
@@ -29,6 +25,12 @@ func Unescape(b []byte) []byte {
 		if b[i] != '\\' {
 			c[j] = b[i]
 			i++
+			continue
+		}
+
+		if b[i+1] == '\\' {
+			c[j] = '\\'
+			i += 2
 			continue
 		}
 

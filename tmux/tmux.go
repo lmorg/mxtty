@@ -226,13 +226,11 @@ func NewStartSession(renderer types.Renderer, size *types.XY, startCommand strin
 				params := bytes.SplitN(b, []byte{' '}, 2)
 				winId := string(params[1])
 				_ = tmux.newWindow(winId)
-				//go tmux.UpdateSession()
 
 			case bytes.HasPrefix(b, _RESP_WINDOW_RENAMED):
 				params := bytes.SplitN(b, []byte{' '}, 3)
 				tmux.win[string(params[1])].Name = string(params[2])
 				go renderer.RefreshWindowList()
-				//go tmux.UpdateSession()
 
 			case bytes.HasPrefix(b, _RESP_WINDOW_CLOSE) || bytes.HasPrefix(b, _RESP_UNLINKED_WINDOW_CLOSE):
 				params := bytes.SplitN(b, []byte{' '}, 3)
