@@ -151,6 +151,7 @@ type Tmux struct {
 	resp chan *tmuxResponseT
 	win  map[string]*WINDOW_T
 	pane map[string]*PANE_T
+	keys keyBindsT
 
 	activeWindow *WINDOW_T
 	renderer     types.Renderer
@@ -253,7 +254,9 @@ func NewStartSession(renderer types.Renderer, size *types.XY, startCommand strin
 					continue
 				}
 
-				resp.Message = append(resp.Message, b)
+				message := make([]byte, len(b))
+				copy(message, b)
+				resp.Message = append(resp.Message, message)
 			}
 		}
 	}()
@@ -286,6 +289,11 @@ func (tmux *Tmux) initSession(renderer types.Renderer, size *types.XY) error {
 	}
 
 	err = tmux.initSessionPanes(renderer, size)
+	if err != nil {
+		return err
+	}
+
+	err = tmux._getDefaultTmuxKeyBindings()
 	if err != nil {
 		return err
 	}

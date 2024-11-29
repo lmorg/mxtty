@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"time"
 
 	"github.com/lmorg/mxtty/codes"
 	"github.com/lmorg/mxtty/debug"
@@ -61,15 +62,16 @@ import (
 var CMD_LIST_PANES = "list-panes"
 
 type PANE_T struct {
-	Title    string `tmux:"pane_title"`
-	Id       string `tmux:"pane_id"`
-	Width    int    `tmux:"pane_width"`
-	Height   int    `tmux:"pane_height"`
-	Active   bool   `tmux:"?pane_active,true,false"`
-	WindowId string `tmux:"window_id"`
-	tmux     *Tmux
-	buf      *runebuf.Buf
-	term     types.Term
+	Title     string `tmux:"pane_title"`
+	Id        string `tmux:"pane_id"`
+	Width     int    `tmux:"pane_width"`
+	Height    int    `tmux:"pane_height"`
+	Active    bool   `tmux:"?pane_active,true,false"`
+	WindowId  string `tmux:"window_id"`
+	tmux      *Tmux
+	buf       *runebuf.Buf
+	prefixTtl time.Time
+	term      types.Term
 }
 
 func (tmux *Tmux) initSessionPanes(renderer types.Renderer, size *types.XY) error {
@@ -208,6 +210,11 @@ func (p *PANE_T) Write(b []byte) error {
 		return errors.New("nothing to write")
 	}
 
+	ok, err := p._hotkey(b)
+	if ok {
+		return err
+	}
+
 	if b[0] == 0 {
 		b = b[1:]
 	} else {
@@ -216,8 +223,40 @@ func (p *PANE_T) Write(b []byte) error {
 
 	command := []byte(fmt.Sprintf(`send-keys -t %s `, p.Id))
 	command = append(command, b...)
-	_, err := p.tmux.SendCommand(command)
+	_, err = p.tmux.SendCommand(command)
 	return err
+}
+
+func (p *PANE_T) _hotkey(b []byte) (bool, error) {
+	var key string
+	if b[0] == 0 {
+		key = string(b[1:])
+	} else {
+		key = string(b)
+	}
+	debug.Log(key)
+
+	if p.prefixTtl.Before(time.Now()) {
+		if key != p.tmux.keys.prefix {
+			// standard key, do nothing
+			return false, nil
+		}
+
+		// prefix key pressed
+		p.prefixTtl = time.Now().Add(2 * time.Second)
+		return true, nil
+	}
+
+	// run tmux function
+	fn, ok := p.tmux.keys.fnTable[key]
+	debug.Log(ok)
+	if !ok {
+		// no function to run, lets treat as standard key
+		p.prefixTtl = time.Now()
+		return false, nil
+	}
+
+	return true, fn(p.tmux, p.Id)
 }
 
 func (p *PANE_T) Resize(size *types.XY) error {

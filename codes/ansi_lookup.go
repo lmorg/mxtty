@@ -287,5 +287,5 @@ func GetAnsiEscSeq(keySet types.KeyboardMode, keyPress KeyCode, modifier Modifie
 }
 
 func _tmuxKeyResponse(keyName string) []byte {
-	return append([]byte{0}, []byte(keyName+" ")...)
+	return append([]byte{0}, []byte(keyName)...)
 }
