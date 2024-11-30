@@ -63,5 +63,10 @@ func tmuxSession() {
 
 func tmuxInstalled() bool {
 	path, err := exec.LookPath("tmux")
-	return path != "" && err == nil
+	installed := path != "" && err == nil
+	if !installed {
+		// disable tmux if not installed
+		config.Config.Tmux.Enabled = false
+	}
+	return installed
 }
