@@ -1,6 +1,6 @@
 package codes
 
-// Asciiacter codes
+// ASCII character codes
 const (
 	AsciiCtrlA = iota + 1
 	AsciiCtrlB

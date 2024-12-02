@@ -98,7 +98,7 @@ func specialCaseSequences(keySet types.KeyboardMode, keyPress KeyCode, modifier 
 	switch {
 	case keySet == types.KeysTmuxClient:
 		if keyPress >= '@' && keyPress <= '}' && modifier == MOD_CTRL {
-			return []byte{'C', '-', byte(keyPress)}
+			return []byte{0, 'C', '-', byte(keyPress)} // zero prefix to work around char codes vs char names
 		}
 		return nil
 

@@ -194,6 +194,7 @@ var _ansiLookUpTable = map[types.KeyboardMode]map[KeyCode][]byte{
 		' ':  _tmuxKeyResponse(`Space`),  // 20, space
 		'"':  _tmuxKeyResponse(`'"'`),    // 22, double quote
 		'\'': _tmuxKeyResponse(`"'"`),    // 27, single quote
+		'-':  _tmuxKeyResponse(`-`),      // 2d, hyphen
 		127:  _tmuxKeyResponse(`Delete`), // 7f, del
 
 		AnsiUp:       _tmuxKeyResponse("Up"),
@@ -287,5 +288,5 @@ func GetAnsiEscSeq(keySet types.KeyboardMode, keyPress KeyCode, modifier Modifie
 }
 
 func _tmuxKeyResponse(keyName string) []byte {
-	return append([]byte{0}, []byte(keyName)...)
+	return append([]byte{0}, []byte(keyName+" ")...)
 }
