@@ -172,6 +172,12 @@ func (win *WINDOW_T) Rename(name string) error {
 func (tmux *Tmux) SelectWindow(winId string) error {
 	command := fmt.Sprintf("select-window -t %s", winId)
 	_, err := tmux.SendCommand([]byte(command))
+	if err != nil {
+		return err
+	}
+
+	//err = tmux.RefreshClient(tmux.renderer.GetTermSize())
 	go tmux.UpdateSession()
+
 	return err
 }

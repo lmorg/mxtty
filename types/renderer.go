@@ -1,5 +1,7 @@
 package types
 
+type MenuCallbackT func(int)
+
 type Renderer interface {
 	Start(Term, any)
 	ShowAndFocusWindow()
@@ -20,6 +22,7 @@ type Renderer interface {
 	DisplayNotification(NotificationType, string)
 	DisplaySticky(NotificationType, string) Notification
 	DisplayInputBox(string, string, func(string))
+	DisplayMenu(string, []string, MenuCallbackT, MenuCallbackT, MenuCallbackT)
 	GetWindowMeta() any
 	ResizeWindow(*XY)
 	SetKeyboardFnMode(KeyboardMode)

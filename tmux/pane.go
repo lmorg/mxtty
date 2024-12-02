@@ -215,13 +215,15 @@ func (p *PANE_T) Write(b []byte) error {
 		return err
 	}
 
+	var flags string
 	if b[0] == 0 {
 		b = b[1:]
 	} else {
+		flags = "-l"
 		b = octal.Escape(b)
 	}
 
-	command := []byte(fmt.Sprintf(`send-keys -t %s `, p.Id))
+	command := []byte(fmt.Sprintf(`send-keys %s -t %s `, flags, p.Id))
 	command = append(command, b...)
 	_, err = p.tmux.SendCommand(command)
 	return err
@@ -230,7 +232,7 @@ func (p *PANE_T) Write(b []byte) error {
 func (p *PANE_T) _hotkey(b []byte) (bool, error) {
 	var key string
 	if b[0] == 0 {
-		key = string(b[1:])
+		key = string(b[1 : len(b)-1])
 	} else {
 		key = string(b)
 	}
@@ -256,7 +258,7 @@ func (p *PANE_T) _hotkey(b []byte) (bool, error) {
 		return false, nil
 	}
 
-	return true, fn(p.tmux, p.Id)
+	return true, fn.fn(p.tmux)
 }
 
 func (p *PANE_T) Resize(size *types.XY) error {

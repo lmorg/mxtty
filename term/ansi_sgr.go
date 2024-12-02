@@ -15,23 +15,33 @@ import (
 func lookupSgr(sgr *types.Sgr, n int32, stack []int32) {
 	for _, i := range stack {
 		switch i {
-		case -1, 0: // reset / normal
+		case -1, 0: // Normal (default), VT100
 			sgr.Reset()
 
-		case 1: // bold
+		case 1: // Bold, VT100
 			sgr.Bitwise.Set(types.SGR_BOLD)
 
-		case 3: // italic
+		case 2: // Faint, decreased intensity, ECMA-48 2nd
+			sgr.Bitwise.Set(types.SGR_FAINT)
+
+		case 3: // Italicized, ECMA-48 2nd
 			sgr.Bitwise.Set(types.SGR_ITALIC)
 
-		case 4: // underline
+		case 4: // Underlined, VT100
 			sgr.Bitwise.Set(types.SGR_UNDERLINE)
 
-		case 5, 6: // blink
+		case 5, // Blink, VT100
+			6: // (fast blink)
 			sgr.Bitwise.Set(types.SGR_SLOW_BLINK)
 
-		case 7: // invert
+		case 7: // Inverse, VT100
 			sgr.Bitwise.Set(types.SGR_INVERT)
+
+		//case 8: // Invisible, i.e., hidden, ECMA-48 2nd, VT300
+
+		//case 9: // Crossed-out characters, ECMA-48 3rd
+
+		//case 21: // Doubly-underlined, ECMA-48 3rd
 
 		case 22: // no bold
 			sgr.Bitwise.Unset(types.SGR_BOLD)
@@ -47,6 +57,10 @@ func lookupSgr(sgr *types.Sgr, n int32, stack []int32) {
 
 		case 27: // no invert
 			sgr.Bitwise.Unset(types.SGR_INVERT)
+
+		//case 28: // Visible, i.e., not hidden, ECMA-48 3rd, VT300
+
+		//case 29: // Not crossed-out, ECMA-48 3rd
 
 		//
 		// 3bit foreground colour:
