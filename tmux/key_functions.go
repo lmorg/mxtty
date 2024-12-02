@@ -66,7 +66,7 @@ func fnKeyChooseWindowFromList(tmux *Tmux) error {
 		}
 	}
 
-	tmux.renderer.DisplayMenu("Choose a window from a list:", windowNames, _highlightCallback, _selectCallback, _cancelCallback)
+	tmux.renderer.DisplayMenu("Choose a window from the list:", windowNames, _highlightCallback, _selectCallback, _cancelCallback)
 	return nil
 }
 
@@ -82,7 +82,7 @@ func fnKeySelectWindow8(tmux *Tmux) error { return _fnKeySelectWindow(tmux, 8) }
 func fnKeySelectWindow9(tmux *Tmux) error { return _fnKeySelectWindow(tmux, 9) }
 func _fnKeySelectWindow(tmux *Tmux, i int) error {
 	wins := tmux.RenderWindows()
-	if i > len(wins) {
+	if i >= len(wins) {
 		return fmt.Errorf("there is not a window %d", i)
 	}
 
@@ -121,7 +121,10 @@ func fnKeyListBindings(tmux *Tmux) error {
 		go func() {
 			time.Sleep(250 * time.Millisecond) // just so that we can show other menus
 			s := strings.TrimSpace(slice[i][5 : 5+8])
-			tmux.keys.fnTable[s].fn(tmux)
+			err := tmux.keys.fnTable[s].fn(tmux)
+			if err != nil {
+				tmux.renderer.DisplayNotification(types.NOTIFY_ERROR, err.Error())
+			}
 		}()
 	}
 

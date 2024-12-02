@@ -212,7 +212,10 @@ func (p *PANE_T) Write(b []byte) error {
 
 	ok, err := p._hotkey(b)
 	if ok {
-		return err
+		if err != nil {
+			p.tmux.renderer.DisplayNotification(types.NOTIFY_ERROR, err.Error())
+		}
+		return nil
 	}
 
 	var flags string
@@ -262,6 +265,14 @@ func (p *PANE_T) _hotkey(b []byte) (bool, error) {
 }
 
 func (p *PANE_T) Resize(size *types.XY) error {
+	command := fmt.Sprintf("resize-pane -t %s -x %d -y %d", p.Id, size.X, size.Y)
+	_, err := p.tmux.SendCommand([]byte(command))
+	if err != nil {
+		p.Width = int(size.X)
+		p.Height = int(size.Y)
+		return err
+	}
+
 	return p.tmux.RefreshClient(size)
 }
 

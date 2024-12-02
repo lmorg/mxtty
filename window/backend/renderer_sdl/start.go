@@ -83,7 +83,7 @@ func Initialise() (types.Renderer, *types.XY) {
 	sr.preloadNotificationGlyphs()
 	sr.fontCache = NewFontCache(sr)
 
-	return sr, sr._getSizeCells()
+	return sr, sr.GetWindowSizeCells()
 }
 
 func (sr *sdlRender) createWindow(caption string) error {

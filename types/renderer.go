@@ -6,6 +6,7 @@ type Renderer interface {
 	Start(Term, any)
 	ShowAndFocusWindow()
 	GetTermSize() *XY
+	GetWindowSizeCells() *XY
 	GetGlyphSize() *XY
 	PrintCell(*Cell, *XY)
 	PrintCellBlock([]Cell, *XY)

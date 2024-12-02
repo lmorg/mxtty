@@ -52,12 +52,12 @@ func (sr *sdlRender) GetTermSize() *types.XY {
 	return sr.term.GetSize()
 }
 
-// _getSizeCells should only be called upon terminal resizing.
+// GetWindowSizeCells should only be called upon terminal resizing.
 // All other checks for terminal size should come from term.GetSize()
-func (sr *sdlRender) _getSizeCells() *types.XY {
+func (sr *sdlRender) GetWindowSizeCells() *types.XY {
 	x, y, err := sr.renderer.GetOutputSize()
 	if err != nil {
-		panic("arg!")
+		panic("i don't know how big the terminal window is")
 	}
 	//x, y := sr.window.GetSize()
 
@@ -72,7 +72,7 @@ func (sr *sdlRender) _getSizeCells() *types.XY {
 func (sr *sdlRender) windowResized() {
 	sr.windowTabs = nil
 	if sr.term != nil {
-		sr.term.Resize(sr._getSizeCells())
+		sr.term.Resize(sr.GetWindowSizeCells())
 	}
 }
 

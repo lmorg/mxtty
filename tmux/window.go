@@ -74,6 +74,12 @@ func (tmux *Tmux) initSessionWindows() error {
 		if win.Active {
 			tmux.activeWindow = win
 		}
+
+		command := fmt.Sprintf("set-option -w -t %s window-size latest", win.Id)
+		_, _ = tmux.SendCommand([]byte(command))
+		//if err != nil {
+		//	return err
+		//}
 	}
 
 	debug.Log(windows.([]any))
@@ -170,13 +176,21 @@ func (win *WINDOW_T) Rename(name string) error {
 }
 
 func (tmux *Tmux) SelectWindow(winId string) error {
-	command := fmt.Sprintf("select-window -t %s", winId)
+	size := tmux.renderer.GetWindowSizeCells()
+	command := fmt.Sprintf("resize-window -t %s -x %d -y %d", winId, size.X, size.Y)
+	_, _ = tmux.SendCommand([]byte(command))
+	/*if err != nil {
+		p.Width = int(size.X)
+		p.Height = int(size.Y)
+		return err
+	}*/
+
+	command = fmt.Sprintf("select-window -t %s", winId)
 	_, err := tmux.SendCommand([]byte(command))
 	if err != nil {
 		return err
 	}
 
-	//err = tmux.RefreshClient(tmux.renderer.GetTermSize())
 	go tmux.UpdateSession()
 
 	return err
