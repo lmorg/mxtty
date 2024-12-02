@@ -6,6 +6,9 @@ import (
 
 func (sr *sdlRender) eventTextInput(evt *sdl.TextInputEvent) {
 	switch {
+	case sr.menu != nil:
+		sr.menu.eventTextInput(sr, evt)
+
 	case sr.inputBox != nil:
 		sr.inputBox.eventTextInput(sr, evt)
 
@@ -23,6 +26,9 @@ func (sr *sdlRender) eventKeyPress(evt *sdl.KeyboardEvent) {
 	}
 
 	switch {
+	case sr.menu != nil:
+		sr.menu.eventKeyPress(sr, evt)
+
 	case sr.inputBox != nil:
 		sr.inputBox.eventKeyPress(sr, evt)
 

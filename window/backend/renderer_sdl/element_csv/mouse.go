@@ -109,10 +109,10 @@ func (el *ElementCsv) MouseWheel(_ *types.XY, movement *types.XY, callback types
 func (el *ElementCsv) MouseMotion(pos *types.XY, move *types.XY, callback types.EventIgnoredCallback) {
 	switch {
 	case pos.Y == 0:
-		el.renderer.StatusBarText("[left click] Sort row (ASC|DESC)  |  [right click] Remove sort  |  [left|right scroll] Scroll table width")
+		el.renderer.StatusBarText("[Left Click] Sort row (ASC|DESC)  |  [Right Click] Remove sort  |  [Left|Right Scroll] Scroll table width")
 
 	case int(pos.Y) <= len(el.table):
-		el.renderer.StatusBarText("[click] Copy cell text to clipboard  |  [2x click] Filter table (SQL)  |  [left|right scroll] Scroll table width")
+		el.renderer.StatusBarText("[Click] Copy cell text to clipboard  |  [2x Click] Filter table (SQL)  |  [Left|Right Scroll] Scroll table width")
 
 	default:
 		el.renderer.StatusBarText("")

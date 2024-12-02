@@ -113,7 +113,7 @@ func (tw *termWidgetT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEvent
 				switch evt.Clicks {
 				case 1:
 					sr.selectWindow(i - 1)
-				case 2:
+				default: // 2 or more
 					sr.DisplayInputBox("Please enter a new name for this window:", sr.windowTabs.windows[i-1].Name, func(name string) {
 						err := sr.windowTabs.windows[i-1].Rename(name)
 						if err != nil {
@@ -189,11 +189,11 @@ func (tw *termWidgetT) eventMouseMotion(sr *sdlRender, evt *sdl.MouseMotionEvent
 			for i := range sr.windowTabs.boundaries {
 				if x >= 0 && x < sr.windowTabs.boundaries[i] {
 					sr.windowTabs.mouseOver = i - 1
-					sr.footerText = fmt.Sprintf("[click]  Switch to window '%s' (%s)", sr.windowTabs.windows[i-1].Name, sr.windowTabs.windows[i-1].Id)
+					sr.footerText = fmt.Sprintf("[Click]  Switch to window '%s' (%s)", sr.windowTabs.windows[i-1].Name, sr.windowTabs.windows[i-1].Id)
 					return
 				}
 			}
-			sr.footerText = "[2x click]  Start new window"
+			sr.footerText = "[2x Click]  Start new window"
 			sr.windowTabs.mouseOver = -1
 			return
 		}
@@ -213,7 +213,7 @@ func (tw *termWidgetT) eventMouseMotion(sr *sdlRender, evt *sdl.MouseMotionEvent
 }
 
 func (sr *sdlRender) _termMouseMotionCallback() {
-	sr.footerText = "[left click] Copy  |  [right click] Paste  |  [wheel] Scrollback buffer"
+	sr.footerText = "[Left Click] Copy  |  [Right Click] Paste  |  [Wheel] Scrollback buffer"
 }
 
 func (sr *sdlRender) selectWindow(winIndex int) {

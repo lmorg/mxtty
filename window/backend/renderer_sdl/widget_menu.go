@@ -2,27 +2,45 @@ package rendersdl
 
 import (
 	"github.com/lmorg/mxtty/types"
+	"github.com/lmorg/mxtty/window/backend/renderer_sdl/layer"
 	"github.com/veandco/go-sdl2/sdl"
+	"github.com/veandco/go-sdl2/ttf"
 )
 
-/*var (
-	questionColor       = &types.Colour{0x00, 0x77, 0x00}
-	questionColorBorder = &types.Colour{0x00, 0xff, 0x00}
-)*/
-
-type menuCallbackT func(int)
-
 type menuT struct {
-	Items    []string
-	Callback menuCallbackT
+	options           []string
+	title             string
+	highlightIndex    int
+	highlightCallback types.MenuCallbackT
+	selectCallback    types.MenuCallbackT
+	cancelCallback    types.MenuCallbackT
 }
 
-func (sr *sdlRender) DisplayMenu(message string, defaultValue string, callback func(string)) {
+func (sr *sdlRender) DisplayMenu(title string, options []string, highlightCallback, selectCallback, cancelCallback types.MenuCallbackT) {
+	if highlightCallback == nil {
+		highlightCallback = func(_ int) {}
+	}
+	if selectCallback == nil {
+		selectCallback = func(_ int) {}
+	}
+	if cancelCallback == nil {
+		cancelCallback = func(_ int) {}
+	}
 
+	sr.footerText = "[Up/Down] Highlight   |   [Return] Choose   |   [Esc] Cancel"
+	sr.menu = &menuT{
+		title:             title,
+		options:           options,
+		highlightCallback: highlightCallback,
+		selectCallback:    selectCallback,
+		cancelCallback:    cancelCallback,
+		highlightIndex:    -1,
+	}
 }
 
 func (sr *sdlRender) closeMenu() {
-
+	sr.footerText = ""
+	sr.menu = nil
 }
 
 func (menu *menuT) eventTextInput(sr *sdlRender, evt *sdl.TextInputEvent) {
@@ -30,7 +48,29 @@ func (menu *menuT) eventTextInput(sr *sdlRender, evt *sdl.TextInputEvent) {
 }
 
 func (menu *menuT) eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) {
-	// do nothing
+	switch evt.Keysym.Sym {
+	case sdl.K_RETURN, sdl.K_RETURN2, sdl.K_KP_ENTER:
+		menu.selectCallback(menu.highlightIndex)
+		sr.closeMenu()
+		return
+	case sdl.K_ESCAPE:
+		menu.cancelCallback(menu.highlightIndex)
+		sr.closeMenu()
+		return
+
+	case sdl.K_UP:
+		menu.highlightIndex--
+	case sdl.K_DOWN:
+		menu.highlightIndex++
+	}
+
+	if menu.highlightIndex >= len(menu.options) {
+		menu.highlightIndex = 0
+	} else if menu.highlightIndex < 0 {
+		menu.highlightIndex = len(menu.options) - 1
+	}
+
+	menu.highlightCallback(menu.highlightIndex)
 }
 
 func (menu *menuT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEvent) {
@@ -46,77 +86,90 @@ func (menu *menuT) eventMouseMotion(sr *sdlRender, evt *sdl.MouseMotionEvent) {
 }
 
 func (sr *sdlRender) renderMenu(windowRect *sdl.Rect) {
+	if sr.menu.highlightIndex < 0 {
+		sr.menu.highlightIndex = 0
+		sr.menu.highlightCallback(0)
+	}
+
+	texture := sr.createRendererTexture()
+	if texture == nil {
+		return
+	}
+
+	padding := int32(10) //sr.border //* 2
+
+	/*
+		FRAME
+	*/
+
+	menuRect := sdl.Rect{
+		X: sr.glyphSize.X * 10,
+		Y: sr.glyphSize.X * 10,
+		W: windowRect.W - (sr.glyphSize.X * 20),
+		H: windowRect.H - (sr.glyphSize.X * 20),
+	}
+
+	// draw border
+	_ = sr.renderer.SetDrawColor(questionColorBorder.Red, questionColorBorder.Green, questionColorBorder.Blue, notificationAlpha)
+	rect := sdl.Rect{
+		X: menuRect.X - 1,
+		Y: menuRect.Y - 1,
+		W: menuRect.W + 2,
+		H: menuRect.H + 2,
+	}
+	_ = sr.renderer.DrawRect(&rect)
+	_ = sr.renderer.DrawRect(&menuRect)
+
+	// fill background
+	_ = sr.renderer.SetDrawColor(questionColor.Red, questionColor.Green, questionColor.Blue, notificationAlpha)
+	rect = sdl.Rect{
+		X: menuRect.X + 1,
+		Y: menuRect.Y + 1,
+		W: menuRect.W - 2,
+		H: menuRect.H - 2,
+	}
+	_ = sr.renderer.FillRect(&rect)
+
+	/*
+		TITLE
+	*/
+
 	surface, err := sdl.CreateRGBSurfaceWithFormat(0, windowRect.W, windowRect.H, 32, uint32(sdl.PIXELFORMAT_RGBA32))
 	if err != nil {
 		panic(err) //TODO: don't panic!
 	}
 	defer surface.Free()
 
-	sr.setFontStyle(types.SGR_BOLD)
+	sr.font.SetStyle(ttf.STYLE_BOLD)
 
-	text, err := sr.font.RenderUTF8BlendedWrapped(sr.inputBox.Message, sdl.Color{R: 200, G: 200, B: 200, A: 255}, int(surface.W-sr.notifyIconSize.X))
+	text, err := sr.font.RenderUTF8BlendedWrapped(sr.menu.title, sdl.Color{R: 200, G: 200, B: 200, A: 255}, int(surface.W-sr.notifyIconSize.X))
 	if err != nil {
 		panic(err) // TODO: don't panic!
 	}
 	defer text.Free()
 
-	textShadow, err := sr.font.RenderUTF8BlendedWrapped(sr.inputBox.Message, sdl.Color{R: 0, G: 0, B: 0, A: 150}, int(surface.W-sr.notifyIconSize.X))
+	textShadow, err := sr.font.RenderUTF8BlendedWrapped(sr.menu.title, sdl.Color{R: 0, G: 0, B: 0, A: 150}, int(surface.W-sr.notifyIconSize.X))
 	if err != nil {
 		panic(err) // TODO: don't panic!
 	}
 	defer textShadow.Free()
 
-	/*
-		FRAME
-	*/
-
-	height := text.H + (sr.border * 5) + sr.glyphSize.Y
-	offset := (surface.H / 2) - (height / 2)
-	padding := sr.border * 2
-
-	// draw border
-	sr.renderer.SetDrawColor(questionColorBorder.Red, questionColorBorder.Green, questionColorBorder.Blue, notificationAlpha)
-	rect := sdl.Rect{
-		X: sr.border - 1,
-		Y: offset - 1,
-		W: windowRect.W - padding + 2,
-		H: height + 2,
-	}
-	sr.renderer.DrawRect(&rect)
-	rect = sdl.Rect{
-		X: sr.border,
-		Y: offset,
-		W: windowRect.W - padding,
-		H: height,
-	}
-	sr.renderer.DrawRect(&rect)
-
-	// fill background
-	sr.renderer.SetDrawColor(questionColor.Red, questionColor.Green, questionColor.Blue, notificationAlpha)
-	rect = sdl.Rect{
-		X: sr.border + 1,
-		Y: 1 + offset,
-		W: surface.W - padding - 2,
-		H: height - 2,
-	}
-	sr.renderer.FillRect(&rect)
-
 	// render shadow
 	rect = sdl.Rect{
-		X: padding + sr.notifyIconSize.X + 2,
-		Y: sr.border + offset + 2,
-		W: surface.W - sr.notifyIconSize.X,
-		H: text.H + padding - 2,
+		X: menuRect.X + padding + sr.notifyIconSize.X + 2,
+		Y: menuRect.Y + padding + 2,
+		W: surface.W - (padding * 2),
+		H: surface.H - (padding * 2),
 	}
 	_ = textShadow.Blit(nil, surface, &rect)
 	sr._renderNotificationSurface(surface, &rect)
 
 	// render text
 	rect = sdl.Rect{
-		X: padding + sr.notifyIconSize.X,
-		Y: sr.border + offset,
-		W: surface.W - sr.notifyIconSize.X,
-		H: text.H + padding - 2,
+		X: menuRect.X + padding + sr.notifyIconSize.X,
+		Y: menuRect.Y + padding,
+		W: surface.W - (padding * 2),
+		H: surface.H - (padding * 2),
 	}
 	err = text.Blit(nil, surface, &rect)
 	if err != nil {
@@ -124,61 +177,77 @@ func (sr *sdlRender) renderMenu(windowRect *sdl.Rect) {
 	}
 	sr._renderNotificationSurface(surface, &rect)
 
-	/*
-		TEXT FIELD
-	*/
-
-	height = sr.glyphSize.Y + (sr.border * 2)
-	offset += text.H + sr.border + sr.border
-	var width int32
-
 	// draw border
+	offset := sr.notifyIconSize.Y
+	width := menuRect.W - padding - padding
 	sr.renderer.SetDrawColor(255, 255, 255, 150)
 	rect = sdl.Rect{
-		X: sr.notifyIconSize.X + padding - 1,
-		Y: offset - 1,
-		W: windowRect.W - sr.notifyIconSize.X - padding - padding + 2,
-		H: height + 2,
+		X: menuRect.X + padding - 1,
+		Y: menuRect.Y + offset - 1,
+		W: width + 2, // menuRect.W - padding - padding + 2,
+		H: menuRect.H - offset - padding + 2,
 	}
 	sr.renderer.DrawRect(&rect)
+
 	rect = sdl.Rect{
-		X: sr.notifyIconSize.X + padding,
-		Y: offset,
-		W: windowRect.W - sr.notifyIconSize.X - padding - padding,
-		H: height,
+		X: menuRect.X + padding,
+		Y: menuRect.Y + offset,
+		W: width, //menuRect.W - padding - padding,
+		H: menuRect.H - offset - padding,
 	}
 	sr.renderer.DrawRect(&rect)
 
 	// fill background
 	sr.renderer.SetDrawColor(0, 0, 0, 150)
 	rect = sdl.Rect{
-		X: sr.notifyIconSize.X + padding + 1,
-		Y: 1 + offset,
-		W: surface.W - sr.notifyIconSize.X - padding - padding - 2,
-		H: height - 2,
+		X: menuRect.X + padding + 1,
+		Y: menuRect.Y + offset + 1,
+		W: width - 2, //menuRect.W - padding - padding - 2,
+		H: menuRect.H - offset - padding - 2,
 	}
 	sr.renderer.FillRect(&rect)
 
-	// value
-	if len(sr.inputBox.Value) > 0 {
-		textValue, err := sr.font.RenderUTF8Blended(sr.inputBox.Value, sdl.Color{R: 255, G: 255, B: 255, A: 255})
+	/*
+		OPTIONS
+	*/
+
+	offset += sr.border
+	for i := range sr.menu.options {
+
+		text, err := sr.font.RenderUTF8BlendedWrapped(sr.menu.options[i], sdl.Color{R: 200, G: 200, B: 200, A: 255}, int(surface.W-sr.notifyIconSize.X))
 		if err != nil {
 			panic(err) // TODO: don't panic!
 		}
-		defer textValue.Free()
+		defer text.Free()
 
-		rect = sdl.Rect{
-			X: padding + sr.notifyIconSize.X + sr.border,
-			Y: sr.border + offset,
-			W: surface.W - sr.notifyIconSize.X,
-			H: textValue.H + padding - 2,
+		textShadow, err := sr.font.RenderUTF8BlendedWrapped(sr.menu.options[i], sdl.Color{R: 0, G: 0, B: 0, A: 150}, int(surface.W-sr.notifyIconSize.X))
+		if err != nil {
+			panic(err) // TODO: don't panic!
 		}
-		err = textValue.Blit(nil, surface, &rect)
+		defer textShadow.Free()
+
+		// render shadow
+		rect = sdl.Rect{
+			X: menuRect.X + padding + sr.border + 2,
+			Y: menuRect.Y + offset + 2 + (sr.glyphSize.Y * int32(i)),
+			W: surface.W - (padding * 2),
+			H: surface.H - (padding * 2),
+		}
+		_ = textShadow.Blit(nil, surface, &rect)
+		sr._renderNotificationSurface(surface, &rect)
+
+		// render text
+		rect = sdl.Rect{
+			X: menuRect.X + padding + sr.border,
+			Y: menuRect.Y + offset + (sr.glyphSize.Y * int32(i)),
+			W: surface.W - (padding * 2),
+			H: surface.H - (padding * 2),
+		}
+		err = text.Blit(nil, surface, &rect)
 		if err != nil {
 			panic(err) // TODO: don't panic!
 		}
 		sr._renderNotificationSurface(surface, &rect)
-		width = textValue.W
 	}
 
 	if surface, ok := sr.notifyIcon[types.NOTIFY_QUESTION].Asset().(*sdl.Surface); ok {
@@ -190,43 +259,32 @@ func (sr *sdlRender) renderMenu(windowRect *sdl.Rect) {
 		}
 
 		dstRect := &sdl.Rect{
-			X: sr.border + 2,
-			Y: offset + text.H - sr.notifyIconSize.Y,
+			X: menuRect.X,
+			Y: menuRect.Y,
 			W: sr.notifyIconSize.X,
 			H: sr.notifyIconSize.X,
 		}
 
 		texture, err := sr.renderer.CreateTextureFromSurface(surface)
 		if err != nil {
-			panic(err) //TODO: don't panic!
+			panic(err) // TODO: don't panic!
 		}
 		defer texture.Destroy()
 
 		err = sr.renderer.Copy(texture, srcRect, dstRect)
 		if err != nil {
-			panic(err) //TODO: don't panic!
+			panic(err) // TODO: don't panic!
 		}
 	}
 
-	if sr.blinkState {
-		sr.renderer.SetDrawColor(255, 255, 255, 255)
-		rect = sdl.Rect{
-			X: padding + sr.notifyIconSize.X + sr.border + width,
-			Y: sr.border + offset,
-			W: sr.glyphSize.X,
-			H: sr.glyphSize.Y,
-		}
-		sr.renderer.FillRect(&rect)
-	}
+	sr.AddToOverlayStack(&layer.RenderStackT{texture, windowRect, windowRect, false})
+	sr.restoreRendererTexture()
 
-	texture, err := sr.renderer.CreateTextureFromSurface(surface)
-	if err != nil {
-		panic(err) // TODO: better error handling please!
+	rect = sdl.Rect{
+		X: menuRect.X + padding + sr.border,
+		Y: menuRect.Y + offset + (sr.glyphSize.Y * int32(sr.menu.highlightIndex)),
+		W: width - sr.border - sr.border,
+		H: sr.glyphSize.Y,
 	}
-	defer texture.Destroy()
-
-	err = sr.renderer.Copy(texture, windowRect, windowRect)
-	if err != nil {
-		panic(err) // TODO: better error handling please!
-	}
+	sr._drawHighlightRect(&rect, highlightAlphaBorder, highlightAlphaBorder-20)
 }

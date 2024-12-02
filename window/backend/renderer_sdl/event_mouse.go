@@ -6,6 +6,9 @@ import (
 
 func (sr *sdlRender) eventMouseButton(evt *sdl.MouseButtonEvent) {
 	switch {
+	case sr.menu != nil:
+		sr.menu.eventMouseButton(sr, evt)
+
 	case sr.inputBox != nil:
 		sr.inputBox.eventMouseButton(sr, evt)
 
@@ -19,6 +22,9 @@ func (sr *sdlRender) eventMouseButton(evt *sdl.MouseButtonEvent) {
 
 func (sr *sdlRender) eventMouseWheel(evt *sdl.MouseWheelEvent) {
 	switch {
+	case sr.menu != nil:
+		sr.menu.eventMouseWheel(sr, evt)
+
 	case sr.inputBox != nil:
 		sr.inputBox.eventMouseWheel(sr, evt)
 
@@ -32,6 +38,9 @@ func (sr *sdlRender) eventMouseWheel(evt *sdl.MouseWheelEvent) {
 
 func (sr *sdlRender) eventMouseMotion(evt *sdl.MouseMotionEvent) {
 	switch {
+	case sr.menu != nil:
+		sr.menu.eventMouseMotion(sr, evt)
+
 	case sr.inputBox != nil:
 		sr.inputBox.eventMouseMotion(sr, evt)
 

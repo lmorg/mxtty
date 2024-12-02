@@ -182,9 +182,14 @@ func render(sr *sdlRender) error {
 		return nil
 	}
 
-	if sr.inputBox != nil {
+	switch {
+	case sr.inputBox != nil:
 		sr.renderInputBox(rect)
-	} else {
+
+	case sr.menu != nil:
+		sr.renderMenu(rect)
+
+	default:
 		sr.selectionHighlighter()
 	}
 

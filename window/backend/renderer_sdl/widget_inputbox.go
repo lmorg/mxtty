@@ -30,7 +30,7 @@ func (sr *sdlRender) DisplayInputBox(message string, defaultValue string, callba
 		Callback: callback,
 	}
 
-	sr.footerText = "[RETURN] Ok  |  [ESC] Cancel  |  [CTRL+u] Clear text"
+	sr.footerText = "[Return] Ok  |  [Esc] Cancel  |  [Ctrl+u] Clear text"
 	sr.term.ShowCursor(false)
 	go sr.inputBoxCursorBlink()
 }
