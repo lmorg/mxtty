@@ -27,7 +27,7 @@ func (sr *sdlRender) DisplayMenu(title string, options []string, highlightCallba
 		cancelCallback = func(_ int) {}
 	}
 
-	sr.footerText = "[Up/Down] Highlight   |   [Return] Choose   |   [Esc] Cancel"
+	sr.footerText = "[Up/Down] Highlight  |  [Return] Choose  |  [Esc] Cancel"
 	sr.menu = &menuT{
 		title:             title,
 		options:           options,
@@ -213,6 +213,9 @@ func (sr *sdlRender) renderMenu(windowRect *sdl.Rect) {
 
 	offset += sr.border
 	for i := range sr.menu.options {
+		if sr.menu.options[i] == "-" {
+			continue
+		}
 
 		text, err := sr.font.RenderUTF8BlendedWrapped(sr.menu.options[i], sdl.Color{R: 200, G: 200, B: 200, A: 255}, int(surface.W-sr.notifyIconSize.X))
 		if err != nil {

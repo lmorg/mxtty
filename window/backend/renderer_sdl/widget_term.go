@@ -74,14 +74,17 @@ func (tw *termWidgetT) _eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) {
 	}
 
 	mod := keyEventModToCodesModifier(evt.Keysym.Mod)
-	keyCode := sr.keyCodeLookup(evt.Keysym.Sym)
 
 	switch {
-	case keyCode == codes.AnsiF3 && mod == 0:
+	case evt.Keysym.Sym == sdl.K_F3 && mod == 0:
 		sr.term.Search()
+		return
+	case evt.Keysym.Sym == 'v' && mod == codes.MOD_META:
+		sr.clipboardPasteText()
 		return
 	}
 
+	keyCode := sr.keyCodeLookup(evt.Keysym.Sym)
 	b := codes.GetAnsiEscSeq(sr.keyboardMode.Get(), keyCode, mod)
 	if len(b) > 0 {
 		sr.term.Reply(b)

@@ -30,9 +30,16 @@ import (
 type Modifier int
 
 const (
+	// Shift
 	MOD_SHIFT Modifier = 1 << iota
+
+	// Alt / Option
 	MOD_ALT
+
+	// Ctrl
 	MOD_CTRL
+
+	// Meta / Command
 	MOD_META
 )
 
