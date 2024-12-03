@@ -43,7 +43,11 @@ const (
 	MOD_META
 )
 
-func translateModToCode(mod Modifier) []byte {
+func (mod Modifier) Is(flag Modifier) bool {
+	return mod&flag != 0
+}
+
+func translateModToAnsiCode(mod Modifier) []byte {
 	switch mod {
 	case MOD_SHIFT:
 		return []byte{';', '2'}
@@ -95,18 +99,27 @@ func translateModToCode(mod Modifier) []byte {
 	}
 }
 
-func spliceKeysAndModifiers(keySeq []byte, modifier Modifier) []byte {
-	ending := keySeq[len(keySeq)-1]
-	seq := append(keySeq[:len(keySeq)-1], translateModToCode(modifier)...)
-	return append(seq, ending)
+func translateModToTmuxCode(mod Modifier) []byte {
+	b := []byte{0} // zero prefix to work around char codes vs char names!
+
+	if mod.Is(MOD_CTRL) {
+		b = append(b, []byte{'C', '-'}...)
+	}
+
+	if mod.Is(MOD_SHIFT) {
+		b = append(b, []byte{'S', '-'}...)
+	}
+
+	if mod.Is(MOD_META) {
+		b = append(b, []byte{'M', '-'}...)
+	}
+
+	return b
 }
 
 func specialCaseSequences(keySet types.KeyboardMode, keyPress KeyCode, modifier Modifier) []byte {
 	switch {
 	case keySet == types.KeysTmuxClient:
-		if keyPress >= '@' && keyPress <= '}' && modifier == MOD_CTRL {
-			return []byte{0, 'C', '-', byte(keyPress)} // zero prefix to work around char codes vs char names
-		}
 		return nil
 
 	case keyPress < 256 && modifier == 0:

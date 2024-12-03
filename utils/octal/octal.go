@@ -12,9 +12,6 @@ func Escape(b []byte) []byte {
 
 	for _, c := range b {
 		escaped = append(escaped, []byte(fmt.Sprintf(`\%03o `, c))...)
-		//if c == '-' {
-		//	escaped = append(escaped, ' ') // nasty hack to work around tmux's text control plane
-		//}
 	}
 
 	debug.Log(string(escaped))

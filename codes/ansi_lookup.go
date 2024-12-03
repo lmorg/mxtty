@@ -5,6 +5,7 @@ import (
 
 	"github.com/lmorg/mxtty/debug"
 	"github.com/lmorg/mxtty/types"
+	"github.com/lmorg/mxtty/utils/octal"
 )
 
 const esc = 27
@@ -23,6 +24,8 @@ var (
 
 func ss3(b ...byte) []byte { return append(Ss3, b...) }
 func csi(b ...byte) []byte { return append(Csi, b...) }
+
+func _tmuxKeyResponse(keyName string) []byte { return append([]byte{0}, []byte(keyName+" ")...) }
 
 var _retryLookUpTable = map[types.KeyboardMode]*[]types.KeyboardMode{
 	types.KeysNormal:      {types.KeysNormal, types.KeysVT220},
@@ -194,8 +197,9 @@ var _ansiLookUpTable = map[types.KeyboardMode]map[KeyCode][]byte{
 		' ':  _tmuxKeyResponse(`Space`),  // 20, space
 		'"':  _tmuxKeyResponse(`'"'`),    // 22, double quote
 		'\'': _tmuxKeyResponse(`"'"`),    // 27, single quote
-		'-':  _tmuxKeyResponse(`-`),      // 2d, hyphen
-		127:  _tmuxKeyResponse(`Delete`), // 7f, del
+		//'-':  _tmuxKeyResponse(`-`),      // 2d, hyphen
+		//'_':  _tmuxKeyResponse(`_`),      // 5f, underscore
+		127: _tmuxKeyResponse(`Delete`), // 7f, del
 
 		AnsiUp:       _tmuxKeyResponse("Up"),
 		AnsiDown:     _tmuxKeyResponse("Down"),
@@ -264,29 +268,37 @@ func getAnsiEscSeq(keySet types.KeyboardMode, keyPress KeyCode) []byte {
 // sending a function key modifier as a parameter.
 func GetAnsiEscSeq(keySet types.KeyboardMode, keyPress KeyCode, modifier Modifier) []byte {
 	// check for hardcoded exceptions
-	b := specialCaseSequences(keySet, keyPress, modifier)
-	if len(b) != 0 {
-		return b
+	keySeq := specialCaseSequences(keySet, keyPress, modifier)
+	if len(keySeq) != 0 {
+		return keySeq
 	}
 
 	// fallback to generalized formats
 	lookupSet := _retryLookUpTable[keySet]
 	for _, set := range *lookupSet {
-		b = getAnsiEscSeq(set, keyPress)
-		if len(b) != 0 {
-			// no modifiers
-			if modifier == 0 {
-				return b
+		keySeq = getAnsiEscSeq(set, keyPress)
+		if len(keySeq) == 0 {
+			if keySet == types.KeysTmuxClient && keyPress < 255 {
+				keySeq = octal.Escape([]byte{byte(keyPress)})
+			} else {
+				continue
 			}
-
-			// contains modifiers
-			return spliceKeysAndModifiers(b, modifier)
 		}
+
+		// no modifiers
+		if modifier == 0 {
+			return keySeq
+		}
+
+		// contains modifiers
+		if keySet == types.KeysTmuxClient && !modifier.Is(MOD_ALT) {
+			return append(translateModToTmuxCode(modifier), keySeq...)
+		}
+
+		ending := keySeq[len(keySeq)-1]
+		seq := append(keySeq[:len(keySeq)-1], translateModToAnsiCode(modifier)...)
+		return append(seq, ending)
 	}
 
-	return b
-}
-
-func _tmuxKeyResponse(keyName string) []byte {
-	return append([]byte{0}, []byte(keyName+" ")...)
+	return keySeq
 }

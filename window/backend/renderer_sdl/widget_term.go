@@ -67,13 +67,14 @@ func (tw *termWidgetT) _eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) {
 		return
 	}
 
-	if evt.Keysym.Sym > ' ' && evt.Keysym.Sym < 127 && evt.Keysym.Mod == sdl.KMOD_NONE {
+	mod := keyEventModToCodesModifier(evt.Keysym.Mod)
+
+	if (evt.Keysym.Sym > ' ' && evt.Keysym.Sym < 127) &&
+		(mod == 0 || mod == codes.MOD_SHIFT) {
 		// lets let eventTextInput() handle this so we don't need to think about
 		// keyboard layouts and shift chars like whether shift+'2' == '@' or '"'
 		return
 	}
-
-	mod := keyEventModToCodesModifier(evt.Keysym.Mod)
 
 	switch {
 	case evt.Keysym.Sym == sdl.K_F3 && mod == 0:
