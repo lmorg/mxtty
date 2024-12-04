@@ -4,6 +4,6 @@
 package types
 
 const (
-	KEY_STR_ALT  = "ALT"
-	KEY_STR_META = "META"
+	KEY_STR_ALT  = "Alt"
+	KEY_STR_META = "Meta"
 )

@@ -4,6 +4,6 @@
 package types
 
 const (
-	KEY_STR_ALT  = "OPT"
-	KEY_STR_META = "CMD"
+	KEY_STR_ALT  = "Opt"
+	KEY_STR_META = "Cmd"
 )

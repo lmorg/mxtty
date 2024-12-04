@@ -150,11 +150,43 @@ func (tw *termWidgetT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEvent
 		sr.term.MouseClick(posCell, evt.Button, evt.Clicks, true, sr.clipboardPasteText)
 
 	case _MOUSE_BUTTON_RIGHT:
-		sr.term.MouseClick(posCell, evt.Button, evt.Clicks, true, sr.clipboardPasteText)
+		sr.term.MouseClick(posCell, evt.Button, evt.Clicks, true, func() { tw._eventMouseButtonRightClick(sr, evt, posCell) })
 
 	case _MOUSE_BUTTON_X1:
 		sr.term.MouseClick(posCell, evt.Button, evt.Clicks, true, func() {})
 	}
+}
+
+func (tw *termWidgetT) _eventMouseButtonRightClick(sr *sdlRender, evt *sdl.MouseButtonEvent, posCell *types.XY) {
+	options := []string{
+		fmt.Sprintf("Paste text from clipboard [%s+v]", types.KEY_STR_META),
+		"---",
+		"Match bracket",
+		"Search text [F3]",
+	}
+
+	if sr.tmux != nil {
+		options = append(options, "---", "List tmux hotkeys")
+	}
+
+	selectCallback := func(i int) {
+		switch i {
+		case 0:
+			sr.clipboardPasteText()
+		case 1:
+			// ---
+		case 2:
+			// todo
+		case 3:
+			sr.term.Search()
+		case 4:
+			// ---
+		case 5:
+			sr.tmux.ListKeyBindings()
+		}
+	}
+
+	sr.DisplayMenu("Select an action:", options, nil, selectCallback, nil)
 }
 
 var _highlighterStartFooterText = fmt.Sprintf(

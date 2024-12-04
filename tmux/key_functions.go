@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/lmorg/mxtty/types"
 )
@@ -119,7 +118,7 @@ func fnKeyListBindings(tmux *Tmux) error {
 
 	selectCallback := func(i int) {
 		go func() {
-			time.Sleep(250 * time.Millisecond) // just so that we can show other menus
+			//time.Sleep(250 * time.Millisecond) // just so that we can show other menus
 			s := strings.TrimSpace(slice[i][5 : 5+8])
 			err := tmux.keys.fnTable[s].fn(tmux)
 			if err != nil {
@@ -130,4 +129,8 @@ func fnKeyListBindings(tmux *Tmux) error {
 
 	tmux.renderer.DisplayMenu("Hotkeys", slice, nil, selectCallback, nil)
 	return nil
+}
+
+func (tmux *Tmux) ListKeyBindings() {
+	_ = fnKeyListBindings(tmux)
 }
