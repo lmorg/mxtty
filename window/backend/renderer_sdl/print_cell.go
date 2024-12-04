@@ -11,19 +11,21 @@ import (
 	"github.com/veandco/go-sdl2/ttf"
 )
 
-const dropShadowOffset int32 = 2
+const dropShadowOffset int32 = 1
 
 const (
-	_HLTEXTURE_NONE = iota
-	_HLTEXTURE_SELECTION
+	_HLTEXTURE_NONE      = iota
+	_HLTEXTURE_SELECTION // should always be first non-zero value
 	_HLTEXTURE_SEARCH_RESULT
+	_HLTEXTURE_MATCH_RANGE
 	_HLTEXTURE_LAST // placeholder for rect calculations. Must always come last
 )
 
 var textShadow = []sdl.Color{
 	_HLTEXTURE_NONE:          {R: 0, G: 0, B: 0, A: 0}, // A controlled by LightMode
-	_HLTEXTURE_SELECTION:     {R: 50, G: 50, B: 255, A: 255},
-	_HLTEXTURE_SEARCH_RESULT: {R: 255, G: 0, B: 0, A: 255},
+	_HLTEXTURE_SELECTION:     {R: 64, G: 64, B: 255, A: 255},
+	_HLTEXTURE_SEARCH_RESULT: {R: 64, G: 64, B: 255, A: 192},
+	_HLTEXTURE_MATCH_RANGE:   {R: 64, G: 255, B: 64, A: 128},
 }
 
 var (
@@ -166,7 +168,7 @@ func (fa *fontAtlasT) Render(sr *sdlRender, dstRect *sdl.Rect, r rune, hash uint
 }
 
 func _printCellToSurface(cell *types.Cell, cellRect *sdl.Rect, font *ttf.Font, surface *sdl.Surface, hlTexture int) error {
-	fg, bg := sgrOpts(cell.Sgr)
+	fg, bg := sgrOpts(cell.Sgr, hlTexture == _HLTEXTURE_SELECTION)
 
 	// render background colour
 
@@ -191,13 +193,9 @@ func _printCellToSurface(cell *types.Cell, cellRect *sdl.Rect, font *ttf.Font, s
 
 	// render drop shadow
 
-	if config.Config.Terminal.TypeFace.DropShadow && (bg == nil || hlTexture != 0) {
-		shadowRect := &sdl.Rect{
-			X: cellRect.X + dropShadowOffset,
-			Y: cellRect.Y + dropShadowOffset,
-			W: cellRect.W,
-			H: cellRect.H,
-		}
+	if (config.Config.Terminal.TypeFace.DropShadow &&
+		(bg == nil || hlTexture == _HLTEXTURE_NONE)) ||
+		hlTexture > _HLTEXTURE_SELECTION {
 
 		shadowText, err := font.RenderGlyphBlended(cell.Char, textShadow[hlTexture])
 		if err != nil {
@@ -205,9 +203,36 @@ func _printCellToSurface(cell *types.Cell, cellRect *sdl.Rect, font *ttf.Font, s
 		}
 		defer shadowText.Free()
 
-		err = shadowText.Blit(nil, surface, shadowRect)
-		if err != nil {
-			return err
+		shadowRect := &sdl.Rect{
+			X: cellRect.X + dropShadowOffset,
+			Y: cellRect.Y + dropShadowOffset,
+			W: cellRect.W,
+			H: cellRect.H,
+		}
+		_ = shadowText.Blit(nil, surface, shadowRect)
+
+		if hlTexture > _HLTEXTURE_NONE {
+			shadowRect = &sdl.Rect{
+				X: cellRect.X - dropShadowOffset,
+				Y: cellRect.Y + dropShadowOffset,
+				W: cellRect.W,
+				H: cellRect.H,
+			}
+			_ = shadowText.Blit(nil, surface, shadowRect)
+			shadowRect = &sdl.Rect{
+				X: cellRect.X - dropShadowOffset,
+				Y: cellRect.Y - dropShadowOffset,
+				W: cellRect.W,
+				H: cellRect.H,
+			}
+			_ = shadowText.Blit(nil, surface, shadowRect)
+			shadowRect = &sdl.Rect{
+				X: cellRect.X + dropShadowOffset,
+				Y: cellRect.Y - dropShadowOffset,
+				W: cellRect.W,
+				H: cellRect.H,
+			}
+			_ = shadowText.Blit(nil, surface, shadowRect)
 		}
 	}
 
@@ -265,14 +290,14 @@ func fontStyle(style types.SgrFlag) int {
 	return i
 }
 
-func sgrOpts(sgr *types.Sgr) (fg *types.Colour, bg *types.Colour) {
+func sgrOpts(sgr *types.Sgr, forceBg bool) (fg *types.Colour, bg *types.Colour) {
 	if sgr.Bitwise.Is(types.SGR_INVERT) {
 		bg, fg = sgr.Fg, sgr.Bg
 	} else {
 		fg, bg = sgr.Fg, sgr.Bg
 	}
 
-	if unsafe.Pointer(bg) == unsafe.Pointer(types.SGR_DEFAULT.Bg) {
+	if unsafe.Pointer(bg) == unsafe.Pointer(types.SGR_DEFAULT.Bg) && !forceBg {
 		bg = nil
 	}
 

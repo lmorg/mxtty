@@ -34,3 +34,33 @@ func (c *Cell) ElementXY() *XY {
 		Y: c.Char &^ cellElementXyMask,
 	}
 }
+
+/*
+	ROWS
+*/
+/*
+type Row struct {
+	Cells []*Cell
+	Meta  RowMetaFlag
+}
+
+type RowMetaFlag uint16
+
+// Flags
+const (
+	ROW_META_NONE      RowMetaFlag = 0
+	ROW_META_COLLAPSED RowMetaFlag = 1 << iota
+)
+
+func (f RowMetaFlag) Is(flag RowMetaFlag) bool {
+	return f&flag != 0
+}
+
+func (f *RowMetaFlag) Set(flag RowMetaFlag) {
+	*f |= flag
+}
+
+func (f *RowMetaFlag) Unset(flag RowMetaFlag) {
+	*f &^= flag
+}
+*/

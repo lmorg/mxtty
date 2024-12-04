@@ -124,7 +124,7 @@ func (sr *sdlRender) PrintCellBlock(cells []types.Cell, cellPos *types.XY) {
 
 	sr.font.SetStyle(fontStyle(sgr.Bitwise))
 
-	fg, bg := sgrOpts(sgr)
+	fg, bg := sgrOpts(sgr, false)
 
 	cellBlockRect := &sdl.Rect{
 		W: sr.glyphSize.X * int32(len(cells)),

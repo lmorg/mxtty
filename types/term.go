@@ -23,6 +23,7 @@ type Term interface {
 	HasFocus(bool)
 	MakeVisible(bool)
 	Search()
+	Match(*XY)
 }
 
 type Pty interface {

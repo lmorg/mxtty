@@ -160,13 +160,13 @@ func (tw *termWidgetT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEvent
 func (tw *termWidgetT) _eventMouseButtonRightClick(sr *sdlRender, evt *sdl.MouseButtonEvent, posCell *types.XY) {
 	options := []string{
 		fmt.Sprintf("Paste text from clipboard [%s+v]", types.KEY_STR_META),
-		"---",
+		MENU_SEPARATOR,
 		"Match bracket",
 		"Search text [F3]",
 	}
 
 	if sr.tmux != nil {
-		options = append(options, "---", "List tmux hotkeys")
+		options = append(options, MENU_SEPARATOR, "List tmux hotkeys")
 	}
 
 	selectCallback := func(i int) {
@@ -176,7 +176,7 @@ func (tw *termWidgetT) _eventMouseButtonRightClick(sr *sdlRender, evt *sdl.Mouse
 		case 1:
 			// ---
 		case 2:
-			// todo
+			sr.term.Match(posCell)
 		case 3:
 			sr.term.Search()
 		case 4:

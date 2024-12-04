@@ -7,6 +7,8 @@ import (
 	"github.com/veandco/go-sdl2/ttf"
 )
 
+const MENU_SEPARATOR = "-"
+
 type menuT struct {
 	options           []string
 	title             string
@@ -75,7 +77,7 @@ func (menu *menuT) eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) {
 			menu.highlightIndex = len(menu.options) - 1
 		}
 
-		if menu.options[menu.highlightIndex] != "---" {
+		if menu.options[menu.highlightIndex] != MENU_SEPARATOR {
 			break
 		}
 	}
@@ -122,7 +124,7 @@ func (menu *menuT) _mouseHover(x, y int32, glyphSize *types.XY) int {
 	rel := y - menu.mouseRect.Y
 	i := int(rel / glyphSize.Y)
 
-	if i >= len(menu.options) || menu.options[i] == "---" {
+	if i >= len(menu.options) || menu.options[i] == MENU_SEPARATOR {
 		return -1
 	}
 
@@ -268,7 +270,7 @@ func (sr *sdlRender) renderMenu(windowRect *sdl.Rect) {
 
 	offset += sr.border
 	for i := range sr.menu.options {
-		if sr.menu.options[i] == "---" {
+		if sr.menu.options[i] == MENU_SEPARATOR {
 			// draw horizontal separator
 			sr.renderer.SetDrawColor(255, 255, 255, 50)
 			rect = sdl.Rect{
