@@ -59,7 +59,6 @@ type sdlRender struct {
 
 	// state
 	keyboardMode keyboardModeT
-	blinkState   bool
 	keyModifier  uint16
 	keyIgnore    chan bool
 

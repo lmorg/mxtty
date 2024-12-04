@@ -3,7 +3,6 @@ package virtualterm
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/lmorg/mxtty/types"
 )
@@ -39,7 +38,7 @@ func (term *Term) searchBuf(search string) {
 	_, normOk := term._searchBuf(term._normBuf, search)
 	offset, scrollOk := term._searchBuf(term._scrollBuf, search)
 
-	term._searchHighlight = normOk || scrollOk
+	term._searchHighlight = term._searchHighlight || normOk || scrollOk
 
 	if normOk {
 		return
@@ -48,12 +47,7 @@ func (term *Term) searchBuf(search string) {
 	if scrollOk {
 		// +_SEARCH_OFFSET to add some before context
 		term._scrollOffset = len(term._scrollBuf) - offset + _SEARCH_OFFSET
-		go func() {
-			// this is a kludge because the inputbox enabled show cursor when
-			// closed after this callback
-			time.Sleep(250 * time.Millisecond)
-			term.ShowCursor(false)
-		}()
+		term.ShowCursor(false)
 		term.updateScrollback()
 		return
 	}

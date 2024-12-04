@@ -19,8 +19,9 @@ type inputBoxCallbackT func(string)
 type inputBoxT struct {
 	Message string
 	//Default  string
-	Callback inputBoxCallbackT
-	Value    string
+	Callback   inputBoxCallbackT
+	Value      string
+	blinkState bool
 }
 
 func (sr *sdlRender) DisplayInputBox(message string, defaultValue string, callback func(string)) {
@@ -32,7 +33,7 @@ func (sr *sdlRender) DisplayInputBox(message string, defaultValue string, callba
 
 	sr.footerText = "[Return] Ok  |  [Esc] Cancel  |  [Ctrl+u] Clear text"
 	sr.term.ShowCursor(false)
-	go sr.inputBoxCursorBlink()
+	go sr.inputBox.inputBoxCursorBlink(sr)
 }
 
 func (sr *sdlRender) closeInputBox() {
@@ -51,8 +52,8 @@ func (inputBox *inputBoxT) eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) 
 	case sdl.K_ESCAPE:
 		sr.closeInputBox()
 	case sdl.K_RETURN:
-		inputBox.Callback(inputBox.Value)
 		sr.closeInputBox()
+		inputBox.Callback(inputBox.Value)
 	case sdl.K_BACKSPACE:
 		if inputBox.Value != "" {
 			inputBox.Value = inputBox.Value[:len(inputBox.Value)-1]
@@ -241,15 +242,13 @@ func (sr *sdlRender) renderInputBox(windowRect *sdl.Rect) {
 		}
 	}
 
-	if sr.blinkState {
-		//sr.renderer.SetDrawColor(255, 255, 255, 255)
+	if sr.inputBox.blinkState {
 		rect = sdl.Rect{
 			X: padding + sr.notifyIconSize.X + sr.border + width,
 			Y: sr.border + offset,
 			W: sr.glyphSize.X,
 			H: sr.glyphSize.Y,
 		}
-		//sr.renderer.FillRect(&rect)
 		sr._drawHighlightRect(&rect, 255, 200)
 	}
 
@@ -265,10 +264,10 @@ func (sr *sdlRender) renderInputBox(windowRect *sdl.Rect) {
 	}
 }
 
-func (sr *sdlRender) inputBoxCursorBlink() {
+func (inputBox *inputBoxT) inputBoxCursorBlink(sr *sdlRender) {
 	for {
 		time.Sleep(500 * time.Millisecond)
-		sr.blinkState = !sr.blinkState
+		inputBox.blinkState = !inputBox.blinkState
 		if sr.inputBox == nil {
 			return
 		}
