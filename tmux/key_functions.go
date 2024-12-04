@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/lmorg/mxtty/types"
 )
@@ -44,10 +45,17 @@ func fnKeyChooseWindowFromList(tmux *Tmux) error {
 	}
 
 	_highlightCallback := func(i int) {
+		oldTerm := tmux.activeWindow.activePane.Term()
 		err := tmux.SelectWindow(windows[i].Id)
 		if err != nil {
 			tmux.renderer.DisplayNotification(types.NOTIFY_ERROR, err.Error())
 		}
+		windows[i].activePane.term.ShowCursor(false)
+		go func() {
+			// this is a kludge to avoid the cursor showing as you switch windows
+			time.Sleep(500 * time.Millisecond)
+			oldTerm.ShowCursor(true)
+		}()
 	}
 
 	_selectCallback := func(i int) {
@@ -117,14 +125,11 @@ func fnKeyListBindings(tmux *Tmux) error {
 	sort.Strings(slice)
 
 	selectCallback := func(i int) {
-		go func() {
-			//time.Sleep(250 * time.Millisecond) // just so that we can show other menus
-			s := strings.TrimSpace(slice[i][5 : 5+8])
-			err := tmux.keys.fnTable[s].fn(tmux)
-			if err != nil {
-				tmux.renderer.DisplayNotification(types.NOTIFY_ERROR, err.Error())
-			}
-		}()
+		s := strings.TrimSpace(slice[i][5 : 5+8])
+		err := tmux.keys.fnTable[s].fn(tmux)
+		if err != nil {
+			tmux.renderer.DisplayNotification(types.NOTIFY_ERROR, err.Error())
+		}
 	}
 
 	tmux.renderer.DisplayMenu("Hotkeys", slice, nil, selectCallback, nil)
