@@ -193,8 +193,7 @@ func _printCellToSurface(cell *types.Cell, cellRect *sdl.Rect, font *ttf.Font, s
 
 	// render drop shadow
 
-	if (config.Config.Terminal.TypeFace.DropShadow &&
-		(bg == nil || hlTexture == _HLTEXTURE_NONE)) ||
+	if (config.Config.Terminal.TypeFace.DropShadow && bg == nil) ||
 		hlTexture > _HLTEXTURE_SELECTION {
 
 		shadowText, err := font.RenderGlyphBlended(cell.Char, textShadow[hlTexture])
@@ -211,7 +210,7 @@ func _printCellToSurface(cell *types.Cell, cellRect *sdl.Rect, font *ttf.Font, s
 		}
 		_ = shadowText.Blit(nil, surface, shadowRect)
 
-		if hlTexture > _HLTEXTURE_NONE {
+		if hlTexture > _HLTEXTURE_SELECTION {
 			shadowRect = &sdl.Rect{
 				X: cellRect.X - dropShadowOffset,
 				Y: cellRect.Y + dropShadowOffset,
