@@ -24,7 +24,9 @@ func (term *Term) searchBuf(search string) {
 	if search == "" {
 		term._searchHighlight = false
 		for _, cell := range term._searchHlHistory {
-			cell.Sgr.Bitwise.Unset(types.SGR_HIGHLIGHT_SEARCH_RESULT)
+			if cell != nil && cell.Sgr != nil {
+				cell.Sgr.Bitwise.Unset(types.SGR_HIGHLIGHT_SEARCH_RESULT)
+			}
 		}
 		term._searchHlHistory = []*types.Cell{}
 		term._scrollOffset = 0

@@ -45,6 +45,10 @@ func fnKeyChooseWindowFromList(tmux *Tmux) error {
 	}
 
 	_highlightCallback := func(i int) {
+		if tmux.activeWindow.Id == windows[i].Id {
+			return
+		}
+
 		oldTerm := tmux.activeWindow.activePane.Term()
 		err := tmux.SelectWindow(windows[i].Id)
 		if err != nil {
