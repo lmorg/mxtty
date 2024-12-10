@@ -77,7 +77,7 @@ func fnKeyChooseWindowFromList(tmux *Tmux) error {
 		}
 	}
 
-	tmux.renderer.DisplayMenu("Choose a window from the list:", windowNames, _highlightCallback, _selectCallback, _cancelCallback)
+	tmux.renderer.DisplayMenu("Choose a window", windowNames, _highlightCallback, _selectCallback, _cancelCallback)
 	return nil
 }
 

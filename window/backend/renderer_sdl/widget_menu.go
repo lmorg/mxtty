@@ -17,12 +17,13 @@ type menuT struct {
 	options           []string
 	title             string
 	highlightIndex    int
-	filter            string
-	hidden            []bool
 	highlightCallback types.MenuCallbackT
 	selectCallback    types.MenuCallbackT
 	cancelCallback    types.MenuCallbackT
 	mouseRect         sdl.Rect
+	maxLen            int32
+	filter            string
+	hidden            []bool
 	blinkState        bool
 }
 
@@ -51,6 +52,12 @@ func (sr *sdlRender) DisplayMenu(title string, options []string, highlightCallba
 		selectCallback:    selectCallback,
 		cancelCallback:    cancelCallback,
 		highlightIndex:    _MENU_HIGHLIGHT_INIT,
+	}
+
+	for i := range options {
+		if len(options[i]) > int(sr.menu.maxLen) {
+			sr.menu.maxLen = int32(len(options[i]))
+		}
 	}
 
 	sr.term.ShowCursor(false)
@@ -204,11 +211,19 @@ func (sr *sdlRender) renderMenu(windowRect *sdl.Rect) {
 		FRAME
 	*/
 
+	glyphX := sr.glyphSize.X + 1
+	iconByGlyphs := (sr.notifyIconSize.X / glyphX) + 1
+	maxLen := sr.menu.maxLen
+	if int32(len(sr.menu.title))+iconByGlyphs > maxLen {
+		maxLen = (int32(len(sr.menu.title)) + iconByGlyphs)
+	}
+	height := (sr.glyphSize.Y * int32(len(sr.menu.options))) + (padding * 2) + sr.notifyIconSize.Y
+	width := (glyphX * maxLen) + (padding * 3)
 	menuRect := sdl.Rect{
-		X: sr.glyphSize.X * 10,
-		Y: sr.glyphSize.X * 10,
-		W: windowRect.W - (sr.glyphSize.X * 20),
-		H: windowRect.H - (sr.glyphSize.X * 21) - sr.border - sr.border,
+		X: (windowRect.W - width) / 2,
+		Y: (windowRect.H - height) / 2,
+		W: width,
+		H: height,
 	}
 
 	// draw border
@@ -244,13 +259,13 @@ func (sr *sdlRender) renderMenu(windowRect *sdl.Rect) {
 
 	sr.font.SetStyle(ttf.STYLE_BOLD)
 
-	text, err := sr.font.RenderUTF8BlendedWrapped(sr.menu.title, sdl.Color{R: 200, G: 200, B: 200, A: 255}, int(surface.W-sr.notifyIconSize.X))
+	text, err := sr.font.RenderUTF8BlendedWrapped(sr.menu.title, sdl.Color{R: 200, G: 200, B: 200, A: 255}, int(glyphX*maxLen))
 	if err != nil {
 		panic(err) // TODO: don't panic!
 	}
 	defer text.Free()
 
-	textShadow, err := sr.font.RenderUTF8BlendedWrapped(sr.menu.title, sdl.Color{R: 0, G: 0, B: 0, A: 150}, int(surface.W-sr.notifyIconSize.X))
+	textShadow, err := sr.font.RenderUTF8BlendedWrapped(sr.menu.title, sdl.Color{R: 0, G: 0, B: 0, A: 150}, int(glyphX*maxLen))
 	if err != nil {
 		panic(err) // TODO: don't panic!
 	}
@@ -281,7 +296,7 @@ func (sr *sdlRender) renderMenu(windowRect *sdl.Rect) {
 
 	// draw border
 	offset := sr.notifyIconSize.Y
-	width := menuRect.W - padding - padding
+	width = menuRect.W - padding - padding
 	sr.renderer.SetDrawColor(255, 255, 255, 150)
 	rect = sdl.Rect{
 		X: menuRect.X + padding - 1,

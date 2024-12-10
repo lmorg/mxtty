@@ -186,7 +186,7 @@ func (tw *termWidgetT) _eventMouseButtonRightClick(sr *sdlRender, evt *sdl.Mouse
 		}
 	}
 
-	sr.DisplayMenu("Select an action:", options, nil, selectCallback, nil)
+	sr.DisplayMenu("Select an action", options, nil, selectCallback, nil)
 }
 
 var _highlighterStartFooterText = fmt.Sprintf(
