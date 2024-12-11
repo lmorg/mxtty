@@ -15,10 +15,11 @@ func (term *Term) Search() {
 		return
 	}
 
-	term.renderer.DisplayInputBox("Value to search for:", term._searchLastString, term.searchBuf)
+	term.renderer.DisplayInputBox("Value to search for", term._searchLastString, term.searchBuf)
 }
 
 func (term *Term) searchBuf(search string) {
+	search = strings.ToLower(search)
 	term._searchLastString = search
 
 	if search == "" {
@@ -64,7 +65,7 @@ func (term *Term) _searchBuf(buf [][]types.Cell, search string) (int, bool) {
 			if buf[y][x].Phrase == nil {
 				continue
 			}
-			s := string(*buf[y][x].Phrase)
+			s := strings.ToLower(string(*buf[y][x].Phrase))
 			if strings.Contains(s, search) {
 				i, j, l := 0, 0, 0
 			highlight:

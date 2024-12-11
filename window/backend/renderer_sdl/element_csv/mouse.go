@@ -37,7 +37,7 @@ func (el *ElementCsv) MouseClick(pos *types.XY, button uint8, clicks uint8, call
 			return
 
 		case 2:
-			el.renderer.DisplayInputBox("Please input desired SQL filter:", el.filter, func(filter string) {
+			el.renderer.DisplayInputBox("Please input desired SQL filter", el.filter, func(filter string) {
 				el.filter = filter
 				err := el.runQuery()
 				if err != nil {

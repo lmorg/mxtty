@@ -27,7 +27,7 @@ func fnKeyKillCurrentWindow(tmux *Tmux) error {
 }
 
 func fnKeyRenameWindow(tmux *Tmux) error {
-	tmux.renderer.DisplayInputBox("Please enter a new name for this window:", tmux.activeWindow.Name, func(name string) {
+	tmux.renderer.DisplayInputBox("Please enter a new name for this window", tmux.activeWindow.Name, func(name string) {
 		err := tmux.activeWindow.Rename(name)
 		if err != nil {
 			tmux.renderer.DisplayNotification(types.NOTIFY_ERROR, err.Error())
