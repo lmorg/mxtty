@@ -239,13 +239,13 @@ func (sr *sdlRender) renderInputBox(windowRect *sdl.Rect) {
 
 		texture, err := sr.renderer.CreateTextureFromSurface(surface)
 		if err != nil {
-			panic(err) //TODO: don't panic!
+			panic(err) // TODO: don't panic!
 		}
 		defer texture.Destroy()
 
 		err = sr.renderer.Copy(texture, srcRect, dstRect)
 		if err != nil {
-			panic(err) //TODO: don't panic!
+			panic(err) // TODO: don't panic!
 		}
 	}
 

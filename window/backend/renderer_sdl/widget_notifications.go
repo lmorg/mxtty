@@ -90,6 +90,7 @@ type notificationT struct {
 	end     time.Time
 	close   func()
 	id      int64
+	paneId  string
 }
 
 func (notification *notificationT) SetMessage(message string) {
@@ -177,6 +178,7 @@ func (sr *sdlRender) DisplayNotification(notificationType types.NotificationType
 	notification := &notificationT{
 		Type:    notificationType,
 		Message: message,
+		paneId:  sr.tmux.ActivePane().Id,
 	}
 	sr.notifications.addTimed(notification)
 }
@@ -208,6 +210,10 @@ func (sr *sdlRender) renderNotification(windowRect *sdl.Rect) {
 	padding := sr.border * 2
 	var offset int32
 	for _, notification := range notifications {
+		if notification.paneId != sr.tmux.ActivePane().Id {
+			continue
+		}
+
 		// generate text
 		s := strconv.Itoa(int(time.Until(notification.end)/time.Second) + 1)
 		countdown, err := sr.font.RenderUTF8Blended(s, sdl.Color{R: 255, G: 255, B: 255, A: 200})
