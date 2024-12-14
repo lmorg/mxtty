@@ -1,6 +1,8 @@
 package virtualterm
 
 import (
+	"fmt"
+
 	"github.com/lmorg/mxtty/debug"
 	"github.com/lmorg/mxtty/types"
 )
@@ -13,7 +15,14 @@ func (term *Term) csiEraseDisplayAfter() {
 	debug.Log(term.curPos())
 
 	_, bottom := term.getScrollingRegionExcOrigin()
-	for y := term.curPos().Y + 1; y <= bottom; y++ {
+
+	curPosY := term.curPos().Y
+	if curPosY > bottom {
+		debug.Log(fmt.Sprintf("curPos().Y[%d]>bottom[%d]", curPosY, bottom))
+		return
+	}
+
+	for y := curPosY + 1; y <= bottom; y++ {
 		(*term.cells)[y] = term.makeRow()
 	}
 	term.csiEraseLineAfter()
