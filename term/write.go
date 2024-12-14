@@ -5,7 +5,6 @@ import (
 	"unsafe"
 
 	"github.com/lmorg/mxtty/config"
-	"github.com/lmorg/mxtty/debug"
 	"github.com/lmorg/mxtty/types"
 )
 
@@ -34,9 +33,9 @@ func (term *Term) writeCell(r rune, el types.Element) {
 	cell.Sgr = term.sgr.Copy()
 	cell.Element = el
 
-	if debug.Enabled {
+	/*if debug.Enabled {
 		debug.Log(_debugWriteCell{term._curPos, string(r)})
-	}
+	}*/
 
 	if term._insertOrReplace == _STATE_IRM_REPLACE {
 		// add to phrase

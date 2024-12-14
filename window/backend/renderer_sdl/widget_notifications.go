@@ -178,7 +178,7 @@ func (sr *sdlRender) DisplayNotification(notificationType types.NotificationType
 	notification := &notificationT{
 		Type:    notificationType,
 		Message: message,
-		paneId:  sr.tmux.ActivePane().Id,
+		//paneId:  sr.tmux.ActivePane().Id,
 	}
 	sr.notifications.addTimed(notification)
 }
@@ -187,6 +187,7 @@ func (sr *sdlRender) DisplaySticky(notificationType types.NotificationType, mess
 	notification := &notificationT{
 		Type:    notificationType,
 		Message: message,
+		paneId:  sr.tmux.ActivePane().Id,
 	}
 	sr.notifications.addSticky(notification)
 
@@ -201,7 +202,7 @@ func (sr *sdlRender) renderNotification(windowRect *sdl.Rect) {
 
 	surface, err := sdl.CreateRGBSurfaceWithFormat(0, windowRect.W, windowRect.H, 32, uint32(sdl.PIXELFORMAT_RGBA32))
 	if err != nil {
-		panic(err) //TODO: don't panic!
+		panic(err) // TODO: don't panic!
 	}
 	defer surface.Free()
 
@@ -210,7 +211,7 @@ func (sr *sdlRender) renderNotification(windowRect *sdl.Rect) {
 	padding := sr.border * 2
 	var offset int32
 	for _, notification := range notifications {
-		if notification.paneId != sr.tmux.ActivePane().Id {
+		if notification.paneId != "" && notification.paneId != sr.tmux.ActivePane().Id {
 			continue
 		}
 
