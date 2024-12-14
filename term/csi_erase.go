@@ -111,10 +111,18 @@ func (term *Term) csiDeleteCharacters(n int32) {
 	}
 
 	pos := term.curPos()
+
+	if n+pos.X > term.size.X {
+		n = term.size.X - pos.X
+	}
+
+	if n < 1 {
+		return
+	}
+
 	copy((*term.cells)[pos.Y][pos.X:], (*term.cells)[pos.Y][pos.X+n:])
 	blank := make([]types.Cell, n)
 	copy((*term.cells)[pos.Y][term.size.X-n:], blank)
-
 }
 
 func (term *Term) csiDeleteLines(n int32) {

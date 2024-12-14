@@ -1,6 +1,7 @@
 package virtualterm
 
 import (
+	"github.com/lmorg/mxtty/config"
 	"github.com/lmorg/mxtty/debug"
 	"github.com/lmorg/mxtty/types"
 	"golang.org/x/sys/unix"
@@ -98,6 +99,8 @@ func (term *Term) resize132() {
 }
 
 func (term *Term) setSize(size *types.XY) {
-	term.reset(size)
-	term.renderer.ResizeWindow(size)
+	if !config.Config.Tmux.Enabled {
+		term.reset(size)
+		term.renderer.ResizeWindow(size)
+	}
 }

@@ -329,15 +329,24 @@ func ignoreResponse(b []byte) bool {
 }
 
 func (tmux *Tmux) SendCommand(b []byte) (*tmuxResponseT, error) {
+	//debug.Log(fmt.Sprintf("waiting for lock (%s)", string(b)))
 	tmux.limiter.Lock()
-	debug.Log(string(b))
+	//debug.Log(fmt.Sprintf("lock granted (%s)", string(b)))
+
 	_, err := tmux.tty.Write(append(b, '\n'))
 	if err != nil {
+		debug.Log(fmt.Sprintf("error (%s): %v", string(b), err))
 		return nil, err
 	}
 
+	//debug.Log(fmt.Sprintf("command sent (%s)", string(b)))
+
 	resp := <-tmux.resp
+
+	//debug.Log(fmt.Sprintf("response received (%s)", string(b)))
+
 	tmux.limiter.Unlock()
+	//debug.Log(fmt.Sprintf("unlocked (%s)", string(b)))
 
 	if resp.IsErr {
 		return nil, fmt.Errorf("tmux command failed: %s", string(bytes.Join(resp.Message, []byte(": "))))
