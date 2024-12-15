@@ -106,6 +106,7 @@ func (sr *sdlRender) renderInputBox(windowRect *sdl.Rect) {
 	*/
 
 	padding := int32(10)
+	halfPadding := int32(5)
 	height := text.H + (padding * 3) + sr.glyphSize.Y
 	maxLen := int32(len(sr.inputBox.title))
 	if maxLen < _INPUTBOX_MAX_CHARS {
@@ -145,7 +146,7 @@ func (sr *sdlRender) renderInputBox(windowRect *sdl.Rect) {
 	// render shadow
 	rect = sdl.Rect{
 		X: offsetY + padding + sr.notifyIconSize.X + 2,
-		Y: sr.border + offsetH + 2,
+		Y: halfPadding + offsetH + 2,
 		W: width - sr.notifyIconSize.X,
 		H: text.H + padding - 2,
 	}
@@ -155,7 +156,7 @@ func (sr *sdlRender) renderInputBox(windowRect *sdl.Rect) {
 	// render text
 	rect = sdl.Rect{
 		X: offsetY + padding + sr.notifyIconSize.X,
-		Y: sr.border + offsetH,
+		Y: halfPadding + offsetH,
 		W: width - sr.notifyIconSize.X,
 		H: text.H + padding - 2,
 	}
@@ -169,8 +170,8 @@ func (sr *sdlRender) renderInputBox(windowRect *sdl.Rect) {
 		TEXT FIELD
 	*/
 
-	height = sr.glyphSize.Y + (sr.border * 2)
-	offsetH += text.H + sr.border + sr.border
+	height = sr.glyphSize.Y + padding
+	offsetH += text.H + padding
 	var textWidth int32
 
 	// draw border
@@ -209,8 +210,8 @@ func (sr *sdlRender) renderInputBox(windowRect *sdl.Rect) {
 		defer textValue.Free()
 
 		rect = sdl.Rect{
-			X: offsetY + padding + sr.notifyIconSize.X + sr.border,
-			Y: sr.border + offsetH,
+			X: offsetY + padding + sr.notifyIconSize.X + halfPadding,
+			Y: halfPadding + offsetH,
 			W: surface.W - sr.notifyIconSize.X,
 			H: textValue.H + padding - 2,
 		}
@@ -251,8 +252,8 @@ func (sr *sdlRender) renderInputBox(windowRect *sdl.Rect) {
 
 	if sr.inputBox.blinkState {
 		rect = sdl.Rect{
-			X: offsetY + padding + sr.notifyIconSize.X + sr.border + textWidth,
-			Y: sr.border + offsetH,
+			X: offsetY + padding + sr.notifyIconSize.X + halfPadding + textWidth,
+			Y: halfPadding + offsetH,
 			W: sr.glyphSize.X,
 			H: sr.glyphSize.Y,
 		}

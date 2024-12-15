@@ -26,6 +26,12 @@ var (
 	Y      int32 = sdl.WINDOWPOS_UNDEFINED
 )
 
+const (
+	_PANE_LEFT_MARGIN = int32(10)
+	_PANE_TOP_MARGIN  = int32(5)
+	//_PANE_PADDING     = int32(5)
+)
+
 func Initialise() (types.Renderer, *types.XY) {
 	err := sdl.Init(sdl.INIT_VIDEO)
 	if err != nil {
@@ -48,7 +54,6 @@ func Initialise() (types.Renderer, *types.XY) {
 		panic(err.Error())
 	}
 
-	sr.border = 5
 	if config.Config.Window.StatusBar {
 		sr.footer++
 	}
@@ -72,8 +77,8 @@ func Initialise() (types.Renderer, *types.XY) {
 	sr.setTypeFace(font)
 
 	sr.window.SetMinimumSize(
-		(40*sr.glyphSize.X)+(sr.border*2),
-		(10*sr.glyphSize.Y)+(sr.border*2))
+		(40*sr.glyphSize.X)+(_PANE_LEFT_MARGIN),
+		(10*sr.glyphSize.Y)+(_PANE_TOP_MARGIN))
 
 	err = clipboard.Init()
 	if err != nil {

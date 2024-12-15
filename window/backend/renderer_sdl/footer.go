@@ -23,9 +23,9 @@ func (sr *sdlRender) renderFooter() {
 
 	rect := &sdl.Rect{
 		X: 0,
-		Y: (sr.term.GetSize().Y * sr.glyphSize.Y) + sr.border,
-		W: (sr.term.GetSize().X * sr.glyphSize.X) + (sr.border * 3),
-		H: (sr.footer * sr.glyphSize.Y) + (sr.border * 2),
+		Y: (sr.term.GetSize().Y * sr.glyphSize.Y) + _PANE_TOP_MARGIN,
+		W: (sr.term.GetSize().X * sr.glyphSize.X) + (_PANE_LEFT_MARGIN * 3),
+		H: (sr.footer * sr.glyphSize.Y) + (_PANE_TOP_MARGIN * 2),
 	}
 
 	fill := types.SGR_COLOUR_BLACK_BRIGHT
@@ -146,8 +146,8 @@ func (sr *sdlRender) _footerRenderTmuxWindowTabs(pos *types.XY) {
 	)
 
 	activeRect := &sdl.Rect{
-		X: (topLeftCellX * sr.glyphSize.X) + sr.border,
-		Y: (topLeftCellY * sr.glyphSize.Y) + sr.border,
+		X: (topLeftCellX * sr.glyphSize.X) + _PANE_LEFT_MARGIN,
+		Y: (topLeftCellY * sr.glyphSize.Y) + _PANE_TOP_MARGIN,
 		W: (bottomRightCellX * sr.glyphSize.X) + 1,
 		H: (bottomRightCellY * sr.glyphSize.Y) + 1,
 	}
@@ -161,8 +161,8 @@ func (sr *sdlRender) _footerRenderTmuxWindowTabs(pos *types.XY) {
 	bottomRightCellX = sr.windowTabs.boundaries[sr.windowTabs.mouseOver+1] - sr.windowTabs.boundaries[sr.windowTabs.mouseOver]
 
 	highlightRect := &sdl.Rect{
-		X: (topLeftCellX * sr.glyphSize.X) + sr.border,
-		Y: (topLeftCellY * sr.glyphSize.Y) + sr.border,
+		X: (topLeftCellX * sr.glyphSize.X) + _PANE_LEFT_MARGIN,
+		Y: (topLeftCellY * sr.glyphSize.Y) + _PANE_TOP_MARGIN,
 		W: (bottomRightCellX * sr.glyphSize.X),
 		H: (bottomRightCellY * sr.glyphSize.Y),
 	}

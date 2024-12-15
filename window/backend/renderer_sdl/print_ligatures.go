@@ -105,8 +105,8 @@ func (sr *sdlRender) PrintCellBlock(cells []*types.Cell, cellPos *types.XY) {
 	cache := sr.ligCache.Get(hash, s)
 	if cache != nil {
 		dstRect := &sdl.Rect{
-			X: (sr.glyphSize.X * cellPos.X) + sr.border,
-			Y: (sr.glyphSize.Y * cellPos.Y) + sr.border,
+			X: (sr.glyphSize.X * cellPos.X) + _PANE_LEFT_MARGIN,
+			Y: (sr.glyphSize.Y * cellPos.Y) + _PANE_TOP_MARGIN,
 			W: cache.rect.W,
 			H: cache.rect.H,
 		}
@@ -186,8 +186,8 @@ func (sr *sdlRender) PrintCellBlock(cells []*types.Cell, cellPos *types.XY) {
 	}
 
 	dstRect := &sdl.Rect{
-		X: (sr.glyphSize.X * cellPos.X) + sr.border,
-		Y: (sr.glyphSize.Y * cellPos.Y) + sr.border,
+		X: (sr.glyphSize.X * cellPos.X) + _PANE_LEFT_MARGIN,
+		Y: (sr.glyphSize.Y * cellPos.Y) + _PANE_TOP_MARGIN,
 		W: cellBlockRect.W,
 		H: cellBlockRect.H,
 	}

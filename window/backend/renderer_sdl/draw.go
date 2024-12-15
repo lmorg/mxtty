@@ -21,8 +21,8 @@ func (sr *sdlRender) DrawTable(pos *types.XY, height int32, boundaries []int32) 
 
 	sr.renderer.SetDrawColor(fg.Red, fg.Green, fg.Blue, 128)
 
-	X := (pos.X * sr.glyphSize.X) + sr.border
-	Y := (pos.Y * sr.glyphSize.Y) + sr.border
+	X := (pos.X * sr.glyphSize.X) + _PANE_LEFT_MARGIN
+	Y := (pos.Y * sr.glyphSize.Y) + _PANE_TOP_MARGIN
 	H := Y + ((height + 1) * sr.glyphSize.Y)
 
 	err = sr.renderer.DrawLine(X, Y, X, H)
@@ -70,8 +70,8 @@ var highlightBlendMode sdl.BlendMode // controlled by LightMode
 func (sr *sdlRender) DrawHighlightRect(topLeftCell, bottomRightCell *types.XY) {
 	sr._drawHighlightRect(
 		&sdl.Rect{
-			X: (topLeftCell.X * sr.glyphSize.X) + sr.border,
-			Y: (topLeftCell.Y * sr.glyphSize.Y) + sr.border,
+			X: (topLeftCell.X * sr.glyphSize.X) + _PANE_LEFT_MARGIN,
+			Y: (topLeftCell.Y * sr.glyphSize.Y) + _PANE_TOP_MARGIN,
 			W: (bottomRightCell.X * sr.glyphSize.X),
 			H: (bottomRightCell.Y * sr.glyphSize.Y),
 		},

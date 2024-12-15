@@ -105,13 +105,13 @@ func (tw *termWidgetT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEvent
 	posCell := sr.convertPxToCellXY(evt.X, evt.Y)
 
 	if config.Config.Tmux.Enabled && sr.windowTabs != nil &&
-		(evt.Y-sr.border)/sr.glyphSize.Y == sr.term.GetSize().Y+sr.footer-1 {
+		(evt.Y-_PANE_TOP_MARGIN)/sr.glyphSize.Y == sr.term.GetSize().Y+sr.footer-1 {
 		// window tab bar
 		if evt.State == sdl.PRESSED {
 			return
 		}
 
-		x := ((evt.X - sr.border) / sr.glyphSize.X) - sr.windowTabs.offset.X
+		x := ((evt.X - _PANE_LEFT_MARGIN) / sr.glyphSize.X) - sr.windowTabs.offset.X
 		for i := range sr.windowTabs.boundaries {
 			if x < sr.windowTabs.boundaries[i] {
 				switch evt.Clicks {
@@ -220,8 +220,8 @@ func (tw *termWidgetT) eventMouseWheel(sr *sdlRender, evt *sdl.MouseWheelEvent) 
 func (tw *termWidgetT) eventMouseMotion(sr *sdlRender, evt *sdl.MouseMotionEvent) {
 	if config.Config.Tmux.Enabled && sr.windowTabs != nil {
 
-		if (evt.Y-sr.border)/sr.glyphSize.Y == sr.term.GetSize().Y+sr.footer-1 {
-			x := ((evt.X - sr.border) / sr.glyphSize.X) - sr.windowTabs.offset.X
+		if (evt.Y-_PANE_TOP_MARGIN)/sr.glyphSize.Y == sr.term.GetSize().Y+sr.footer-1 {
+			x := ((evt.X - _PANE_LEFT_MARGIN) / sr.glyphSize.X) - sr.windowTabs.offset.X
 			for i := range sr.windowTabs.boundaries {
 				if x >= 0 && x < sr.windowTabs.boundaries[i] {
 					sr.windowTabs.mouseOver = i - 1

@@ -27,8 +27,6 @@ type sdlRender struct {
 
 	// preferences
 	font *ttf.Font
-	//_fontStyle types.SgrFlag
-	border int32
 
 	// title
 	title       string
