@@ -211,7 +211,7 @@ skipOrderGlyph:
 		var start, end int32
 
 		for i := range el.boundaries {
-			if el.highlight.X-el.renderOffset <= el.boundaries[i] {
+			if el.highlight.X-el.renderOffset < el.boundaries[i] {
 				if i != 0 {
 					start = el.boundaries[i-1] + pos.X
 					end = int32(el.width[i]) + 2
