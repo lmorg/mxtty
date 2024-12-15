@@ -15,29 +15,29 @@ func (term *Term) MouseClick(pos *types.XY, button uint8, clicks uint8, pressed 
 		return
 	}
 
-	cells := term.visibleScreen()
+	screen := term.visibleScreen()
 
-	if cells[pos.Y][pos.X].Element == nil {
+	if screen[pos.Y].Cells[pos.X].Element == nil {
 		callback()
 		return
 	}
 
-	cells[pos.Y][pos.X].Element.MouseClick(cells[pos.Y][pos.X].ElementXY(), button, clicks, callback)
+	screen[pos.Y].Cells[pos.X].Element.MouseClick(screen[pos.Y].Cells[pos.X].ElementXY(), button, clicks, callback)
 	term._mouseButtonDown = false
 }
 
 func (term *Term) MouseWheel(pos *types.XY, movement *types.XY) {
 	//log.Printf("DEBUG: MouseScroll(%d: %s)", Y, json.LazyLogging(pos))
 
-	cells := term.visibleScreen()
+	screen := term.visibleScreen()
 
-	if cells[pos.Y][pos.X].Element == nil {
+	if screen[pos.Y].Cells[pos.X].Element == nil {
 		term._mouseWheelCallback(movement)
 		return
 	}
 
-	cells[pos.Y][pos.X].Element.MouseWheel(
-		cells[pos.Y][pos.X].ElementXY(),
+	screen[pos.Y].Cells[pos.X].Element.MouseWheel(
+		screen[pos.Y].Cells[pos.X].ElementXY(),
 		movement,
 		func() { term._mouseWheelCallback(movement) },
 	)
@@ -88,9 +88,9 @@ func (term *Term) updateScrollback() {
 }
 
 func (term *Term) MouseMotion(pos *types.XY, movement *types.XY, callback types.EventIgnoredCallback) {
-	cells := term.visibleScreen()
+	screen := term.visibleScreen()
 
-	if cells[pos.Y][pos.X].Element == nil {
+	if screen[pos.Y].Cells[pos.X].Element == nil {
 		if term._mouseIn != nil {
 			term._mouseIn.MouseOut()
 		}
@@ -98,12 +98,12 @@ func (term *Term) MouseMotion(pos *types.XY, movement *types.XY, callback types.
 		return
 	}
 
-	if cells[pos.Y][pos.X].Element != term._mouseIn {
+	if screen[pos.Y].Cells[pos.X].Element != term._mouseIn {
 		if term._mouseIn != nil {
 			term._mouseIn.MouseOut()
 		}
-		term._mouseIn = cells[pos.Y][pos.X].Element
+		term._mouseIn = screen[pos.Y].Cells[pos.X].Element
 	}
 
-	cells[pos.Y][pos.X].Element.MouseMotion(cells[pos.Y][pos.X].ElementXY(), movement, callback)
+	screen[pos.Y].Cells[pos.X].Element.MouseMotion(screen[pos.Y].Cells[pos.X].ElementXY(), movement, callback)
 }

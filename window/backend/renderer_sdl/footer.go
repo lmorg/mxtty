@@ -76,7 +76,10 @@ func (sr *sdlRender) _footerHotkeyMessage() string {
 }
 
 func (sr *sdlRender) _footerRenderStatusBar(pos *types.XY) {
-	footer := make([]types.Cell, sr.term.GetSize().X)
+	footer := make([]*types.Cell, sr.term.GetSize().X)
+	for i := range footer {
+		footer[i] = new(types.Cell)
+	}
 
 	var i int
 	text := []rune(sr.footerText)
@@ -95,7 +98,7 @@ func (sr *sdlRender) _footerCacheTmuxWindowTabs(pos *types.XY) {
 
 	heading := []rune("Window tab list →  ")
 
-	cell := types.Cell{
+	cell := &types.Cell{
 		Char: ' ',
 		Sgr:  types.SGR_DEFAULT.Copy(),
 	}

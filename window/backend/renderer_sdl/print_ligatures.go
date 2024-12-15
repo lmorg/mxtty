@@ -89,7 +89,7 @@ func (cl *cachedLigaturesT) Store(hash uint64, text string, texture *sdl.Texture
 }
 
 // PrintCellBlock is much slower because it doesn't cache textures
-func (sr *sdlRender) PrintCellBlock(cells []types.Cell, cellPos *types.XY) {
+func (sr *sdlRender) PrintCellBlock(cells []*types.Cell, cellPos *types.XY) {
 	r := make([]rune, len(cells))
 	for i := 0; i < len(r); i++ {
 		r[i] = cells[i].Char

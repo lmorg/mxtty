@@ -103,10 +103,10 @@ func (term *Term) exportAsString() string {
 		i int
 	)
 
-	for y := range *term.cells {
-		for x := range (*term.cells)[y] {
-			if (*term.cells)[y][x].Char > 0 {
-				r[i] = (*term.cells)[y][x].Char
+	for y := range *term.screen {
+		for x := range (*term.screen)[y].Cells {
+			if (*term.screen)[y].Cells[x].Char > 0 {
+				r[i] = (*term.screen)[y].Cells[x].Char
 			} else {
 				r[i] = '·'
 			}

@@ -298,9 +298,9 @@ func (term *Term) csiScrollUp(n int32) {
 func (term *Term) _scrollUp(top, bottom, shift int32) {
 	for i := top; i <= bottom; i++ {
 		if i+shift <= bottom {
-			(*term.cells)[i] = (*term.cells)[i+shift]
+			(*term.screen)[i] = (*term.screen)[i+shift]
 		} else {
-			(*term.cells)[i] = term.makeRow()
+			(*term.screen)[i] = term.makeRow()
 		}
 	}
 }
@@ -329,8 +329,8 @@ func (term *Term) _scrollDown(top, bottom, shift int32) {
 		shift = bottom - top
 	}
 
-	copy(screen[top+shift:], (*term.cells)[top:bottom+1])
-	copy((*term.cells)[top:], screen[top:bottom+1])
+	copy(screen[top+shift:], (*term.screen)[top:bottom+1])
+	copy((*term.screen)[top:], screen[top:bottom+1])
 }
 
 /*
@@ -345,15 +345,15 @@ func (term *Term) csiInsertCharacters(n int32) {
 		n = 1
 	}
 
-	insert := make([]types.Cell, n)
-	row := term.makeRow()
+	insert := term.makeCells(n)
+	cells := make([]*types.Cell, term.size.X)
 
 	pos := term.curPos()
-	copy(row, (*term.cells)[pos.Y][:pos.X])
-	copy(row[pos.X:], insert)
-	copy(row[pos.X+n:], (*term.cells)[pos.Y][pos.X:])
+	copy(cells, (*term.screen)[pos.Y].Cells[:pos.X])
+	copy(cells[pos.X:], insert)
+	copy(cells[pos.X+n:], (*term.screen)[pos.Y].Cells[pos.X:])
 
-	(*term.cells)[pos.Y] = row
+	(*term.screen)[pos.Y].Cells = cells
 }
 
 // csiInsertLines: 0 should default to 1.

@@ -38,7 +38,7 @@ func (c *Cell) ElementXY() *XY {
 /*
 	ROWS
 */
-/*
+
 type Row struct {
 	Cells []*Cell
 	Meta  RowMetaFlag
@@ -48,8 +48,9 @@ type RowMetaFlag uint16
 
 // Flags
 const (
-	ROW_META_NONE      RowMetaFlag = 0
-	ROW_META_COLLAPSED RowMetaFlag = 1 << iota
+	ROW_META_NONE RowMetaFlag = 0
+	ROW_NEW_BLOCK RowMetaFlag = 1 << iota
+	ROW_META_COLLAPSED
 )
 
 func (f RowMetaFlag) Is(flag RowMetaFlag) bool {
@@ -63,4 +64,9 @@ func (f *RowMetaFlag) Set(flag RowMetaFlag) {
 func (f *RowMetaFlag) Unset(flag RowMetaFlag) {
 	*f &^= flag
 }
+
+/*
+	SCREEN
 */
+
+type Screen []*Row

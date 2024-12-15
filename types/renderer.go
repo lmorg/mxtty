@@ -9,7 +9,7 @@ type Renderer interface {
 	GetWindowSizeCells() *XY
 	GetGlyphSize() *XY
 	PrintCell(*Cell, *XY)
-	PrintCellBlock([]Cell, *XY)
+	PrintCellBlock([]*Cell, *XY)
 	DrawTable(*XY, int32, []int32)
 	DrawHighlightRect(*XY, *XY)
 	GetWindowTitle() string

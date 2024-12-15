@@ -78,7 +78,7 @@ type tabListT struct {
 	offset     *types.XY
 	active     int
 	mouseOver  int
-	cells      []types.Cell
+	cells      []*types.Cell
 }
 
 type keyboardModeT struct {

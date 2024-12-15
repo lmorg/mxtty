@@ -39,10 +39,10 @@ type Term struct {
 	process  *os.Process
 	_mutex   sync.Mutex
 
-	cells         *[][]types.Cell
-	_normBuf      [][]types.Cell
-	_altBuf       [][]types.Cell
-	_scrollBuf    [][]types.Cell
+	screen        *types.Screen
+	_normBuf      types.Screen
+	_altBuf       types.Screen
+	_scrollBuf    types.Screen
 	_scrollOffset int
 	_scrollMsg    types.Notification
 
@@ -146,7 +146,7 @@ func (term *Term) reset(size *types.XY) {
 	term._tabWidth = 8
 	term.csiResetTabStops()
 
-	term.cells = &term._normBuf
+	term.screen = &term._normBuf
 
 	term.sgr = types.SGR_DEFAULT.Copy()
 
@@ -159,16 +159,28 @@ func (term *Term) reset(size *types.XY) {
 	}
 }
 
-func (term *Term) makeScreen() [][]types.Cell {
-	screen := make([][]types.Cell, term.size.Y)
+func (term *Term) makeScreen() types.Screen {
+	screen := make(types.Screen, term.size.Y)
 	for i := range screen {
 		screen[i] = term.makeRow()
 	}
 	return screen
 }
 
-func (term *Term) makeRow() []types.Cell {
-	return make([]types.Cell, term.size.X)
+func (term *Term) makeRow() *types.Row {
+	row := &types.Row{
+		Cells: term.makeCells(term.size.X),
+	}
+
+	return row
+}
+
+func (term *Term) makeCells(length int32) []*types.Cell {
+	cells := make([]*types.Cell, length)
+	for i := range cells {
+		cells[i] = new(types.Cell)
+	}
+	return cells
 }
 
 func (term *Term) GetSize() *types.XY {
@@ -178,7 +190,7 @@ func (term *Term) GetSize() *types.XY {
 func (term *Term) currentCell() *types.Cell {
 	pos := term.curPos()
 
-	return &(*term.cells)[pos.Y][pos.X]
+	return (*term.screen)[pos.Y].Cells[pos.X]
 }
 
 func (term *Term) previousCell() (*types.Cell, *types.XY) {
@@ -196,7 +208,7 @@ func (term *Term) previousCell() (*types.Cell, *types.XY) {
 		pos.Y = 0
 	}
 
-	return &(*term.cells)[pos.Y][pos.X], pos
+	return (*term.screen)[pos.Y].Cells[pos.X], pos
 }
 
 func (term *Term) curPos() *types.XY {
@@ -271,9 +283,9 @@ func (term *Term) ShowCursor(v bool) {
 	term._hideCursor = !v
 }
 
-func (term *Term) visibleScreen() [][]types.Cell {
+func (term *Term) visibleScreen() types.Screen {
 	if term._scrollOffset == 0 {
-		return *term.cells
+		return *term.screen
 	}
 
 	// render scrollback buffer
@@ -296,5 +308,5 @@ func (term *Term) MakeVisible(visible bool) {
 }
 
 func (term *Term) IsAltBuf() bool {
-	return unsafe.Pointer(term.cells) != unsafe.Pointer(&term._normBuf)
+	return unsafe.Pointer(term.screen) != unsafe.Pointer(&term._normBuf)
 }

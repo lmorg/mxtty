@@ -58,24 +58,24 @@ func (term *Term) searchBuf(search string) {
 	term.renderer.DisplayNotification(types.NOTIFY_WARN, fmt.Sprintf("Search string not found: '%s'", search))
 }
 
-func (term *Term) _searchBuf(buf [][]types.Cell, search string) (int, bool) {
+func (term *Term) _searchBuf(buf types.Screen, search string) (int, bool) {
 	firstMatch := -1
 	for y := len(buf) - 1; y >= 0; y-- {
-		for x := len(buf[y]) - 1; x >= 0; x-- {
-			if buf[y][x].Phrase == nil {
+		for x := len(buf[y].Cells) - 1; x >= 0; x-- {
+			if buf[y].Cells[x].Phrase == nil {
 				continue
 			}
-			s := strings.ToLower(string(*buf[y][x].Phrase))
+			s := strings.ToLower(string(*buf[y].Cells[x].Phrase))
 			if strings.Contains(s, search) {
 				i, j, l := 0, 0, 0
 			highlight:
-				for ; x+i < len(buf[y]); i++ {
-					buf[y+j][x+i].Sgr = buf[y+j][x+i].Sgr.Copy()
-					buf[y+j][x+i].Sgr.Bitwise.Set(types.SGR_HIGHLIGHT_SEARCH_RESULT)
-					term._searchHlHistory = append(term._searchHlHistory, &buf[y+j][x+i])
+				for ; x+i < len(buf[y].Cells); i++ {
+					buf[y+j].Cells[x+i].Sgr = buf[y+j].Cells[x+i].Sgr.Copy()
+					buf[y+j].Cells[x+i].Sgr.Bitwise.Set(types.SGR_HIGHLIGHT_SEARCH_RESULT)
+					term._searchHlHistory = append(term._searchHlHistory, buf[y+j].Cells[x+i])
 					l++
 				}
-				if l < len(*buf[y][x].Phrase) {
+				if l < len(*buf[y].Cells[x].Phrase) {
 					i = 0
 					j++
 					goto highlight

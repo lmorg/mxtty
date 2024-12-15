@@ -8,7 +8,7 @@ import (
 )
 
 func (term *Term) Resize(size *types.XY) {
-	xDiff := int(size.X - term.size.X)
+	xDiff := int32(size.X - term.size.X)
 	yDiff := int(size.Y - term.size.Y)
 
 	term._mutex.Lock()
@@ -22,26 +22,26 @@ func (term *Term) Resize(size *types.XY) {
 	case xDiff > 0:
 		// grow
 		for y := range term._scrollBuf {
-			term._scrollBuf[y] = append(term._scrollBuf[y], make([]types.Cell, xDiff)...)
+			term._scrollBuf[y].Cells = append(term._scrollBuf[y].Cells, term.makeCells(xDiff)...)
 		}
 		for y := range term._normBuf {
-			term._normBuf[y] = append(term._normBuf[y], make([]types.Cell, xDiff)...)
+			term._normBuf[y].Cells = append(term._normBuf[y].Cells, term.makeCells(xDiff)...)
 		}
 		for y := range term._altBuf {
-			term._altBuf[y] = append(term._altBuf[y], make([]types.Cell, xDiff)...)
+			term._altBuf[y].Cells = append(term._altBuf[y].Cells, term.makeCells(xDiff)...)
 		}
 
 	case xDiff < 0:
 		// crop (this is lazy, really we should reflow)
 		xDiff = -xDiff
 		for y := range term._scrollBuf {
-			term._scrollBuf[y] = term._scrollBuf[y][:len(term._scrollBuf[y])-xDiff]
+			term._scrollBuf[y].Cells = term._scrollBuf[y].Cells[:term.size.X-xDiff]
 		}
 		for y := range term._normBuf {
-			term._normBuf[y] = term._normBuf[y][:len(term._normBuf[y])-xDiff]
+			term._normBuf[y].Cells = term._normBuf[y].Cells[:term.size.X-xDiff]
 		}
 		for y := range term._altBuf {
-			term._altBuf[y] = term._altBuf[y][:len(term._altBuf[y])-xDiff]
+			term._altBuf[y].Cells = term._altBuf[y].Cells[:term.size.X-xDiff]
 		}
 	}
 
