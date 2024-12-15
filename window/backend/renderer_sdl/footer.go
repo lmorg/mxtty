@@ -91,23 +91,22 @@ func (sr *sdlRender) _footerRenderStatusBar(pos *types.XY) {
 	sr.PrintCellBlock(footer[:i], pos)
 }
 
+func tabListNewCell(r rune) *types.Cell {
+	return &types.Cell{
+		Char: r,
+		Sgr:  types.SGR_DEFAULT.Copy(),
+	}
+}
+
 func (sr *sdlRender) _footerCacheTmuxWindowTabs(pos *types.XY) {
 	tabList := &tabListT{
 		mouseOver: -1,
 	}
 
-	heading := []rune("Window tab list →  ")
+	heading := []rune("Window tab list → ")
 
-	cell := &types.Cell{
-		Char: ' ',
-		Sgr:  types.SGR_DEFAULT.Copy(),
-	}
-
-	tabList.cells = append(tabList.cells, cell)
 	for _, r := range heading {
-
-		cell.Char = r
-		tabList.cells = append(tabList.cells, cell)
+		tabList.cells = append(tabList.cells, tabListNewCell(r))
 	}
 
 	tabList.boundaries = []int32{0}
@@ -118,14 +117,14 @@ func (sr *sdlRender) _footerCacheTmuxWindowTabs(pos *types.XY) {
 		if win.Active {
 			tabList.active = i
 		}
+
+		tabList.cells = append(tabList.cells, tabListNewCell(' '))
 		for _, r := range win.Name {
-			cell.Char = r
-			tabList.cells = append(tabList.cells, cell)
+			tabList.cells = append(tabList.cells, tabListNewCell(r))
 			x++
 		}
+		tabList.cells = append(tabList.cells, tabListNewCell(' '))
 
-		cell.Char = ' '
-		tabList.cells = append(tabList.cells, cell, cell)
 		x += 2
 		tabList.boundaries = append(tabList.boundaries, x)
 	}
