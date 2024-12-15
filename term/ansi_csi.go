@@ -150,21 +150,21 @@ func (term *Term) parseCsiCodes() {
 				// Ps = 2 0  ⇒  Automatic Newline (LNM).
 
 			default:
-				log.Printf("WARNING: Unknown Set Mode (SM) sequence: %d", *n)
+				log.Printf("WARNING: Unknown Set Mode (SM) sequence: %s", string(cache))
 			}
 
 		case 'H':
 			// Cursor Position [row;column] (default = [1,1]) (CUP).
 			switch len(stack) {
-			case 0:
-				term.moveCursorToPos(1, 1)
-			case 1:
-				term.moveCursorToPos(*n, 1)
+			//case 0:
+			//	term.moveCursorToPos(1, 1)
+			//case 1:
+			//	term.moveCursorToPos(*n, 1)
 			case 2:
 				term.moveCursorToPos(stack[0], stack[1])
 			default:
-				term.moveCursorToPos(stack[0], stack[1])
-				log.Printf("WARNING: more parameters than expected for %s: %v (%s)", string(r), stack, string(cache))
+				//term.moveCursorToPos(stack[0], stack[1])
+				log.Printf("WARNING: invalid parameters %s: %v (%s)", string(r), stack, string(cache))
 			}
 
 		//case 'i':
