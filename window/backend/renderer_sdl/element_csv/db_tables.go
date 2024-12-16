@@ -26,7 +26,7 @@ func (el *ElementCsv) runQuery() error {
 
 	dbRows, err := el.db.Query(query)
 	if err != nil {
-		return fmt.Errorf("cannot query table: %s\nSQL: %s", err.Error(), query)
+		return fmt.Errorf("cannot query table: %v\nSQL: %s", err, query)
 	}
 
 	var (
@@ -81,7 +81,7 @@ func (el *ElementCsv) runQuery() error {
 	}
 
 	if err = dbRows.Err(); err != nil {
-		return fmt.Errorf("cannot retrieve rows: %s", err.Error())
+		return fmt.Errorf("cannot retrieve rows: %v", err)
 	}
 
 	err = dbRows.Close()
@@ -96,6 +96,11 @@ func (el *ElementCsv) runQuery() error {
 	el.top = []rune(top)
 	el.width = width
 	el.boundaries = boundaries
+
+	err = el.db.QueryRow(fmt.Sprintf(sqlCount, el.name, where)).Scan(&el.lines)
+	if err != nil {
+		return fmt.Errorf("cannot get table count: %v", err)
+	}
 
 	return nil
 }

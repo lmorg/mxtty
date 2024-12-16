@@ -1,6 +1,7 @@
 package elementCsv
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/lmorg/mxtty/codes"
@@ -38,7 +39,9 @@ func (el *ElementCsv) MouseClick(pos *types.XY, button uint8, clicks uint8, call
 			return
 
 		case 2:
-			el.renderer.DisplayInputBox("Please input desired SQL filter", el.filter, func(filter string) {
+			el.renderer.DisplayInputBox(fmt.Sprintf("SELECT * FROM '%s' WHERE ... (empty query to reset view)", el.name), el.filter, func(filter string) {
+				el.renderOffset = 0
+				el.limitOffset = 0
 				el.filter = filter
 				err := el.runQuery()
 				if err != nil {
@@ -92,7 +95,7 @@ func (el *ElementCsv) MouseWheel(_ *types.XY, movement *types.XY, callback types
 		return
 	}
 
-	if width > termX {
+	if width > termX && movement.X != 0 {
 
 		el.renderOffset += -movement.X * 2 // (-movement.X * el.renderer.GetGlyphSize().X)
 
@@ -105,9 +108,9 @@ func (el *ElementCsv) MouseWheel(_ *types.XY, movement *types.XY, callback types
 		}
 	}
 
-	if el.lines >= el.size.Y {
+	if el.lines >= el.size.Y && movement.Y != 0 {
 
-		el.limitOffset += -movement.Y //(movement.Y * el.renderer.GetGlyphSize().Y)
+		el.limitOffset += -movement.Y * 2 //(movement.Y * el.renderer.GetGlyphSize().Y)
 
 		if el.limitOffset < 0 {
 			el.limitOffset = 0
