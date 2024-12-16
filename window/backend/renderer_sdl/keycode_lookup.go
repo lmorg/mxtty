@@ -97,3 +97,8 @@ func keyEventModToCodesModifier(keyMod uint16) codes.Modifier {
 
 	return mod
 }
+
+func (sr *sdlRender) GetKeyboardModifier() int {
+	keyMod := sdl.GetModState()
+	return int(keyEventModToCodesModifier(uint16(keyMod)))
+}

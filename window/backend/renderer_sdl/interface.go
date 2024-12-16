@@ -15,6 +15,13 @@ import (
 	"golang.design/x/hotkey"
 )
 
+const (
+	_PANE_LEFT_MARGIN    = int32(10)
+	_PANE_TOP_MARGIN     = int32(5)
+	_WIDGET_INNER_MARGIN = int32(5)
+	_WIDGET_OUTER_MARGIN = int32(10)
+)
+
 type sdlRender struct {
 	window    *sdl.Window
 	renderer  *sdl.Renderer

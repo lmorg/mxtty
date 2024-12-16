@@ -8,7 +8,6 @@ import (
 
 	"github.com/lmorg/mxtty/app"
 	_ "github.com/lmorg/mxtty/debug/pprof"
-	"github.com/lmorg/mxtty/types"
 )
 
 func Log(v any) {
@@ -29,8 +28,8 @@ func Log(v any) {
 		}
 		v = string(t)
 
-	case *types.XY:
-		v = *t
+		//case *types.XY:
+		//	v = *t
 	}
 
 	b, err := json.Marshal(v)

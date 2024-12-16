@@ -13,8 +13,8 @@ const driverName = "sqlite3"
 const (
 	sqlCreateTable     = `CREATE TABLE IF NOT EXISTS '%s' (%s);`
 	sqlInsertRecord    = `INSERT INTO '%s' VALUES (%s);`
-	sqlSelectByAlpha   = `SELECT * from '%s' %s ORDER BY lower("%s") %s LIMIT %d;`
-	sqlSelectByNumeric = `SELECT * from '%s' %s ORDER BY "%s" %s LIMIT %d;`
+	sqlSelectByAlpha   = `SELECT * from '%s' %s ORDER BY lower("%s") %s LIMIT %d OFFSET %d;`
+	sqlSelectByNumeric = `SELECT * from '%s' %s ORDER BY "%s" %s LIMIT %d OFFSET %d;`
 )
 
 const (

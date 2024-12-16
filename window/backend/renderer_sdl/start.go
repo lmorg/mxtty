@@ -26,12 +26,6 @@ var (
 	Y      int32 = sdl.WINDOWPOS_UNDEFINED
 )
 
-const (
-	_PANE_LEFT_MARGIN = int32(10)
-	_PANE_TOP_MARGIN  = int32(5)
-	//_PANE_PADDING     = int32(5)
-)
-
 func Initialise() (types.Renderer, *types.XY) {
 	err := sdl.Init(sdl.INIT_VIDEO)
 	if err != nil {

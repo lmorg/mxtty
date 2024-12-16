@@ -105,14 +105,12 @@ func (sr *sdlRender) renderInputBox(windowRect *sdl.Rect) {
 		FRAME
 	*/
 
-	padding := int32(10)
-	halfPadding := int32(5)
-	height := text.H + (padding * 3) + sr.glyphSize.Y
+	height := text.H + (_WIDGET_OUTER_MARGIN * 3) + sr.glyphSize.Y
 	maxLen := int32(len(sr.inputBox.title))
 	if maxLen < _INPUTBOX_MAX_CHARS {
 		maxLen = _INPUTBOX_MAX_CHARS
 	}
-	width := sr.glyphSize.X*maxLen + sr.notifyIconSize.X + padding
+	width := sr.glyphSize.X*maxLen + sr.notifyIconSize.X + _WIDGET_OUTER_MARGIN
 	offsetH := (surface.H / 2) - (height / 2)
 	offsetY := (surface.W - width) / 2
 
@@ -145,20 +143,20 @@ func (sr *sdlRender) renderInputBox(windowRect *sdl.Rect) {
 
 	// render shadow
 	rect = sdl.Rect{
-		X: offsetY + padding + sr.notifyIconSize.X + 2,
-		Y: halfPadding + offsetH + 2,
+		X: offsetY + _WIDGET_OUTER_MARGIN + sr.notifyIconSize.X + 2,
+		Y: _WIDGET_INNER_MARGIN + offsetH + 2,
 		W: width - sr.notifyIconSize.X,
-		H: text.H + padding - 2,
+		H: text.H + _WIDGET_OUTER_MARGIN - 2,
 	}
 	_ = textShadow.Blit(nil, surface, &rect)
 	sr._renderNotificationSurface(surface, &rect)
 
 	// render text
 	rect = sdl.Rect{
-		X: offsetY + padding + sr.notifyIconSize.X,
-		Y: halfPadding + offsetH,
+		X: offsetY + _WIDGET_OUTER_MARGIN + sr.notifyIconSize.X,
+		Y: _WIDGET_INNER_MARGIN + offsetH,
 		W: width - sr.notifyIconSize.X,
-		H: text.H + padding - 2,
+		H: text.H + _WIDGET_OUTER_MARGIN - 2,
 	}
 	err = text.Blit(nil, surface, &rect)
 	if err != nil {
@@ -170,23 +168,23 @@ func (sr *sdlRender) renderInputBox(windowRect *sdl.Rect) {
 		TEXT FIELD
 	*/
 
-	height = sr.glyphSize.Y + padding
-	offsetH += text.H + padding
+	height = sr.glyphSize.Y + _WIDGET_OUTER_MARGIN
+	offsetH += text.H + _WIDGET_OUTER_MARGIN
 	var textWidth int32
 
 	// draw border
 	sr.renderer.SetDrawColor(255, 255, 255, 150)
 	rect = sdl.Rect{
-		X: offsetY + sr.notifyIconSize.X + padding - 1,
+		X: offsetY + sr.notifyIconSize.X + _WIDGET_OUTER_MARGIN - 1,
 		Y: offsetH - 1,
-		W: width - sr.notifyIconSize.X - padding - padding + 2,
+		W: width - sr.notifyIconSize.X - _WIDGET_OUTER_MARGIN - _WIDGET_OUTER_MARGIN + 2,
 		H: height + 2,
 	}
 	sr.renderer.DrawRect(&rect)
 	rect = sdl.Rect{
-		X: offsetY + sr.notifyIconSize.X + padding,
+		X: offsetY + sr.notifyIconSize.X + _WIDGET_OUTER_MARGIN,
 		Y: offsetH,
-		W: width - sr.notifyIconSize.X - padding - padding,
+		W: width - sr.notifyIconSize.X - _WIDGET_OUTER_MARGIN - _WIDGET_OUTER_MARGIN,
 		H: height,
 	}
 	sr.renderer.DrawRect(&rect)
@@ -194,9 +192,9 @@ func (sr *sdlRender) renderInputBox(windowRect *sdl.Rect) {
 	// fill background
 	sr.renderer.SetDrawColor(0, 0, 0, 150)
 	rect = sdl.Rect{
-		X: offsetY + sr.notifyIconSize.X + padding + 1,
+		X: offsetY + sr.notifyIconSize.X + _WIDGET_OUTER_MARGIN + 1,
 		Y: 1 + offsetH,
-		W: width - sr.notifyIconSize.X - padding - padding - 2,
+		W: width - sr.notifyIconSize.X - _WIDGET_OUTER_MARGIN - _WIDGET_OUTER_MARGIN - 2,
 		H: height - 2,
 	}
 	sr.renderer.FillRect(&rect)
@@ -210,10 +208,10 @@ func (sr *sdlRender) renderInputBox(windowRect *sdl.Rect) {
 		defer textValue.Free()
 
 		rect = sdl.Rect{
-			X: offsetY + padding + sr.notifyIconSize.X + halfPadding,
-			Y: halfPadding + offsetH,
+			X: offsetY + _WIDGET_OUTER_MARGIN + sr.notifyIconSize.X + _WIDGET_INNER_MARGIN,
+			Y: _WIDGET_INNER_MARGIN + offsetH,
 			W: surface.W - sr.notifyIconSize.X,
-			H: textValue.H + padding - 2,
+			H: textValue.H + _WIDGET_OUTER_MARGIN - 2,
 		}
 		err = textValue.Blit(nil, surface, &rect)
 		if err != nil {
@@ -232,7 +230,7 @@ func (sr *sdlRender) renderInputBox(windowRect *sdl.Rect) {
 		}
 
 		dstRect := &sdl.Rect{
-			X: offsetY + (padding / 2),
+			X: offsetY + (_WIDGET_OUTER_MARGIN / 2),
 			Y: offsetH + text.H - sr.notifyIconSize.Y,
 			W: sr.notifyIconSize.X,
 			H: sr.notifyIconSize.X,
@@ -252,8 +250,8 @@ func (sr *sdlRender) renderInputBox(windowRect *sdl.Rect) {
 
 	if sr.inputBox.blinkState {
 		rect = sdl.Rect{
-			X: offsetY + padding + sr.notifyIconSize.X + halfPadding + textWidth,
-			Y: halfPadding + offsetH,
+			X: offsetY + _WIDGET_OUTER_MARGIN + sr.notifyIconSize.X + _WIDGET_INNER_MARGIN + textWidth,
+			Y: _WIDGET_INNER_MARGIN + offsetH,
 			W: sr.glyphSize.X,
 			H: sr.glyphSize.Y,
 		}

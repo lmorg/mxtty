@@ -22,7 +22,7 @@ func (el *ElementCsv) runQuery() error {
 		sql = sqlSelect[selectNumeric]
 	}
 
-	query := fmt.Sprintf(sql, el.name, where, orderBy, orderByStr[el.orderDesc], el.size.Y-1)
+	query := fmt.Sprintf(sql, el.name, where, orderBy, orderByStr[el.orderDesc], el.size.Y-1, el.limitOffset)
 
 	dbRows, err := el.db.Query(query)
 	if err != nil {

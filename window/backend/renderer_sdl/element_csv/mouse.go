@@ -3,6 +3,7 @@ package elementCsv
 import (
 	"strings"
 
+	"github.com/lmorg/mxtty/codes"
 	"github.com/lmorg/mxtty/types"
 	"golang.design/x/clipboard"
 )
@@ -82,37 +83,54 @@ func (el *ElementCsv) MouseClick(pos *types.XY, button uint8, clicks uint8, call
 }
 
 func (el *ElementCsv) MouseWheel(_ *types.XY, movement *types.XY, callback types.EventIgnoredCallback) {
-	if movement.X == 0 {
-		callback()
-		return
-	}
-
 	termX := el.renderer.GetTermSize().X
 	width := el.boundaries[len(el.boundaries)-1]
+	mod := codes.Modifier(el.renderer.GetKeyboardModifier())
 
-	if width < termX {
+	if mod == 0 {
 		callback()
 		return
 	}
 
-	el.renderOffset += (-movement.X * el.renderer.GetGlyphSize().X)
+	if width > termX {
 
-	if el.renderOffset > 0 {
-		el.renderOffset = 0
+		el.renderOffset += -movement.X * 2 // (-movement.X * el.renderer.GetGlyphSize().X)
+
+		if el.renderOffset > 0 {
+			el.renderOffset = 0
+		}
+
+		if el.renderOffset < -(width - termX) {
+			el.renderOffset = -(width - termX)
+		}
 	}
 
-	if el.renderOffset < -(width - termX) {
-		el.renderOffset = -(width - termX)
+	if el.lines >= el.size.Y {
+
+		el.limitOffset += -movement.Y //(movement.Y * el.renderer.GetGlyphSize().Y)
+
+		if el.limitOffset < 0 {
+			el.limitOffset = 0
+		}
+
+		if el.limitOffset > el.lines-el.size.Y {
+			el.limitOffset = el.lines - el.size.Y
+		}
+
+		err := el.runQuery()
+		if err != nil {
+			el.renderer.DisplayNotification(types.NOTIFY_ERROR, err.Error())
+		}
 	}
 }
 
 func (el *ElementCsv) MouseMotion(pos *types.XY, move *types.XY, callback types.EventIgnoredCallback) {
 	switch {
 	case pos.Y == 0:
-		el.renderer.StatusBarText("[Left Click] Sort row (ASC|DESC)  |  [Right Click] Remove sort  |  [Left|Right Scroll] Scroll table width")
+		el.renderer.StatusBarText("[Left Click] Sort row (ASC|DESC)  |  [Right Click] Remove sort  |  [Ctrl+Scroll] Scroll table")
 
 	case int(pos.Y) <= len(el.table):
-		el.renderer.StatusBarText("[Click] Copy cell text to clipboard  |  [2x Click] Filter table (SQL)  |  [Left|Right Scroll] Scroll table width")
+		el.renderer.StatusBarText("[Click] Copy cell text to clipboard  |  [2x Click] Filter table (SQL)  |  [Ctrl+Scroll] Scroll table")
 
 	default:
 		el.renderer.StatusBarText("")
