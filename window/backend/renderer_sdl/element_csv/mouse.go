@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/lmorg/mxtty/codes"
+	"github.com/lmorg/mxtty/config"
 	"github.com/lmorg/mxtty/types"
 	"golang.design/x/clipboard"
 )
@@ -97,7 +98,7 @@ func (el *ElementCsv) MouseWheel(_ *types.XY, movement *types.XY, callback types
 
 	if width > termX && movement.X != 0 {
 
-		el.renderOffset += -movement.X * 2 // (-movement.X * el.renderer.GetGlyphSize().X)
+		el.renderOffset += -movement.X * config.Config.Terminal.Widgets.Table.ScrollMultiplierX
 
 		if el.renderOffset > 0 {
 			el.renderOffset = 0
@@ -110,7 +111,7 @@ func (el *ElementCsv) MouseWheel(_ *types.XY, movement *types.XY, callback types
 
 	if el.lines >= el.size.Y && movement.Y != 0 {
 
-		el.limitOffset += -movement.Y * 2 //(movement.Y * el.renderer.GetGlyphSize().Y)
+		el.limitOffset += -movement.Y * config.Config.Terminal.Widgets.Table.ScrollMultiplierY
 
 		if el.limitOffset < 0 {
 			el.limitOffset = 0

@@ -14,6 +14,11 @@ Terminal:
   ScrollbackCloseKeyPress: true # close scrollback on key press
   JumpScrollLineCount: -1  # lines, 0 is per character, -1 is per page
   #LightMode: true
+  
+  Widgets:
+    Table:
+      ScrollMultiplierX: 2
+      ScrollMultiplierY: 2
 
 
 Window:
