@@ -33,6 +33,9 @@ func (term *Term) MouseClick(pos *types.XY, button uint8, clicks uint8, pressed 
 			}
 		}
 
+		// not an output block
+		return
+
 	isOutputBlock:
 
 		blockPos, _, err := term.outputBlocksFindStartEnd(absPos)

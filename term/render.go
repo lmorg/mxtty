@@ -160,12 +160,6 @@ func (term *Term) _renderOutputBlockChrome(screen types.Screen) {
 				errorBlock = row[1].Meta.Is(types.ROW_OUTPUT_BLOCK_ERROR)
 			}
 
-			/*term._cacheBlock = append(term._cacheBlock, &types.XY{y, i + 1})
-			if errorBlock {
-				term.renderer.DrawOutputBlockChrome(y, i+1, types.SGR_COLOUR_RED)
-			} else {
-				term.renderer.DrawOutputBlockChrome(y, i+1, types.SGR_COLOUR_GREEN)
-			}*/
 			_renderOutputBlockChrome(term, y, i, errorBlock)
 			foundEnd = false
 			i = 0
@@ -173,12 +167,6 @@ func (term *Term) _renderOutputBlockChrome(screen types.Screen) {
 	}
 
 	if foundEnd {
-		/*if errorBlock {
-			term.renderer.DrawOutputBlockChrome(0, i+1, types.SGR_COLOUR_RED)
-		} else {
-			term.renderer.DrawOutputBlockChrome(0, i+1, types.SGR_COLOUR_GREEN)
-		}
-		term._cacheBlock = append(term._cacheBlock, &types.XY{0, i + 1})*/
 		_renderOutputBlockChrome(term, 0, i, errorBlock)
 	}
 
@@ -190,13 +178,6 @@ func (term *Term) _renderOutputBlockChrome(screen types.Screen) {
 
 		errorBlock = row[1].Meta.Is(types.ROW_OUTPUT_BLOCK_ERROR)
 		_renderOutputBlockChrome(term, 0, int32(len(screen))-1, errorBlock)
-
-		/*if errorBlock {
-			term.renderer.DrawOutputBlockChrome(0, int32(len(screen)), types.SGR_COLOUR_RED)
-		} else {
-			term.renderer.DrawOutputBlockChrome(0, int32(len(screen)), types.SGR_COLOUR_GREEN)
-		}
-		term._cacheBlock = append(term._cacheBlock, &types.XY{0, i + 1})*/
 	}
 }
 
