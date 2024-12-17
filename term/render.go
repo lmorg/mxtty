@@ -20,6 +20,8 @@ func (term *Term) Render() {
 		term._renderLigatures(screen)
 	}
 
+	term._renderOutputBlockChrome(screen)
+
 	term._blinkCursor()
 
 	term._mutex.Unlock()
@@ -121,4 +123,89 @@ func (term *Term) _blinkCursor() {
 		term.renderer.DrawHighlightRect(term.curPos(), &types.XY{1, 1})
 		term.renderer.DrawHighlightRect(term.curPos(), &types.XY{1, 1})
 	}
+}
+
+func (term *Term) _renderOutputBlockChrome(screen types.Screen) {
+	var (
+		foundEnd   bool
+		i          int32
+		errorBlock bool
+	)
+
+	term._cacheBlock = [][]int32{}
+
+	for y := int32(len(screen)) - 1; y >= 0; y-- {
+		i++
+		if len(screen[y].Hidden) != 0 {
+			term.renderer.DrawOutputBlockChrome(y, 1, types.SGR_COLOUR_BLUE)
+		}
+		if screen[y].Meta.Is(types.ROW_OUTPUT_BLOCK_END) {
+			i = 0
+			errorBlock = false
+			foundEnd = true
+		}
+		if screen[y].Meta.Is(types.ROW_OUTPUT_BLOCK_ERROR) {
+			i = 0
+			errorBlock = true
+			foundEnd = true
+		}
+
+		if screen[y].Meta.Is(types.ROW_OUTPUT_BLOCK_BEGIN) {
+			if !foundEnd {
+				_, row, err := term.outputBlocksFindStartEnd(int32(len(term._scrollBuf)-term._scrollOffset) + y)
+				if err != nil {
+					continue
+				}
+				i--
+				errorBlock = row[1].Meta.Is(types.ROW_OUTPUT_BLOCK_ERROR)
+			}
+
+			/*term._cacheBlock = append(term._cacheBlock, &types.XY{y, i + 1})
+			if errorBlock {
+				term.renderer.DrawOutputBlockChrome(y, i+1, types.SGR_COLOUR_RED)
+			} else {
+				term.renderer.DrawOutputBlockChrome(y, i+1, types.SGR_COLOUR_GREEN)
+			}*/
+			_renderOutputBlockChrome(term, y, i, errorBlock)
+			foundEnd = false
+			i = 0
+		}
+	}
+
+	if foundEnd {
+		/*if errorBlock {
+			term.renderer.DrawOutputBlockChrome(0, i+1, types.SGR_COLOUR_RED)
+		} else {
+			term.renderer.DrawOutputBlockChrome(0, i+1, types.SGR_COLOUR_GREEN)
+		}
+		term._cacheBlock = append(term._cacheBlock, &types.XY{0, i + 1})*/
+		_renderOutputBlockChrome(term, 0, i, errorBlock)
+	}
+
+	if len(term._cacheBlock) == 0 {
+		_, row, err := term.outputBlocksFindStartEnd(int32(len(term._scrollBuf) - term._scrollOffset))
+		if err != nil {
+			return
+		}
+
+		errorBlock = row[1].Meta.Is(types.ROW_OUTPUT_BLOCK_ERROR)
+		_renderOutputBlockChrome(term, 0, int32(len(screen))-1, errorBlock)
+
+		/*if errorBlock {
+			term.renderer.DrawOutputBlockChrome(0, int32(len(screen)), types.SGR_COLOUR_RED)
+		} else {
+			term.renderer.DrawOutputBlockChrome(0, int32(len(screen)), types.SGR_COLOUR_GREEN)
+		}
+		term._cacheBlock = append(term._cacheBlock, &types.XY{0, i + 1})*/
+	}
+}
+
+func _renderOutputBlockChrome(term *Term, start, end int32, errorBlock bool) {
+	end++
+	if errorBlock {
+		term.renderer.DrawOutputBlockChrome(start, end, types.SGR_COLOUR_RED)
+	} else {
+		term.renderer.DrawOutputBlockChrome(start, end, types.SGR_COLOUR_GREEN)
+	}
+	term._cacheBlock = append(term._cacheBlock, []int32{start, end})
 }

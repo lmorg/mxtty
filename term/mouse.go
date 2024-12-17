@@ -3,19 +3,54 @@ package virtualterm
 import (
 	"fmt"
 
+	"github.com/lmorg/mxtty/debug"
 	"github.com/lmorg/mxtty/types"
 )
 
+// MouseClick: pos X should be -1 when out of bounds
 func (term *Term) MouseClick(pos *types.XY, button uint8, clicks uint8, pressed bool, callback types.EventIgnoredCallback) {
 	//log.Printf("DEBUG: MouseClick(%d: %s)", button, json.LazyLogging(pos))
 
 	term._mouseButtonDown = pressed
 
-	if !pressed {
+	screen := term.visibleScreen()
+
+	if pos != nil && pos.X < 0 {
+		absPos := int32(len(term._scrollBuf)) - int32(term._scrollOffset) + pos.Y
+
+		if len(screen[pos.Y].Hidden) > 0 {
+			err := term.UnhideRows(absPos)
+			if err != nil {
+				term.renderer.DisplayNotification(types.NOTIFY_WARN, err.Error())
+			}
+			return
+		}
+
+		var block []int32
+		for _, block = range term._cacheBlock {
+			if block[0] <= pos.Y && block[0]+block[1] >= pos.Y {
+				goto isOutputBlock
+			}
+		}
+
+	isOutputBlock:
+
+		blockPos, _, err := term.outputBlocksFindStartEnd(absPos)
+		debug.Log(blockPos)
+		if err != nil {
+			term.renderer.DisplayNotification(types.NOTIFY_WARN, err.Error())
+			return
+		}
+
+		if err = term.HideRows(blockPos[0], blockPos[1]+1); err != nil {
+			term.renderer.DisplayNotification(types.NOTIFY_WARN, err.Error())
+		}
 		return
 	}
 
-	screen := term.visibleScreen()
+	if !pressed {
+		return
+	}
 
 	if screen[pos.Y].Cells[pos.X].Element == nil {
 		callback()

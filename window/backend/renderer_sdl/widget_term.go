@@ -134,7 +134,13 @@ func (tw *termWidgetT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEvent
 		return
 	}
 
-	if evt.State == sdl.RELEASED {
+	if evt.X <= _PANE_LEFT_MARGIN {
+		if evt.State == sdl.PRESSED {
+			return
+		}
+
+		posCell.X = -1
+
 		sr.term.MouseClick(posCell, evt.Button, evt.Clicks, false, func() {})
 		return
 	}

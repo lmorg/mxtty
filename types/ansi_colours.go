@@ -2,7 +2,7 @@ package types
 
 var (
 	// solarized dark
-	SGR_COLOUR_BLACK   = &Colour{7, 54, 66}
+	SGR_COLOUR_BLACK   = &Colour{0, 43, 54} // &Colour{7, 54, 66}
 	SGR_COLOUR_RED     = &Colour{220, 50, 47}
 	SGR_COLOUR_GREEN   = &Colour{133, 153, 0}
 	SGR_COLOUR_YELLOW  = &Colour{181, 137, 0}
@@ -11,7 +11,7 @@ var (
 	SGR_COLOUR_CYAN    = &Colour{42, 161, 152}
 	SGR_COLOUR_WHITE   = &Colour{238, 232, 213}
 
-	SGR_COLOUR_BLACK_BRIGHT   = &Colour{0, 43, 54}
+	SGR_COLOUR_BLACK_BRIGHT   = &Colour{0, 33, 44} // &Colour{0, 43, 54}
 	SGR_COLOUR_RED_BRIGHT     = &Colour{203, 75, 22}
 	SGR_COLOUR_GREEN_BRIGHT   = &Colour{88, 110, 117}
 	SGR_COLOUR_YELLOW_BRIGHT  = &Colour{101, 123, 131}
@@ -26,12 +26,12 @@ var SGR_DEFAULT = &Sgr{
 	Bg: SGR_COLOUR_BLACK,
 }
 
-var BgUnfocused = &Colour{0, 34, 46}
+var BgUnfocused = SGR_COLOUR_BLACK_BRIGHT
 
-var BlinkColour = map[bool]*Colour{
+/*var BlinkColour = map[bool]*Colour{
 	true:  SGR_COLOUR_BLACK,
 	false: SGR_COLOUR_WHITE,
-}
+}*/
 
 // SGR_COLOUR_256 colours are a copy of xterm 256 colour values.
 // source: https://vim.fandom.com/wiki/Xterm256_color_names_for_console_Vim

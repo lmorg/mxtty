@@ -146,8 +146,8 @@ func (sr *sdlRender) _footerRenderTmuxWindowTabs(pos *types.XY) {
 	)
 
 	activeRect := &sdl.Rect{
-		X: (topLeftCellX * sr.glyphSize.X) + _PANE_LEFT_MARGIN,
-		Y: (topLeftCellY * sr.glyphSize.Y) + _PANE_TOP_MARGIN,
+		X: (topLeftCellX * sr.glyphSize.X) + _PANE_LEFT_MARGIN, // - 1,
+		Y: (topLeftCellY * sr.glyphSize.Y) + _PANE_TOP_MARGIN,  // - 1,
 		W: (bottomRightCellX * sr.glyphSize.X) + 1,
 		H: (bottomRightCellY * sr.glyphSize.Y) + 1,
 	}

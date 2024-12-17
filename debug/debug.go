@@ -15,6 +15,11 @@ func Log(v any) {
 		return
 	}
 
+	var (
+		b   []byte
+		err error
+	)
+
 	switch t := v.(type) {
 	case byte:
 		v = string(t)
@@ -28,14 +33,20 @@ func Log(v any) {
 		}
 		v = string(t)
 
+	case string:
+		b = []byte(t)
+		goto skipJson
+
 		//case *types.XY:
 		//	v = *t
 	}
 
-	b, err := json.Marshal(v)
+	b, err = json.MarshalIndent(v, "", "    ")
 	if err != nil {
 		panic(err)
 	}
+
+skipJson:
 
 	pc, file, line, ok := runtime.Caller(1)
 
@@ -55,5 +66,10 @@ func Log(v any) {
 
 	fn = runtime.FuncForPC(pc)
 	prevName := strings.Replace(fn.Name(), app.ProjectSourcePath, "", 1)
-	log.Printf("DEBUG: %s() -> %s(): %s", prevName, fnName, string(b))
+
+	s := strings.ReplaceAll(string(b), `\n`, "\n")
+	lines := strings.Split(s, "\n")
+	for i := range lines {
+		log.Printf("DEBUG: %s() -> %s(): %s", prevName, fnName, lines[i])
+	}
 }

@@ -72,6 +72,7 @@ type Term struct {
 	_hasKeypress     chan bool
 	_phrase          *[]rune
 
+	// search
 	_searchHighlight  bool
 	_searchLastString string
 	_searchHlHistory  []*types.Cell
@@ -83,6 +84,9 @@ type Term struct {
 	// misc CSI configs
 	_windowTitleStack []string
 	_noAutoLineWrap   bool // No Auto-Wrap Mode (DECAWM), VT100.
+
+	// cache
+	_cacheBlock [][]int32
 }
 
 type _stateVtMode int
@@ -290,12 +294,12 @@ func (term *Term) visibleScreen() types.Screen {
 
 	// render scrollback buffer
 	start := len(term._scrollBuf) - term._scrollOffset
-	cells := term._scrollBuf[start:]
-	if len(cells) < int(term.size.Y) {
-		cells = append(cells, term._normBuf...)
+	screen := term._scrollBuf[start:]
+	if len(screen) < int(term.size.Y) {
+		screen = append(screen, term._normBuf[:int(term.size.Y)-term._scrollOffset]...)
 	}
 
-	return cells
+	return screen
 }
 
 func (term *Term) HasFocus(state bool) {
