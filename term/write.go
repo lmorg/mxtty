@@ -24,7 +24,9 @@ func (term *Term) writeCell(r rune, el types.Element) {
 
 	if term._curPos.X >= term.size.X && !term._noAutoLineWrap {
 		term._curPos.X = 0
+		phrase := term._rowPhrase // a bit of a hack but we want to...
 		term.lineFeed()
+		term._rowPhrase = phrase // ...retain the same row for _rowPhrase
 	}
 
 	cell := term.currentCell()
@@ -44,6 +46,9 @@ func (term *Term) writeCell(r rune, el types.Element) {
 				cell.Phrase = term._phrase
 			}
 			*term._phrase = append(*term._phrase, r)
+			// ^ old code, delete
+			term.phraseAppend(r)
+			// ^ new code, keep
 		}
 
 		term._curPos.X++

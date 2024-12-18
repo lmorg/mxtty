@@ -156,14 +156,14 @@ func (tw *termWidgetT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEvent
 		sr.term.MouseClick(posCell, evt.Button, evt.Clicks, true, sr.clipboardPasteText)
 
 	case _MOUSE_BUTTON_RIGHT:
-		sr.term.MouseClick(posCell, evt.Button, evt.Clicks, true, func() { tw._eventMouseButtonRightClick(sr, evt, posCell) })
+		sr.term.MouseClick(posCell, evt.Button, evt.Clicks, true, func() { tw._eventMouseButtonRightClick(sr, posCell) })
 
 	case _MOUSE_BUTTON_X1:
 		sr.term.MouseClick(posCell, evt.Button, evt.Clicks, true, func() {})
 	}
 }
 
-func (tw *termWidgetT) _eventMouseButtonRightClick(sr *sdlRender, evt *sdl.MouseButtonEvent, posCell *types.XY) {
+func (tw *termWidgetT) _eventMouseButtonRightClick(sr *sdlRender, posCell *types.XY) {
 	options := []string{
 		fmt.Sprintf("Paste text from clipboard [%s+v]", types.KEY_STR_META),
 		MENU_SEPARATOR,
@@ -183,7 +183,10 @@ func (tw *termWidgetT) _eventMouseButtonRightClick(sr *sdlRender, evt *sdl.Mouse
 		case 1:
 			// ---
 		case 2:
-			sr.term.FoldAtIndent(posCell)
+			err := sr.term.FoldAtIndent(posCell)
+			if err != nil {
+				sr.DisplayNotification(types.NOTIFY_WARN, err.Error())
+			}
 		case 3:
 			sr.term.Match(posCell)
 		case 4:

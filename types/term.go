@@ -19,6 +19,7 @@ type Term interface {
 	MouseClick(*XY, uint8, uint8, bool, EventIgnoredCallback)
 	MouseWheel(*XY, *XY)
 	MouseMotion(*XY, *XY, EventIgnoredCallback)
+	MousePosition(*XY)
 	ShowCursor(bool)
 	HasFocus(bool)
 	MakeVisible(bool)

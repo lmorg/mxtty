@@ -125,6 +125,7 @@ func (term *Term) csiDeleteCharacters(n int32) {
 	copy((*term.screen)[pos.Y].Cells[term.size.X-n:], blank)
 }
 
+// TODO: test
 func (term *Term) csiDeleteLines(n int32) {
 	debug.Log(n)
 

@@ -28,7 +28,7 @@ func (term *Term) MouseClick(pos *types.XY, button uint8, clicks uint8, pressed 
 
 		var block []int32
 		for _, block = range term._cacheBlock {
-			if block[0] <= pos.Y && block[0]+block[1] >= pos.Y {
+			if block[0] <= pos.Y && block[0]+block[1] > pos.Y {
 				goto isOutputBlock
 			}
 		}
@@ -51,11 +51,23 @@ func (term *Term) MouseClick(pos *types.XY, button uint8, clicks uint8, pressed 
 		return
 	}
 
+	// TODO: we shouldn't be passing nil pos around
+	if pos == nil {
+		return
+	}
+
 	if !pressed {
 		return
 	}
 
 	if screen[pos.Y].Cells[pos.X].Element == nil {
+		if h := term._mousePositionCodeFoldable(screen, pos); h != -1 {
+			err := term.FoldAtIndent(pos)
+			if err != nil {
+				term.renderer.DisplayNotification(types.NOTIFY_WARN, err.Error())
+			}
+		}
+
 		callback()
 		return
 	}
@@ -132,6 +144,7 @@ func (term *Term) MouseMotion(pos *types.XY, movement *types.XY, callback types.
 		if term._mouseIn != nil {
 			term._mouseIn.MouseOut()
 		}
+
 		callback()
 		return
 	}
@@ -144,4 +157,46 @@ func (term *Term) MouseMotion(pos *types.XY, movement *types.XY, callback types.
 	}
 
 	screen[pos.Y].Cells[pos.X].Element.MouseMotion(screen[pos.Y].Cells[pos.X].ElementXY(), movement, callback)
+}
+
+func (term *Term) MousePosition(pos *types.XY) {
+	screen := term.visibleScreen()
+
+	if screen[pos.Y].Cells[pos.X].Element == nil {
+		if height := term._mousePositionCodeFoldable(screen, pos); height >= 0 {
+			term.renderer.DrawHighlightRect(
+				&types.XY{pos.X, pos.Y},
+				&types.XY{term.size.X - pos.X, height - pos.Y},
+			)
+			term.renderer.StatusBarText("[Click]  Fold branch")
+		}
+	}
+}
+
+func (term *Term) _mousePositionCodeFoldable(screen types.Screen, pos *types.XY) int32 {
+	if pos.Y >= term.curPos().Y {
+		return -1
+	}
+
+	if screen[pos.Y].Cells[pos.X].Char == ' ' {
+		return -1
+	}
+
+	for x := pos.X - 1; x >= 0; x-- {
+		if screen[pos.Y].Cells[x].Char != ' ' {
+			return -1
+		}
+	}
+
+	absScreen := append(term._scrollBuf, term._normBuf...)
+	absPos := term.convertRelPosToAbsPos(pos)
+
+	height, err := outputBlockFoldIndent(term, absScreen, absPos, false)
+	if err != nil {
+		return -1
+	}
+
+	height = height - absPos.Y + pos.Y
+
+	return height
 }

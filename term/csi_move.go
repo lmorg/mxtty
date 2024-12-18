@@ -19,8 +19,13 @@ func (term *Term) lineFeed() {
 		term.appendScrollBuf()
 		term.csiScrollUp(1)
 		term.csiMoveCursorDownwardsExcOrigin(1)
+
+	} else { // TODO: test
+		//term.csiScrollUp(1)
+		//term.csiMoveCursorDownwards(1)
 	}
 
+	term.phraseSetToRowPos()
 	go term.lfRedraw()
 }
 
@@ -42,7 +47,13 @@ func (term *Term) reverseLineFeed() {
 	if term.csiMoveCursorUpwardsExcOrigin(1) != 0 {
 		term.csiScrollDown(1)
 		term.csiMoveCursorUpwardsExcOrigin(1)
+
+	} else { // TODO: test
+		//term.csiScrollDown(1)
+		//term.csiMoveCursorUpwards(1)
 	}
+
+	term.phraseSetToRowPos()
 }
 
 /*
@@ -108,6 +119,8 @@ func (term *Term) csiMoveCursorUpwards(i int32) (overflow int32) {
 		term._curPos.Y = top
 	}
 
+	term.phraseSetToRowPos()
+
 	return
 }
 
@@ -126,6 +139,8 @@ func (term *Term) csiMoveCursorUpwardsExcOrigin(i int32) (overflow int32) {
 		overflow = term._curPos.Y - top
 		term._curPos.Y = top
 	}
+
+	term.phraseSetToRowPos()
 
 	return
 }
@@ -150,6 +165,8 @@ func (term *Term) csiMoveCursorDownwards(i int32) (overflow int32) {
 		term._curPos.Y = bottom
 	}
 
+	term.phraseSetToRowPos()
+
 	return
 }
 
@@ -169,6 +186,8 @@ func (term *Term) csiMoveCursorDownwardsExcOrigin(i int32) (overflow int32) {
 		overflow = term._curPos.Y - bottom
 		term._curPos.Y = bottom
 	}
+
+	term.phraseSetToRowPos()
 
 	return
 }
@@ -201,6 +220,8 @@ func (term *Term) moveCursorToRow(row int32) {
 	default:
 		term._curPos.Y = row - 1
 	}
+
+	term.phraseSetToRowPos()
 }
 
 // csiMoveCursorToPos: 0 values should default to current cursor position.
@@ -208,6 +229,8 @@ func (term *Term) moveCursorToPos(row, col int32) {
 	debug.Log([]int32{row, col})
 	term.moveCursorToRow(row)
 	term.moveCursorToColumn(col)
+
+	//term.phraseSetToRowPos() // already included in `moveCursorToRow()`
 }
 
 /*
@@ -359,7 +382,7 @@ func (term *Term) csiInsertCharacters(n int32) {
 // csiInsertLines: 0 should default to 1.
 func (term *Term) csiInsertLines(n int32) {
 	debug.Log(n)
-
+	// TODO: test
 	if n < 1 {
 		n = 1
 	}

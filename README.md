@@ -107,12 +107,14 @@ ticked but not working as expected, then please raise an issue in Github.
 - [x] Alt character sets
 - [ ] Wide characters
   - [ ] vt100 (ASCII characters)
-  - [ ] Unicode (eg logograph-centric languages)
+  - [ ] Unicode (eg logograph-centric languages and emoticons)
 - Keyboard
   - [x] Ctrl modifiers
   - [x] Alt modifiers
   - [x] Shift modifiers
-  - [ ] special keys (eg function keys, number pad, etc)
+  - [x] special keys (eg function keys, number pad, etc)
+    - [ ] glitch free (some bugs still exist)
+  - [ ] tmux support for modifiers
 - Mouse tracking
   - [ ] common: can run most CLI applications
   - [ ] broad: can run older or more complicated CLI applications
@@ -124,6 +126,8 @@ ticked but not working as expected, then please raise an issue in Github.
 - [ ] special modes
 
 #### VT200 mode
+
+Some compatibility already exists. Detailed breakdown coming...
 
 #### Tektronix 4014 mode
 
@@ -148,7 +152,7 @@ eg `xterm` and similar terminal emulators
   - [ ] sixel graphics
   - [ ] ReGIS graphics
 - Code folding
-  - [ ] alpha: available but expect changes to the API
+  - [x] alpha: available but expect changes to the API
   - [ ] stable: available to use in Murex
 - Table sorting
   - [x] alpha: available but expect changes to the API
@@ -182,8 +186,8 @@ eg `xterm` and similar terminal emulators
 
 - [x] Supports single pane
 - [ ] Supports multiple panes
-- [ ] Supports multiple windows
-- [ ] Hotkey passthrough
+- [x] Supports multiple windows
+- [x] Hotkey passthrough
 
 ## Supported Platforms
 

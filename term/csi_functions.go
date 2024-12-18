@@ -2,10 +2,10 @@ package virtualterm
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/lmorg/mxtty/codes"
 	"github.com/lmorg/mxtty/debug"
+	"github.com/lmorg/mxtty/types"
 )
 
 func (term *Term) csiRepeatPreceding(n int32) {
@@ -24,7 +24,7 @@ func (term *Term) csiCallback(format string, v ...any) {
 	msg := fmt.Sprintf(format, v...)
 	err := term.Pty.Write(append(codes.Csi, []byte(msg)...))
 	if err != nil {
-		log.Printf("ERROR: writing callback message '%s': %s", msg, err.Error())
+		term.renderer.DisplayNotification(types.NOTIFY_ERROR, fmt.Sprintf("cannot write callback message '%s': %s", msg, err.Error()))
 	}
 }
 
@@ -57,6 +57,7 @@ func (term *Term) csiCursorPosRestore() {
 	debug.Log(term._curPos)
 	debug.Log(term._savedCurPos)
 	term._curPos = term._savedCurPos
+	term.phraseSetToRowPos()
 }
 
 func (term *Term) csiCursorHide() {

@@ -6,7 +6,7 @@ Terminal:
   TypeFace:
     #FontName: "Hasklig-Regular"
     FontSize: 14
-    Ligatures: true # increases system requirements
+    #Ligatures: true # increases system requirements
     #DropShadow: true
     AdjustCellWidth:  0
     AdjustCellHeight: +1

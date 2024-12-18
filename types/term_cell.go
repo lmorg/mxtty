@@ -45,6 +45,7 @@ type Row struct {
 	Cells  []*Cell
 	Meta   RowMetaFlag
 	Hidden Screen
+	Phrase *[]rune
 }
 
 type RowMetaFlag uint16

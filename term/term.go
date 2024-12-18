@@ -71,6 +71,7 @@ type Term struct {
 	_mouseButtonDown bool
 	_hasKeypress     chan bool
 	_phrase          *[]rune
+	_rowPhrase       *[]rune
 
 	// search
 	_searchHighlight  bool
@@ -151,6 +152,7 @@ func (term *Term) reset(size *types.XY) {
 	term.csiResetTabStops()
 
 	term.screen = &term._normBuf
+	term.phraseSetToRowPos()
 
 	term.sgr = types.SGR_DEFAULT.Copy()
 
@@ -173,7 +175,8 @@ func (term *Term) makeScreen() types.Screen {
 
 func (term *Term) makeRow() *types.Row {
 	row := &types.Row{
-		Cells: term.makeCells(term.size.X),
+		Cells:  term.makeCells(term.size.X),
+		Phrase: new([]rune),
 	}
 
 	return row

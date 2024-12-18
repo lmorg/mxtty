@@ -91,11 +91,9 @@ func (term *Term) mxapcEndOutputBlock(apc *types.ApcSlice) {
 	if pos.X == 0 {
 		pos.Y--
 	}
-
-	//if (*term.screen)[pos.Y].Meta.Is(types.ROW_OUTPUT_BLOCK_BEGIN) {
-	//(*term.screen)[pos.Y].Meta.Unset(types.ROW_OUTPUT_BLOCK_BEGIN)
-	//	return
-	//}
+	if pos.Y < 0 {
+		pos.Y = 0
+	}
 
 	var params outputBlockParametersT
 	apc.Parameters(&params)

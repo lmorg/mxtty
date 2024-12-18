@@ -6,6 +6,12 @@ import (
 	"github.com/lmorg/mxtty/types"
 )
 
+func clone[T any](src []T) []T {
+	s := make([]T, len(src))
+	copy(s, src)
+	return s
+}
+
 func (term *Term) CopyRange(topLeft, bottomRight *types.XY) []byte {
 	if topLeft.X < 0 {
 		topLeft.X = 0

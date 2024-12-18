@@ -8,12 +8,6 @@ import (
 	"github.com/lmorg/mxtty/types"
 )
 
-func clone[T any](src []T) []T {
-	s := make([]T, len(src))
-	copy(s, src)
-	return s
-}
-
 func (term *Term) HideRows(start int32, end int32) error {
 	if term.IsAltBuf() {
 		return errors.New("this feature is not supported in alt buffer")
@@ -89,30 +83,25 @@ func (term *Term) FoldAtIndent(pos *types.XY) error {
 		if row.Cells[i].Rune() != ' ' {
 			absPos.X = int32(i)
 			absPos.Y++
-			outputBlockFoldIndent(term, screen, absPos)
-			return nil
+			_, err := outputBlockFoldIndent(term, screen, absPos, true)
+			return err
 		}
 	}
 
 	return errors.New("cannot fold from an empty line")
 }
 
-func outputBlockFoldIndent(term *Term, screen types.Screen, absPos *types.XY) {
-	width := int32(len(screen[0].Cells))
+func outputBlockFoldIndent(term *Term, screen types.Screen, absPos *types.XY, hide bool) (int32, error) {
 	var x, y int32
 	for y = absPos.Y + 1; int(y) < len(screen); y++ {
 		if screen[y].Meta.Is(types.ROW_OUTPUT_BLOCK_END) || screen[y].Meta.Is(types.ROW_OUTPUT_BLOCK_ERROR) {
 			goto fold
 		}
 
-		for x = int32(0); x < width; x++ {
-			if x > absPos.X {
-				// next row, y
-				break
-			}
+		for x = int32(0); x <= absPos.X && int(x) < len(*screen[y].Phrase); x++ {
 
-			if screen[y].Cells[x].Rune() == ' ' {
-				// next column, x
+			if (*screen[y].Phrase)[x] == ' ' {
+				// next column
 				continue
 			}
 
@@ -121,5 +110,12 @@ func outputBlockFoldIndent(term *Term, screen types.Screen, absPos *types.XY) {
 	}
 
 fold:
-	term.HideRows(absPos.Y, y)
+	if absPos.Y == y-1 {
+		return 0, errors.New("nothing to fold")
+	}
+
+	if hide {
+		term.HideRows(absPos.Y, y)
+	}
+	return y, nil
 }
