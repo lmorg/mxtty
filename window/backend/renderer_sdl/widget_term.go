@@ -6,6 +6,7 @@ import (
 
 	"github.com/lmorg/mxtty/codes"
 	"github.com/lmorg/mxtty/config"
+	"github.com/lmorg/mxtty/integrations"
 	"github.com/lmorg/mxtty/types"
 	"github.com/veandco/go-sdl2/sdl"
 )
@@ -176,6 +177,11 @@ func (tw *termWidgetT) _eventMouseButtonRightClick(sr *sdlRender, posCell *types
 		options = append(options, MENU_SEPARATOR, "List tmux hotkeys")
 	}
 
+	options = append(options,
+		MENU_SEPARATOR,
+		"Zsh integration",
+	)
+
 	selectCallback := func(i int) {
 		switch i {
 		case 0:
@@ -195,6 +201,10 @@ func (tw *termWidgetT) _eventMouseButtonRightClick(sr *sdlRender, posCell *types
 			// ---
 		case 6:
 			sr.tmux.ListKeyBindings()
+		case 7:
+			// ---
+		case 8:
+			sr.term.Reply(integrations.Get("shell.zsh"))
 		}
 	}
 
