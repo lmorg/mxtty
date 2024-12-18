@@ -13,7 +13,8 @@ func (term *Term) Resize(size *types.XY) {
 
 	term._mutex.Lock()
 
-	term.size = size
+	debug.Log(term.size)
+	debug.Log(size)
 
 	switch {
 	case xDiff == 0:
@@ -67,8 +68,11 @@ func (term *Term) Resize(size *types.XY) {
 		term._altBuf = term._altBuf[-yDiff:]
 	}
 
+	term.size = size
+
 	term.resizePty()
-	defer term._mutex.Unlock()
+
+	term._mutex.Unlock()
 }
 
 func (term *Term) resizePty() {

@@ -1,6 +1,9 @@
 package rendersdl
 
 import (
+	"log"
+
+	"github.com/lmorg/mxtty/debug"
 	"github.com/lmorg/mxtty/types"
 	"github.com/veandco/go-sdl2/sdl"
 )
@@ -57,18 +60,18 @@ func (sr *sdlRender) GetTermSize() *types.XY {
 func (sr *sdlRender) GetWindowSizeCells() *types.XY {
 	x, y, err := sr.renderer.GetOutputSize()
 	if err != nil {
-		panic("i don't know how big the terminal window is")
+		log.Println("i don't know how big the terminal window is")
+		x, y = sr.window.GetSize()
 	}
-	//x, y := sr.window.GetSize()
 
-	return &types.XY{
+	size := &types.XY{
 		X: ((x - _PANE_LEFT_MARGIN) / sr.glyphSize.X),
-		Y: ((y - _PANE_TOP_MARGIN) / sr.glyphSize.Y) - sr.footer, // inc footer
+		Y: ((y - _PANE_TOP_MARGIN) / sr.glyphSize.Y) - sr.footer,
 	}
-	/*return &types.XY{
-		X: ((x - (sr.border * 2)) / sr.glyphSize.X),
-		Y: ((y - (sr.border * 2)) / sr.glyphSize.Y) - sr.footer, // inc footer
-	}*/
+
+	debug.Log(size)
+
+	return size
 }
 
 ///// resize

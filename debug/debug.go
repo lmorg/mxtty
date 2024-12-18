@@ -37,8 +37,6 @@ func Log(v any) {
 		b = []byte(t)
 		goto skipJson
 
-		//case *types.XY:
-		//	v = *t
 	}
 
 	b, err = json.MarshalIndent(v, "", "    ")
