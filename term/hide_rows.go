@@ -75,3 +75,51 @@ func (term *Term) UnhideRows(pos int32) error {
 
 	return nil
 }
+
+func (term *Term) FoldAtIndent(pos *types.XY) error {
+	if term.IsAltBuf() {
+		return errors.New("folding is not supported in alt buffer")
+	}
+
+	row := term.visibleScreen()[pos.Y]
+	screen := append(term._scrollBuf, term._normBuf...)
+	absPos := term.convertRelPosToAbsPos(pos)
+
+	for i := range row.Cells {
+		if row.Cells[i].Rune() != ' ' {
+			absPos.X = int32(i)
+			absPos.Y++
+			outputBlockFoldIndent(term, screen, absPos)
+			return nil
+		}
+	}
+
+	return errors.New("cannot fold from an empty line")
+}
+
+func outputBlockFoldIndent(term *Term, screen types.Screen, absPos *types.XY) {
+	width := int32(len(screen[0].Cells))
+	var x, y int32
+	for y = absPos.Y + 1; int(y) < len(screen); y++ {
+		if screen[y].Meta.Is(types.ROW_OUTPUT_BLOCK_END) || screen[y].Meta.Is(types.ROW_OUTPUT_BLOCK_ERROR) {
+			goto fold
+		}
+
+		for x = int32(0); x < width; x++ {
+			if x > absPos.X {
+				// next row, y
+				break
+			}
+
+			if screen[y].Cells[x].Rune() == ' ' {
+				// next column, x
+				continue
+			}
+
+			goto fold
+		}
+	}
+
+fold:
+	term.HideRows(absPos.Y, y)
+}

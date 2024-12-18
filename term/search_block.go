@@ -48,6 +48,9 @@ fin:
 
 }
 
-func outputblockFindMatching(screen types.Screen, absPos *types.XY) {
-	
+// TODO
+func outputBlockFindMatchingRuneAfter(screen types.Screen, absPos *types.XY, r rune) {
+	for i := absPos.Y; int(i) < len(screen); i++ {
+
+	}
 }

@@ -167,6 +167,7 @@ func (tw *termWidgetT) _eventMouseButtonRightClick(sr *sdlRender, evt *sdl.Mouse
 	options := []string{
 		fmt.Sprintf("Paste text from clipboard [%s+v]", types.KEY_STR_META),
 		MENU_SEPARATOR,
+		"Fold on indentation",
 		"Match bracket",
 		"Search text [F3]",
 	}
@@ -182,12 +183,14 @@ func (tw *termWidgetT) _eventMouseButtonRightClick(sr *sdlRender, evt *sdl.Mouse
 		case 1:
 			// ---
 		case 2:
-			sr.term.Match(posCell)
+			sr.term.FoldAtIndent(posCell)
 		case 3:
-			sr.term.Search()
+			sr.term.Match(posCell)
 		case 4:
-			// ---
+			sr.term.Search()
 		case 5:
+			// ---
+		case 6:
 			sr.tmux.ListKeyBindings()
 		}
 	}

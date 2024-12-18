@@ -115,7 +115,7 @@ func (sr *sdlRender) _drawHighlightRect(rect *sdl.Rect, alphaBorder, alphaFill b
 	sr.AddToOverlayStack(&layer.RenderStackT{texture, nil, nil, true})
 }
 
-func (sr *sdlRender) DrawOutputBlockChrome(start, n int32, c *types.Colour) {
+func (sr *sdlRender) DrawOutputBlockChrome(start, n int32, c *types.Colour, folded bool) {
 	texture := sr.createRendererTexture()
 	if texture == nil {
 		return
@@ -131,7 +131,11 @@ func (sr *sdlRender) DrawOutputBlockChrome(start, n int32, c *types.Colour) {
 		H: n * sr.glyphSize.Y,
 	}
 
+	if folded {
+		rect.W += _PANE_LEFT_MARGIN_INNER
+	}
+
 	_ = sr.renderer.SetDrawColor(c.Red, c.Green, c.Blue, 192)
-	_ = texture.SetBlendMode(sdl.BLENDMODE_ADD)
+	//_ = texture.SetBlendMode(sdl.BLENDMODE_ADD)
 	_ = sr.renderer.FillRect(rect)
 }

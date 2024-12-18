@@ -24,7 +24,7 @@ type Term interface {
 	MakeVisible(bool)
 	Search()
 	Match(*XY)
-	HideRows(int32, int32) error
+	FoldAtIndent(*XY) error
 }
 
 type Pty interface {
