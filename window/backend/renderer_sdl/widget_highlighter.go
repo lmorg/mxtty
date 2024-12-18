@@ -124,6 +124,7 @@ func (hl *highlighterT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEven
 		rect := sr.rectPxToCells(hl.rect)
 		if rect.X-rect.W < 2 && rect.X-rect.W > -2 && rect.Y-rect.H < 2 && rect.Y-rect.H > -2 {
 			sr.highlighter = nil
+			sr.term.MouseClick(sr.convertPxToCellXY(evt.X, evt.Y), evt.Button, evt.Clicks, evt.State == sdl.PRESSED, func() {})
 			return
 		}
 		lines := sr.term.CopyRange(&types.XY{X: rect.X, Y: rect.Y}, &types.XY{X: rect.W, Y: rect.H})

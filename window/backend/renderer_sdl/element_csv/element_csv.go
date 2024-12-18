@@ -191,7 +191,7 @@ func (el *ElementCsv) Draw(size *types.XY, pos *types.XY) {
 	cell.Sgr.Reset()
 	relPos := &types.XY{X: pos.X, Y: pos.Y}
 
-	cell.Sgr.Bitwise |= types.SGR_INVERT
+	cell.Sgr.Bitwise.Set(types.SGR_INVERT)
 	for i := range el.top {
 		cell.Char = el.top[i]
 		el.renderer.PrintCell(cell, relPos)
@@ -209,15 +209,18 @@ func (el *ElementCsv) Draw(size *types.XY, pos *types.XY) {
 		relPos.X = pos.X + el.boundaries[el.orderByIndex-2]
 	}
 
-	cell.Sgr.Bitwise |= types.SGR_BOLD
+	cell.Sgr.Bitwise.Unset(types.SGR_INVERT)
+	cell.Sgr.Fg = types.SGR_COLOUR_RED
+
 	cell.Char = arrowGlyph[el.orderDesc]
 	el.renderer.PrintCell(cell, relPos)
-	cell.Sgr.Bitwise ^= types.SGR_BOLD
+
+	cell.Sgr.Fg = types.SGR_DEFAULT.Fg
 
 skipOrderGlyph:
 
 	relPos.Y++
-	cell.Sgr.Bitwise ^= types.SGR_INVERT
+	cell.Sgr.Bitwise.Unset(types.SGR_INVERT)
 
 	for y := int32(0); y < el.size.Y-1 && int(y) < len(el.table); y++ {
 		relPos.X = 0

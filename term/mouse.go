@@ -9,11 +9,20 @@ import (
 
 // MouseClick: pos X should be -1 when out of bounds
 func (term *Term) MouseClick(pos *types.XY, button uint8, clicks uint8, pressed bool, callback types.EventIgnoredCallback) {
-	//log.Printf("DEBUG: MouseClick(%d: %s)", button, json.LazyLogging(pos))
+	screen := term.visibleScreen()
 
+	// this is used to determine whether to override ligatures with default font rendering
 	term._mouseButtonDown = pressed
 
-	screen := term.visibleScreen()
+	if pos == nil {
+		// this just exists to reset ligatures
+		return
+	}
+
+	if pressed {
+		callback()
+		return
+	}
 
 	if pos != nil && pos.X < 0 {
 		absPos := int32(len(term._scrollBuf)) - int32(term._scrollOffset) + pos.Y
@@ -51,15 +60,6 @@ func (term *Term) MouseClick(pos *types.XY, button uint8, clicks uint8, pressed 
 		return
 	}
 
-	// TODO: we shouldn't be passing nil pos around
-	if pos == nil {
-		return
-	}
-
-	if !pressed {
-		return
-	}
-
 	if screen[pos.Y].Cells[pos.X].Element == nil {
 		if h := term._mousePositionCodeFoldable(screen, pos); h != -1 {
 			err := term.FoldAtIndent(pos)
@@ -73,12 +73,9 @@ func (term *Term) MouseClick(pos *types.XY, button uint8, clicks uint8, pressed 
 	}
 
 	screen[pos.Y].Cells[pos.X].Element.MouseClick(screen[pos.Y].Cells[pos.X].ElementXY(), button, clicks, callback)
-	term._mouseButtonDown = false
 }
 
 func (term *Term) MouseWheel(pos *types.XY, movement *types.XY) {
-	//log.Printf("DEBUG: MouseScroll(%d: %s)", Y, json.LazyLogging(pos))
-
 	screen := term.visibleScreen()
 
 	if screen[pos.Y].Cells[pos.X].Element == nil {
