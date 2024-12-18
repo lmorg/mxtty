@@ -12,7 +12,7 @@ func (term *Term) Match(pos *types.XY) {
 		return
 	}
 
-	r := (*term.cells)[pos.Y][pos.X].Rune()
+	r := (*term.screen)[pos.Y].Cells[pos.X].Rune()
 	switch r {
 	default:
 		term.renderer.DisplayNotification(types.NOTIFY_WARN, fmt.Sprintf("Match cannot run match against the character '%s'", string(r)))

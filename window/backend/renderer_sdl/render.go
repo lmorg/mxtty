@@ -29,9 +29,6 @@ func (sr *sdlRender) eventLoop() {
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
 			switch evt := event.(type) {
 
-			case *sdl.QuitEvent:
-				sr.TriggerQuit()
-
 			case *sdl.WindowEvent:
 				sr.eventWindow(evt)
 				sr.TriggerRedraw()
@@ -55,15 +52,15 @@ func (sr *sdlRender) eventLoop() {
 			case *sdl.MouseWheelEvent:
 				sr.eventMouseWheel(evt)
 				sr.TriggerRedraw()
+
+			case *sdl.QuitEvent:
+				sr.TriggerQuit()
 			}
 		}
 
 		select {
-		case <-sr.pollEventHotkey():
-			sr.eventHotkey()
-
-		case <-sr._quit:
-			return
+		case size := <-sr._resize:
+			sr._resizeWindow(size)
 
 		case <-sr._redraw:
 			err := render(sr)
@@ -72,8 +69,11 @@ func (sr *sdlRender) eventLoop() {
 			}
 			sr.limiter.Unlock()
 
-		case size := <-sr._resize:
-			sr._resizeWindow(size)
+		case <-sr.pollEventHotkey():
+			sr.eventHotkey()
+
+		case <-sr._quit:
+			return
 
 		case <-time.After(15 * time.Millisecond):
 			continue
@@ -161,9 +161,12 @@ func (sr *sdlRender) renderStack(stack *[]*layer.RenderStackT) {
 func render(sr *sdlRender) error {
 	x, y := sr.window.GetSize()
 	rect := &sdl.Rect{W: x, H: y}
+	mouseX, mouseY, _ := sdl.GetMouseState()
+	pos := sr.convertPxToCellXY(mouseX, mouseY)
 
 	sr.drawBg(sr.term, rect)
 	sr.term.Render()
+	sr.term.MousePosition(pos)
 	sr.renderFooter()
 
 	if sr.highlighter != nil && sr.highlighter.button == 0 {

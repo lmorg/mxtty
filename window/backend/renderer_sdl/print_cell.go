@@ -309,8 +309,8 @@ func (sr *sdlRender) PrintCell(cell *types.Cell, cellPos *types.XY) {
 	}
 
 	dstRect := &sdl.Rect{
-		X: (sr.glyphSize.X * cellPos.X) + sr.border,
-		Y: (sr.glyphSize.Y * cellPos.Y) + sr.border,
+		X: (sr.glyphSize.X * cellPos.X) + _PANE_LEFT_MARGIN,
+		Y: (sr.glyphSize.Y * cellPos.Y) + _PANE_TOP_MARGIN,
 		W: sr.glyphSize.X + dropShadowOffset,
 		H: sr.glyphSize.Y + dropShadowOffset,
 	}

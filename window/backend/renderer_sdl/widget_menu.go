@@ -205,8 +205,6 @@ func (sr *sdlRender) renderMenu(windowRect *sdl.Rect) {
 		return
 	}
 
-	padding := int32(10) //sr.border //* 2
-
 	/*
 		FRAME
 	*/
@@ -217,8 +215,8 @@ func (sr *sdlRender) renderMenu(windowRect *sdl.Rect) {
 	if int32(len(sr.menu.title))+iconByGlyphs > maxLen {
 		maxLen = (int32(len(sr.menu.title)) + iconByGlyphs)
 	}
-	height := (sr.glyphSize.Y * int32(len(sr.menu.options))) + (padding * 2) + sr.notifyIconSize.Y
-	width := (glyphX * maxLen) + (padding * 3)
+	height := (sr.glyphSize.Y * int32(len(sr.menu.options))) + (_WIDGET_OUTER_MARGIN * 2) + sr.notifyIconSize.Y
+	width := (glyphX * maxLen) + (_WIDGET_OUTER_MARGIN * 3)
 	menuRect := sdl.Rect{
 		X: (windowRect.W - width) / 2,
 		Y: (windowRect.H - height) / 2,
@@ -273,20 +271,20 @@ func (sr *sdlRender) renderMenu(windowRect *sdl.Rect) {
 
 	// render shadow
 	rect = sdl.Rect{
-		X: menuRect.X + padding + sr.notifyIconSize.X + 2,
-		Y: menuRect.Y + padding + 2,
-		W: surface.W - (padding * 2),
-		H: surface.H - (padding * 2),
+		X: menuRect.X + _WIDGET_OUTER_MARGIN + sr.notifyIconSize.X + 2,
+		Y: menuRect.Y + _WIDGET_OUTER_MARGIN + 2,
+		W: surface.W - (_WIDGET_OUTER_MARGIN * 2),
+		H: surface.H - (_WIDGET_OUTER_MARGIN * 2),
 	}
 	_ = textShadow.Blit(nil, surface, &rect)
 	sr._renderNotificationSurface(surface, &rect)
 
 	// render text
 	rect = sdl.Rect{
-		X: menuRect.X + padding + sr.notifyIconSize.X,
-		Y: menuRect.Y + padding,
-		W: surface.W - (padding * 2),
-		H: surface.H - (padding * 2),
+		X: menuRect.X + _WIDGET_OUTER_MARGIN + sr.notifyIconSize.X,
+		Y: menuRect.Y + _WIDGET_OUTER_MARGIN,
+		W: surface.W - (_WIDGET_OUTER_MARGIN * 2),
+		H: surface.H - (_WIDGET_OUTER_MARGIN * 2),
 	}
 	err = text.Blit(nil, surface, &rect)
 	if err != nil {
@@ -296,31 +294,31 @@ func (sr *sdlRender) renderMenu(windowRect *sdl.Rect) {
 
 	// draw border
 	offset := sr.notifyIconSize.Y
-	width = menuRect.W - padding - padding
+	width = menuRect.W - _WIDGET_OUTER_MARGIN - _WIDGET_OUTER_MARGIN
 	sr.renderer.SetDrawColor(255, 255, 255, 150)
 	rect = sdl.Rect{
-		X: menuRect.X + padding - 1,
+		X: menuRect.X + _WIDGET_OUTER_MARGIN - 1,
 		Y: menuRect.Y + offset - 1,
-		W: width + 2, // menuRect.W - padding - padding + 2,
-		H: menuRect.H - offset - padding + 2,
+		W: width + 2, // menuRect.W - _WIDGET_OUTER_MARGIN - _WIDGET_OUTER_MARGIN + 2,
+		H: menuRect.H - offset - _WIDGET_OUTER_MARGIN + 2,
 	}
 	sr.renderer.DrawRect(&rect)
 
 	rect = sdl.Rect{
-		X: menuRect.X + padding,
+		X: menuRect.X + _WIDGET_OUTER_MARGIN,
 		Y: menuRect.Y + offset,
-		W: width, //menuRect.W - padding - padding,
-		H: menuRect.H - offset - padding,
+		W: width, //menuRect.W - _WIDGET_OUTER_MARGIN - _WIDGET_OUTER_MARGIN,
+		H: menuRect.H - offset - _WIDGET_OUTER_MARGIN,
 	}
 	sr.renderer.DrawRect(&rect)
 
 	// fill background
 	sr.renderer.SetDrawColor(0, 0, 0, 150)
 	rect = sdl.Rect{
-		X: menuRect.X + padding + 1,
+		X: menuRect.X + _WIDGET_OUTER_MARGIN + 1,
 		Y: menuRect.Y + offset + 1,
-		W: width - 2, //menuRect.W - padding - padding - 2,
-		H: menuRect.H - offset - padding - 2,
+		W: width - 2, //menuRect.W - _WIDGET_OUTER_MARGIN - _WIDGET_OUTER_MARGIN - 2,
+		H: menuRect.H - offset - _WIDGET_OUTER_MARGIN - 2,
 	}
 	sr.renderer.FillRect(&rect)
 
@@ -329,17 +327,17 @@ func (sr *sdlRender) renderMenu(windowRect *sdl.Rect) {
 	*/
 
 	sr.menu.mouseRect = sdl.Rect{
-		X: menuRect.X + padding,
-		Y: menuRect.Y + offset + padding,
+		X: menuRect.X + _WIDGET_OUTER_MARGIN,
+		Y: menuRect.Y + offset + _WIDGET_OUTER_MARGIN,
 		W: width,
-		H: menuRect.H - offset - padding,
+		H: menuRect.H - offset - _WIDGET_OUTER_MARGIN,
 	}
 
 	/*
 		OPTIONS
 	*/
 
-	offset += sr.border
+	offset += _WIDGET_INNER_MARGIN
 	for i := range sr.menu.options {
 		if sr.menu.options[i] == MENU_SEPARATOR {
 			if sr.menu.filter != "" {
@@ -351,9 +349,9 @@ func (sr *sdlRender) renderMenu(windowRect *sdl.Rect) {
 			// draw horizontal separator
 			sr.renderer.SetDrawColor(255, 255, 255, 50)
 			rect = sdl.Rect{
-				X: menuRect.X + padding + sr.border,
+				X: menuRect.X + _WIDGET_OUTER_MARGIN + _WIDGET_INNER_MARGIN,
 				Y: menuRect.Y + offset + 2 + (sr.glyphSize.Y * int32(i)) + ((sr.glyphSize.Y / 2) - 4),
-				W: width - padding - padding,
+				W: width - _WIDGET_OUTER_MARGIN - _WIDGET_OUTER_MARGIN,
 				H: 4,
 			}
 			_ = sr.renderer.DrawRect(&rect)
@@ -381,20 +379,20 @@ func (sr *sdlRender) renderMenu(windowRect *sdl.Rect) {
 
 		// render shadow
 		rect = sdl.Rect{
-			X: menuRect.X + padding + sr.border + 2,
+			X: menuRect.X + _WIDGET_OUTER_MARGIN + _WIDGET_INNER_MARGIN + 2,
 			Y: menuRect.Y + offset + 2 + (sr.glyphSize.Y * int32(i)),
-			W: menuRect.X + padding + sr.border + 2,
-			H: surface.H - (padding * 2),
+			W: menuRect.X + _WIDGET_OUTER_MARGIN + _WIDGET_INNER_MARGIN + 2,
+			H: surface.H - (_WIDGET_OUTER_MARGIN * 2),
 		}
 		_ = textShadow.Blit(nil, surface, &rect)
 		sr._renderNotificationSurface(surface, &rect)
 
 		// render text
 		rect = sdl.Rect{
-			X: menuRect.X + padding + sr.border,
+			X: menuRect.X + _WIDGET_OUTER_MARGIN + _WIDGET_INNER_MARGIN,
 			Y: menuRect.Y + offset + (sr.glyphSize.Y * int32(i)),
-			W: surface.W - (padding * 2),
-			H: surface.H - (padding * 2),
+			W: surface.W - (_WIDGET_OUTER_MARGIN * 2),
+			H: surface.H - (_WIDGET_OUTER_MARGIN * 2),
 		}
 		err = text.Blit(nil, surface, &rect)
 		if err != nil {
@@ -436,9 +434,9 @@ func (sr *sdlRender) renderMenu(windowRect *sdl.Rect) {
 	if sr.menu.filter != "" {
 		sr.menu._renderInputBox(sr, surface, windowRect, &sdl.Rect{
 			X: sr.menu.mouseRect.X,
-			Y: sr.menu.mouseRect.Y + sr.menu.mouseRect.H + padding,
+			Y: sr.menu.mouseRect.Y + sr.menu.mouseRect.H + _WIDGET_OUTER_MARGIN,
 			W: sr.menu.mouseRect.W,
-			H: sr.glyphSize.Y + sr.border + sr.border,
+			H: sr.glyphSize.Y + _WIDGET_OUTER_MARGIN,
 		})
 	}
 
@@ -447,9 +445,9 @@ func (sr *sdlRender) renderMenu(windowRect *sdl.Rect) {
 	}
 
 	rect = sdl.Rect{
-		X: menuRect.X + padding + sr.border,
+		X: menuRect.X + _WIDGET_OUTER_MARGIN + _WIDGET_INNER_MARGIN,
 		Y: menuRect.Y + offset + (sr.glyphSize.Y * int32(sr.menu.highlightIndex)),
-		W: width - sr.border - sr.border,
+		W: width - _WIDGET_OUTER_MARGIN,
 		H: sr.glyphSize.Y,
 	}
 	sr._drawHighlightRect(&rect, highlightAlphaBorder, highlightAlphaBorder-20)
@@ -491,8 +489,8 @@ func (menu *menuT) _renderInputBox(sr *sdlRender, surface *sdl.Surface, windowRe
 	// value
 
 	textRect := sdl.Rect{
-		X: rect.X + sr.border,
-		Y: rect.Y + sr.border,
+		X: rect.X + _WIDGET_INNER_MARGIN,
+		Y: rect.Y + _WIDGET_INNER_MARGIN,
 		W: rect.W,
 		H: rect.H,
 	}

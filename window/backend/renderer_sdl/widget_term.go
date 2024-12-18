@@ -6,6 +6,7 @@ import (
 
 	"github.com/lmorg/mxtty/codes"
 	"github.com/lmorg/mxtty/config"
+	"github.com/lmorg/mxtty/integrations"
 	"github.com/lmorg/mxtty/types"
 	"github.com/veandco/go-sdl2/sdl"
 )
@@ -105,13 +106,13 @@ func (tw *termWidgetT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEvent
 	posCell := sr.convertPxToCellXY(evt.X, evt.Y)
 
 	if config.Config.Tmux.Enabled && sr.windowTabs != nil &&
-		(evt.Y-sr.border)/sr.glyphSize.Y == sr.term.GetSize().Y+sr.footer-1 {
+		(evt.Y-_PANE_TOP_MARGIN)/sr.glyphSize.Y == sr.term.GetSize().Y+sr.footer-1 {
 		// window tab bar
 		if evt.State == sdl.PRESSED {
 			return
 		}
 
-		x := ((evt.X - sr.border) / sr.glyphSize.X) - sr.windowTabs.offset.X
+		x := ((evt.X - _PANE_LEFT_MARGIN) / sr.glyphSize.X) - sr.windowTabs.offset.X
 		for i := range sr.windowTabs.boundaries {
 			if x < sr.windowTabs.boundaries[i] {
 				switch evt.Clicks {
@@ -134,7 +135,13 @@ func (tw *termWidgetT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEvent
 		return
 	}
 
-	if evt.State == sdl.RELEASED {
+	if evt.X <= _PANE_LEFT_MARGIN {
+		if evt.State == sdl.PRESSED {
+			return
+		}
+
+		posCell.X = -1
+
 		sr.term.MouseClick(posCell, evt.Button, evt.Clicks, false, func() {})
 		return
 	}
@@ -150,17 +157,18 @@ func (tw *termWidgetT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEvent
 		sr.term.MouseClick(posCell, evt.Button, evt.Clicks, true, sr.clipboardPasteText)
 
 	case _MOUSE_BUTTON_RIGHT:
-		sr.term.MouseClick(posCell, evt.Button, evt.Clicks, true, func() { tw._eventMouseButtonRightClick(sr, evt, posCell) })
+		sr.term.MouseClick(posCell, evt.Button, evt.Clicks, true, func() { tw._eventMouseButtonRightClick(sr, posCell) })
 
 	case _MOUSE_BUTTON_X1:
 		sr.term.MouseClick(posCell, evt.Button, evt.Clicks, true, func() {})
 	}
 }
 
-func (tw *termWidgetT) _eventMouseButtonRightClick(sr *sdlRender, evt *sdl.MouseButtonEvent, posCell *types.XY) {
+func (tw *termWidgetT) _eventMouseButtonRightClick(sr *sdlRender, posCell *types.XY) {
 	options := []string{
 		fmt.Sprintf("Paste text from clipboard [%s+v]", types.KEY_STR_META),
 		MENU_SEPARATOR,
+		"Fold on indentation",
 		"Match bracket",
 		"Search text [F3]",
 	}
@@ -169,6 +177,11 @@ func (tw *termWidgetT) _eventMouseButtonRightClick(sr *sdlRender, evt *sdl.Mouse
 		options = append(options, MENU_SEPARATOR, "List tmux hotkeys")
 	}
 
+	options = append(options,
+		MENU_SEPARATOR,
+		"Zsh integration",
+	)
+
 	selectCallback := func(i int) {
 		switch i {
 		case 0:
@@ -176,13 +189,22 @@ func (tw *termWidgetT) _eventMouseButtonRightClick(sr *sdlRender, evt *sdl.Mouse
 		case 1:
 			// ---
 		case 2:
-			sr.term.Match(posCell)
+			err := sr.term.FoldAtIndent(posCell)
+			if err != nil {
+				sr.DisplayNotification(types.NOTIFY_WARN, err.Error())
+			}
 		case 3:
-			sr.term.Search()
+			sr.term.Match(posCell)
 		case 4:
-			// ---
+			sr.term.Search()
 		case 5:
+			// ---
+		case 6:
 			sr.tmux.ListKeyBindings()
+		case 7:
+			// ---
+		case 8:
+			sr.term.Reply(integrations.Get("shell.zsh"))
 		}
 	}
 
@@ -220,8 +242,8 @@ func (tw *termWidgetT) eventMouseWheel(sr *sdlRender, evt *sdl.MouseWheelEvent) 
 func (tw *termWidgetT) eventMouseMotion(sr *sdlRender, evt *sdl.MouseMotionEvent) {
 	if config.Config.Tmux.Enabled && sr.windowTabs != nil {
 
-		if (evt.Y-sr.border)/sr.glyphSize.Y == sr.term.GetSize().Y+sr.footer-1 {
-			x := ((evt.X - sr.border) / sr.glyphSize.X) - sr.windowTabs.offset.X
+		if (evt.Y-_PANE_TOP_MARGIN)/sr.glyphSize.Y == sr.term.GetSize().Y+sr.footer-1 {
+			x := ((evt.X - _PANE_LEFT_MARGIN) / sr.glyphSize.X) - sr.windowTabs.offset.X
 			for i := range sr.windowTabs.boundaries {
 				if x >= 0 && x < sr.windowTabs.boundaries[i] {
 					sr.windowTabs.mouseOver = i - 1

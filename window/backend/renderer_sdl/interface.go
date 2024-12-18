@@ -15,6 +15,16 @@ import (
 	"golang.design/x/hotkey"
 )
 
+const (
+	_PANE_BLOCK_HIGHLIGHT   = int32(5)
+	_PANE_LEFT_MARGIN_INNER = int32(5)
+	_PANE_LEFT_MARGIN_OUTER = int32(0)
+	_PANE_LEFT_MARGIN       = _PANE_LEFT_MARGIN_INNER + _PANE_BLOCK_HIGHLIGHT + _PANE_LEFT_MARGIN_OUTER
+	_PANE_TOP_MARGIN        = int32(5)
+	_WIDGET_INNER_MARGIN    = int32(5)
+	_WIDGET_OUTER_MARGIN    = int32(10)
+)
+
 type sdlRender struct {
 	window    *sdl.Window
 	renderer  *sdl.Renderer
@@ -27,8 +37,6 @@ type sdlRender struct {
 
 	// preferences
 	font *ttf.Font
-	//_fontStyle types.SgrFlag
-	border int32
 
 	// title
 	title       string
@@ -78,7 +86,7 @@ type tabListT struct {
 	offset     *types.XY
 	active     int
 	mouseOver  int
-	cells      []types.Cell
+	cells      []*types.Cell
 }
 
 type keyboardModeT struct {

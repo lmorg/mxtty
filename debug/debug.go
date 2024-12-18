@@ -8,13 +8,17 @@ import (
 
 	"github.com/lmorg/mxtty/app"
 	_ "github.com/lmorg/mxtty/debug/pprof"
-	"github.com/lmorg/mxtty/types"
 )
 
 func Log(v any) {
 	if !Enabled {
 		return
 	}
+
+	var (
+		b   []byte
+		err error
+	)
 
 	switch t := v.(type) {
 	case byte:
@@ -29,14 +33,18 @@ func Log(v any) {
 		}
 		v = string(t)
 
-	case *types.XY:
-		v = *t
+	case string:
+		b = []byte(t)
+		goto skipJson
+
 	}
 
-	b, err := json.Marshal(v)
+	b, err = json.MarshalIndent(v, "", "    ")
 	if err != nil {
 		panic(err)
 	}
+
+skipJson:
 
 	pc, file, line, ok := runtime.Caller(1)
 
@@ -56,5 +64,10 @@ func Log(v any) {
 
 	fn = runtime.FuncForPC(pc)
 	prevName := strings.Replace(fn.Name(), app.ProjectSourcePath, "", 1)
-	log.Printf("DEBUG: %s() -> %s(): %s", prevName, fnName, string(b))
+
+	s := strings.ReplaceAll(string(b), `\n`, "\n")
+	lines := strings.Split(s, "\n")
+	for i := range lines {
+		log.Printf("DEBUG: %s() -> %s(): %s", prevName, fnName, lines[i])
+	}
 }

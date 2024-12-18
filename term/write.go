@@ -2,7 +2,6 @@ package virtualterm
 
 import (
 	"fmt"
-	"unsafe"
 
 	"github.com/lmorg/mxtty/config"
 	"github.com/lmorg/mxtty/types"
@@ -25,7 +24,9 @@ func (term *Term) writeCell(r rune, el types.Element) {
 
 	if term._curPos.X >= term.size.X && !term._noAutoLineWrap {
 		term._curPos.X = 0
+		phrase := term._rowPhrase // a bit of a hack but we want to...
 		term.lineFeed()
+		term._rowPhrase = phrase // ...retain the same row for _rowPhrase
 	}
 
 	cell := term.currentCell()
@@ -45,6 +46,9 @@ func (term *Term) writeCell(r rune, el types.Element) {
 				cell.Phrase = term._phrase
 			}
 			*term._phrase = append(*term._phrase, r)
+			// ^ old code, delete
+			term.phraseAppend(r)
+			// ^ new code, keep
 		}
 
 		term._curPos.X++
@@ -71,18 +75,20 @@ func (term *Term) writeToElement(r rune) (ok bool) {
 }
 
 func (term *Term) appendScrollBuf() {
-	if unsafe.Pointer(term.cells) == unsafe.Pointer(&term._normBuf) {
-		if len(term._scrollBuf) < config.Config.Terminal.ScrollbackHistory {
-			term._scrollBuf = append(term._scrollBuf, term._normBuf[0])
-		} else {
-			term._scrollBuf = append(term._scrollBuf[1:], term._normBuf[0])
-		}
-		if term._scrollOffset > 0 {
-			term._scrollOffset++
-			if term._scrollMsg != nil {
-				term._scrollMsg.SetMessage(fmt.Sprintf("Viewing scrollback history. %d lines from end", term._scrollOffset))
-				//term.renderer.TriggerRedraw()
-			}
+	if term.IsAltBuf() {
+		return
+	}
+
+	if len(term._scrollBuf) < config.Config.Terminal.ScrollbackHistory {
+		term._scrollBuf = append(term._scrollBuf, term._normBuf[0])
+	} else {
+		term._scrollBuf = append(term._scrollBuf[1:], term._normBuf[0])
+	}
+	if term._scrollOffset > 0 {
+		term._scrollOffset++
+		if term._scrollMsg != nil {
+			term._scrollMsg.SetMessage(fmt.Sprintf("Viewing scrollback history. %d lines from end", term._scrollOffset))
+			//term.renderer.TriggerRedraw()
 		}
 	}
 }

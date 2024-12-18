@@ -48,7 +48,6 @@ func Initialise() (types.Renderer, *types.XY) {
 		panic(err.Error())
 	}
 
-	sr.border = 5
 	if config.Config.Window.StatusBar {
 		sr.footer++
 	}
@@ -72,8 +71,8 @@ func Initialise() (types.Renderer, *types.XY) {
 	sr.setTypeFace(font)
 
 	sr.window.SetMinimumSize(
-		(40*sr.glyphSize.X)+(sr.border*2),
-		(10*sr.glyphSize.Y)+(sr.border*2))
+		(40*sr.glyphSize.X)+(_PANE_LEFT_MARGIN),
+		(10*sr.glyphSize.Y)+(_PANE_TOP_MARGIN))
 
 	err = clipboard.Init()
 	if err != nil {
@@ -147,9 +146,12 @@ func (sr *sdlRender) setTypeFace(f *ttf.Font) {
 
 func setLghtOrDarkMode() {
 	if config.Config.Terminal.LightMode {
-		highlightBlendMode = sdl.BLENDMODE_BLEND
+		highlightBlendMode = sdl.BLENDMODE_ADD
 		textShadow[_HLTEXTURE_NONE].A = 32
 		types.SGR_DEFAULT.Fg, types.SGR_DEFAULT.Bg = types.SGR_DEFAULT.Bg, types.SGR_DEFAULT.Fg
+		types.SGR_COLOUR_WHITE, types.SGR_COLOUR_BLACK = types.SGR_COLOUR_BLACK, types.SGR_COLOUR_WHITE
+		types.SGR_COLOUR_WHITE_BRIGHT, types.SGR_COLOUR_BLACK_BRIGHT = types.SGR_COLOUR_BLACK_BRIGHT, types.SGR_COLOUR_WHITE_BRIGHT
+
 	} else {
 		highlightBlendMode = sdl.BLENDMODE_ADD
 		textShadow[_HLTEXTURE_NONE].A = 255

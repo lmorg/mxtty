@@ -23,6 +23,8 @@ func NewApcSlice(apc []rune) *ApcSlice {
 		as.slice = slice
 	}
 
+	//panic("^^")
+
 	return as
 }
 
@@ -35,8 +37,9 @@ func (as *ApcSlice) Index(i int) string {
 
 func (as *ApcSlice) Parameters(params any) {
 	s := as.Index(2)
+
 	if s != "" {
-		err := json.Unmarshal([]byte(s), &params)
+		err := json.Unmarshal([]byte(s), params)
 		if err != nil {
 			log.Printf("WARNING: cannot decode APC string '%s': %s", s, err.Error())
 		}

@@ -42,8 +42,8 @@ func (sr *sdlRender) preloadNotificationGlyphs() {
 		types.NOTIFY_QUESTION: nil,
 	}
 	sr.notifyIconSize = &types.XY{
-		X: sr.glyphSize.Y + (sr.border * 4),
-		Y: sr.glyphSize.Y + (sr.border * 4),
+		X: sr.glyphSize.Y + (_WIDGET_INNER_MARGIN * 4),
+		Y: sr.glyphSize.Y + (_WIDGET_INNER_MARGIN * 4),
 	}
 
 	sr.notifyIcon[types.NOTIFY_DEBUG], err = sr.loadImage(assets.Get(assets.ICON_DEBUG), sr.notifyIconSize)
@@ -208,7 +208,6 @@ func (sr *sdlRender) renderNotification(windowRect *sdl.Rect) {
 
 	sr.font.SetStyle(ttf.STYLE_BOLD)
 
-	padding := sr.border * 2
 	var offset int32
 	for _, notification := range notifications {
 		if notification.paneId != "" && notification.paneId != sr.tmux.ActivePane().Id {
@@ -239,17 +238,17 @@ func (sr *sdlRender) renderNotification(windowRect *sdl.Rect) {
 		bc := notifyBorderColour[int(notification.Type)]
 		sr.renderer.SetDrawColor(bc.Red, bc.Green, bc.Blue, notificationAlpha)
 		rect := sdl.Rect{
-			X: sr.border - 1,
-			Y: sr.border + offset - 1,
-			W: windowRect.W - padding + 2,
-			H: text.H + padding + 2,
+			X: _WIDGET_INNER_MARGIN - 1,
+			Y: _WIDGET_INNER_MARGIN + offset - 1,
+			W: windowRect.W - _WIDGET_OUTER_MARGIN + 2,
+			H: text.H + _WIDGET_OUTER_MARGIN + 2,
 		}
 		sr.renderer.DrawRect(&rect)
 		rect = sdl.Rect{
-			X: sr.border,
-			Y: sr.border + offset,
-			W: windowRect.W - padding,
-			H: text.H + padding,
+			X: _WIDGET_INNER_MARGIN,
+			Y: _WIDGET_INNER_MARGIN + offset,
+			W: windowRect.W - _WIDGET_OUTER_MARGIN,
+			H: text.H + _WIDGET_OUTER_MARGIN,
 		}
 		sr.renderer.DrawRect(&rect)
 
@@ -257,18 +256,18 @@ func (sr *sdlRender) renderNotification(windowRect *sdl.Rect) {
 		c := notifyColour[int(notification.Type)]
 		sr.renderer.SetDrawColor(c.Red, c.Green, c.Blue, notificationAlpha)
 		rect = sdl.Rect{
-			X: sr.border + 1,
-			Y: sr.border + 1 + offset,
-			W: surface.W - padding - 2,
-			H: text.H + padding - 2,
+			X: _WIDGET_INNER_MARGIN + 1,
+			Y: _WIDGET_INNER_MARGIN + 1 + offset,
+			W: surface.W - _WIDGET_OUTER_MARGIN - 2,
+			H: text.H + _WIDGET_OUTER_MARGIN - 2,
 		}
 		sr.renderer.FillRect(&rect)
 
 		// render countdown
 		if notification.close == nil {
 			rect = sdl.Rect{
-				X: windowRect.W - padding - countdown.W,
-				Y: padding + offset,
+				X: windowRect.W - _WIDGET_OUTER_MARGIN - countdown.W,
+				Y: _WIDGET_OUTER_MARGIN + offset,
 				W: countdown.W,
 				H: countdown.H,
 			}
@@ -281,20 +280,20 @@ func (sr *sdlRender) renderNotification(windowRect *sdl.Rect) {
 
 		// render shadow
 		rect = sdl.Rect{
-			X: padding + sr.notifyIconSize.X + 2,
-			Y: padding + offset + 2,
+			X: _WIDGET_OUTER_MARGIN + sr.notifyIconSize.X + 2,
+			Y: _WIDGET_OUTER_MARGIN + offset + 2,
 			W: surface.W - sr.notifyIconSize.X - countdown.W,
-			H: text.H + padding - 2,
+			H: text.H + _WIDGET_OUTER_MARGIN - 2,
 		}
 		_ = textShadow.Blit(nil, surface, &rect)
 		sr._renderNotificationSurface(surface, &rect)
 
 		// render text
 		rect = sdl.Rect{
-			X: padding + sr.notifyIconSize.X,
-			Y: padding + offset,
+			X: _WIDGET_OUTER_MARGIN + sr.notifyIconSize.X,
+			Y: _WIDGET_OUTER_MARGIN + offset,
 			W: surface.W - sr.notifyIconSize.X - countdown.W,
-			H: text.H + padding - 2,
+			H: text.H + _WIDGET_OUTER_MARGIN - 2,
 		}
 		err = text.Blit(nil, surface, &rect)
 		if err != nil {
@@ -311,8 +310,8 @@ func (sr *sdlRender) renderNotification(windowRect *sdl.Rect) {
 			}
 
 			dstRect := &sdl.Rect{
-				X: sr.border * 2,
-				Y: offset + ((text.H + padding + padding + 2) / 2) - (sr.notifyIconSize.Y / 2),
+				X: _WIDGET_INNER_MARGIN * 2,
+				Y: offset + ((text.H + _WIDGET_OUTER_MARGIN + _WIDGET_OUTER_MARGIN + 2) / 2) - (sr.notifyIconSize.Y / 2),
 				W: sr.notifyIconSize.X,
 				H: sr.notifyIconSize.X,
 			}
@@ -329,7 +328,7 @@ func (sr *sdlRender) renderNotification(windowRect *sdl.Rect) {
 			}
 		}
 
-		offset += text.H + (sr.border * 3)
+		offset += text.H + (_WIDGET_INNER_MARGIN * 3)
 	}
 }
 

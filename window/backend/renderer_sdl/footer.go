@@ -23,9 +23,9 @@ func (sr *sdlRender) renderFooter() {
 
 	rect := &sdl.Rect{
 		X: 0,
-		Y: (sr.term.GetSize().Y * sr.glyphSize.Y) + sr.border,
-		W: (sr.term.GetSize().X * sr.glyphSize.X) + (sr.border * 3),
-		H: (sr.footer * sr.glyphSize.Y) + (sr.border * 2),
+		Y: (sr.term.GetSize().Y * sr.glyphSize.Y) + _PANE_TOP_MARGIN,
+		W: (sr.term.GetSize().X * sr.glyphSize.X) + (_PANE_LEFT_MARGIN * 3),
+		H: (sr.footer * sr.glyphSize.Y) + (_PANE_TOP_MARGIN * 2),
 	}
 
 	fill := types.SGR_COLOUR_BLACK_BRIGHT
@@ -76,7 +76,10 @@ func (sr *sdlRender) _footerHotkeyMessage() string {
 }
 
 func (sr *sdlRender) _footerRenderStatusBar(pos *types.XY) {
-	footer := make([]types.Cell, sr.term.GetSize().X)
+	footer := make([]*types.Cell, sr.term.GetSize().X)
+	for i := range footer {
+		footer[i] = new(types.Cell)
+	}
 
 	var i int
 	text := []rune(sr.footerText)
@@ -88,23 +91,22 @@ func (sr *sdlRender) _footerRenderStatusBar(pos *types.XY) {
 	sr.PrintCellBlock(footer[:i], pos)
 }
 
+func tabListNewCell(r rune) *types.Cell {
+	return &types.Cell{
+		Char: r,
+		Sgr:  types.SGR_DEFAULT.Copy(),
+	}
+}
+
 func (sr *sdlRender) _footerCacheTmuxWindowTabs(pos *types.XY) {
 	tabList := &tabListT{
 		mouseOver: -1,
 	}
 
-	heading := []rune("Window tab list →  ")
+	heading := []rune("Window tab list → ")
 
-	cell := types.Cell{
-		Char: ' ',
-		Sgr:  types.SGR_DEFAULT.Copy(),
-	}
-
-	tabList.cells = append(tabList.cells, cell)
 	for _, r := range heading {
-
-		cell.Char = r
-		tabList.cells = append(tabList.cells, cell)
+		tabList.cells = append(tabList.cells, tabListNewCell(r))
 	}
 
 	tabList.boundaries = []int32{0}
@@ -115,14 +117,14 @@ func (sr *sdlRender) _footerCacheTmuxWindowTabs(pos *types.XY) {
 		if win.Active {
 			tabList.active = i
 		}
+
+		tabList.cells = append(tabList.cells, tabListNewCell(' '))
 		for _, r := range win.Name {
-			cell.Char = r
-			tabList.cells = append(tabList.cells, cell)
+			tabList.cells = append(tabList.cells, tabListNewCell(r))
 			x++
 		}
+		tabList.cells = append(tabList.cells, tabListNewCell(' '))
 
-		cell.Char = ' '
-		tabList.cells = append(tabList.cells, cell, cell)
 		x += 2
 		tabList.boundaries = append(tabList.boundaries, x)
 	}
@@ -144,8 +146,8 @@ func (sr *sdlRender) _footerRenderTmuxWindowTabs(pos *types.XY) {
 	)
 
 	activeRect := &sdl.Rect{
-		X: (topLeftCellX * sr.glyphSize.X) + sr.border,
-		Y: (topLeftCellY * sr.glyphSize.Y) + sr.border,
+		X: (topLeftCellX * sr.glyphSize.X) + _PANE_LEFT_MARGIN, // - 1,
+		Y: (topLeftCellY * sr.glyphSize.Y) + _PANE_TOP_MARGIN,  // - 1,
 		W: (bottomRightCellX * sr.glyphSize.X) + 1,
 		H: (bottomRightCellY * sr.glyphSize.Y) + 1,
 	}
@@ -159,8 +161,8 @@ func (sr *sdlRender) _footerRenderTmuxWindowTabs(pos *types.XY) {
 	bottomRightCellX = sr.windowTabs.boundaries[sr.windowTabs.mouseOver+1] - sr.windowTabs.boundaries[sr.windowTabs.mouseOver]
 
 	highlightRect := &sdl.Rect{
-		X: (topLeftCellX * sr.glyphSize.X) + sr.border,
-		Y: (topLeftCellY * sr.glyphSize.Y) + sr.border,
+		X: (topLeftCellX * sr.glyphSize.X) + _PANE_LEFT_MARGIN,
+		Y: (topLeftCellY * sr.glyphSize.Y) + _PANE_TOP_MARGIN,
 		W: (bottomRightCellX * sr.glyphSize.X),
 		H: (bottomRightCellY * sr.glyphSize.Y),
 	}

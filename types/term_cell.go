@@ -1,5 +1,7 @@
 package types
 
+import "strings"
+
 type Cell struct {
 	Char    rune
 	Sgr     *Sgr
@@ -38,18 +40,23 @@ func (c *Cell) ElementXY() *XY {
 /*
 	ROWS
 */
-/*
+
 type Row struct {
-	Cells []*Cell
-	Meta  RowMetaFlag
+	Cells  []*Cell
+	Meta   RowMetaFlag
+	Hidden Screen
+	Phrase *[]rune
 }
 
 type RowMetaFlag uint16
 
 // Flags
 const (
-	ROW_META_NONE      RowMetaFlag = 0
-	ROW_META_COLLAPSED RowMetaFlag = 1 << iota
+	ROW_META_NONE          RowMetaFlag = 0
+	ROW_OUTPUT_BLOCK_BEGIN RowMetaFlag = 1 << iota
+	ROW_OUTPUT_BLOCK_END
+	ROW_OUTPUT_BLOCK_ERROR
+	ROW_META_COLLAPSED
 )
 
 func (f RowMetaFlag) Is(flag RowMetaFlag) bool {
@@ -63,4 +70,28 @@ func (f *RowMetaFlag) Set(flag RowMetaFlag) {
 func (f *RowMetaFlag) Unset(flag RowMetaFlag) {
 	*f &^= flag
 }
+
+func (r *Row) String() string {
+	slice := make([]rune, len(r.Cells))
+
+	for i, cell := range r.Cells {
+		slice[i] = cell.Rune()
+	}
+
+	return string(slice)
+}
+
+/*
+	SCREEN
 */
+
+type Screen []*Row
+
+func (screen *Screen) String() string {
+	slice := make([]string, len(*screen))
+	for i, row := range *screen {
+		slice[i] = row.String()
+	}
+
+	return strings.Join(slice, "\n")
+}

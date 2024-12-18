@@ -50,6 +50,13 @@ type configT struct {
 			AdjustCellWidth  int    `yaml:"AdjustCellWidth"`
 			AdjustCellHeight int    `yaml:"AdjustCellHeight"`
 		} `yaml:"TypeFace"`
+
+		Widgets struct {
+			Table struct {
+				ScrollMultiplierX int32 `yaml:"ScrollMultiplierX"`
+				ScrollMultiplierY int32 `yaml:"ScrollMultiplierY"`
+			} `yaml:"Table"`
+		} `yaml:"Widgets"`
 	} `yaml:"Terminal"`
 
 	Window struct {

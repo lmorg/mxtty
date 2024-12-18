@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/lmorg/mxtty/debug"
 	"github.com/lmorg/mxtty/types"
 )
 
@@ -36,6 +37,7 @@ type ElementCsv struct {
 	orderDesc    bool // ASC or DESC
 
 	renderOffset int32
+	limitOffset  int32
 	highlight    *types.XY
 }
 
@@ -68,6 +70,10 @@ func (el *ElementCsv) Write(r rune) error {
 	return nil
 }
 
+type parametersT struct {
+	CreateHeadings bool `json:"CreateHeadings"`
+}
+
 func (el *ElementCsv) Generate(apc *types.ApcSlice) error {
 	defer el.notify.Close()
 
@@ -81,30 +87,48 @@ func (el *ElementCsv) Generate(apc *types.ApcSlice) error {
 		return fmt.Errorf("error reading CSV: %v", err)
 	}
 
-	if len(recs) < 2 {
+	var params parametersT
+	apc.Parameters(&params)
+	debug.Log(params)
+
+	firstRecord := 1
+	if params.CreateHeadings {
+		firstRecord = 0
+		el.lines++
+	}
+
+	if len(recs) <= firstRecord {
 		return fmt.Errorf("too few rows") // TODO: this shouldn't error
 	}
 
-	err = el.createTable(recs[0])
+	headings := recs[0]
+	if params.CreateHeadings {
+		headings = make([]string, len(recs[0]))
+		for i := range headings {
+			headings[i] = string('A' + i)
+		}
+	}
+
+	err = el.createTable(headings)
 	if err != nil {
 		return err
 	}
 
-	n := len(recs[0])
+	n := len(headings)
 
 	el.headings = make([][]rune, n)
-	for i := range recs[0] {
-		el.headings[i] = []rune(recs[0][i])
+	for i := range headings {
+		el.headings[i] = []rune(headings[i])
 	}
 
 	// figure out if number
 	el.isNumber = make([]bool, n)
-	for col := 0; col < n && col < len(recs[1]); col++ {
-		_, e := strconv.ParseFloat(recs[1][col], 64)
+	for col := 0; col < n && col < len(recs[firstRecord]); col++ {
+		_, e := strconv.ParseFloat(recs[firstRecord][col], 64)
 		el.isNumber[col] = e == nil // if no error, then it's probably a number
 	}
 
-	for row := 1; row < len(recs); row++ {
+	for row := firstRecord; row < len(recs); row++ {
 		if len(recs[row]) > n {
 			recs[row][n-1] = strings.Join(recs[row][n-1:], " ")
 			recs[row] = recs[row][:n]
@@ -211,7 +235,7 @@ skipOrderGlyph:
 		var start, end int32
 
 		for i := range el.boundaries {
-			if el.highlight.X-el.renderOffset <= el.boundaries[i] {
+			if el.highlight.X-el.renderOffset < el.boundaries[i] {
 				if i != 0 {
 					start = el.boundaries[i-1] + pos.X
 					end = int32(el.width[i]) + 2

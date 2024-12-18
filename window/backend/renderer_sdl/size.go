@@ -1,14 +1,17 @@
 package rendersdl
 
 import (
+	"log"
+
+	"github.com/lmorg/mxtty/debug"
 	"github.com/lmorg/mxtty/types"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
 func (sr *sdlRender) convertPxToCellXY(x, y int32) *types.XY {
 	xy := &types.XY{
-		X: (x - sr.border) / sr.glyphSize.X,
-		Y: (y - sr.border) / sr.glyphSize.Y,
+		X: (x - _PANE_LEFT_MARGIN) / sr.glyphSize.X,
+		Y: (y - _PANE_TOP_MARGIN) / sr.glyphSize.Y,
 	}
 
 	if xy.X < 0 {
@@ -39,10 +42,10 @@ func normaliseRect(rect *sdl.Rect) {
 
 func (sr *sdlRender) rectPxToCells(rect *sdl.Rect) *sdl.Rect {
 	return &sdl.Rect{
-		X: (rect.X - sr.border) / sr.glyphSize.X,
-		Y: (rect.Y - sr.border) / sr.glyphSize.Y,
-		W: ((rect.X + rect.W - sr.border) / sr.glyphSize.X),
-		H: ((rect.Y + rect.H - sr.border) / sr.glyphSize.Y),
+		X: (rect.X - _PANE_LEFT_MARGIN) / sr.glyphSize.X,
+		Y: (rect.Y - _PANE_TOP_MARGIN) / sr.glyphSize.Y,
+		W: ((rect.X + rect.W - _PANE_LEFT_MARGIN) / sr.glyphSize.X),
+		H: ((rect.Y + rect.H - _PANE_TOP_MARGIN) / sr.glyphSize.Y),
 	}
 }
 
@@ -57,14 +60,18 @@ func (sr *sdlRender) GetTermSize() *types.XY {
 func (sr *sdlRender) GetWindowSizeCells() *types.XY {
 	x, y, err := sr.renderer.GetOutputSize()
 	if err != nil {
-		panic("i don't know how big the terminal window is")
+		log.Println("i don't know how big the terminal window is")
+		x, y = sr.window.GetSize()
 	}
-	//x, y := sr.window.GetSize()
 
-	return &types.XY{
-		X: ((x - (sr.border * 2)) / sr.glyphSize.X),
-		Y: ((y - (sr.border * 2)) / sr.glyphSize.Y) - sr.footer, // inc footer
+	size := &types.XY{
+		X: ((x - _PANE_LEFT_MARGIN) / sr.glyphSize.X),
+		Y: ((y - _PANE_TOP_MARGIN) / sr.glyphSize.Y) - sr.footer,
 	}
+
+	debug.Log(size)
+
+	return size
 }
 
 ///// resize
@@ -81,8 +88,8 @@ func (sr *sdlRender) ResizeWindow(size *types.XY) {
 }
 
 func (sr *sdlRender) _resizeWindow(size *types.XY) {
-	w := (size.X * sr.glyphSize.X) + (sr.border * 2)
-	h := ((size.Y + sr.footer) * sr.glyphSize.Y) + (sr.border * 2)
+	w := (size.X * sr.glyphSize.X) + _PANE_LEFT_MARGIN              //+ (sr.border * 2)
+	h := ((size.Y + sr.footer) * sr.glyphSize.Y) + _PANE_TOP_MARGIN //+ (sr.border * 2)
 	sr.window.SetSize(w, h)
 	sr.RefreshWindowList()
 }

@@ -9,9 +9,10 @@ type Renderer interface {
 	GetWindowSizeCells() *XY
 	GetGlyphSize() *XY
 	PrintCell(*Cell, *XY)
-	PrintCellBlock([]Cell, *XY)
+	PrintCellBlock([]*Cell, *XY)
 	DrawTable(*XY, int32, []int32)
 	DrawHighlightRect(*XY, *XY)
+	DrawOutputBlockChrome(int32, int32, *Colour, bool)
 	GetWindowTitle() string
 	SetWindowTitle(string)
 	StatusBarText(string)
@@ -27,6 +28,7 @@ type Renderer interface {
 	GetWindowMeta() any
 	ResizeWindow(*XY)
 	SetKeyboardFnMode(KeyboardMode)
+	GetKeyboardModifier() int
 	ClearFontCache()
 	Close()
 }

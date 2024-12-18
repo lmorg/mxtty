@@ -6,6 +6,12 @@ import (
 	"github.com/lmorg/mxtty/types"
 )
 
+func clone[T any](src []T) []T {
+	s := make([]T, len(src))
+	copy(s, src)
+	return s
+}
+
 func (term *Term) CopyRange(topLeft, bottomRight *types.XY) []byte {
 	if topLeft.X < 0 {
 		topLeft.X = 0
@@ -25,13 +31,14 @@ func (term *Term) CopyRange(topLeft, bottomRight *types.XY) []byte {
 	var (
 		ix, iy int
 		x, y   int32
-		cells  = term.visibleScreen()
+		screen = term.visibleScreen()
+		cell   *types.Cell
 		b      []byte
 		line   string
 	)
 
-	for iy = range cells {
-		for ix = range cells[y] {
+	for iy = range screen {
+		for ix, cell = range screen[iy].Cells {
 			x, y = int32(ix), int32(iy)
 			switch {
 			case bottomRight.Y < topLeft.Y: // select up
@@ -41,17 +48,17 @@ func (term *Term) CopyRange(topLeft, bottomRight *types.XY) []byte {
 					(y < topLeft.Y && y > bottomRight.Y) ||
 					// end multiline
 					(x >= bottomRight.X && y == bottomRight.Y) {
-					line += string(cells[y][x].Rune())
+					line += string(cell.Rune())
 				}
 
 			case topLeft.Y == bottomRight.Y: // midline
 				if bottomRight.X < topLeft.X { //backwards
 					if x <= topLeft.X && x >= bottomRight.X && y == topLeft.Y {
-						line += string(cells[y][x].Rune())
+						line += string(cell.Rune())
 					}
 				} else { // forwards
 					if x >= topLeft.X && x <= bottomRight.X && y == topLeft.Y {
-						line += string(cells[y][x].Rune())
+						line += string(cell.Rune())
 					}
 				}
 
@@ -62,7 +69,7 @@ func (term *Term) CopyRange(topLeft, bottomRight *types.XY) []byte {
 					(y > topLeft.Y && y < bottomRight.Y) ||
 					// end multiline
 					(x <= bottomRight.X && y == bottomRight.Y) {
-					line += string(cells[y][x].Rune())
+					line += string(cell.Rune())
 				}
 			}
 		}
@@ -87,13 +94,13 @@ func (term *Term) CopyLines(top, bottom int32) []byte {
 		bottom = term.size.Y
 	}
 
-	cells := term.visibleScreen()
+	screen := term.visibleScreen()
 	var b []byte
 
 	for y := top; y <= bottom; y++ {
 		var line string
-		for x := range cells[y] {
-			line += string(cells[y][x].Rune())
+		for _, cell := range screen[y].Cells {
+			line += string(cell.Rune())
 		}
 		line = strings.TrimRight(line, " ") + "\n"
 		b = append(b, []byte(line)...)
@@ -119,13 +126,13 @@ func (term *Term) CopySquare(begin *types.XY, end *types.XY) []byte {
 		end.Y = term.size.Y
 	}
 
-	cells := term.visibleScreen()
+	screen := term.visibleScreen()
 	var b []byte
 
 	for y := begin.Y; y <= end.Y; y++ {
 		var line string
 		for x := begin.X; x <= end.X; x++ {
-			line += string(cells[y][x].Rune())
+			line += string(screen[y].Cells[x].Rune())
 		}
 		line = strings.TrimRight(line, " ") + "\n"
 		b = append(b, []byte(line)...)

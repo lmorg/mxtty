@@ -67,8 +67,8 @@ func (img *image) Draw(size *types.XY, pos *types.XY) {
 	}
 
 	dstRect := &sdl.Rect{
-		X: img.sr.border + (pos.X * img.sr.glyphSize.X),
-		Y: img.sr.border + (pos.Y * img.sr.glyphSize.Y),
+		X: (pos.X * img.sr.glyphSize.X) + _PANE_LEFT_MARGIN,
+		Y: (pos.Y * img.sr.glyphSize.Y) + _PANE_TOP_MARGIN,
 		W: size.X * img.sr.glyphSize.X,
 		H: size.Y * img.sr.glyphSize.Y,
 	}

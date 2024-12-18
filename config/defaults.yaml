@@ -6,14 +6,19 @@ Terminal:
   TypeFace:
     #FontName: "Hasklig-Regular"
     FontSize: 14
-    Ligatures: true # increases system requirements
-    DropShadow: true
+    #Ligatures: true # increases system requirements
+    #DropShadow: true
     AdjustCellWidth:  0
     AdjustCellHeight: +1
   ScrollbackHistory: 10000 # lines
   ScrollbackCloseKeyPress: true # close scrollback on key press
   JumpScrollLineCount: -1  # lines, 0 is per character, -1 is per page
-  #LightMode: true
+  #LightMode: true # experimental
+  
+  Widgets:
+    Table:
+      ScrollMultiplierX: 2
+      ScrollMultiplierY: 2
 
 
 Window:
