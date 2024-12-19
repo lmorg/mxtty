@@ -28,6 +28,26 @@ func (sr *sdlRender) convertPxToCellXY(x, y int32) *types.XY {
 	return xy
 }
 
+func (sr *sdlRender) convertPxToCellXYNegX(x, y int32) *types.XY {
+	xy := &types.XY{
+		X: (x - _PANE_LEFT_MARGIN) / sr.glyphSize.X,
+		Y: (y - _PANE_TOP_MARGIN) / sr.glyphSize.Y,
+	}
+
+	if xy.X < 0 || x < _PANE_LEFT_MARGIN {
+		xy.X = -1
+	} else if xy.X >= sr.term.GetSize().X {
+		xy.X = sr.term.GetSize().X - 1
+	}
+	if xy.Y < 0 {
+		xy.Y = 0
+	} else if xy.Y >= sr.term.GetSize().Y {
+		xy.Y = sr.term.GetSize().Y - 1
+	}
+
+	return xy
+}
+
 func normaliseRect(rect *sdl.Rect) {
 	if rect.W < 0 {
 		rect.X += rect.W

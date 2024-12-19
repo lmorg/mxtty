@@ -181,7 +181,7 @@ func (tw *termWidgetT) _eventMouseButtonRightClick(sr *sdlRender, posCell *types
 
 	options = append(options,
 		MENU_SEPARATOR,
-		"Zsh integration",
+		"Zsh integration (pasted into shell)",
 	)
 
 	selectCallback := func(i int) {

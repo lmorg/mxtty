@@ -162,11 +162,11 @@ func render(sr *sdlRender) error {
 	x, y := sr.window.GetSize()
 	rect := &sdl.Rect{W: x, H: y}
 	mouseX, mouseY, _ := sdl.GetMouseState()
-	pos := sr.convertPxToCellXY(mouseX, mouseY)
+	posNegX := sr.convertPxToCellXYNegX(mouseX, mouseY)
 
 	sr.drawBg(sr.term, rect)
 	sr.term.Render()
-	sr.term.MousePosition(pos)
+	sr.term.MousePosition(posNegX)
 	sr.renderFooter()
 
 	if sr.highlighter != nil && sr.highlighter.button == 0 {

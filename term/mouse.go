@@ -2,6 +2,7 @@ package virtualterm
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/lmorg/mxtty/debug"
 	"github.com/lmorg/mxtty/types"
@@ -24,7 +25,7 @@ func (term *Term) MouseClick(pos *types.XY, button uint8, clicks uint8, pressed 
 		return
 	}
 
-	if pos != nil && pos.X < 0 {
+	if pos.X < 0 {
 		absPos := int32(len(term._scrollBuf)) - int32(term._scrollOffset) + pos.Y
 
 		if len(screen[pos.Y].Hidden) > 0 {
@@ -157,6 +158,10 @@ func (term *Term) MouseMotion(pos *types.XY, movement *types.XY, callback types.
 }
 
 func (term *Term) MousePosition(pos *types.XY) {
+	if pos.X < 0 {
+		return
+	}
+
 	screen := term.visibleScreen()
 
 	if screen[pos.Y].Cells[pos.X].Element == nil {
@@ -165,7 +170,7 @@ func (term *Term) MousePosition(pos *types.XY) {
 				&types.XY{pos.X, pos.Y},
 				&types.XY{term.size.X - pos.X, height - pos.Y},
 			)
-			term.renderer.StatusBarText("[Click]  Fold branch")
+			term.renderer.StatusBarText("[Click] Fold branch")
 		}
 	}
 }
@@ -177,6 +182,10 @@ func (term *Term) _mousePositionCodeFoldable(screen types.Screen, pos *types.XY)
 
 	if screen[pos.Y].Cells[pos.X].Char == ' ' {
 		return -1
+	}
+
+	if pos.X > 0 && screen[pos.Y].Cells[pos.X-1].Char != ' ' {
+		pos.X--
 	}
 
 	for x := pos.X - 1; x >= 0; x-- {
@@ -194,6 +203,10 @@ func (term *Term) _mousePositionCodeFoldable(screen types.Screen, pos *types.XY)
 	}
 
 	height = height - absPos.Y + pos.Y
+
+	if height-pos.Y == 2 && strings.TrimSpace(string(*screen[height-1].Phrase)) == "" {
+		return -1
+	}
 
 	return height
 }
