@@ -15,7 +15,7 @@ const (
 	version  = "%d.%d.%d"
 	Major    = 0
 	Minor    = 3
-	Revision = 1100
+	Revision = 1200
 )
 
 const Title = "mxtty - Multimedia Terminal Emulator"

@@ -16,7 +16,7 @@ var (
 
 type inputBoxCallbackT func(string)
 
-type inputBoxT struct {
+type inputBoxWidgetT struct {
 	title      string
 	callback   inputBoxCallbackT
 	value      string
@@ -24,7 +24,7 @@ type inputBoxT struct {
 }
 
 func (sr *sdlRender) DisplayInputBox(title string, defaultValue string, callback func(string)) {
-	sr.inputBox = &inputBoxT{
+	sr.inputBox = &inputBoxWidgetT{
 		title:    title,
 		value:    defaultValue,
 		callback: callback,
@@ -41,11 +41,11 @@ func (sr *sdlRender) closeInputBox() {
 	sr.term.ShowCursor(true)
 }
 
-func (inputBox *inputBoxT) eventTextInput(sr *sdlRender, evt *sdl.TextInputEvent) {
+func (inputBox *inputBoxWidgetT) eventTextInput(sr *sdlRender, evt *sdl.TextInputEvent) {
 	inputBox.value += evt.GetText()
 }
 
-func (inputBox *inputBoxT) eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) {
+func (inputBox *inputBoxWidgetT) eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) {
 	mod := keyEventModToCodesModifier(evt.Keysym.Mod)
 	switch evt.Keysym.Sym {
 	case sdl.K_ESCAPE:
@@ -66,15 +66,15 @@ func (inputBox *inputBoxT) eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) 
 	}
 }
 
-func (inputBox *inputBoxT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEvent) {
+func (inputBox *inputBoxWidgetT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEvent) {
 	// do nothing
 }
 
-func (inputBox *inputBoxT) eventMouseWheel(sr *sdlRender, evt *sdl.MouseWheelEvent) {
+func (inputBox *inputBoxWidgetT) eventMouseWheel(sr *sdlRender, evt *sdl.MouseWheelEvent) {
 	// do nothing
 }
 
-func (inputBox *inputBoxT) eventMouseMotion(sr *sdlRender, evt *sdl.MouseMotionEvent) {
+func (inputBox *inputBoxWidgetT) eventMouseMotion(sr *sdlRender, evt *sdl.MouseMotionEvent) {
 	// do nothing
 }
 
@@ -270,7 +270,7 @@ func (sr *sdlRender) renderInputBox(windowRect *sdl.Rect) {
 	}
 }
 
-func (inputBox *inputBoxT) inputBoxCursorBlink(sr *sdlRender) {
+func (inputBox *inputBoxWidgetT) inputBoxCursorBlink(sr *sdlRender) {
 	for {
 		time.Sleep(500 * time.Millisecond)
 		inputBox.blinkState = !inputBox.blinkState

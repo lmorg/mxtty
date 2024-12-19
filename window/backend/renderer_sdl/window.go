@@ -25,6 +25,8 @@ func (sr *sdlRender) ShowAndFocusWindow() {
 	defer sr.window.Raise()
 	defer sr.window.Show()
 
+	sr.hidden = false
+
 	displayNum := screenUnderCursor()
 	if displayNum == -1 {
 		return
@@ -51,6 +53,7 @@ func (sr *sdlRender) ShowAndFocusWindow() {
 
 func (sr *sdlRender) hideWindow() {
 	sr.window.Hide()
+	sr.hidden = true
 }
 
 func screenUnderCursor() int {

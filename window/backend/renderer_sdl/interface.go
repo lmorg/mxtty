@@ -57,18 +57,20 @@ type sdlRender struct {
 
 	// widgets
 	termWidget  *termWidgetT
-	highlighter *highlighterT
-	inputBox    *inputBoxT
-	menu        *menuT
+	highlighter *highlightWidgetT
+	inputBox    *inputBoxWidgetT
+	menu        *menuWidgetT
 
 	// render function stacks
 	_elementStack []*layer.RenderStackT
 	_overlayStack []*layer.RenderStackT
+	contextMenu   contextMenuT
 
 	// state
 	keyboardMode keyboardModeT
 	keyModifier  uint16
 	keyIgnore    chan bool
+	hidden       bool
 
 	// hotkey
 	hk       *hotkey.Hotkey
@@ -79,6 +81,23 @@ type sdlRender struct {
 	footerText string
 	windowTabs *tabListT
 }
+
+type menuItemT struct {
+	title string
+	fn    func()
+}
+
+type contextMenuT []menuItemT
+
+func (cm *contextMenuT) Options() []string {
+	slice := make([]string, len(*cm))
+	for i := range *cm {
+		slice[i] = (*cm)[i].title
+	}
+	return slice
+}
+
+func (cm *contextMenuT) Callback(i int) { (*cm)[i].fn() }
 
 type tabListT struct {
 	windows    []*tmux.WINDOW_T

@@ -167,50 +167,64 @@ func (tw *termWidgetT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEvent
 }
 
 func (tw *termWidgetT) _eventMouseButtonRightClick(sr *sdlRender, posCell *types.XY) {
-	options := []string{
-		fmt.Sprintf("Paste text from clipboard [%s+v]", types.KEY_STR_META),
-		MENU_SEPARATOR,
-		"Fold on indentation",
-		"Match bracket",
-		"Search text [F3]",
-	}
-
-	if sr.tmux != nil {
-		options = append(options, MENU_SEPARATOR, "List tmux hotkeys")
-	}
-
-	options = append(options,
-		MENU_SEPARATOR,
-		"Zsh integration (pasted into shell)",
-	)
-
-	selectCallback := func(i int) {
-		switch i {
-		case 0:
-			sr.clipboardPasteText()
-		case 1:
-			// ---
-		case 2:
-			err := sr.term.FoldAtIndent(posCell)
-			if err != nil {
-				sr.DisplayNotification(types.NOTIFY_WARN, err.Error())
-			}
-		case 3:
-			sr.term.Match(posCell)
-		case 4:
-			sr.term.Search()
-		case 5:
-			// ---
-		case 6:
-			sr.tmux.ListKeyBindings()
-		case 7:
-			// ---
-		case 8:
-			sr.term.Reply(integrations.Get("shell.zsh"))
+	fnFoldAtIndent := func() {
+		err := sr.term.FoldAtIndent(posCell)
+		if err != nil {
+			sr.DisplayNotification(types.NOTIFY_WARN, err.Error())
 		}
 	}
 
-	sr.DisplayMenu("Select an action", options, nil, selectCallback, nil)
+	menu := contextMenuT{
+		{
+			title: fmt.Sprintf("Paste text from clipboard [%s+v]", types.KEY_STR_META),
+			fn:    sr.clipboardPasteText,
+		},
+		{
+			title: MENU_SEPARATOR,
+		},
+		{
+			title: "Fold on indentation",
+			fn:    fnFoldAtIndent,
+		},
+		{
+			title: "Match bracket",
+			fn:    func() { sr.term.Match(posCell) },
+		},
+		{
+			title: "Search text [F3]",
+			fn:    sr.term.Search,
+		},
+	}
+
+	if sr.tmux != nil {
+		menu = append(menu,
+			menuItemT{
+				title: MENU_SEPARATOR,
+			},
+			menuItemT{
+				title: "List tmux hotkeys",
+				fn:    sr.tmux.ListKeyBindings,
+			},
+		)
+	}
+
+	// insert other defined actions
+
+	menu = append(menu,
+		menuItemT{
+			title: MENU_SEPARATOR,
+		},
+		menuItemT{
+			title: "Bash integration (pasted into shell)",
+			fn:    func() { sr.term.Reply(integrations.Get("shell.bash")) },
+		},
+		menuItemT{
+			title: "Zsh integration (pasted into shell)",
+			fn:    func() { sr.term.Reply(integrations.Get("shell.zsh")) },
+		},
+	)
+
+	sr.DisplayMenu("Select an action", menu.Options(), nil, menu.Callback, nil)
 }
 
 var _highlighterStartFooterText = fmt.Sprintf(
@@ -221,7 +235,7 @@ var _highlighterStartFooterText = fmt.Sprintf(
 func highlighterStart(sr *sdlRender, evt *sdl.MouseButtonEvent) {
 	sr.footerText = _highlighterStartFooterText
 
-	sr.highlighter = &highlighterT{
+	sr.highlighter = &highlightWidgetT{
 		button: evt.Button,
 		rect:   &sdl.Rect{X: evt.X, Y: evt.Y},
 	}

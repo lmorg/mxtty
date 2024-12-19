@@ -23,17 +23,17 @@ const (
 	_HIGHLIGHT_MODE_LINE_RANGE
 )
 
-type highlighterT struct {
+type highlightWidgetT struct {
 	button uint8
 	rect   *sdl.Rect
 	mode   _highlightMode
 }
 
-func (hl *highlighterT) eventTextInput(sr *sdlRender, evt *sdl.TextInputEvent) {
+func (hl *highlightWidgetT) eventTextInput(sr *sdlRender, evt *sdl.TextInputEvent) {
 	// do nothing
 }
 
-func (hl *highlighterT) eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) {
+func (hl *highlightWidgetT) eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) {
 	if evt.Keysym.Sym == sdl.K_ESCAPE {
 		sr.highlighter = nil
 		sdl.SetCursor(sdl.CreateSystemCursor(sdl.SYSTEM_CURSOR_ARROW))
@@ -43,7 +43,7 @@ func (hl *highlighterT) eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) {
 	hl.modifier(evt.Keysym.Mod)
 }
 
-func (hl *highlighterT) modifier(mod uint16) {
+func (hl *highlightWidgetT) modifier(mod uint16) {
 	switch {
 	case mod&sdl.KMOD_CTRL != 0:
 		fallthrough
@@ -75,7 +75,7 @@ func (hl *highlighterT) modifier(mod uint16) {
 	}
 }
 
-func (hl *highlighterT) setMode(mode _highlightMode) {
+func (hl *highlightWidgetT) setMode(mode _highlightMode) {
 	hl.mode = mode
 	switch mode {
 	case _HIGHLIGHT_MODE_LINE_RANGE:
@@ -85,7 +85,7 @@ func (hl *highlighterT) setMode(mode _highlightMode) {
 	}
 }
 
-func (hl *highlighterT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEvent) {
+func (hl *highlightWidgetT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEvent) {
 	if evt.State == sdl.RELEASED {
 		sr.StatusBarText("")
 		sr.term.MouseClick(nil, 0, 0, false, func() {})
@@ -138,11 +138,11 @@ func (hl *highlighterT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEven
 	}
 }
 
-func (hl *highlighterT) eventMouseWheel(sr *sdlRender, evt *sdl.MouseWheelEvent) {
+func (hl *highlightWidgetT) eventMouseWheel(sr *sdlRender, evt *sdl.MouseWheelEvent) {
 	// do nothing
 }
 
-func (hl *highlighterT) eventMouseMotion(sr *sdlRender, evt *sdl.MouseMotionEvent) {
+func (hl *highlightWidgetT) eventMouseMotion(sr *sdlRender, evt *sdl.MouseMotionEvent) {
 	hl.rect.W += evt.XRel
 	hl.rect.H += evt.YRel
 	sr.TriggerRedraw()

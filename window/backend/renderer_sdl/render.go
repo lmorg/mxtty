@@ -67,7 +67,6 @@ func (sr *sdlRender) eventLoop() {
 			if err != nil {
 				log.Printf("ERROR: %s", err.Error())
 			}
-			sr.limiter.Unlock()
 
 		case <-sr.pollEventHotkey():
 			sr.eventHotkey()
@@ -159,6 +158,13 @@ func (sr *sdlRender) renderStack(stack *[]*layer.RenderStackT) {
 }
 
 func render(sr *sdlRender) error {
+	defer sr.limiter.Unlock()
+
+	if sr.hidden {
+		// window hidden
+		return nil
+	}
+
 	x, y := sr.window.GetSize()
 	rect := &sdl.Rect{W: x, H: y}
 	mouseX, mouseY, _ := sdl.GetMouseState()

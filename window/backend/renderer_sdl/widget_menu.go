@@ -13,7 +13,7 @@ import (
 
 const MENU_SEPARATOR = "-"
 
-type menuT struct {
+type menuWidgetT struct {
 	options           []string
 	title             string
 	highlightIndex    int
@@ -44,7 +44,7 @@ func (sr *sdlRender) DisplayMenu(title string, options []string, highlightCallba
 	}
 
 	sr.footerText = "[Up/Down] Highlight  |  [Return] Choose  |  [Esc] Cancel"
-	sr.menu = &menuT{
+	sr.menu = &menuWidgetT{
 		title:             title,
 		options:           options,
 		hidden:            make([]bool, len(options)),
@@ -70,7 +70,7 @@ func (sr *sdlRender) closeMenu() {
 	sr.menu = nil
 }
 
-func (menu *menuT) eventTextInput(sr *sdlRender, evt *sdl.TextInputEvent) {
+func (menu *menuWidgetT) eventTextInput(sr *sdlRender, evt *sdl.TextInputEvent) {
 	menu.filter += evt.GetText()
 
 	if menu.highlightIndex < 0 {
@@ -82,7 +82,7 @@ func (menu *menuT) eventTextInput(sr *sdlRender, evt *sdl.TextInputEvent) {
 	}
 }
 
-func (menu *menuT) eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) {
+func (menu *menuWidgetT) eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) {
 	mod := keyEventModToCodesModifier(evt.Keysym.Mod)
 
 	var adjust int
@@ -144,7 +144,7 @@ func (menu *menuT) eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) {
 	menu.highlightCallback(menu.highlightIndex)
 }
 
-func (menu *menuT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEvent) {
+func (menu *menuWidgetT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEvent) {
 	if evt.Button != 1 || evt.State != sdl.RELEASED {
 		return
 	}
@@ -157,11 +157,11 @@ func (menu *menuT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEvent) {
 	menu.selectCallback(menu.highlightIndex)
 }
 
-func (menu *menuT) eventMouseWheel(sr *sdlRender, evt *sdl.MouseWheelEvent) {
+func (menu *menuWidgetT) eventMouseWheel(sr *sdlRender, evt *sdl.MouseWheelEvent) {
 	// do nothing
 }
 
-func (menu *menuT) eventMouseMotion(sr *sdlRender, evt *sdl.MouseMotionEvent) {
+func (menu *menuWidgetT) eventMouseMotion(sr *sdlRender, evt *sdl.MouseMotionEvent) {
 	i := menu._mouseHover(evt.X, evt.Y, sr.glyphSize)
 	if i == -1 {
 		return
@@ -176,7 +176,7 @@ func (menu *menuT) eventMouseMotion(sr *sdlRender, evt *sdl.MouseMotionEvent) {
 	menu.highlightCallback(menu.highlightIndex)
 }
 
-func (menu *menuT) _mouseHover(x, y int32, glyphSize *types.XY) int {
+func (menu *menuWidgetT) _mouseHover(x, y int32, glyphSize *types.XY) int {
 	if x < menu.mouseRect.X || x > menu.mouseRect.X+menu.mouseRect.W {
 		return -1
 	}
@@ -453,7 +453,7 @@ func (sr *sdlRender) renderMenu(windowRect *sdl.Rect) {
 	sr._drawHighlightRect(&rect, highlightAlphaBorder, highlightAlphaBorder-20)
 }
 
-func (menu *menuT) _renderInputBox(sr *sdlRender, surface *sdl.Surface, windowRect, rect *sdl.Rect) {
+func (menu *menuWidgetT) _renderInputBox(sr *sdlRender, surface *sdl.Surface, windowRect, rect *sdl.Rect) {
 	texture := sr.createRendererTexture()
 	if texture == nil {
 		return
@@ -526,7 +526,7 @@ func (menu *menuT) _renderInputBox(sr *sdlRender, surface *sdl.Surface, windowRe
 	}
 }
 
-func (menu *menuT) cursorBlink(sr *sdlRender) {
+func (menu *menuWidgetT) cursorBlink(sr *sdlRender) {
 	for {
 		time.Sleep(500 * time.Millisecond)
 		menu.blinkState = !menu.blinkState
