@@ -172,13 +172,6 @@ func (tw *termWidgetT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEvent
 }
 
 func (tw *termWidgetT) _eventMouseButtonRightClick(sr *sdlRender, posCell *types.XY) {
-	fnFoldAtIndent := func() {
-		err := sr.term.FoldAtIndent(posCell)
-		if err != nil {
-			sr.DisplayNotification(types.NOTIFY_WARN, err.Error())
-		}
-	}
-
 	menu := contextMenuT{
 		{
 			Title: fmt.Sprintf("Paste text from clipboard [%s+v]", types.KEY_STR_META),
@@ -189,7 +182,12 @@ func (tw *termWidgetT) _eventMouseButtonRightClick(sr *sdlRender, posCell *types
 		},
 		{
 			Title: "Fold on indentation",
-			Fn:    fnFoldAtIndent,
+			Fn: func() {
+				err := sr.term.FoldAtIndent(posCell)
+				if err != nil {
+					sr.DisplayNotification(types.NOTIFY_WARN, err.Error())
+				}
+			},
 		},
 		//{
 		//	Title: "Match bracket",
@@ -232,7 +230,7 @@ func (tw *termWidgetT) _eventMouseButtonRightClick(sr *sdlRender, posCell *types
 		},
 	)
 
-	sr.DisplayMenu("Select an action", menu.Options(), nil, menu.Callback, nil)
+	sr.DisplayMenuUnderCursor("Select an action", menu.Options(), nil, menu.Callback, nil)
 }
 
 var _highlighterStartFooterText = fmt.Sprintf(

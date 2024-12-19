@@ -21,6 +21,7 @@ type menuWidgetT struct {
 	selectCallback    types.MenuCallbackT
 	cancelCallback    types.MenuCallbackT
 	mouseRect         sdl.Rect
+	pos               *types.XY
 	maxLen            int32
 	filter            string
 	hidden            []bool
@@ -46,6 +47,12 @@ func (cm *contextMenuT) Callback(i int) { (*cm)[i].Fn() }
 
 func (sr *sdlRender) AddToContextMenu(menuItems ...types.MenuItem) {
 	sr.contextMenu = append(sr.contextMenu, menuItems...)
+}
+
+func (sr *sdlRender) DisplayMenuUnderCursor(title string, options []string, highlightCallback, selectCallback, cancelCallback types.MenuCallbackT) {
+	sr.DisplayMenu(title, options, highlightCallback, selectCallback, cancelCallback)
+	x, y, _ := sdl.GetMouseState()
+	sr.menu.pos = &types.XY{X: x, Y: y}
 }
 
 func (sr *sdlRender) DisplayMenu(title string, options []string, highlightCallback, selectCallback, cancelCallback types.MenuCallbackT) {
@@ -161,11 +168,19 @@ func (menu *menuWidgetT) eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) {
 }
 
 func (menu *menuWidgetT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEvent) {
-	if evt.Button != 1 || evt.State != sdl.RELEASED {
+	if evt.State != sdl.RELEASED {
 		return
 	}
+	if evt.Button != 1 {
+		sr.closeMenu()
+		menu.cancelCallback(menu.highlightIndex)
+		return
+	}
+
 	i := menu._mouseHover(evt.X, evt.Y, sr.glyphSize)
 	if i == -1 {
+		sr.closeMenu()
+		menu.cancelCallback(menu.highlightIndex)
 		return
 	}
 
@@ -233,9 +248,19 @@ func (sr *sdlRender) renderMenu(windowRect *sdl.Rect) {
 	}
 	height := (sr.glyphSize.Y * int32(len(sr.menu.options))) + (_WIDGET_OUTER_MARGIN * 2) + sr.notifyIconSize.Y
 	width := (glyphX * maxLen) + (_WIDGET_OUTER_MARGIN * 3)
+
+	var x, y int32
+	if sr.menu.pos != nil {
+		x = sr.menu.pos.X
+		y = sr.menu.pos.Y
+	} else {
+		x = (windowRect.W - width) / 2
+		y = (windowRect.H - height) / 2
+	}
+
 	menuRect := sdl.Rect{
-		X: (windowRect.W - width) / 2,
-		Y: (windowRect.H - height) / 2,
+		X: x,
+		Y: y,
 		W: width,
 		H: height,
 	}
