@@ -32,6 +32,22 @@ const (
 	_MENU_HIGHLIGHT_INIT   = -1
 )
 
+type contextMenuT []types.MenuItem
+
+func (cm *contextMenuT) Options() []string {
+	slice := make([]string, len(*cm))
+	for i := range *cm {
+		slice[i] = (*cm)[i].Title
+	}
+	return slice
+}
+
+func (cm *contextMenuT) Callback(i int) { (*cm)[i].Fn() }
+
+func (sr *sdlRender) AddToContextMenu(menuItems ...types.MenuItem) {
+	sr.contextMenu = append(sr.contextMenu, menuItems...)
+}
+
 func (sr *sdlRender) DisplayMenu(title string, options []string, highlightCallback, selectCallback, cancelCallback types.MenuCallbackT) {
 	if highlightCallback == nil {
 		highlightCallback = func(_ int) {}
@@ -349,7 +365,7 @@ func (sr *sdlRender) renderMenu(windowRect *sdl.Rect) {
 			// draw horizontal separator
 			sr.renderer.SetDrawColor(255, 255, 255, 50)
 			rect = sdl.Rect{
-				X: menuRect.X + _WIDGET_OUTER_MARGIN + _WIDGET_INNER_MARGIN,
+				X: menuRect.X + _WIDGET_OUTER_MARGIN + _WIDGET_OUTER_MARGIN,
 				Y: menuRect.Y + offset + 2 + (sr.glyphSize.Y * int32(i)) + ((sr.glyphSize.Y / 2) - 4),
 				W: width - _WIDGET_OUTER_MARGIN - _WIDGET_OUTER_MARGIN,
 				H: 4,

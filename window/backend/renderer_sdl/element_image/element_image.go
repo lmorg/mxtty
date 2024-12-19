@@ -1,10 +1,14 @@
 package elementImage
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"image/png"
 
 	"github.com/lmorg/mxtty/types"
+	"golang.design/x/clipboard"
+	"golang.org/x/image/bmp"
 )
 
 type ElementImage struct {
@@ -86,15 +90,28 @@ func (el *ElementImage) Close() {
 	el.image.Close()
 }
 
-func (el *ElementImage) MouseClick(_ *types.XY, button uint8, _ uint8, callback types.EventIgnoredCallback) {
-	if button != 1 {
+func (el *ElementImage) MouseClick(_ *types.XY, button uint8, _ uint8, pressed bool, callback types.EventIgnoredCallback) {
+	if pressed {
 		callback()
 		return
 	}
 
-	err := el.fullscreen()
-	if err != nil {
-		el.renderer.DisplayNotification(types.NOTIFY_ERROR, "Unable to go fullscreen: "+err.Error())
+	switch button {
+	case 1:
+		err := el.fullscreen()
+		if err != nil {
+			el.renderer.DisplayNotification(types.NOTIFY_ERROR, "Unable to go fullscreen: "+err.Error())
+		}
+
+	case 3:
+		el.renderer.AddToContextMenu(types.MenuItem{
+			Title: "Copy image to clipboard",
+			Fn:    el.copyImageToClipboard,
+		})
+		callback()
+
+	default:
+		callback()
 	}
 }
 
@@ -107,4 +124,23 @@ func (el *ElementImage) MouseMotion(_ *types.XY, _ *types.XY, callback types.Eve
 }
 func (el *ElementImage) MouseOut() {
 	el.renderer.StatusBarText("")
+}
+
+func (el *ElementImage) copyImageToClipboard() {
+	bufBmp := bytes.NewBuffer(el.bmp)
+	img, err := bmp.Decode(bufBmp)
+	if err != nil {
+		el.renderer.DisplayNotification(types.NOTIFY_ERROR, fmt.Sprintf("Could not copy to clipboard: %s", err.Error()))
+		return
+	}
+
+	var bufPng bytes.Buffer
+	err = png.Encode(&bufPng, img)
+	if err != nil {
+		el.renderer.DisplayNotification(types.NOTIFY_ERROR, fmt.Sprintf("Could not copy to clipboard: %s", err.Error()))
+		return
+	}
+
+	clipboard.Write(clipboard.FmtImage, bufPng.Bytes())
+	el.renderer.DisplayNotification(types.NOTIFY_INFO, "Copied to clipboard as PNG")
 }

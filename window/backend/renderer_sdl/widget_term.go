@@ -159,8 +159,9 @@ func (tw *termWidgetT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEvent
 		}
 
 	case _MOUSE_BUTTON_RIGHT:
+		sr.contextMenu = make(contextMenuT, 0) // empty the context menu
 		sr.term.MouseClick(posCell, evt.Button, evt.Clicks, state, func() {
-			if !state {
+			if evt.State == sdl.RELEASED {
 				tw._eventMouseButtonRightClick(sr, posCell)
 			}
 		})
@@ -180,51 +181,54 @@ func (tw *termWidgetT) _eventMouseButtonRightClick(sr *sdlRender, posCell *types
 
 	menu := contextMenuT{
 		{
-			title: fmt.Sprintf("Paste text from clipboard [%s+v]", types.KEY_STR_META),
-			fn:    sr.clipboardPasteText,
+			Title: fmt.Sprintf("Paste text from clipboard [%s+v]", types.KEY_STR_META),
+			Fn:    sr.clipboardPasteText,
 		},
 		{
-			title: MENU_SEPARATOR,
+			Title: MENU_SEPARATOR,
 		},
 		{
-			title: "Fold on indentation",
-			fn:    fnFoldAtIndent,
+			Title: "Fold on indentation",
+			Fn:    fnFoldAtIndent,
 		},
+		//{
+		//	Title: "Match bracket",
+		//	Fn:    func() { sr.term.Match(posCell) },
+		//},
 		{
-			title: "Match bracket",
-			fn:    func() { sr.term.Match(posCell) },
-		},
-		{
-			title: "Search text [F3]",
-			fn:    sr.term.Search,
+			Title: "Search text [F3]",
+			Fn:    sr.term.Search,
 		},
 	}
 
 	if sr.tmux != nil {
 		menu = append(menu,
-			menuItemT{
-				title: MENU_SEPARATOR,
+			types.MenuItem{
+				Title: MENU_SEPARATOR,
 			},
-			menuItemT{
-				title: "List tmux hotkeys",
-				fn:    sr.tmux.ListKeyBindings,
+			types.MenuItem{
+				Title: "List tmux hotkeys",
+				Fn:    sr.tmux.ListKeyBindings,
 			},
 		)
 	}
 
-	// insert other defined actions
+	if len(sr.contextMenu) > 0 {
+		menu = append(menu, types.MenuItem{Title: MENU_SEPARATOR})
+		menu = append(menu, sr.contextMenu...)
+	}
 
 	menu = append(menu,
-		menuItemT{
-			title: MENU_SEPARATOR,
+		types.MenuItem{
+			Title: MENU_SEPARATOR,
 		},
-		menuItemT{
-			title: "Bash integration (pasted into shell)",
-			fn:    func() { sr.term.Reply(integrations.Get("shell.bash")) },
+		types.MenuItem{
+			Title: "Bash integration (pasted into shell)",
+			Fn:    func() { sr.term.Reply(integrations.Get("shell.bash")) },
 		},
-		menuItemT{
-			title: "Zsh integration (pasted into shell)",
-			fn:    func() { sr.term.Reply(integrations.Get("shell.zsh")) },
+		types.MenuItem{
+			Title: "Zsh integration (pasted into shell)",
+			Fn:    func() { sr.term.Reply(integrations.Get("shell.zsh")) },
 		},
 	)
 
