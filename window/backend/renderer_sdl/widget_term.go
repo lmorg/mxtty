@@ -147,12 +147,16 @@ func (tw *termWidgetT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEvent
 	switch evt.Button {
 	case _MOUSE_BUTTON_LEFT:
 		sr.term.MouseClick(posCell, evt.Button, evt.Clicks, state, func() {
-			highlighterStart(sr, evt)
-			sr.highlighter.setMode(_HIGHLIGHT_MODE_LINE_RANGE)
+			if evt.State == sdl.PRESSED {
+				highlighterStart(sr, evt)
+				sr.highlighter.setMode(_HIGHLIGHT_MODE_LINE_RANGE)
+			}
 		})
 
 	case _MOUSE_BUTTON_MIDDLE:
-		sr.term.MouseClick(posCell, evt.Button, evt.Clicks, state, sr.clipboardPasteText)
+		if evt.State == sdl.PRESSED {
+			sr.term.MouseClick(posCell, evt.Button, evt.Clicks, state, sr.clipboardPasteText)
+		}
 
 	case _MOUSE_BUTTON_RIGHT:
 		sr.term.MouseClick(posCell, evt.Button, evt.Clicks, state, func() {
