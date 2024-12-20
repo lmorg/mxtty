@@ -23,7 +23,7 @@ func (sr *sdlRender) DrawTable(pos *types.XY, height int32, boundaries []int32) 
 
 	X := (pos.X * sr.glyphSize.X) + _PANE_LEFT_MARGIN
 	Y := (pos.Y * sr.glyphSize.Y) + _PANE_TOP_MARGIN
-	H := Y + ((height + 1) * sr.glyphSize.Y) //- 1
+	H := Y + ((height + 1) * sr.glyphSize.Y) - 1
 
 	err = sr.renderer.DrawLine(X, Y, X, H)
 	if err != nil {
@@ -32,7 +32,7 @@ func (sr *sdlRender) DrawTable(pos *types.XY, height int32, boundaries []int32) 
 	}
 
 	for i := range boundaries {
-		x := X + (boundaries[i] * sr.glyphSize.X) //- 1
+		x := X + (boundaries[i] * sr.glyphSize.X) - 1
 		err = sr.renderer.DrawLine(x, Y, x, H)
 		if err != nil {
 			log.Printf("ERROR: %s", err.Error())
@@ -40,8 +40,8 @@ func (sr *sdlRender) DrawTable(pos *types.XY, height int32, boundaries []int32) 
 		}
 	}
 
-	x := X + (boundaries[len(boundaries)-1] * sr.glyphSize.X) //- 1
-	y := Y + ((height + 1) * sr.glyphSize.Y)                  //- 1
+	x := X + (boundaries[len(boundaries)-1] * sr.glyphSize.X) - 1
+	y := Y + ((height + 1) * sr.glyphSize.Y) - 1
 	err = sr.renderer.DrawLine(X, y, x, y)
 	if err != nil {
 		log.Printf("ERROR: %s", err.Error())
@@ -51,7 +51,7 @@ func (sr *sdlRender) DrawTable(pos *types.XY, height int32, boundaries []int32) 
 	sr.renderer.SetDrawColor(fg.Red, fg.Green, fg.Blue, 100)
 
 	for i := int32(0); i <= height; i++ {
-		y = Y + (i * sr.glyphSize.Y) //- 1
+		y = Y + (i * sr.glyphSize.Y) - 1
 		err = sr.renderer.DrawLine(X, y, x, y)
 		if err != nil {
 			log.Printf("ERROR: %s", err.Error())
@@ -75,10 +75,28 @@ func (sr *sdlRender) DrawHighlightRect(topLeftCell, bottomRightCell *types.XY) {
 			W: (bottomRightCell.X * sr.glyphSize.X),
 			H: (bottomRightCell.Y * sr.glyphSize.Y),
 		},
+		highlightBorder, highlightFill,
 		highlightAlphaBorder, highlightAlphaFill)
 }
 
-func (sr *sdlRender) _drawHighlightRect(rect *sdl.Rect, alphaBorder, alphaFill byte) {
+func (sr *sdlRender) DrawRectWithColour(topLeftCell, bottomRightCell *types.XY, colour *types.Colour, incLeftMargin bool) {
+	leftMargin := _PANE_LEFT_MARGIN
+	if incLeftMargin {
+		leftMargin = _PANE_LEFT_MARGIN_OUTER
+	}
+
+	sr._drawHighlightRect(
+		&sdl.Rect{
+			X: (topLeftCell.X * sr.glyphSize.X) + leftMargin,
+			Y: (topLeftCell.Y * sr.glyphSize.Y) + _PANE_TOP_MARGIN,
+			W: (bottomRightCell.X * sr.glyphSize.X) + _PANE_LEFT_MARGIN - leftMargin,
+			H: (bottomRightCell.Y * sr.glyphSize.Y),
+		},
+		colour, colour,
+		highlightAlphaBorder, highlightAlphaFill)
+}
+
+func (sr *sdlRender) _drawHighlightRect(rect *sdl.Rect, colourBorder, colourFill *types.Colour, alphaBorder, alphaFill byte) {
 	texture := sr.createRendererTexture()
 	if texture == nil {
 		return
@@ -90,7 +108,7 @@ func (sr *sdlRender) _drawHighlightRect(rect *sdl.Rect, alphaBorder, alphaFill b
 		log.Printf("ERROR: %v", err)
 	}
 
-	_ = sr.renderer.SetDrawColor(highlightBorder.Red, highlightBorder.Green, highlightBorder.Blue, alphaBorder)
+	_ = sr.renderer.SetDrawColor(colourBorder.Red, colourBorder.Green, colourBorder.Blue, alphaBorder)
 	rect.X -= 1
 	rect.Y -= 1
 	rect.W += 2
@@ -105,7 +123,7 @@ func (sr *sdlRender) _drawHighlightRect(rect *sdl.Rect, alphaBorder, alphaFill b
 
 	// fill background
 
-	_ = sr.renderer.SetDrawColor(highlightFill.Red, highlightFill.Green, highlightFill.Blue, alphaFill)
+	_ = sr.renderer.SetDrawColor(colourFill.Red, colourFill.Green, colourFill.Blue, alphaFill)
 	rect.X += 1
 	rect.Y += 1
 	rect.W -= 2
@@ -120,7 +138,6 @@ func (sr *sdlRender) DrawOutputBlockChrome(start, n int32, c *types.Colour, fold
 	if texture == nil {
 		return
 	}
-	//defer sr.restoreRendererTexture()
 	defer sr.renderer.SetRenderTarget(nil)
 	defer sr.AddToOverlayStack(&layer.RenderStackT{texture, nil, nil, true})
 
@@ -132,7 +149,7 @@ func (sr *sdlRender) DrawOutputBlockChrome(start, n int32, c *types.Colour, fold
 	}
 
 	if folded {
-		rect.W += _PANE_LEFT_MARGIN_INNER
+		rect.W = _PANE_BLOCK_FOLDED
 	}
 
 	_ = sr.renderer.SetDrawColor(c.Red, c.Green, c.Blue, 192)

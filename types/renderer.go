@@ -17,6 +17,7 @@ type Renderer interface {
 	PrintCellBlock([]*Cell, *XY)
 	DrawTable(*XY, int32, []int32)
 	DrawHighlightRect(*XY, *XY)
+	DrawRectWithColour(*XY, *XY, *Colour, bool)
 	DrawOutputBlockChrome(int32, int32, *Colour, bool)
 	GetWindowTitle() string
 	SetWindowTitle(string)

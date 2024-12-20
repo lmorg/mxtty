@@ -6,6 +6,7 @@ import (
 
 	"github.com/lmorg/mxtty/codes"
 	"github.com/lmorg/mxtty/types"
+	"github.com/lmorg/mxtty/window/backend/cursor"
 	"github.com/lmorg/mxtty/window/backend/renderer_sdl/layer"
 	"github.com/veandco/go-sdl2/sdl"
 	"github.com/veandco/go-sdl2/ttf"
@@ -84,16 +85,18 @@ func (sr *sdlRender) DisplayMenu(title string, options []string, highlightCallba
 	}
 
 	sr.term.ShowCursor(false)
+	cursor.Arrow()
 	go sr.menu.cursorBlink(sr)
 }
 
 func (sr *sdlRender) closeMenu() {
 	sr.footerText = ""
 	sr.term.ShowCursor(true)
+	cursor.Arrow()
 	sr.menu = nil
 }
 
-func (menu *menuWidgetT) eventTextInput(sr *sdlRender, evt *sdl.TextInputEvent) {
+func (menu *menuWidgetT) eventTextInput(_ *sdlRender, evt *sdl.TextInputEvent) {
 	menu.filter += evt.GetText()
 
 	if menu.highlightIndex < 0 {
@@ -195,13 +198,16 @@ func (menu *menuWidgetT) eventMouseWheel(sr *sdlRender, evt *sdl.MouseWheelEvent
 func (menu *menuWidgetT) eventMouseMotion(sr *sdlRender, evt *sdl.MouseMotionEvent) {
 	i := menu._mouseHover(evt.X, evt.Y, sr.glyphSize)
 	if i == -1 {
+		cursor.Arrow()
 		return
 	}
 
 	if menu.hidden[i] || menu.options[i] == MENU_SEPARATOR {
+		cursor.Arrow()
 		return
 	}
 
+	cursor.Hand()
 	menu.highlightIndex = i
 	sr.TriggerRedraw()
 	menu.highlightCallback(menu.highlightIndex)
@@ -491,7 +497,7 @@ func (sr *sdlRender) renderMenu(windowRect *sdl.Rect) {
 		W: width - _WIDGET_OUTER_MARGIN,
 		H: sr.glyphSize.Y,
 	}
-	sr._drawHighlightRect(&rect, highlightAlphaBorder, highlightAlphaBorder-20)
+	sr._drawHighlightRect(&rect, highlightBorder, highlightFill, highlightAlphaBorder, highlightAlphaBorder-20)
 }
 
 func (menu *menuWidgetT) _renderInputBox(sr *sdlRender, surface *sdl.Surface, windowRect, rect *sdl.Rect) {
@@ -563,7 +569,7 @@ func (menu *menuWidgetT) _renderInputBox(sr *sdlRender, surface *sdl.Surface, wi
 			W: sr.glyphSize.X,
 			H: sr.glyphSize.Y,
 		}
-		sr._drawHighlightRect(&cursorRect, 255, 200)
+		sr._drawHighlightRect(&cursorRect, highlightBorder, highlightFill, 255, 200)
 	}
 }
 

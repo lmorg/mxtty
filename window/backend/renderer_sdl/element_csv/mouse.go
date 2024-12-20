@@ -7,6 +7,7 @@ import (
 	"github.com/lmorg/mxtty/codes"
 	"github.com/lmorg/mxtty/config"
 	"github.com/lmorg/mxtty/types"
+	"github.com/lmorg/mxtty/window/backend/cursor"
 	"golang.design/x/clipboard"
 )
 
@@ -131,6 +132,7 @@ func (el *ElementCsv) MouseWheel(_ *types.XY, movement *types.XY, callback types
 func (el *ElementCsv) MouseMotion(pos *types.XY, move *types.XY, callback types.EventIgnoredCallback) {
 	switch {
 	case pos.Y == 0:
+		cursor.Hand()
 		el.renderer.StatusBarText("[Left Click] Sort row (ASC|DESC)  |  [Right Click] Remove sort  |  [Ctrl+Scroll] Scroll table")
 
 	case int(pos.Y) <= len(el.table):

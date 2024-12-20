@@ -211,5 +211,8 @@ func render(sr *sdlRender) error {
 	}
 
 	sr.renderer.Present()
+
+	//sdl.SetCursor(_CURSOR_IBEEM)
+
 	return nil
 }

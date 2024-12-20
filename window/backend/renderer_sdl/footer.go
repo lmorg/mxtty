@@ -151,7 +151,7 @@ func (sr *sdlRender) _footerRenderTmuxWindowTabs(pos *types.XY) {
 		W: (bottomRightCellX * sr.glyphSize.X) + 1,
 		H: (bottomRightCellY * sr.glyphSize.Y) + 1,
 	}
-	sr._drawHighlightRect(activeRect, 0, 230)
+	sr._drawHighlightRect(activeRect, highlightBorder, highlightFill, 0, 230)
 
 	if sr.windowTabs.mouseOver == -1 {
 		return
@@ -166,5 +166,5 @@ func (sr *sdlRender) _footerRenderTmuxWindowTabs(pos *types.XY) {
 		W: (bottomRightCellX * sr.glyphSize.X),
 		H: (bottomRightCellY * sr.glyphSize.Y),
 	}
-	sr._drawHighlightRect(highlightRect, highlightAlphaBorder, highlightAlphaFill)
+	sr._drawHighlightRect(highlightRect, highlightBorder, highlightFill, highlightAlphaBorder, highlightAlphaFill)
 }

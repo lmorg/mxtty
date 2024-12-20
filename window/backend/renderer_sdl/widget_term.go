@@ -283,7 +283,7 @@ func (tw *termWidgetT) eventMouseMotion(sr *sdlRender, evt *sdl.MouseMotionEvent
 	}
 
 	sr.term.MouseMotion(
-		sr.convertPxToCellXY(evt.X, evt.Y),
+		sr.convertPxToCellXYNegX(evt.X, evt.Y),
 		&types.XY{
 			X: evt.XRel / sr.glyphSize.X,
 			Y: evt.YRel / sr.glyphSize.Y,

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/lmorg/mxtty/types"
+	"github.com/lmorg/mxtty/window/backend/cursor"
 	"github.com/veandco/go-sdl2/sdl"
 	"golang.design/x/clipboard"
 )
@@ -36,7 +37,7 @@ func (hl *highlightWidgetT) eventTextInput(sr *sdlRender, evt *sdl.TextInputEven
 func (hl *highlightWidgetT) eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) {
 	if evt.Keysym.Sym == sdl.K_ESCAPE {
 		sr.highlighter = nil
-		sdl.SetCursor(sdl.CreateSystemCursor(sdl.SYSTEM_CURSOR_ARROW))
+		cursor.Arrow()
 		return
 	}
 
@@ -79,9 +80,9 @@ func (hl *highlightWidgetT) setMode(mode _highlightMode) {
 	hl.mode = mode
 	switch mode {
 	case _HIGHLIGHT_MODE_LINE_RANGE:
-		sdl.SetCursor(sdl.CreateSystemCursor(sdl.SYSTEM_CURSOR_IBEAM))
+		cursor.Ibeam()
 	default:
-		sdl.SetCursor(sdl.CreateSystemCursor(sdl.SYSTEM_CURSOR_ARROW))
+		cursor.Arrow()
 	}
 }
 
@@ -92,7 +93,7 @@ func (hl *highlightWidgetT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButton
 	}
 
 	hl.button = 0
-	sdl.SetCursor(sdl.CreateSystemCursor(sdl.SYSTEM_CURSOR_ARROW))
+	cursor.Arrow()
 
 	switch hl.mode {
 	case _HIGHLIGHT_MODE_PNG:
@@ -172,7 +173,7 @@ func (sr *sdlRender) selectionHighlighter() {
 
 	}
 
-	sr._drawHighlightRect(rect, alphaBorder, alphaFill)
+	sr._drawHighlightRect(rect, highlightBorder, highlightFill, alphaBorder, alphaFill)
 }
 
 func isCellHighlighted(sr *sdlRender, rect *sdl.Rect) bool {

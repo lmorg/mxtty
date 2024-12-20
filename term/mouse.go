@@ -6,6 +6,7 @@ import (
 
 	"github.com/lmorg/mxtty/debug"
 	"github.com/lmorg/mxtty/types"
+	"github.com/lmorg/mxtty/window/backend/cursor"
 )
 
 // MouseClick: pos X should be -1 when out of bounds
@@ -26,6 +27,11 @@ func (term *Term) MouseClick(pos *types.XY, button uint8, clicks uint8, pressed 
 	}
 
 	if pos.X < 0 {
+		if button != 1 {
+			callback()
+			return
+		}
+
 		absPos := int32(len(term._scrollBuf)) - int32(term._scrollOffset) + pos.Y
 
 		if len(screen[pos.Y].Hidden) > 0 {
@@ -62,6 +68,11 @@ func (term *Term) MouseClick(pos *types.XY, button uint8, clicks uint8, pressed 
 	}
 
 	if screen[pos.Y].Cells[pos.X].Element == nil {
+		if button != 1 {
+			callback()
+			return
+		}
+
 		if h := term._mousePositionCodeFoldable(screen, pos); h != -1 {
 			err := term.FoldAtIndent(pos)
 			if err != nil {
@@ -138,6 +149,34 @@ func (term *Term) updateScrollback() {
 func (term *Term) MouseMotion(pos *types.XY, movement *types.XY, callback types.EventIgnoredCallback) {
 	screen := term.visibleScreen()
 
+	if pos.X < 0 {
+		if term._mouseIn != nil {
+			term._mouseIn.MouseOut()
+		}
+
+		if len(screen[pos.Y].Hidden) > 0 {
+			cursor.Hand()
+			return
+		}
+
+		var block []int32
+		for _, block = range term._cacheBlock {
+			if block[0] <= pos.Y && block[0]+block[1] > pos.Y {
+				cursor.Hand()
+				return
+			}
+		}
+
+		cursor.Arrow()
+		return
+	}
+
+	if height := term._mousePositionCodeFoldable(screen, pos); height >= 0 {
+		cursor.Hand()
+	} else {
+		cursor.Arrow()
+	}
+
 	if screen[pos.Y].Cells[pos.X].Element == nil {
 		if term._mouseIn != nil {
 			term._mouseIn.MouseOut()
@@ -158,17 +197,71 @@ func (term *Term) MouseMotion(pos *types.XY, movement *types.XY, callback types.
 }
 
 func (term *Term) MousePosition(pos *types.XY) {
-	if pos.X < 0 {
-		return
-	}
-
 	screen := term.visibleScreen()
+
+	if pos.X < 0 {
+
+		//absPos := int32(len(term._scrollBuf)) - int32(term._scrollOffset) + pos.Y
+
+		if len(screen[pos.Y].Hidden) > 0 {
+			term.renderer.DrawRectWithColour(
+				&types.XY{X: 0, Y: pos.Y},
+				&types.XY{X: term.size.X, Y: 1},
+				types.COLOUR_FOLDED, true,
+			)
+			return
+		}
+
+		var block []int32
+		for _, block = range term._cacheBlock {
+			if block[0] <= pos.Y && block[0]+block[1] > pos.Y {
+				goto isOutputBlock
+			}
+		}
+
+		return
+
+	isOutputBlock:
+		var colour *types.Colour
+		switch {
+		case screen[block[0]+block[1]-1].Meta.Is(types.ROW_OUTPUT_BLOCK_ERROR):
+			colour = types.COLOUR_ERROR
+		case screen[block[0]+block[1]-1].Meta.Is(types.ROW_OUTPUT_BLOCK_END):
+			colour = types.COLOUR_OK
+		default:
+			absScreen := append(term._scrollBuf, term._normBuf...)
+			absPos := term.convertRelPosToAbsPos(pos)
+			for y := absPos.Y + 1; int(y) < len(absScreen); y++ {
+				switch {
+				case absScreen[y].Meta.Is(types.ROW_OUTPUT_BLOCK_ERROR):
+					colour = types.COLOUR_ERROR
+					goto drawRect
+				case absScreen[y].Meta.Is(types.ROW_OUTPUT_BLOCK_END):
+					colour = types.COLOUR_OK
+					goto drawRect
+				default:
+					continue
+				}
+			}
+			return
+		}
+
+	drawRect:
+		term.renderer.DrawRectWithColour(
+			&types.XY{X: 0, Y: block[0]},
+			&types.XY{X: term.size.X, Y: block[1]},
+			colour, true,
+		)
+		return
+
+	}
 
 	if screen[pos.Y].Cells[pos.X].Element == nil {
 		if height := term._mousePositionCodeFoldable(screen, pos); height >= 0 {
+			cursor.Hand()
 			term.renderer.DrawHighlightRect(
-				&types.XY{pos.X, pos.Y},
-				&types.XY{term.size.X - pos.X, height - pos.Y},
+				&types.XY{X: pos.X, Y: pos.Y},
+				&types.XY{X: term.size.X - pos.X, Y: height - pos.Y},
 			)
 			term.renderer.StatusBarText("[Click] Fold branch")
 		}

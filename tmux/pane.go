@@ -125,7 +125,7 @@ func (tmux *Tmux) newPane(paneId string) *PANE_T {
 		buf:  runebuf.New(),
 	}
 
-	term := virtualterm.NewTerminal(tmux.renderer, tmux.renderer.GetTermSize(), false)
+	term := virtualterm.NewTerminal(tmux.renderer, tmux.renderer.GetWindowSizeCells(), false)
 	term.Start(pane)
 	pane.term = term
 

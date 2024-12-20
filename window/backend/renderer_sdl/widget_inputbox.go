@@ -5,6 +5,7 @@ import (
 
 	"github.com/lmorg/mxtty/codes"
 	"github.com/lmorg/mxtty/types"
+	"github.com/lmorg/mxtty/window/backend/cursor"
 	"github.com/veandco/go-sdl2/sdl"
 	"github.com/veandco/go-sdl2/ttf"
 )
@@ -32,6 +33,7 @@ func (sr *sdlRender) DisplayInputBox(title string, defaultValue string, callback
 
 	sr.footerText = "[Return] Ok  |  [Esc] Cancel  |  [Ctrl+u] Clear text"
 	sr.term.ShowCursor(false)
+	cursor.Arrow()
 	go sr.inputBox.inputBoxCursorBlink(sr)
 }
 
@@ -255,7 +257,7 @@ func (sr *sdlRender) renderInputBox(windowRect *sdl.Rect) {
 			W: sr.glyphSize.X,
 			H: sr.glyphSize.Y,
 		}
-		sr._drawHighlightRect(&rect, 255, 200)
+		sr._drawHighlightRect(&rect, highlightBorder, highlightFill, 255, 200)
 	}
 
 	texture, err := sr.renderer.CreateTextureFromSurface(surface)
