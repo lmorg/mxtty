@@ -3,6 +3,14 @@
 ![logo](assets/icon-large.bmp)
 
 - [Multimedia Terminal Emulator](#multimedia-terminal-emulator)
+- [Screenshots](#screenshots)
+  - [Output Blocks](#output-blocks)
+  - [Structured Text](#structured-text)
+  - [Tables](#tables)
+  - [Images](#images)
+  - [Tmux Support](#tmux-support)
+  - [Highlighted Search Results](#highlighted-search-results)
+  - [Plus more](#plus-more)
 - [How It Works](#how-it-works)
 - [Whats Left To Do](#whats-left-to-do)
   - [Escape Codes](#escape-codes)
@@ -47,6 +55,69 @@ on.
 `mxtty` aims to do _both well_. Even if you never want for any interactive
 widgets, `mxtty` will be a good terminal emulator. And for those who want a
 little more GUI in their CLI, `mxtty` will be a great modern user interface.
+
+## Screenshots
+
+### Output Blocks
+
+Command output is grouped into blocks to make it easier to visually see the
+separation between different command output.
+
+Those blocks are coloured too, to help identify whether a command succeeded or
+failed.
+
+![coloured output blocks](images/blocks.png)
+
+Those blocks can be highlighted by hovering over them
+
+![highlighted output blocks](images/highlighted-block.png)
+
+And even collapsed, hidden from view
+
+![highlighted output blocks](images/folded-block.png)
+
+### Structured Text
+
+IDE-like tools for working with structured text, like JSON. Hover over a branch
+to highlight its child nodes
+
+![highlighted json](images/highlighted-json.png)
+
+Click to collapse that block of text
+
+![highlighted output blocks](images/folded-json.png)
+
+### Tables
+
+Output can be presented as tables. Which can be sorted and even filtered using
+SQL. All without having to rerun the commands that generated that output
+
+![tables](images/tables.png)
+
+### Images
+
+Support for inlined images, where images are treated as images. for example
+they can be copied to clipboard
+
+![image support](images/images.png)
+
+### Tmux Support
+
+Tmux support built in using tmux's control plane. This allows for the power of
+tmux but with the easy of use and elegance of being fully integrated into the
+terminal emulator
+
+### Highlighted Search Results
+
+Search terms can be highlighted to quickly find instances of that term
+
+![search](images/search.png)
+
+### Plus more
+
+`mxtty` has only been in development for a year and features a custom built,
+hardware accelerated, rendering engine to facilitate this hybrid of of text and
+media. So expect many more feature to come!
 
 ## How It Works
 
