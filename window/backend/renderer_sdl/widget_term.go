@@ -293,7 +293,7 @@ func (tw *termWidgetT) eventMouseMotion(sr *sdlRender, evt *sdl.MouseMotionEvent
 }
 
 func (sr *sdlRender) _termMouseMotionCallback() {
-	sr.footerText = "[Left Click] Copy  |  [Right Click] Paste  |  [Wheel] Scrollback buffer"
+	sr.footerText = "[Left Click] Copy  |  [Right Click] Menu  |  [Wheel] Scrollback buffer"
 }
 
 func (sr *sdlRender) selectWindow(winIndex int) {

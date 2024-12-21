@@ -16,35 +16,12 @@ func (term *Term) Resize(size *types.XY) {
 	debug.Log(term.size)
 	debug.Log(size)
 
-	switch {
-	case xDiff == 0:
-		// nothing to do
+	term._resizeNestedScreenWidth(term._scrollBuf, xDiff)
+	term._resizeNestedScreenWidth(term._normBuf, xDiff)
+	term._resizeNestedScreenWidth(term._altBuf, xDiff)
 
-	case xDiff > 0:
-		// grow
-		for y := range term._scrollBuf {
-			term._scrollBuf[y].Cells = append(term._scrollBuf[y].Cells, term.makeCells(xDiff)...)
-		}
-		for y := range term._normBuf {
-			term._normBuf[y].Cells = append(term._normBuf[y].Cells, term.makeCells(xDiff)...)
-		}
-		for y := range term._altBuf {
-			term._altBuf[y].Cells = append(term._altBuf[y].Cells, term.makeCells(xDiff)...)
-		}
-
-	case xDiff < 0:
-		// crop (this is lazy, really we should reflow)
-		xDiff = -xDiff
-		for y := range term._scrollBuf {
-			term._scrollBuf[y].Cells = term._scrollBuf[y].Cells[:term.size.X-xDiff]
-		}
-		for y := range term._normBuf {
-			term._normBuf[y].Cells = term._normBuf[y].Cells[:term.size.X-xDiff]
-		}
-		for y := range term._altBuf {
-			term._altBuf[y].Cells = term._altBuf[y].Cells[:term.size.X-xDiff]
-		}
-	}
+	// This needs to be after xDiff but before yDiff!
+	term.size = size
 
 	switch {
 	case yDiff == 0:
@@ -68,11 +45,32 @@ func (term *Term) Resize(size *types.XY) {
 		term._altBuf = term._altBuf[-yDiff:]
 	}
 
-	term.size = size
-
 	term.resizePty()
 
 	term._mutex.Unlock()
+}
+
+func (term *Term) _resizeNestedScreenWidth(screen types.Screen, xDiff int32) {
+	switch {
+	case xDiff == 0:
+		// nothing to do
+
+	case xDiff > 0:
+		// grow
+
+		for y := range screen {
+			screen[y].Cells = append(screen[y].Cells, term.makeCells(xDiff)...)
+			term._resizeNestedScreenWidth(screen[y].Hidden, xDiff)
+		}
+
+	case xDiff < 0:
+		// crop (this is lazy, really we should reflow)
+
+		for y := range screen {
+			screen[y].Cells = screen[y].Cells[:term.size.X+xDiff] // this is correct: + & - == -
+			term._resizeNestedScreenWidth(screen[y].Hidden, xDiff)
+		}
+	}
 }
 
 func (term *Term) resizePty() {

@@ -115,9 +115,9 @@ Search terms can be highlighted to quickly find instances of that term
 
 ### Plus more
 
-`mxtty` has only been in development for a year and features a custom built,
-hardware accelerated, rendering engine to facilitate this hybrid of of text and
-media. So expect many more feature to come!
+`mxtty` has only been in development for a few months and features a purpose
+built, hardware accelerated, rendering engine to facilitate this hybrid of text
+and media. So expect many more feature to come!
 
 ## How It Works
 
