@@ -107,6 +107,10 @@ Tmux support built in using tmux's control plane. This allows for the power of
 tmux but with the easy of use and elegance of being fully integrated into the
 terminal emulator
 
+![search](images/tmux.png)
+
+(in this screenshot, tmux's prefix key was rebinded to `F2` in `~/.tmux.conf`)
+
 ### Highlighted Search Results
 
 Search terms can be highlighted to quickly find instances of that term
