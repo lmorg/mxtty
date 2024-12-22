@@ -82,6 +82,7 @@ func (term *Term) appendScrollBuf() {
 	if len(term._scrollBuf) < config.Config.Terminal.ScrollbackHistory {
 		term._scrollBuf = append(term._scrollBuf, term._normBuf[0])
 	} else {
+		term.deallocateRows(term._scrollBuf[0])
 		term._scrollBuf = append(term._scrollBuf[1:], term._normBuf[0])
 	}
 	if term._scrollOffset > 0 {
