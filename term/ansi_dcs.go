@@ -14,16 +14,23 @@ import (
 func (term *Term) parseDcsCodes() {
 	var (
 		r    rune
+		err  error
 		text []rune
 	)
 
 	for {
-		r = term.Pty.Read()
+		r, err = term.Pty.Read()
+		if err != nil {
+			return
+		}
 		text = append(text, r)
 		switch r {
 
 		case codes.AsciiEscape:
-			r = term.Pty.Read()
+			r, err = term.Pty.Read()
+			if err != nil {
+				return
+			}
 			if r == '\\' { // ST (DCS terminator)
 				goto parsed
 			}

@@ -16,16 +16,23 @@ import (
 func (term *Term) parseOscCodes() {
 	var (
 		r    rune
+		err  error
 		text []rune
 	)
 
 	for {
-		r = term.Pty.Read()
+		r, err = term.Pty.Read()
+		if err != nil {
+			return
+		}
 		text = append(text, r)
 		switch r {
 
 		case codes.AsciiEscape:
-			r = term.Pty.Read()
+			r, err = term.Pty.Read()
+			if err != nil {
+				return
+			}
 			if r == '\\' { // ST (OSC terminator)
 				goto parsed
 			}

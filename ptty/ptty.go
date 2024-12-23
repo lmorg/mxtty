@@ -64,7 +64,7 @@ func (p *PTY) read(f *os.File) {
 	}
 }
 
-func (p *PTY) Read() rune {
+func (p *PTY) Read() (rune, error) {
 	return p.buf.Read()
 }
 

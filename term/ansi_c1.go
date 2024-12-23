@@ -15,7 +15,11 @@ import (
 */
 
 func (term *Term) parseC1Codes() {
-	r := term.Pty.Read()
+	r, err := term.Pty.Read()
+	if err != nil {
+		return
+	}
+
 	switch r {
 	case '[':
 		// CSI code
@@ -39,7 +43,11 @@ func (term *Term) parseC1Codes() {
 
 	case '#':
 		// DEC codes
-		r := term.Pty.Read()
+		r, err := term.Pty.Read()
+		if err != nil {
+			return
+		}
+
 		switch r {
 		case '8':
 			// DEC Screen Alignment Test (DECALN)
@@ -52,42 +60,42 @@ func (term *Term) parseC1Codes() {
 	case ' ':
 		// 7/8bit controls
 		// ANSI conformance level
-		param := term.Pty.Read()
+		param, _ := term.Pty.Read()
 		log.Printf("DEBUG: Ignored '{ESC}%%%s' sequence", string(param))
 
 	case '%':
 		// @: Select default character set.  That is ISO 8859-1 (ISO 2022).
 		// G: Select UTF-8 character set, ISO 2022.
-		param := term.Pty.Read() // Ignore these sequences. We always default to UTF-8
+		param, _ := term.Pty.Read() // Ignore these sequences. We always default to UTF-8
 		log.Printf("DEBUG: Ignored '{ESC}%%%s' sequence, we always default to UTF-8", string(param))
 
 	case '(':
 		// Designate G0 Character Set (ISO 2022), VT100.
-		term._charSetG[0] = term.fetchCharacterSet()
+		term._charSetG[0], err = term.fetchCharacterSet()
 
 	case ')':
 		// Designate G1 Character Set (ISO 2022), VT100.
-		term._charSetG[1] = term.fetchCharacterSet()
+		term._charSetG[1], err = term.fetchCharacterSet()
 
 	case '*':
 		// Designate G2 Character Set (ISO 2022), VT220.
-		term._charSetG[2] = term.fetchCharacterSet()
+		term._charSetG[2], err = term.fetchCharacterSet()
 
 	case '+':
 		// Designate G3 Character Set (ISO 2022), VT220.
-		term._charSetG[3] = term.fetchCharacterSet()
+		term._charSetG[3], err = term.fetchCharacterSet()
 
 	case '-':
 		// Designate G1 Character Set, VT300.
-		term._charSetG[1] = term.fetchCharacterSet()
+		term._charSetG[1], err = term.fetchCharacterSet()
 
 	case '.':
 		// Designate G2 Character Set, VT300.
-		term._charSetG[2] = term.fetchCharacterSet()
+		term._charSetG[2], err = term.fetchCharacterSet()
 
 	case '/':
 		// Designate G3 Character Set, VT300.
-		term._charSetG[3] = term.fetchCharacterSet()
+		term._charSetG[3], err = term.fetchCharacterSet()
 
 	case '=':
 		// Application Keypad (DECPAM)
@@ -214,7 +222,11 @@ func (term *Term) parseC1Codes() {
 		// This affects next character only.
 		charSet := term._activeCharSet
 		term._activeCharSet = 2
-		term.readChar(term.Pty.Read())
+		r, err := term.Pty.Read()
+		if err != nil {
+			return
+		}
+		term.readChar(r)
 		term._activeCharSet = charSet
 
 	case 'O':
@@ -222,7 +234,11 @@ func (term *Term) parseC1Codes() {
 		// This affects next character only.
 		charSet := term._activeCharSet
 		term._activeCharSet = 3
-		term.readChar(term.Pty.Read())
+		r, err := term.Pty.Read()
+		if err != nil {
+			return
+		}
+		term.readChar(r)
 		term._activeCharSet = charSet
 
 	case 'Q':

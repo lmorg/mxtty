@@ -1,6 +1,8 @@
 package virtualterm
 
 import (
+	"errors"
+	"fmt"
 	"log"
 
 	"github.com/lmorg/mxtty/charset"
@@ -28,52 +30,55 @@ import (
 	The valid final characters C for this control are:
 */
 
-func (term *Term) fetchCharacterSet() map[rune]rune {
-	param := term.Pty.Read()
+func (term *Term) fetchCharacterSet() (map[rune]rune, error) {
+	param, err := term.Pty.Read()
+	if err != nil {
+		return nil, err
+	}
 	switch param {
 	case '0':
 		// C = 0  ⇒  DEC Special Character and Line Drawing Set, VT100.
-		return charset.DecSpecialChar
+		return charset.DecSpecialChar, nil
 
 	case 'A':
 		// C = A  ⇒  United Kingdom (UK), VT100.
-		return charset.UnitedKingdom
+		return charset.UnitedKingdom, nil
 
 	case 'B':
 		// C = B  ⇒  United States (USASCII), VT100.
-		return nil // (defaults to UTF-8)
+		return nil, nil // (defaults to UTF-8)
 
 	case 'C', '5':
 		// C = C  or 5  ⇒  Finnish, VT200.
-		return charset.Finnish
+		return charset.Finnish, nil
 
 	case 'H', '7':
 		// C = H  or 7  ⇒  Swedish, VT200.
-		return charset.Swedish
+		return charset.Swedish, nil
 
 	case 'K':
 		// C = K  ⇒  German, VT200.
-		return charset.German
+		return charset.German, nil
 
 	case 'Q', '9':
 		// C = Q  or 9  ⇒  French Canadian, VT200.
-		return charset.FrenchCanadian
+		return charset.FrenchCanadian, nil
 
 	case 'R', 'f':
 		// C = R  or f  ⇒  French, VT200.
-		return charset.French
+		return charset.French, nil
 
 	case 'Y':
 		// C = Y  ⇒  Italian, VT200.
-		return charset.Italian
+		return charset.Italian, nil
 
 	case 'Z':
 		// C = Z  ⇒  Spanish, VT200.
-		return charset.Spanish
+		return charset.Spanish, nil
 
 	case '4':
 		// C = 4  ⇒  Dutch, VT200.
-		return charset.Dutch
+		return charset.Dutch, nil
 
 		/*
 			Still TODO:
@@ -105,7 +110,8 @@ func (term *Term) fetchCharacterSet() map[rune]rune {
 		*/
 
 	default:
-		log.Printf("DEBUG: Character set %s requested but does not exist", string(param))
-		return nil
+		e := fmt.Sprintf("DEBUG: Character set %s requested but does not exist", string(param))
+		log.Printf(e)
+		return nil, errors.New(e)
 	}
 }

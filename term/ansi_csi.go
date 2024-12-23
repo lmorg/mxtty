@@ -20,6 +20,7 @@ import (
 func (term *Term) parseCsiCodes() {
 	var (
 		r       rune
+		err     error
 		stack   = []int32{0} // default value is 0
 		n       = &stack[0]
 		cache   []rune
@@ -27,7 +28,10 @@ func (term *Term) parseCsiCodes() {
 	)
 
 	for {
-		r = term.Pty.Read()
+		r, err = term.Pty.Read()
+		if err != nil {
+			return
+		}
 		cache = append(cache, r)
 		if r >= '0' && '9' >= r {
 			multiplyN(n, r)
@@ -348,17 +352,26 @@ func (term *Term) parseCsiCodes() {
 		// CSI ! p: Soft terminal reset (DECSTR), VT220 and up.
 
 		case '?': // private codes
-			code := term.parseCsiExtendedCodes()
+			code, err := term.parseCsiExtendedCodes()
+			if err != nil {
+				return
+			}
 			lookupPrivateCsi(term, code)
 			return
 
 		case '>': // secondary codes
-			code := term.parseCsiExtendedCodes()
+			code, err := term.parseCsiExtendedCodes()
+			if err != nil {
+				return
+			}
 			log.Printf("TODO: Secondary CSI code ignored: '%s%s'", string(cache), string(code))
 			return
 
 		case '=': // tertiary codes
-			code := term.parseCsiExtendedCodes()
+			code, err := term.parseCsiExtendedCodes()
+			if err != nil {
+				return
+			}
 			lookupTertiaryCsi(term, code)
 			return
 
@@ -369,7 +382,10 @@ func (term *Term) parseCsiCodes() {
 		default:
 			unknown = true
 			if !isCsiTerminator(r) {
-				code := term.parseCsiExtendedCodes()
+				code, err := term.parseCsiExtendedCodes()
+				if err != nil {
+					return
+				}
 				log.Printf("WARNING: Unknown extended CSI code %s: %v [string: %s]", string(r), append(cache, code...), string(cache)+string(code))
 				return
 			}
@@ -384,17 +400,21 @@ func (term *Term) parseCsiCodes() {
 	}
 }
 
-func (term *Term) parseCsiExtendedCodes() []rune {
+func (term *Term) parseCsiExtendedCodes() ([]rune, error) {
 	var (
 		r    rune
+		err  error
 		code []rune
 	)
 
 	for {
-		r = term.Pty.Read()
+		r, err = term.Pty.Read()
+		if err != nil {
+			return nil, err
+		}
 		code = append(code, r)
 		if isCsiTerminator(r) {
-			return code
+			return code, nil
 		}
 	}
 }

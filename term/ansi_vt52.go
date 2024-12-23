@@ -17,7 +17,11 @@ import (
 */
 
 func (term *Term) parseVt52Codes() {
-	r := term.Pty.Read()
+	r, err := term.Pty.Read()
+	if err != nil {
+		return
+	}
+
 	switch r {
 	case '<':
 		// Exit VT52 mode (Enter VT100 mode).
@@ -74,8 +78,16 @@ func (term *Term) parseVt52Codes() {
 	case 'Y':
 		// ESC Y Ps Ps
 		// Move the cursor to given row and column.
-		row := term.Pty.Read()
-		col := term.Pty.Read()
+		row, err := term.Pty.Read()
+		if err != nil {
+			return
+		}
+
+		col, err := term.Pty.Read()
+		if err != nil {
+			return
+		}
+
 		term.moveCursorToPos(col-32, row-32)
 
 	case 'Z':

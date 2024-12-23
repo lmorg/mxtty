@@ -15,14 +15,22 @@ import (
 func (term *Term) parsePmCodes() {
 	var (
 		r    rune
+		err  error
 		text []rune
 	)
 
 	for {
-		r = term.Pty.Read()
+		r, err = term.Pty.Read()
+		if err != nil {
+			return
+		}
+
 		text = append(text, r)
 		if r == codes.AsciiEscape {
-			r = term.Pty.Read()
+			r, err = term.Pty.Read()
+			if err != nil {
+				return
+			}
 			if r == '\\' { // ST (PM terminator)
 				break
 			}

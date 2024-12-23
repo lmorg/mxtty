@@ -30,7 +30,7 @@ type Term interface {
 
 type Pty interface {
 	File() *os.File
-	Read() rune
+	Read() (rune, error)
 	Write([]byte) error
 	Resize(*XY) error
 }

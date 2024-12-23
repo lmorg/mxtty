@@ -8,10 +8,16 @@ import (
 )
 
 func (term *Term) readLoop() {
-	var r rune
+	var (
+		r   rune
+		err error
+	)
 
 	for {
-		r = term.Pty.Read()
+		r, err = term.Pty.Read()
+		if err != nil {
+			return
+		}
 		term._slowBlinkState = true
 
 		term._mutex.Lock()

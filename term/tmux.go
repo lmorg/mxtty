@@ -5,12 +5,21 @@ import "github.com/lmorg/mxtty/codes"
 func (term *Term) tmuxRenameWindow() {
 	var title []rune
 	for {
-		r := term.Pty.Read()
+		r, err := term.Pty.Read()
+		if err != nil {
+			return
+		}
+
+	validate:
 		if r == codes.AsciiEscape {
-			if term.Pty.Read() == '\\' {
+			r, err = term.Pty.Read()
+			if err != nil {
+				return
+			}
+			if r == '\\' {
 				break
 			}
-			continue
+			goto validate
 		}
 		title = append(title, r)
 	}

@@ -201,7 +201,7 @@ func (tmux *Tmux) updatePaneInfo(paneId string) error {
 
 func (p *PANE_T) File() *os.File { return nil }
 
-func (p *PANE_T) Read() rune {
+func (p *PANE_T) Read() (rune, error) {
 	return p.buf.Read()
 }
 

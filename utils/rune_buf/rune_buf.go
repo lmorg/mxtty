@@ -2,7 +2,10 @@ package runebuf
 
 import (
 	"bytes"
+	"io"
 	"log"
+
+	"github.com/lmorg/mxtty/codes"
 )
 
 type Buf struct {
@@ -25,7 +28,10 @@ func New() *Buf {
 
 func (buf *Buf) loop() {
 	for {
-		b := <-buf.bytes
+		b, ok := <-buf.bytes
+		if !ok {
+			return
+		}
 
 		for i := 0; i < len(b); i++ {
 			if buf.l == 0 {
@@ -66,6 +72,16 @@ func (buf *Buf) Write(b []byte) {
 	buf.bytes <- b
 }
 
-func (buf *Buf) Read() rune {
-	return <-buf.r
+func (buf *Buf) Read() (rune, error) {
+	r, ok := <-buf.r
+	if ok {
+		return r, nil
+	}
+
+	return codes.AsciiEOF, io.EOF
+}
+
+func (buf *Buf) Close() {
+	close(buf.bytes)
+	close(buf.r) // TODO: should really allow the channel to flush first
 }
