@@ -14,6 +14,10 @@ func (term *Term) slowBlink() {
 			term._slowBlinkState = !term._slowBlinkState
 			term.renderer.TriggerRedraw()
 
+		case <-term._eventClose:
+			term.Pty.Close()
+			return
+
 		case <-term._hasKeypress:
 			term._slowBlinkState = true
 		}

@@ -140,7 +140,6 @@ var respIgnored = [][]byte{
 	_RESP_SESSIONS_CHANGED,
 	_RESP_SUBSCRIPTION_CHANGED,
 	_RESP_UNLINKED_WINDOW_ADD,
-	_RESP_UNLINKED_WINDOW_CLOSE,
 	_RESP_UNLINKED_WINDOW_RENAMED,
 	_RESP_WINDOW_PANE_CHANGED,
 }
@@ -149,11 +148,11 @@ type Tmux struct {
 	cmd  *exec.Cmd
 	tty  *os.File
 	resp chan *tmuxResponseT
-	win  map[string]*WINDOW_T
-	pane map[string]*PANE_T
+	win  map[string]*WindowT
+	pane map[string]*PaneT
 	keys keyBindsT
 
-	activeWindow *WINDOW_T
+	activeWindow *WindowT
 	renderer     types.Renderer
 
 	limiter sync.Mutex
@@ -172,8 +171,8 @@ const (
 func NewStartSession(renderer types.Renderer, size *types.XY, startCommand string) (*Tmux, error) {
 	tmux := &Tmux{
 		resp:     make(chan *tmuxResponseT),
-		win:      make(map[string]*WINDOW_T),
-		pane:     make(map[string]*PANE_T),
+		win:      make(map[string]*WindowT),
+		pane:     make(map[string]*PaneT),
 		renderer: renderer,
 	}
 
@@ -240,8 +239,7 @@ func NewStartSession(renderer types.Renderer, size *types.XY, startCommand strin
 					// window doesn't exist so lets not fret about it being closed
 					continue
 				}
-				win.closed = true
-				go tmux.UpdateSession()
+				win.Close()
 
 			case bytes.HasPrefix(b, _RESP_EXIT):
 				if allowExit {

@@ -70,6 +70,7 @@ type Term struct {
 	_mouseIn         types.Element
 	_mouseButtonDown bool
 	_hasKeypress     chan bool
+	_eventClose      chan bool
 	_phrase          *[]rune
 	_rowPhrase       *[]rune
 
@@ -254,6 +255,10 @@ func (term *Term) hasKeypress() {
 	term._hasKeypress <- true
 }
 
+func (term *Term) Close() {
+	term._eventClose <- true
+}
+
 func (term *Term) Reply(b []byte) {
 	go term.hasKeypress()
 
@@ -275,18 +280,6 @@ func (term *Term) Bg() *types.Colour {
 
 	return types.BgUnfocused
 }
-
-/*func (term *Term) copyCurrentCell(cell *types.Cell) *types.Cell {
-	copy := new(types.Cell)
-	copy.Char = cell.Char
-	if term.currentCell().Sgr == nil {
-		copy.Sgr = term.sgr.Copy()
-	} else {
-		copy.Sgr = cell.Sgr.Copy()
-	}
-
-	return copy
-}*/
 
 func (term *Term) ShowCursor(v bool) {
 	term._hideCursor = !v

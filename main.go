@@ -31,7 +31,7 @@ func regularSession() {
 	defer renderer.Close()
 
 	term := virtualterm.NewTerminal(renderer, size, true)
-	pty, err := ptty.NewPTY(size)
+	pty, err := ptty.NewPty(size)
 	if err != nil {
 		panic(err)
 	}

@@ -84,7 +84,7 @@ type sdlRender struct {
 }
 
 type tabListT struct {
-	windows    []*tmux.WINDOW_T
+	windows    []*tmux.WindowT
 	boundaries []int32
 	offset     *types.XY
 	active     int

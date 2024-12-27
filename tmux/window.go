@@ -47,29 +47,29 @@ import (
 
 var CMD_LIST_WINDOWS = "list-windows"
 
-type WINDOW_T struct {
+type WindowT struct {
 	Name       string `tmux:"window_name"`
 	Id         string `tmux:"window_id"`
 	Index      int    `tmux:"window_index"`
 	Width      int    `tmux:"window_width"`
 	Height     int    `tmux:"window_height"`
 	Active     bool   `tmux:"?window_active,true,false"`
-	panes      map[string]*PANE_T
-	activePane *PANE_T
+	panes      map[string]*PaneT
+	activePane *PaneT
 	closed     bool
 }
 
 func (tmux *Tmux) initSessionWindows() error {
-	windows, err := tmux.sendCommand(CMD_LIST_WINDOWS, reflect.TypeOf(WINDOW_T{}))
+	windows, err := tmux.sendCommand(CMD_LIST_WINDOWS, reflect.TypeOf(WindowT{}))
 	if err != nil {
 		return err
 	}
 
-	tmux.win = make(map[string]*WINDOW_T)
+	tmux.win = make(map[string]*WindowT)
 
 	for i := range windows.([]any) {
-		win := windows.([]any)[i].(*WINDOW_T)
-		win.panes = make(map[string]*PANE_T)
+		win := windows.([]any)[i].(*WindowT)
+		win.panes = make(map[string]*PaneT)
 		tmux.win[win.Id] = win
 		if win.Active {
 			tmux.activeWindow = win
@@ -86,10 +86,10 @@ func (tmux *Tmux) initSessionWindows() error {
 	return nil
 }
 
-func (tmux *Tmux) newWindow(winId string) *WINDOW_T {
-	win := &WINDOW_T{
+func (tmux *Tmux) newWindow(winId string) *WindowT {
+	win := &WindowT{
 		Id:    winId,
-		panes: make(map[string]*PANE_T),
+		panes: make(map[string]*PaneT),
 	}
 
 	tmux.win[winId] = win
@@ -148,8 +148,8 @@ func (tmux *Tmux) updateWinInfo(winId string) error {
 	return nil
 }
 
-func (tmux *Tmux) RenderWindows() []*WINDOW_T {
-	var wins []*WINDOW_T
+func (tmux *Tmux) RenderWindows() []*WindowT {
+	var wins []*WindowT
 
 	for _, win := range tmux.win {
 		if win.closed {
@@ -165,11 +165,11 @@ func (tmux *Tmux) RenderWindows() []*WINDOW_T {
 	return wins
 }
 
-func (win *WINDOW_T) ActivePane() *PANE_T {
+func (win *WindowT) ActivePane() *PaneT {
 	return win.activePane
 }
 
-func (win *WINDOW_T) Rename(name string) error {
+func (win *WindowT) Rename(name string) error {
 	command := fmt.Sprintf("rename-window -t %s '%s'", win.Id, name)
 	_, err := win.activePane.tmux.SendCommand([]byte(command))
 	return err
@@ -194,4 +194,12 @@ func (tmux *Tmux) SelectWindow(winId string) error {
 	go tmux.UpdateSession()
 
 	return err
+}
+
+func (win *WindowT) Close() {
+	win.closed = true
+	go win.activePane.tmux.UpdateSession()
+	for _, pane := range win.panes {
+		pane.Close()
+	}
 }

@@ -11,13 +11,13 @@ import (
 	runebuf "github.com/lmorg/mxtty/utils/rune_buf"
 )
 
-type PTY struct {
+type Pty struct {
 	primary   *os.File
 	secondary *os.File
 	buf       *runebuf.Buf
 }
 
-func NewPTY(size *types.XY) (types.Pty, error) {
+func NewPty(size *types.XY) (types.Pty, error) {
 	secondary, primary, err := pty.Open()
 	if err != nil {
 		return nil, fmt.Errorf("unable to open pty: %s", err.Error())
@@ -31,7 +31,7 @@ func NewPTY(size *types.XY) (types.Pty, error) {
 		return nil, fmt.Errorf("unable to set pty size: %s", err.Error())
 	}
 
-	p := &PTY{
+	p := &Pty{
 		primary:   primary,
 		secondary: secondary,
 		buf:       runebuf.New(),
@@ -42,21 +42,21 @@ func NewPTY(size *types.XY) (types.Pty, error) {
 	return p, err
 }
 
-func (p *PTY) File() *os.File {
+func (p *Pty) File() *os.File {
 	return p.primary
 }
 
-func (p *PTY) Write(b []byte) error {
+func (p *Pty) Write(b []byte) error {
 	_, err := p.secondary.Write(b)
 	return err
 }
 
-func (p *PTY) read(f *os.File) {
+func (p *Pty) read(f *os.File) {
 	for {
 		b := make([]byte, 10*1024)
 		i, err := f.Read(b)
 		if err != nil && err.Error() != io.EOF.Error() {
-			log.Printf("ERROR: problem reading from PTY (%d bytes dropped): %v", i, err)
+			log.Printf("ERROR: problem reading from Pty (%d bytes dropped): %v", i, err)
 			continue
 		}
 
@@ -64,13 +64,18 @@ func (p *PTY) read(f *os.File) {
 	}
 }
 
-func (p *PTY) Read() (rune, error) {
+func (p *Pty) Read() (rune, error) {
 	return p.buf.Read()
 }
 
-func (p *PTY) Resize(size *types.XY) error {
+func (p *Pty) Resize(size *types.XY) error {
 	return pty.Setsize(p.File(), &pty.Winsize{
 		Cols: uint16(size.X),
 		Rows: uint16(size.Y),
 	})
+}
+
+func (p *Pty) Close() {
+	p.buf.Close()
+	p.Close()
 }

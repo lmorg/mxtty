@@ -26,6 +26,7 @@ type Term interface {
 	Search()
 	Match(*XY)
 	FoldAtIndent(*XY) error
+	Close()
 }
 
 type Pty interface {
@@ -33,4 +34,5 @@ type Pty interface {
 	Read() (rune, error)
 	Write([]byte) error
 	Resize(*XY) error
+	Close()
 }

@@ -16,8 +16,8 @@ func TestCommandLine(t *testing.T) {
 		Width      int    `tmux:"window_width"`
 		Height     int    `tmux:"window_height"`
 		Active     bool   `tmux:"?window_active,true,false"`
-		panes      map[string]*PANE_T
-		activePane *PANE_T
+		panes      map[string]*PaneT
+		activePane *PaneT
 	}
 
 	actual := string(mkCmdLine(
