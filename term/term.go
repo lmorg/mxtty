@@ -88,7 +88,8 @@ type Term struct {
 	_noAutoLineWrap   bool // No Auto-Wrap Mode (DECAWM), VT100.
 
 	// cache
-	_cacheBlock [][]int32
+	_cacheBlock       [][]int32
+	_mousePosRenderer func()
 }
 
 type _stateVtMode int
