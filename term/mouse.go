@@ -11,6 +11,8 @@ import (
 
 // MouseClick: pos X should be -1 when out of bounds
 func (term *Term) MouseClick(pos *types.XY, button uint8, clicks uint8, pressed bool, callback types.EventIgnoredCallback) {
+	term._mousePosRenderer = nil
+
 	screen := term.visibleScreen()
 
 	// this is used to determine whether to override ligatures with default font rendering

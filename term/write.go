@@ -13,6 +13,8 @@ type _debugWriteCell struct {
 }
 
 func (term *Term) writeCell(r rune, el types.Element) {
+	term._mousePosRenderer = nil
+	
 	if term.writeToElement(r) {
 		return
 	}
