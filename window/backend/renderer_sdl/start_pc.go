@@ -4,5 +4,6 @@
 package rendersdl
 
 func (sr *sdlRender) registerHotkey() {
+	return // currently not supported on Linux
 	sr._registerHotkey()
 }
