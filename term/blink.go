@@ -18,7 +18,7 @@ func (term *Term) slowBlink() {
 			term.Pty.Close()
 			return
 
-		case <-term._hasKeypress:
+		case <-term._hasKeyPress:
 			term._slowBlinkState = true
 		}
 	}

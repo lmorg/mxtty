@@ -69,7 +69,7 @@ type Term struct {
 	_activeElement   types.Element
 	_mouseIn         types.Element
 	_mouseButtonDown bool
-	_hasKeypress     chan bool
+	_hasKeyPress     chan bool
 	_eventClose      chan bool
 	_phrase          *[]rune
 	_rowPhrase       *[]rune
@@ -124,7 +124,7 @@ func NewTerminal(renderer types.Renderer, size *types.XY, visible bool) *Term {
 	term := &Term{
 		renderer:     renderer,
 		size:         size,
-		_hasKeypress: make(chan bool),
+		_hasKeyPress: make(chan bool),
 		visible:      visible,
 	}
 
@@ -252,8 +252,8 @@ type scrollRegionT struct {
 	Bottom int32
 }
 
-func (term *Term) hasKeypress() {
-	term._hasKeypress <- true
+func (term *Term) hasKeyPress() {
+	term._hasKeyPress <- true
 }
 
 func (term *Term) Close() {
@@ -261,7 +261,7 @@ func (term *Term) Close() {
 }
 
 func (term *Term) Reply(b []byte) {
-	go term.hasKeypress()
+	go term.hasKeyPress()
 
 	if term._scrollOffset != 0 && config.Config.Terminal.ScrollbackCloseKeyPress {
 		term._scrollOffset = 0
