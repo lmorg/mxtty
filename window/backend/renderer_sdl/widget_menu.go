@@ -96,50 +96,29 @@ func (sr *sdlRender) closeMenu() {
 	sr.menu = nil
 }
 
-func (menu *menuWidgetT) eventTextInput(_ *sdlRender, evt *sdl.TextInputEvent) {
-	menu.filter += evt.GetText()
-
-	if menu.highlightIndex < 0 {
+func (menu *menuWidgetT) updateHidden() {
+	if menu.filter == "" {
+		for i := range menu.hidden {
+			menu.hidden[i] = false
+		}
 		return
 	}
 
-	if menu.filter != "" && !strings.Contains(strings.ToLower(menu.options[menu.highlightIndex]), strings.ToLower(menu.filter)) {
-		menu.highlightIndex = _MENU_HIGHLIGHT_HIDDEN
+	filter := strings.ToLower(menu.filter)
+	for i := range menu.options {
+		menu.hidden[i] = !strings.Contains(strings.ToLower(menu.options[i]), filter)
 	}
 }
 
-func (menu *menuWidgetT) eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) {
-	mod := keyEventModToCodesModifier(evt.Keysym.Mod)
-
-	var adjust int
-	switch evt.Keysym.Sym {
-	case sdl.K_RETURN, sdl.K_RETURN2, sdl.K_KP_ENTER:
+func (menu *menuWidgetT) updateHighlight(adjust int) {
+	if adjust == 0 {
+		//hl := menu.highlightIndex
 		if menu.highlightIndex < 0 {
-			return
+			menu.highlightIndex = 0
 		}
-		sr.closeMenu()
-		menu.selectCallback(menu.highlightIndex)
-		return
-	case sdl.K_ESCAPE:
-		sr.closeMenu()
-		menu.cancelCallback(menu.highlightIndex)
-		return
-
-	case sdl.K_BACKSPACE:
-		if menu.filter != "" {
-			menu.filter = menu.filter[:len(menu.filter)-1]
-		} else {
-			sr.Bell()
+		if menu.hidden[menu.highlightIndex] {
+			adjust = 1
 		}
-	case sdl.K_u:
-		if mod == codes.MOD_CTRL {
-			menu.filter = ""
-		}
-
-	case sdl.K_UP:
-		adjust = -1
-	case sdl.K_DOWN:
-		adjust = 1
 	}
 
 	var attempts int
@@ -154,7 +133,7 @@ func (menu *menuWidgetT) eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) {
 		}
 
 		if attempts > len(menu.options) {
-			menu.highlightIndex = -2
+			menu.highlightIndex = _MENU_HIGHLIGHT_HIDDEN
 			return
 		}
 
@@ -168,6 +147,52 @@ func (menu *menuWidgetT) eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) {
 	}
 
 	menu.highlightCallback(menu.highlightIndex)
+}
+
+func (menu *menuWidgetT) eventTextInput(_ *sdlRender, evt *sdl.TextInputEvent) {
+	menu.filter += evt.GetText()
+
+	menu.updateHidden()
+	menu.updateHighlight(0)
+}
+
+func (menu *menuWidgetT) eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) {
+	mod := keyEventModToCodesModifier(evt.Keysym.Mod)
+
+	switch evt.Keysym.Sym {
+	case sdl.K_RETURN, sdl.K_RETURN2, sdl.K_KP_ENTER:
+		if menu.highlightIndex < 0 {
+			return
+		}
+		sr.closeMenu()
+		menu.selectCallback(menu.highlightIndex)
+		return
+	case sdl.K_ESCAPE:
+		sr.closeMenu()
+		menu.cancelCallback(menu.highlightIndex)
+		return
+
+	case sdl.K_BACKSPACE:
+		if menu.filter == "" {
+			sr.Bell()
+			return
+		}
+		menu.filter = menu.filter[:len(menu.filter)-1]
+		menu.updateHidden()
+		menu.updateHighlight(0)
+
+	case sdl.K_u:
+		if mod == codes.MOD_CTRL {
+			menu.filter = ""
+		}
+		menu.updateHidden()
+
+	case sdl.K_UP:
+		menu.updateHighlight(-1)
+	case sdl.K_DOWN:
+		menu.updateHighlight(1)
+
+	}
 }
 
 func (menu *menuWidgetT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEvent) {
@@ -405,12 +430,9 @@ func (sr *sdlRender) renderMenu(windowRect *sdl.Rect) {
 			continue
 		}
 
-		if sr.menu.filter != "" && !strings.Contains(strings.ToLower(sr.menu.options[i]), strings.ToLower(sr.menu.filter)) {
-			sr.menu.hidden[i] = true
+		if sr.menu.hidden[i] {
 			continue
 		}
-
-		sr.menu.hidden[i] = false
 
 		text, err := sr.font.RenderUTF8BlendedWrapped(sr.menu.options[i], sdl.Color{R: 200, G: 200, B: 200, A: 255}, int(surface.W-sr.notifyIconSize.X))
 		if err != nil {
