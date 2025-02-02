@@ -22,7 +22,7 @@ func (term *Term) csiEraseDisplayAfter() {
 		return
 	}
 
-	for y := curPosY + 1; y <= bottom; y++ {
+	for y := curPosY; /*+ 1*/ y <= bottom; y++ {
 		term.deallocateRows((*term.screen)[y])
 		(*term.screen)[y] = term.makeRow()
 	}
