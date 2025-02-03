@@ -5,7 +5,48 @@ import (
 	"testing"
 )
 
-func TestAddClearTabStop(t *testing.T) {
+func TestAddTabStop(t *testing.T) {
+	term := NewTestTerminal()
+
+	tests := []struct {
+		CurPos int32
+	}{
+		{
+			CurPos: 1,
+		},
+		{
+			CurPos: 2,
+		},
+		{
+			CurPos: 4,
+		},
+		{
+			CurPos: 2,
+		},
+		{
+			CurPos: 7,
+		},
+		{
+			CurPos: 3,
+		},
+	}
+
+	// term is 10 chars wide
+	expected := "[1 2 2 3 4 7]"
+
+	for _, test := range tests {
+		term._curPos.X = test.CurPos
+		term.c1AddTabStop()
+	}
+
+	if fmt.Sprintf("%v", term._tabStops) != expected {
+		t.Errorf("Expected does not match actual in test:")
+		t.Logf("  expected: %s", expected)
+		t.Logf("  actual:   %v", term._tabStops)
+	}
+}
+
+func TestAddTabStopOverflow(t *testing.T) {
 	term := NewTestTerminal()
 
 	tests := []struct {
@@ -34,7 +75,51 @@ func TestAddClearTabStop(t *testing.T) {
 		},
 	}
 
-	expected := "[1 9 23 50]"
+	// term is 8 chars wide
+	expected := "[1 2 2 2 9 9 9]"
+
+	for _, test := range tests {
+		term._curPos.X = test.CurPos
+		term.c1AddTabStop()
+	}
+
+	if fmt.Sprintf("%v", term._tabStops) != expected {
+		t.Errorf("Expected does not match actual in test:")
+		t.Logf("  expected: %s", expected)
+		t.Logf("  actual:   %v", term._tabStops)
+	}
+}
+
+func TestAddClearTabStop(t *testing.T) {
+	term := NewTestTerminal()
+
+	tests := []struct {
+		CurPos int32
+	}{
+		{
+			CurPos: 1,
+		},
+		{
+			CurPos: 2,
+		},
+		{
+			CurPos: 9,
+		},
+		{
+			CurPos: 7,
+		},
+		{
+			CurPos: 2,
+		},
+		{
+			CurPos: 5,
+		},
+		{
+			CurPos: 2,
+		},
+	}
+
+	expected := "[1 5 7 9]"
 
 	for _, test := range tests {
 		term._curPos.X = test.CurPos
@@ -71,7 +156,7 @@ func TestNextTabStop(t *testing.T) {
 		},
 		{
 			CurPos:   23,
-			Expected: 1,
+			Expected: 7,
 		},
 	}
 
