@@ -157,6 +157,13 @@ func (sr *sdlRender) renderStack(stack *[]*layer.RenderStackT) {
 	*stack = make([]*layer.RenderStackT, 0) // clear image stack
 }
 
+func (sr *sdlRender) isMouseInsideWindow() bool {
+	x, y := sr.window.GetSize()
+	mouseGX, mouseGY, _ := sdl.GetGlobalMouseState()
+	winGX, winGY := sr.window.GetPosition()
+	return mouseGX >= winGX && mouseGY >= winGY && mouseGX <= winGX+x && mouseGY <= winGY+y
+}
+
 func render(sr *sdlRender) error {
 	defer sr.limiter.Unlock()
 
@@ -167,12 +174,20 @@ func render(sr *sdlRender) error {
 
 	x, y := sr.window.GetSize()
 	rect := &sdl.Rect{W: x, H: y}
-	mouseX, mouseY, _ := sdl.GetMouseState()
-	posNegX := sr.convertPxToCellXYNegX(mouseX, mouseY)
 
 	sr.drawBg(sr.term, rect)
 	sr.term.Render()
-	sr.term.MousePosition(posNegX)
+
+	//mouseGX, mouseGY, _ := sdl.GetGlobalMouseState()
+	//winGX, winGY := sr.window.GetPosition()
+	//if mouseGX >= winGX && mouseGY >= winGY && mouseGX <= winGX+x && mouseGY <= winGY+y {
+	if sr.isMouseInsideWindow() {
+		// only run this if mouse cursor is inside the window
+		mouseX, mouseY, _ := sdl.GetMouseState()
+		posNegX := sr.convertPxToCellXYNegX(mouseX, mouseY)
+		sr.term.MousePosition(posNegX)
+	}
+
 	sr.renderFooter()
 
 	if sr.highlighter != nil && sr.highlighter.button == 0 {
@@ -211,8 +226,6 @@ func render(sr *sdlRender) error {
 	}
 
 	sr.renderer.Present()
-
-	//sdl.SetCursor(_CURSOR_IBEEM)
 
 	return nil
 }
