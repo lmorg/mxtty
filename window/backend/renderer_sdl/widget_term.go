@@ -148,7 +148,7 @@ func (tw *termWidgetT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEvent
 	case _MOUSE_BUTTON_LEFT:
 		sr.term.MouseClick(posCell, evt.Button, evt.Clicks, state, func() {
 			if evt.State == sdl.PRESSED {
-				highlighterStart(sr, evt)
+				highlighterStart(sr, evt.Button, evt.X, evt.Y)
 				sr.highlighter.setMode(_HIGHLIGHT_MODE_LINE_RANGE)
 			}
 		})
@@ -238,12 +238,12 @@ var _highlighterStartFooterText = fmt.Sprintf(
 	types.KEY_STR_CTRL, types.KEY_STR_SHIFT, types.KEY_STR_ALT, types.KEY_STR_META,
 )
 
-func highlighterStart(sr *sdlRender, evt *sdl.MouseButtonEvent) {
+func highlighterStart(sr *sdlRender, button uint8, x, y int32) {
 	sr.footerText = _highlighterStartFooterText
 
 	sr.highlighter = &highlightWidgetT{
-		button: evt.Button,
-		rect:   &sdl.Rect{X: evt.X, Y: evt.Y},
+		button: button,
+		rect:   &sdl.Rect{X: x, Y: y},
 	}
 	if sr.keyModifier != 0 {
 		sr.highlighter.modifier(sr.keyModifier)
@@ -282,13 +282,24 @@ func (tw *termWidgetT) eventMouseMotion(sr *sdlRender, evt *sdl.MouseMotionEvent
 		sr.footerText = ""
 	}
 
+	var callback = sr._termMouseMotionCallback
+	if evt.State != 0 {
+		callback = func() {
+			switch evt.State {
+			case _MOUSE_BUTTON_LEFT:
+				highlighterStart(sr, uint8(evt.State), evt.X-evt.XRel, evt.Y-evt.YRel)
+				sr.highlighter.setMode(_HIGHLIGHT_MODE_LINE_RANGE)
+			}
+		}
+	}
+
 	sr.term.MouseMotion(
 		sr.convertPxToCellXYNegX(evt.X, evt.Y),
 		&types.XY{
 			X: evt.XRel / sr.glyphSize.X,
 			Y: evt.YRel / sr.glyphSize.Y,
 		},
-		sr._termMouseMotionCallback,
+		callback,
 	)
 }
 
