@@ -208,7 +208,11 @@ func (term *Term) MousePosition(pos *types.XY) {
 		return
 	}
 
-	defer func() { term._mousePosRenderer() }()
+	defer func() {
+		if term._mousePosRenderer != nil {
+			term._mousePosRenderer()
+		}
+	}()
 
 	screen := term.visibleScreen()
 
