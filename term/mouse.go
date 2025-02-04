@@ -11,7 +11,7 @@ import (
 
 // MouseClick: pos X should be -1 when out of bounds
 func (term *Term) MouseClick(pos *types.XY, button uint8, clicks uint8, pressed bool, callback types.EventIgnoredCallback) {
-	term._mousePosRenderer = nil
+	term._mousePosRenderer.Set(nil)
 
 	screen := term.visibleScreen()
 
@@ -90,7 +90,7 @@ func (term *Term) MouseClick(pos *types.XY, button uint8, clicks uint8, pressed 
 }
 
 func (term *Term) MouseWheel(pos *types.XY, movement *types.XY) {
-	term._mousePosRenderer = nil
+	term._mousePosRenderer.Set(nil)
 
 	screen := term.visibleScreen()
 
@@ -151,7 +151,7 @@ func (term *Term) updateScrollback() {
 }
 
 func (term *Term) MouseMotion(pos *types.XY, movement *types.XY, callback types.EventIgnoredCallback) {
-	term._mousePosRenderer = nil
+	term._mousePosRenderer.Set(nil)
 
 	screen := term.visibleScreen()
 
@@ -203,16 +203,11 @@ func (term *Term) MouseMotion(pos *types.XY, movement *types.XY, callback types.
 }
 
 func (term *Term) MousePosition(pos *types.XY) {
-	if term._mousePosRenderer != nil {
-		term._mousePosRenderer()
+	if term._mousePosRenderer.Call() {
 		return
 	}
 
-	defer func() {
-		if term._mousePosRenderer != nil {
-			term._mousePosRenderer()
-		}
-	}()
+	defer term._mousePosRenderer.Call()
 
 	screen := term.visibleScreen()
 
@@ -221,13 +216,13 @@ func (term *Term) MousePosition(pos *types.XY) {
 		//absPos := int32(len(term._scrollBuf)) - int32(term._scrollOffset) + pos.Y
 
 		if len(screen[pos.Y].Hidden) > 0 {
-			term._mousePosRenderer = func() {
+			term._mousePosRenderer.Set(func() {
 				term.renderer.DrawRectWithColour(
 					&types.XY{X: 0, Y: pos.Y},
 					&types.XY{X: term.size.X, Y: 1},
 					types.COLOUR_FOLDED, true,
 				)
-			}
+			})
 			return
 		}
 
@@ -238,7 +233,7 @@ func (term *Term) MousePosition(pos *types.XY) {
 			}
 		}
 
-		term._mousePosRenderer = func() {}
+		term._mousePosRenderer.Set(func() {})
 		return
 
 	isOutputBlock:
@@ -263,18 +258,18 @@ func (term *Term) MousePosition(pos *types.XY) {
 					continue
 				}
 			}
-			term._mousePosRenderer = func() {}
+			term._mousePosRenderer.Set(func() {})
 			return
 		}
 
 	drawRect:
-		term._mousePosRenderer = func() {
+		term._mousePosRenderer.Set(func() {
 			term.renderer.DrawRectWithColour(
 				&types.XY{X: 0, Y: block[0]},
 				&types.XY{X: term.size.X, Y: block[1]},
 				colour, true,
 			)
-		}
+		})
 		return
 
 	}
@@ -283,18 +278,18 @@ func (term *Term) MousePosition(pos *types.XY) {
 		if height := term._mousePositionCodeFoldable(screen, pos); height >= 0 {
 			cursor.Hand()
 			term.renderer.StatusBarText("[Click] Fold branch")
-			term._mousePosRenderer = func() {
+			term._mousePosRenderer.Set(func() {
 				term.renderer.DrawRectWithColour(
 					&types.XY{X: pos.X, Y: pos.Y},
 					&types.XY{X: term.size.X - pos.X, Y: height - pos.Y},
 					types.COLOUR_FOLDED, false,
 				)
-			}
+			})
 			return
 		}
 	}
 
-	term._mousePosRenderer = func() {}
+	term._mousePosRenderer.Set(func() {})
 }
 
 func (term *Term) _mousePositionCodeFoldable(screen types.Screen, pos *types.XY) int32 {

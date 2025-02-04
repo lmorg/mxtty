@@ -89,7 +89,7 @@ type Term struct {
 
 	// cache
 	_cacheBlock       [][]int32
-	_mousePosRenderer func()
+	_mousePosRenderer types.FuncMutex
 }
 
 type _stateVtMode int
