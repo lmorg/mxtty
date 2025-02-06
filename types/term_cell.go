@@ -42,6 +42,7 @@ func (c *Cell) ElementXY() *XY {
 */
 
 type Row struct {
+	Id     uint64
 	Cells  []*Cell
 	Meta   RowMetaFlag
 	Hidden Screen

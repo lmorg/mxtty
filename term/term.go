@@ -73,11 +73,13 @@ type Term struct {
 	_eventClose      chan bool
 	_phrase          *[]rune
 	_rowPhrase       *[]rune
+	_rowId           uint64 //atomic.Uint64
 
 	// search
 	_searchHighlight  bool
 	_searchLastString string
 	_searchHlHistory  []*types.Cell
+	_searchResults    []searchResult
 
 	// character sets
 	_activeCharSet int
@@ -90,6 +92,11 @@ type Term struct {
 	// cache
 	_cacheBlock       [][]int32
 	_mousePosRenderer types.FuncMutex
+}
+
+type searchResult struct {
+	rowId  uint64
+	phrase string
 }
 
 type _stateVtMode int
@@ -177,8 +184,26 @@ func (term *Term) makeScreen() types.Screen {
 	return screen
 }
 
+const UINT64_CAP = ^uint64(0)
+
+func (term *Term) _nextRowId() uint64 {
+	/*id := term._rowId.Add(1)
+	if id == ^UINT64_CAP {
+		term._rowId.Store(0)
+	}
+	return id*/
+	if term._rowId == UINT64_CAP {
+		term._rowId = 0
+	} else {
+		term._rowId++
+	}
+
+	return term._rowId
+}
+
 func (term *Term) makeRow() *types.Row {
 	row := &types.Row{
+		Id:     term._nextRowId(),
 		Cells:  term.makeCells(term.size.X),
 		Phrase: new([]rune),
 	}
@@ -245,6 +270,34 @@ func (term *Term) curPos() *types.XY {
 	}
 
 	return &types.XY{X: x, Y: y}
+}
+
+func (term *Term) scrollToRowId(id uint64, offset int) {
+	if term.IsAltBuf() {
+		term.renderer.DisplayNotification(types.NOTIFY_WARN, "Cannot jump rows from within the alt buffer")
+		return
+	}
+
+	term._mutex.Lock()
+	defer term._mutex.Unlock()
+
+	for i := range term._normBuf {
+		if id == term._normBuf[i].Id {
+			term._scrollOffset = 0
+			term.updateScrollback()
+			return
+		}
+	}
+
+	for i := range term._scrollBuf {
+		if id == term._scrollBuf[i].Id {
+			term._scrollOffset = len(term._scrollBuf) - i + offset
+			term.updateScrollback()
+			return
+		}
+	}
+
+	term.renderer.DisplayNotification(types.NOTIFY_WARN, "Row not found")
 }
 
 type scrollRegionT struct {

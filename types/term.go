@@ -24,6 +24,7 @@ type Term interface {
 	HasFocus(bool)
 	MakeVisible(bool)
 	Search()
+	ShowSearchResults()
 	Match(*XY)
 	FoldAtIndent(*XY) error
 	Close()

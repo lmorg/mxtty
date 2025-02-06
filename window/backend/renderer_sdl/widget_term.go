@@ -81,6 +81,9 @@ func (tw *termWidgetT) _eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) {
 	case evt.Keysym.Sym == sdl.K_F3 && mod == 0:
 		sr.term.Search()
 		return
+	case evt.Keysym.Sym == sdl.K_F4 && mod == 0:
+		sr.term.ShowSearchResults()
+		return
 	case evt.Keysym.Sym == 'v' && mod == codes.MOD_META:
 		sr.clipboardPasteText()
 		return

@@ -30,6 +30,7 @@ func (term *Term) searchBuf(search string) {
 			}
 		}
 		term._searchHlHistory = []*types.Cell{}
+		term._searchResults = nil
 		term._scrollOffset = 0
 		term.updateScrollback()
 		return
@@ -50,7 +51,7 @@ func (term *Term) searchBuf(search string) {
 	if scrollOk {
 		// +_SEARCH_OFFSET to add some before context
 		term._scrollOffset = len(term._scrollBuf) - offset + _SEARCH_OFFSET
-		term.ShowCursor(false)
+		//term.ShowCursor(false)
 		term.updateScrollback()
 		return
 	}
@@ -65,8 +66,13 @@ func (term *Term) _searchBuf(buf types.Screen, search string) (int, bool) {
 			if buf[y].Cells[x].Phrase == nil {
 				continue
 			}
+
 			s := strings.ToLower(string(*buf[y].Cells[x].Phrase))
 			if strings.Contains(s, search) {
+				term._searchResults = append(term._searchResults, searchResult{
+					rowId:  buf[y].Id,
+					phrase: string(*buf[y].Cells[x].Phrase),
+				})
 				i, j, l := 0, 0, 0
 			highlight:
 				for ; x+i < len(buf[y].Cells); i++ {
@@ -84,10 +90,31 @@ func (term *Term) _searchBuf(buf types.Screen, search string) (int, bool) {
 				if firstMatch == -1 {
 					firstMatch = y
 				}
-
-				//return y, true
 			}
 		}
 	}
 	return firstMatch, firstMatch != -1
+}
+
+func (term *Term) ShowSearchResults() {
+	offset := term._scrollOffset
+	sr := make([]searchResult, len(term._searchResults))
+	results := make([]string, len(term._searchResults))
+	j := len(term._searchResults) - 1
+
+	for i := range term._searchResults {
+		sr[j] = term._searchResults[i]
+		results[j] = term._searchResults[i].phrase
+		j--
+	}
+
+	cbHighlight := func(i int) {
+		term.scrollToRowId(sr[i].rowId, _SEARCH_OFFSET)
+	}
+	cbCancel := func(int) {
+		term._scrollOffset = offset
+		term.updateScrollback()
+	}
+	cbSelect := func(int) {}
+	term.renderer.DisplayMenu("Search results", results, cbHighlight, cbSelect, cbCancel)
 }

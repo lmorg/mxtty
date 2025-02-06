@@ -51,12 +51,22 @@ func (sr *sdlRender) AddToContextMenu(menuItems ...types.MenuItem) {
 }
 
 func (sr *sdlRender) DisplayMenuUnderCursor(title string, options []string, highlightCallback, selectCallback, cancelCallback types.MenuCallbackT) {
+	if len(options) == 0 {
+		sr.DisplayNotification(types.NOTIFY_WARN, "Nothing to show in menu")
+		return
+	}
+
 	sr.DisplayMenu(title, options, highlightCallback, selectCallback, cancelCallback)
 	x, y, _ := sdl.GetMouseState()
 	sr.menu.pos = &types.XY{X: x, Y: y}
 }
 
 func (sr *sdlRender) DisplayMenu(title string, options []string, highlightCallback, selectCallback, cancelCallback types.MenuCallbackT) {
+	if len(options) == 0 {
+		sr.DisplayNotification(types.NOTIFY_WARN, "Nothing to show in menu")
+		return
+	}
+
 	if highlightCallback == nil {
 		highlightCallback = func(_ int) {}
 	}
