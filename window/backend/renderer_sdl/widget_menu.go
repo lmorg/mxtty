@@ -8,6 +8,7 @@ import (
 	"github.com/lmorg/mxtty/types"
 	"github.com/lmorg/mxtty/window/backend/cursor"
 	"github.com/lmorg/mxtty/window/backend/renderer_sdl/layer"
+	"github.com/mattn/go-runewidth"
 	"github.com/veandco/go-sdl2/sdl"
 	"github.com/veandco/go-sdl2/ttf"
 )
@@ -77,10 +78,13 @@ func (sr *sdlRender) DisplayMenu(title string, options []string, highlightCallba
 		cancelCallback = func(_ int) {}
 	}
 
+	opts := make([]string, len(options))
+	copy(opts, options)
+
 	sr.footerText = "[Up/Down] Highlight  |  [Return] Choose  |  [Esc] Cancel"
 	sr.menu = &menuWidgetT{
 		title:             title,
-		options:           options,
+		options:           opts,
 		hidden:            make([]bool, len(options)),
 		highlightCallback: highlightCallback,
 		selectCallback:    selectCallback,
@@ -88,9 +92,12 @@ func (sr *sdlRender) DisplayMenu(title string, options []string, highlightCallba
 		highlightIndex:    _MENU_HIGHLIGHT_INIT,
 	}
 
-	for i := range options {
-		if len(options[i]) > int(sr.menu.maxLen) {
-			sr.menu.maxLen = int32(len(options[i]))
+	var crop = int(sr.term.GetSize().X - 20)
+
+	for i := range sr.menu.options {
+		sr.menu.options[i] = runewidth.Truncate(sr.menu.options[i], int(crop), "…")
+		if len(sr.menu.options[i]) > int(sr.menu.maxLen) {
+			sr.menu.maxLen = int32(runewidth.StringWidth(sr.menu.options[i]))
 		}
 	}
 

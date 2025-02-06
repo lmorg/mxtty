@@ -7,7 +7,7 @@ Terminal:
     #FontName: "Hasklig-Regular"
     FontSize: 14
     Ligatures: true # increases system requirements
-    #DropShadow: true
+    DropShadow: true
     AdjustCellWidth:  0
     AdjustCellHeight: +1
   ScrollbackHistory: 100000 # lines
