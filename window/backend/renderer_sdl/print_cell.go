@@ -84,7 +84,6 @@ func newFontAtlas(chars []rune, sgr *types.Sgr, glyphSize *types.XY, renderer *s
 }
 
 func _newFontCacheDefaultLookup(chars []rune, glyphSize *types.XY) fontCacheDefaultLookupT {
-
 	m := make(fontCacheDefaultLookupT)
 
 	for i, r := range chars {
@@ -96,26 +95,6 @@ func _newFontCacheDefaultLookup(chars []rune, glyphSize *types.XY) fontCacheDefa
 		}
 	}
 	return m
-}
-
-func _newFontSurface(glyphSize *types.XY, nCharacters int32) *sdl.Surface {
-	surface, err := sdl.CreateRGBSurfaceWithFormat(0, glyphSize.X*nCharacters, glyphSize.Y*_HLTEXTURE_LAST, 32, uint32(sdl.PIXELFORMAT_RGBA32))
-	if err != nil {
-		panic(err) // TODO: better error handling please!
-	}
-
-	pixel := sdl.MapRGBA(surface.Format, types.SGR_DEFAULT.Bg.Red, types.SGR_DEFAULT.Bg.Green, types.SGR_DEFAULT.Bg.Blue, 255)
-	err = surface.FillRect(&sdl.Rect{W: surface.W, H: surface.H}, pixel)
-	if err != nil {
-		panic(err) // TODO: better error handling please!
-	}
-
-	err = surface.SetColorKey(true, pixel)
-	if err != nil {
-		panic(err) // TODO: better error handling please!
-	}
-
-	return surface
 }
 
 func _newFontTexture(chars []rune, sgr *types.Sgr, glyphSize *types.XY, renderer *sdl.Renderer, font *ttf.Font, hlTexture int) *sdl.Texture {
@@ -150,21 +129,24 @@ func _newFontTexture(chars []rune, sgr *types.Sgr, glyphSize *types.XY, renderer
 	return texture
 }
 
-func (fa *fontAtlasT) Render(sr *sdlRender, dstRect *sdl.Rect, r rune, hash uint64, hlMode int) bool {
-	if hash != fa.sgrHash {
-		return false
+func _newFontSurface(glyphSize *types.XY, nCharacters int32) *sdl.Surface {
+	surface, err := sdl.CreateRGBSurfaceWithFormat(0, glyphSize.X*nCharacters, glyphSize.Y*_HLTEXTURE_LAST, 32, uint32(sdl.PIXELFORMAT_RGBA32))
+	if err != nil {
+		panic(err) // TODO: better error handling please!
 	}
 
-	srcRect, ok := fa.lookup[r]
-	if !ok {
-		return false
+	pixel := sdl.MapRGBA(surface.Format, types.SGR_DEFAULT.Bg.Red, types.SGR_DEFAULT.Bg.Green, types.SGR_DEFAULT.Bg.Blue, 255)
+	err = surface.FillRect(&sdl.Rect{W: surface.W, H: surface.H}, pixel)
+	if err != nil {
+		panic(err) // TODO: better error handling please!
 	}
 
-	texture := fa.texture[hlMode]
+	err = surface.SetColorKey(true, pixel)
+	if err != nil {
+		panic(err) // TODO: better error handling please!
+	}
 
-	sr.AddToElementStack(&layer.RenderStackT{texture, srcRect, dstRect, false})
-
-	return ok
+	return surface
 }
 
 func _printCellToSurface(cell *types.Cell, cellRect *sdl.Rect, font *ttf.Font, surface *sdl.Surface, hlTexture int) error {
@@ -182,8 +164,8 @@ func _printCellToSurface(cell *types.Cell, cellRect *sdl.Rect, font *ttf.Font, s
 		fillRect := &sdl.Rect{
 			X: cellRect.X,
 			Y: cellRect.Y,
-			W: cellRect.W - dropShadowOffset,
-			H: cellRect.H - dropShadowOffset - 1,
+			W: cellRect.W - dropShadowOffset + 10, //,
+			H: cellRect.H - dropShadowOffset + 10, //-1,
 		}
 		err := surface.FillRect(fillRect, pixel)
 		if err != nil {
@@ -342,4 +324,21 @@ func (sr *sdlRender) PrintCell(cell *types.Cell, cellPos *types.XY) {
 	atlas := newFontAtlas([]rune{cell.Char}, cell.Sgr, sr.glyphSize, sr.renderer, sr.font)
 	sr.fontCache.extended[hash] = append(sr.fontCache.extended[hash], atlas)
 	atlas.Render(sr, dstRect, cell.Char, hash, hlTexture)
+}
+
+func (fa *fontAtlasT) Render(sr *sdlRender, dstRect *sdl.Rect, r rune, hash uint64, hlMode int) bool {
+	if hash != fa.sgrHash {
+		return false
+	}
+
+	srcRect, ok := fa.lookup[r]
+	if !ok {
+		return false
+	}
+
+	texture := fa.texture[hlMode]
+
+	sr.AddToElementStack(&layer.RenderStackT{texture, srcRect, dstRect, false})
+
+	return ok
 }
