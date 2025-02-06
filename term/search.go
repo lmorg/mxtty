@@ -69,9 +69,12 @@ func (term *Term) _searchBuf(buf types.Screen, search string) (int, bool) {
 
 			s := strings.ToLower(string(*buf[y].Cells[x].Phrase))
 			if strings.Contains(s, search) {
+				phrase := string(*buf[y].Cells[x].Phrase)
+				phrase = strings.ReplaceAll(phrase, "\n", "")
+				phrase = strings.TrimSpace(phrase)
 				term._searchResults = append(term._searchResults, searchResult{
 					rowId:  buf[y].Id,
-					phrase: string(*buf[y].Cells[x].Phrase),
+					phrase: phrase,
 				})
 				i, j, l := 0, 0, 0
 			highlight:
