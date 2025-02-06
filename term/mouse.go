@@ -133,14 +133,14 @@ func (term *Term) updateScrollback() {
 	}
 
 	if term._scrollOffset == 0 {
-		term.ShowCursor(true)
+		//term.ShowCursor(true)
 		if term._scrollMsg != nil {
 			term._scrollMsg.Close()
 			term._scrollMsg = nil
 		}
 
 	} else {
-		term.ShowCursor(false)
+		//term.ShowCursor(false)
 		msg := fmt.Sprintf("Viewing scrollback history. %d lines from end", term._scrollOffset)
 		if term._scrollMsg == nil {
 			term._scrollMsg = term.renderer.DisplaySticky(types.NOTIFY_SCROLL, msg)

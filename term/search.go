@@ -117,4 +117,8 @@ func (term *Term) ShowSearchResults() {
 	}
 	cbSelect := func(int) {}
 	term.renderer.DisplayMenu("Search results", results, cbHighlight, cbSelect, cbCancel)
+
+	/*if term._scrollOffset != 0 {
+		term.ShowCursor(false)
+	}*/
 }

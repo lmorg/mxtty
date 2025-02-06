@@ -22,7 +22,7 @@ func (term *Term) Render() {
 
 	term._renderOutputBlockChrome(screen)
 
-	term._blinkCursor()
+	term._renderCursor()
 
 	term._mutex.Unlock()
 }
@@ -111,17 +111,6 @@ func (term *Term) _renderLigatures(screen types.Screen) {
 			}
 			term.renderer.PrintCellBlock(screen[pos.Y].Cells[start:], &types.XY{X: start, Y: pos.Y})
 		}
-	}
-}
-
-func (term *Term) _blinkCursor() {
-	if term._hideCursor {
-		return
-	}
-
-	if term._slowBlinkState {
-		term.renderer.DrawHighlightRect(term.curPos(), &types.XY{1, 1})
-		term.renderer.DrawHighlightRect(term.curPos(), &types.XY{1, 1})
 	}
 }
 

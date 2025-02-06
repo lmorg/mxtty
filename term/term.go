@@ -335,10 +335,6 @@ func (term *Term) Bg() *types.Colour {
 	return types.BgUnfocused
 }
 
-func (term *Term) ShowCursor(v bool) {
-	term._hideCursor = !v
-}
-
 func (term *Term) visibleScreen() types.Screen {
 	if term._scrollOffset == 0 {
 		return *term.screen
