@@ -249,8 +249,8 @@ func (sr *sdlRender) setFontStyle(style types.SgrFlag) {
 	//sr._fontStyle = style
 }
 
-func fontStyle(style types.SgrFlag) int {
-	var i int
+func fontStyle(style types.SgrFlag) ttf.Style {
+	var i ttf.Style
 
 	if style.Is(types.SGR_BOLD) && !config.Config.Terminal.TypeFace.Ligatures {
 		i |= ttf.STYLE_BOLD

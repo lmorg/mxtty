@@ -69,7 +69,7 @@ type sdlRender struct {
 
 	// state
 	keyboardMode keyboardModeT
-	keyModifier  uint16
+	keyModifier  sdl.Keymod
 	keyIgnore    chan bool
 	hidden       bool
 

@@ -143,34 +143,34 @@ func (tw *termWidgetT) eventMouseButton(sr *sdlRender, evt *sdl.MouseButtonEvent
 	if evt.X <= _PANE_LEFT_MARGIN {
 		posCell.X = -1
 
-		sr.term.MouseClick(posCell, evt.Button, evt.Clicks, state, func() {})
+		sr.term.MouseClick(posCell, uint8(evt.Button), evt.Clicks, state, func() {})
 		return
 	}
 
 	switch evt.Button {
 	case _MOUSE_BUTTON_LEFT:
-		sr.term.MouseClick(posCell, evt.Button, evt.Clicks, state, func() {
+		sr.term.MouseClick(posCell, uint8(evt.Button), evt.Clicks, state, func() {
 			if evt.State == sdl.PRESSED {
-				highlighterStart(sr, evt.Button, evt.X, evt.Y)
+				highlighterStart(sr, uint8(evt.Button), evt.X, evt.Y)
 				sr.highlighter.setMode(_HIGHLIGHT_MODE_LINE_RANGE)
 			}
 		})
 
 	case _MOUSE_BUTTON_MIDDLE:
 		if evt.State == sdl.PRESSED {
-			sr.term.MouseClick(posCell, evt.Button, evt.Clicks, state, sr.clipboardPasteText)
+			sr.term.MouseClick(posCell, uint8(evt.Button), evt.Clicks, state, sr.clipboardPasteText)
 		}
 
 	case _MOUSE_BUTTON_RIGHT:
 		sr.contextMenu = make(contextMenuT, 0) // empty the context menu
-		sr.term.MouseClick(posCell, evt.Button, evt.Clicks, state, func() {
+		sr.term.MouseClick(posCell, uint8(evt.Button), evt.Clicks, state, func() {
 			if evt.State == sdl.RELEASED {
 				tw._eventMouseButtonRightClick(sr, posCell)
 			}
 		})
 
 	case _MOUSE_BUTTON_X1:
-		sr.term.MouseClick(posCell, evt.Button, evt.Clicks, state, func() {})
+		sr.term.MouseClick(posCell, uint8(evt.Button), evt.Clicks, state, func() {})
 	}
 }
 

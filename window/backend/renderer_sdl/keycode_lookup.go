@@ -76,7 +76,7 @@ func (sr *sdlRender) keyCodeLookup(keyCode sdl.Keycode) (c codes.KeyCode) {
 	return
 }
 
-func keyEventModToCodesModifier(keyMod uint16) codes.Modifier {
+func keyEventModToCodesModifier(keyMod sdl.Keymod) codes.Modifier {
 	var mod codes.Modifier
 
 	if keyMod&sdl.KMOD_CTRL != 0 || keyMod&sdl.KMOD_LCTRL != 0 || keyMod&sdl.KMOD_RCTRL != 0 {
@@ -100,5 +100,5 @@ func keyEventModToCodesModifier(keyMod uint16) codes.Modifier {
 
 func (sr *sdlRender) GetKeyboardModifier() int {
 	keyMod := sdl.GetModState()
-	return int(keyEventModToCodesModifier(uint16(keyMod)))
+	return int(keyEventModToCodesModifier(keyMod))
 }

@@ -63,6 +63,7 @@ func openSystemTtf(name string, size int) (*ttf.Font, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error in ttf.OpenFont(): %s", err.Error())
 	}
+
 	return font, nil
 }
 

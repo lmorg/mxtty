@@ -23,7 +23,7 @@ func (sr *sdlRender) copyRendererToClipboard() {
 
 	img := stdlib_image.NewRGBA(stdlib_image.Rect(0, 0, int(sr.highlighter.rect.W), int(sr.highlighter.rect.H)))
 
-	err := sr.renderer.ReadPixels(sr.highlighter.rect, uint32(sdl.PIXELFORMAT_RGBA32), unsafe.Pointer(&img.Pix[0]), int(pitch))
+	err := sr.renderer.ReadPixels(sr.highlighter.rect, sdl.PIXELFORMAT_RGBA32, unsafe.Pointer(&img.Pix[0]), int(pitch))
 	if err != nil {
 		sr.DisplayNotification(types.NOTIFY_ERROR, fmt.Sprintf("Could not copy to clipboard: %s", err.Error()))
 		return

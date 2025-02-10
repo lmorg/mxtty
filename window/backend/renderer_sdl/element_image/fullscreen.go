@@ -74,7 +74,7 @@ func (el *ElementImage) fullscreen() error {
 				return nil
 
 			case *sdl.WindowEvent:
-				if evt.Type == sdl.WINDOWEVENT_FOCUS_LOST {
+				if evt.Event == sdl.WINDOWEVENT_FOCUS_LOST {
 					return nil
 				}
 			}
