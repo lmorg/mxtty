@@ -29,32 +29,33 @@ func (sr *sdlRender) eventLoop() {
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
 			switch evt := event.(type) {
 
-			case *sdl.WindowEvent:
-				sr.eventWindow(evt)
+			case sdl.WindowEvent:
+				sr.eventWindow(&evt)
 				sr.TriggerRedraw()
 
-			case *sdl.TextInputEvent:
-				sr.eventTextInput(evt)
+			case sdl.TextInputEvent:
+				sr.eventTextInput(&evt)
 				sr.TriggerRedraw()
 
-			case *sdl.KeyboardEvent:
-				sr.eventKeyPress(evt)
+			case sdl.KeyboardEvent:
+				sr.eventKeyPress(&evt)
 				sr.TriggerRedraw()
 
-			case *sdl.MouseButtonEvent:
-				sr.eventMouseButton(evt)
+			case sdl.MouseButtonEvent:
+				sr.eventMouseButton(&evt)
 				sr.TriggerRedraw()
 
-			case *sdl.MouseMotionEvent:
-				sr.eventMouseMotion(evt)
+			case sdl.MouseMotionEvent:
+				sr.eventMouseMotion(&evt)
 				// don't trigger redraw
 
-			case *sdl.MouseWheelEvent:
-				sr.eventMouseWheel(evt)
+			case sdl.MouseWheelEvent:
+				sr.eventMouseWheel(&evt)
 				sr.TriggerRedraw()
 
-			case *sdl.QuitEvent:
+			case sdl.QuitEvent:
 				sr.TriggerQuit()
+
 			}
 		}
 
