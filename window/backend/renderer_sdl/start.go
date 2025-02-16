@@ -60,6 +60,7 @@ func Initialise() (types.Renderer, *types.XY) {
 	sr.ligCache = newCachedLigatures(sr)
 	sr.keyIgnore = make(chan bool)
 
+	sr.font = typeface.Deprecated_GetFont()
 	sr.glyphSize = typeface.GetSize()
 
 	sr.window.SetMinimumSize(
@@ -101,7 +102,14 @@ func (sr *sdlRender) createWindow(caption string) error {
 
 	setLghtOrDarkMode()
 
-	sr.renderer, err = sdl.CreateRenderer(sr.window, -1, sdl.RENDERER_ACCELERATED)
+	var renderFlags sdl.RendererFlags
+	if config.Config.Window.UseGPU {
+		renderFlags |= sdl.RENDERER_ACCELERATED
+	} else {
+		renderFlags |= sdl.RENDERER_SOFTWARE
+	}
+
+	sr.renderer, err = sdl.CreateRenderer(sr.window, -1, renderFlags)
 	if err != nil {
 		return err
 	}

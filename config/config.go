@@ -58,6 +58,7 @@ type configT struct {
 		Opacity         int  `yaml:"Opacity"`
 		StatusBar       bool `yaml:"StatusBar"`
 		RefreshInterval int  `yaml:"RefreshInterval"`
+		UseGPU          bool `yaml:"UseGPU"`
 	} `yaml:"Window"`
 
 	TypeFace struct {

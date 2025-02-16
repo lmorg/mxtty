@@ -82,3 +82,6 @@ Window:
   # Terminal.JumpScrollLineCount also affects the window updates
   RefreshInterval: 200
 
+  # Set this to `false` to switch to software rendering
+  # most systems except 
+  UseGPU: true
