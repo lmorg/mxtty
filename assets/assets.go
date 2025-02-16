@@ -10,6 +10,7 @@ package assets
 */
 
 import (
+	"bytes"
 	"embed"
 	"fmt"
 )
@@ -61,4 +62,8 @@ func Get(name string) []byte {
 		panic(fmt.Sprintf("no asset found named '%s'", name))
 	}
 	return b
+}
+
+func Reader(name string) *bytes.Reader {
+	return bytes.NewReader(Get(name))
 }

@@ -3,7 +3,7 @@ package rendersdl
 import (
 	"bytes"
 	"fmt"
-	stdlib_image "image"
+	"image"
 	"image/png"
 	"unsafe"
 
@@ -21,7 +21,7 @@ func (sr *sdlRender) copyRendererToClipboard() {
 
 	pitch := sr.highlighter.rect.W * 4
 
-	img := stdlib_image.NewRGBA(stdlib_image.Rect(0, 0, int(sr.highlighter.rect.W), int(sr.highlighter.rect.H)))
+	img := image.NewRGBA(image.Rect(0, 0, int(sr.highlighter.rect.W), int(sr.highlighter.rect.H)))
 
 	err := sr.renderer.ReadPixels(sr.highlighter.rect, sdl.PIXELFORMAT_RGBA32, unsafe.Pointer(&img.Pix[0]), int(pitch))
 	if err != nil {

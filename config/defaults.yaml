@@ -1,17 +1,35 @@
+Tmux:
+  # tmux is a terminal multiplexer. This terminal emulator supports tmux
+  # integration via the tmux control plane.
+  # You can also disable tmux here and set `tmux` as the default shell if you
+  # would prefer to use the vanilla tmux UI.
+  # If  tmux` executable is not in $PATH then this terminal emulator will
+  # revert to the $SHELLs defined below
+  Enabled: true 
+
+# If tmux is not available, then default to the following $SHELLs instead
 Shell:
   Default:  [ murex   ]
   Fallback: [ /bin/sh ]
 
 Terminal:
-  TypeFace:
-    #FontName: "Hasklig-Regular"
-    FontSize: 14
-    Ligatures: true # increases system requirements
-    DropShadow: true
-    AdjustCellWidth:  0
-    AdjustCellHeight: +1
-  ScrollbackHistory: 100000 # lines
-  ScrollbackCloseKeyPress: true # close scrollback on key press
+  # ScrollbackHistory is the size of the scrollback buffer.
+  # Value is number of lines
+  ScrollbackHistory: 100000
+
+  # Close the scrollback (ie jump back to end of history) if a key is pressed
+  # while in the history scrollback view
+  ScrollbackCloseKeyPress: true
+
+  # This controls how often a carriage return (\n) will force the window to
+  # update. The lower the number, the smoother the scrolling but at the cost
+  # of terminal performance and system requirements.
+  # Value is number of lines (ie number of carriage returns or \n) to count
+  # before a forced update.
+  # `0` updates per character, which is smooth but slow
+  # `-1` updates per page, which is fast.
+  # Window.RefreshInterval also affects window updates
+  # This value can also be overwritten by CSI ?4l &  CSI ?4h (DECSCLM)
   JumpScrollLineCount: -1  # lines, 0 is per character, -1 is per page
   #LightMode: true # experimental
   
@@ -21,10 +39,46 @@ Terminal:
       ScrollMultiplierY: 2
 
 
-Window:
-  Opacity: 90 # percentage
-  StatusBar: true
-  RefreshInterval: 200     # 0 disables
+TypeFace:
+  # FontName is the name of the primary typeface for the terminal.
+  # If this is commented out then the terminal will use a font compiled
+  # into this executable, which is Hasklig - a typeface based on
+  # Source Code Pro.
+  #FontName: "Hasklig-Regular"
+  FontSize: 14
 
-Tmux:
-  Enabled: true 
+  # Enable or disable drop shadows on terminal. I personally like it because
+  # it makes the text pop. YMMV
+  DropShadow: true
+
+  # Harfbuzz increases system requirements slightly but produces more
+  # accurate glyphs
+  HarfbuzzRenderer: true
+
+  # Ligatures are characters can be combined to make prettier versions of
+  # themselves. This requires a supporting font to be used.
+  # Ligatures increases system requirements slightly
+  #Ligatures: true
+
+  # Cell Padding. Some people prefer high density while others find that harder
+  # to read
+  AdjustCellWidth:  0
+  AdjustCellHeight: +1
+
+Window:
+  # Window transparency. Some people like it, others do not.
+  # Value is a percentage.
+  # `100` disables transparency
+  Opacity: 90
+
+  StatusBar: true
+
+  # RefreshInterval is how long to wait between forced window updates.
+  # Lower values produce smoother scrolling when large text is rapidly written
+  # to the terminal but at the cost of slower terminal performance and greater
+  # system requirements.
+  # Value is time in milliseconds to wait between each refresh.
+  # `0` disables a timer-based refresh entirely.
+  # Terminal.JumpScrollLineCount also affects the window updates
+  RefreshInterval: 200
+

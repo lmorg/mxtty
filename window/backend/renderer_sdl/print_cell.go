@@ -218,7 +218,8 @@ func _printCellToSurface(cell *types.Cell, cellRect *sdl.Rect, font *ttf.Font, s
 	}
 
 	// render cell char
-	text, err := font.RenderGlyphBlended(cell.Char, sdl.Color{R: fg.Red, G: fg.Green, B: fg.Blue, A: 255})
+	//text, err := font.RenderGlyphBlended(cell.Char, sdl.Color{R: fg.Red, G: fg.Green, B: fg.Blue, A: 255})
+	text, err := renderGlyphHarfbuzz(cell.Char, fg, bg, cellRect)
 	if err != nil {
 		return err
 	}

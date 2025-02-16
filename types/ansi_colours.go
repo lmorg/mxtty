@@ -1,6 +1,8 @@
 package types
 
 var (
+	RGB_BLACK = &Colour{0, 0, 0}
+
 	// solarized dark
 	SGR_COLOUR_BLACK   = &Colour{0, 43, 54} // &Colour{7, 54, 66}
 	SGR_COLOUR_RED     = &Colour{220, 50, 47}

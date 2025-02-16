@@ -17,8 +17,14 @@ require (
 )
 
 require (
+	github.com/go-text/render v0.2.0 // indirect
+	github.com/go-text/typesetting v0.2.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
+	github.com/srwiley/oksvg v0.0.0-20221011165216-be6e8873101c // indirect
+	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef // indirect
 	golang.org/x/exp v0.0.0-20190731235908-ec7cb31e5a56 // indirect
 	golang.org/x/exp/shiny v0.0.0-20250210185358-939b2ce775ac // indirect
 	golang.org/x/mobile v0.0.0-20250210185054-b38b8813d607 // indirect
+	golang.org/x/net v0.9.0 // indirect
+	golang.org/x/text v0.22.0 // indirect
 )

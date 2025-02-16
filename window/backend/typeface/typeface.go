@@ -11,7 +11,10 @@ import (
 	"github.com/veandco/go-sdl2/ttf"
 )
 
-var fontSize *types.XY
+var (
+	fontSize *types.XY
+	fontFile *ttf.Font
+)
 
 func init() {
 	err := ttf.Init()

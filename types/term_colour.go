@@ -23,3 +23,10 @@ func (c *Colour) RGB24() uint32 {
 func (c *Colour) RGBA32(alpha byte) uint32 {
 	return (uint32(c.Red) << 24) | (uint32(c.Green) << 16) | (uint32(c.Blue) << 8) | uint32(alpha)
 }
+
+const _ALPHA_UINT32 = 255 << 8
+
+// RGBA compatibility with color.Color
+func (c *Colour) RGBA() (uint32, uint32, uint32, uint32) {
+	return uint32(c.Red) << 8, uint32(c.Green) << 8, uint32(c.Blue) << 8, _ALPHA_UINT32
+}

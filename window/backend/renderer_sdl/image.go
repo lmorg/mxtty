@@ -6,7 +6,7 @@ import (
 	"github.com/veandco/go-sdl2/sdl"
 )
 
-type image struct {
+type cachedImage struct {
 	surface   *sdl.Surface
 	sr        *sdlRender
 	sizeCells *types.XY
@@ -20,7 +20,7 @@ func (sr *sdlRender) loadImage(bmp []byte, size *types.XY) (types.Image, error) 
 		return nil, err
 	}
 
-	img := image{sr: sr, rwops: rwops}
+	img := cachedImage{sr: sr, rwops: rwops}
 
 	img.surface, err = sdl.LoadBMPRW(rwops, true)
 	if err != nil {
@@ -56,11 +56,11 @@ func (sr *sdlRender) loadImage(bmp []byte, size *types.XY) (types.Image, error) 
 	return &img, nil
 }
 
-func (img *image) Size() *types.XY {
+func (img *cachedImage) Size() *types.XY {
 	return img.sizeCells
 }
 
-func (img *image) Draw(size *types.XY, pos *types.XY) {
+func (img *cachedImage) Draw(size *types.XY, pos *types.XY) {
 	srcRect := &sdl.Rect{
 		W: img.surface.W,
 		H: img.surface.H,
@@ -81,11 +81,11 @@ func (img *image) Draw(size *types.XY, pos *types.XY) {
 	img.sr.AddToElementStack(&layer.RenderStackT{img.texture, srcRect, dstRect, false})
 }
 
-func (img *image) Asset() any {
+func (img *cachedImage) Asset() any {
 	return img.surface
 }
 
-func (img *image) Close() {
+func (img *cachedImage) Close() {
 	img.texture.Destroy()
 	img.surface.Free()
 	img.rwops.Free()
