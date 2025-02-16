@@ -63,6 +63,7 @@ type configT struct {
 	TypeFace struct {
 		FontName         string `yaml:"FontName"`
 		FontSize         int    `yaml:"FontSize"`
+		HarfbuzzRenderer bool   `yaml:"HarfbuzzRenderer"`
 		Ligatures        bool   `yaml:"Ligatures"`
 		DropShadow       bool   `yaml:"DropShadow"`
 		AdjustCellWidth  int    `yaml:"AdjustCellWidth"`

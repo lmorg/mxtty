@@ -11,6 +11,7 @@ import (
 	virtualterm "github.com/lmorg/mxtty/term"
 	"github.com/lmorg/mxtty/tmux"
 	"github.com/lmorg/mxtty/window/backend"
+	"github.com/lmorg/mxtty/window/backend/typeface"
 )
 
 func main() {
@@ -18,6 +19,15 @@ func main() {
 	defer pprof.CleanUp()
 
 	getFlags()
+
+	typeface.Init()
+	err := typeface.Open(
+		config.Config.TypeFace.FontName,
+		config.Config.TypeFace.FontSize,
+	)
+	if err != nil {
+		panic(err.Error())
+	}
 
 	if config.Config.Tmux.Enabled && tmuxInstalled() {
 		tmuxSession()

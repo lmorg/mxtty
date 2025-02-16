@@ -114,7 +114,7 @@ func _newFontTexture(chars []rune, sgr *types.Sgr, glyphSize *types.XY, renderer
 	var err error
 	for i, cell.Char = range chars {
 		cellRect.X = int32(i) * glyphSize.X
-		err = _printCellToSurface(cell, cellRect, font, surface, hlTexture)
+		err = _printCellToSurface(cell, cellRect, surface, hlTexture)
 		if err != nil {
 			panic(err) // TODO: better error handling please!
 		}
@@ -150,7 +150,7 @@ func _newFontSurface(glyphSize *types.XY, nCharacters int32) *sdl.Surface {
 	return surface
 }
 
-func _printCellToSurface(cell *types.Cell, cellRect *sdl.Rect, font *ttf.Font, surface *sdl.Surface, hlTexture int) error {
+func _printCellToSurface(cell *types.Cell, cellRect *sdl.Rect, surface *sdl.Surface, hlTexture int) error {
 	fg, bg := sgrOpts(cell.Sgr, hlTexture == _HLTEXTURE_SELECTION)
 
 	// render background colour
@@ -179,7 +179,8 @@ func _printCellToSurface(cell *types.Cell, cellRect *sdl.Rect, font *ttf.Font, s
 	if (config.Config.TypeFace.DropShadow && bg == nil) ||
 		hlTexture > _HLTEXTURE_SELECTION {
 
-		shadowText, err := font.RenderGlyphBlended(cell.Char, textShadow[hlTexture])
+		//shadowText, err := font.RenderGlyphBlended(cell.Char, textShadow[hlTexture])
+		shadowText, err := typeface.RenderGlyph(cell.Char, textShadow[hlTexture], bg, cellRect)
 		if err != nil {
 			return err
 		}

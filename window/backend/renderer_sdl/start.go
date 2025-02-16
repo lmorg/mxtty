@@ -60,14 +60,7 @@ func Initialise() (types.Renderer, *types.XY) {
 	sr.ligCache = newCachedLigatures(sr)
 	sr.keyIgnore = make(chan bool)
 
-	err = typeface.Open(
-		config.Config.TypeFace.FontName,
-		config.Config.TypeFace.FontSize,
-	)
-	if err != nil {
-		panic(err.Error())
-	}
-	sr.setTypeFace()
+	sr.glyphSize = typeface.GetSize()
 
 	sr.window.SetMinimumSize(
 		(40*sr.glyphSize.X)+(_PANE_LEFT_MARGIN),
@@ -136,10 +129,6 @@ func (sr *sdlRender) setIcon() error {
 	sr.window.SetIcon(icon)
 
 	return nil
-}
-
-func (sr *sdlRender) setTypeFace() {
-	sr.glyphSize = typeface.GetSize()
 }
 
 func setLghtOrDarkMode() {

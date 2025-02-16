@@ -36,7 +36,7 @@ type sdlRender struct {
 	tmux      *tmux.Tmux
 	limiter   sync.Mutex
 
-	// preferences
+	// deprecated
 	font *ttf.Font
 
 	// title
