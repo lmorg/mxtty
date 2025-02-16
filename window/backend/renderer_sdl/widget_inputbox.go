@@ -11,8 +11,8 @@ import (
 )
 
 var (
-	questionColor       = &types.Colour{0x00, 0x77, 0x00}
-	questionColorBorder = &types.Colour{0x00, 0xff, 0x00}
+	questionColor       = &types.Colour{0x00, 0x77, 0x00, 0xff}
+	questionColorBorder = &types.Colour{0x00, 0xff, 0x00, 0xff}
 )
 
 type inputBoxCallbackT func(string)

@@ -134,14 +134,14 @@ func (sr *sdlRender) setIcon() error {
 func setLghtOrDarkMode() {
 	if config.Config.Terminal.LightMode {
 		highlightBlendMode = sdl.BLENDMODE_ADD
-		textShadow[_HLTEXTURE_NONE].A = 32
+		textShadow[_HLTEXTURE_NONE].Alpha = 32
 		types.SGR_DEFAULT.Fg, types.SGR_DEFAULT.Bg = types.SGR_DEFAULT.Bg, types.SGR_DEFAULT.Fg
 		types.SGR_COLOUR_WHITE, types.SGR_COLOUR_BLACK = types.SGR_COLOUR_BLACK, types.SGR_COLOUR_WHITE
 		types.SGR_COLOUR_WHITE_BRIGHT, types.SGR_COLOUR_BLACK_BRIGHT = types.SGR_COLOUR_BLACK_BRIGHT, types.SGR_COLOUR_WHITE_BRIGHT
 
 	} else {
 		highlightBlendMode = sdl.BLENDMODE_ADD
-		textShadow[_HLTEXTURE_NONE].A = 255
+		textShadow[_HLTEXTURE_NONE].Alpha = 255
 	}
 }
 

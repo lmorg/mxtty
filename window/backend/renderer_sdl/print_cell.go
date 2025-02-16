@@ -22,11 +22,11 @@ const (
 	_HLTEXTURE_LAST // placeholder for rect calculations. Must always come last
 )
 
-var textShadow = []sdl.Color{
-	_HLTEXTURE_NONE:          {R: 0, G: 0, B: 0, A: 0}, // A controlled by LightMode
-	_HLTEXTURE_SELECTION:     {R: 64, G: 64, B: 255, A: 255},
-	_HLTEXTURE_SEARCH_RESULT: {R: 64, G: 64, B: 255, A: 192},
-	_HLTEXTURE_MATCH_RANGE:   {R: 64, G: 255, B: 64, A: 128},
+var textShadow = []*types.Colour{ // RGBA
+	_HLTEXTURE_NONE:          {0, 0, 0, 0}, // A controlled by LightMode
+	_HLTEXTURE_SELECTION:     {64, 64, 255, 255},
+	_HLTEXTURE_SEARCH_RESULT: {64, 64, 255, 192},
+	_HLTEXTURE_MATCH_RANGE:   {64, 255, 64, 128},
 }
 
 var (
@@ -158,7 +158,7 @@ func _printCellToSurface(cell *types.Cell, cellRect *sdl.Rect, surface *sdl.Surf
 	if bg != nil {
 		var pixel uint32
 		if hlTexture != 0 {
-			pixel = sdl.MapRGBA(surface.Format, textShadow[hlTexture].R, textShadow[hlTexture].G, textShadow[hlTexture].B, 255)
+			pixel = sdl.MapRGBA(surface.Format, textShadow[hlTexture].Red, textShadow[hlTexture].Green, textShadow[hlTexture].Blue, 255)
 		} else {
 			pixel = sdl.MapRGBA(surface.Format, bg.Red, bg.Green, bg.Blue, 255)
 		}

@@ -11,8 +11,8 @@ import (
 )
 
 var (
-	highlightBorder = &types.Colour{0x31, 0x6d, 0xb0}
-	highlightFill   = &types.Colour{0x1c, 0x3e, 0x64}
+	highlightBorder = &types.Colour{0x31, 0x6d, 0xb0, 0xff}
+	highlightFill   = &types.Colour{0x1c, 0x3e, 0x64, 0xff}
 )
 
 type _highlightMode uint8

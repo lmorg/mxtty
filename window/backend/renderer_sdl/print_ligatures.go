@@ -149,7 +149,8 @@ func (sr *sdlRender) PrintCellBlock(cells []*types.Cell, cellPos *types.XY) {
 			H: cellBlockRect.H,
 		}
 
-		shadowText, err := sr.font.RenderUTF8Blended(s, textShadow[_HLTEXTURE_NONE]) // c
+		c := textShadow[_HLTEXTURE_NONE]
+		shadowText, err := sr.font.RenderUTF8Blended(s, sdl.Color{R: c.Red, G: c.Green, B: c.Blue, A: c.Alpha})
 		if err != nil {
 			panic(fmt.Sprintf("error printing '%s' (%d): %v", s, len(s), err)) // TODO: better error handling please!
 		}
