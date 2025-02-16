@@ -31,6 +31,8 @@ Terminal:
   # Window.RefreshInterval also affects window updates
   # This value can also be overwritten by CSI ?4l &  CSI ?4h (DECSCLM)
   JumpScrollLineCount: -1  # lines, 0 is per character, -1 is per page
+
+  # LightMode is like Dark Mode but lighter
   #LightMode: true # experimental
   
   Widgets:

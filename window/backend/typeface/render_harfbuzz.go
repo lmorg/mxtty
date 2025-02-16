@@ -2,8 +2,6 @@ package typeface
 
 import (
 	"image"
-	"image/color"
-	"image/draw"
 	"os"
 	"unsafe"
 
@@ -51,12 +49,12 @@ func (f *fontHarfbuzz) GetSize() *types.XY {
 
 // RenderGlyph should be called from a font atlas
 func (f *fontHarfbuzz) RenderGlyph(char rune, fg, bg *types.Colour, cellRect *sdl.Rect) (*sdl.Surface, error) {
-	if bg == nil {
-		bg = types.SGR_DEFAULT.Bg
-	}
+	//if bg == nil {
+	//	bg = types.SGR_DEFAULT.Bg
+	//}
 
 	img := image.NewNRGBA(image.Rect(0, 0, int(cellRect.W), int(cellRect.H)))
-	draw.Draw(img, img.Bounds(), &image.Uniform{color.Transparent}, image.Point{}, draw.Src)
+	//draw.Draw(img, img.Bounds(), &image.Uniform{color.Transparent}, image.Point{}, draw.Src)
 
 	textRenderer := &render.Renderer{
 		FontSize: float32(config.Config.TypeFace.FontSize),

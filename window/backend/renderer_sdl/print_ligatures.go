@@ -114,7 +114,7 @@ func (sr *sdlRender) PrintCellBlock(cells []*types.Cell, cellPos *types.XY) {
 		return
 	}
 
-	surface := _newFontSurface(sr.glyphSize, int32(len(cells)))
+	surface := newFontSurface(sr.glyphSize, int32(len(cells)))
 	defer surface.Free()
 
 	sgr := cells[0].Sgr
