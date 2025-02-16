@@ -31,6 +31,10 @@ func Default() error {
 var Config configT
 
 type configT struct {
+	Tmux struct {
+		Enabled bool `yaml:"Enabled"`
+	} `yaml:"Tmux"`
+
 	Shell struct {
 		Default  []string `yaml:"Default"`
 		Fallback []string `yaml:"Fallback"`
@@ -41,15 +45,6 @@ type configT struct {
 		ScrollbackCloseKeyPress bool `yaml:"ScrollbackCloseKeyPress"`
 		JumpScrollLineCount     int  `yaml:"JumpScrollLineCount"`
 		LightMode               bool `yaml:"LightMode"`
-
-		TypeFace struct {
-			FontName         string `yaml:"FontName"`
-			FontSize         int    `yaml:"FontSize"`
-			Ligatures        bool   `yaml:"Ligatures"`
-			DropShadow       bool   `yaml:"DropShadow"`
-			AdjustCellWidth  int    `yaml:"AdjustCellWidth"`
-			AdjustCellHeight int    `yaml:"AdjustCellHeight"`
-		} `yaml:"TypeFace"`
 
 		Widgets struct {
 			Table struct {
@@ -65,7 +60,12 @@ type configT struct {
 		RefreshInterval int  `yaml:"RefreshInterval"`
 	} `yaml:"Window"`
 
-	Tmux struct {
-		Enabled bool `yaml:"Enabled"`
-	} `yaml:"Tmux"`
+	TypeFace struct {
+		FontName         string `yaml:"FontName"`
+		FontSize         int    `yaml:"FontSize"`
+		Ligatures        bool   `yaml:"Ligatures"`
+		DropShadow       bool   `yaml:"DropShadow"`
+		AdjustCellWidth  int    `yaml:"AdjustCellWidth"`
+		AdjustCellHeight int    `yaml:"AdjustCellHeight"`
+	} `yaml:"TypeFace"`
 }

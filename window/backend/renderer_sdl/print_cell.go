@@ -7,6 +7,7 @@ import (
 	"github.com/lmorg/mxtty/config"
 	"github.com/lmorg/mxtty/types"
 	"github.com/lmorg/mxtty/window/backend/renderer_sdl/layer"
+	"github.com/lmorg/mxtty/window/backend/typeface"
 	"github.com/veandco/go-sdl2/sdl"
 	"github.com/veandco/go-sdl2/ttf"
 )
@@ -175,7 +176,7 @@ func _printCellToSurface(cell *types.Cell, cellRect *sdl.Rect, font *ttf.Font, s
 
 	// render drop shadow
 
-	if (config.Config.Terminal.TypeFace.DropShadow && bg == nil) ||
+	if (config.Config.TypeFace.DropShadow && bg == nil) ||
 		hlTexture > _HLTEXTURE_SELECTION {
 
 		shadowText, err := font.RenderGlyphBlended(cell.Char, textShadow[hlTexture])
@@ -218,8 +219,7 @@ func _printCellToSurface(cell *types.Cell, cellRect *sdl.Rect, font *ttf.Font, s
 	}
 
 	// render cell char
-	//text, err := font.RenderGlyphBlended(cell.Char, sdl.Color{R: fg.Red, G: fg.Green, B: fg.Blue, A: 255})
-	text, err := renderGlyphHarfbuzz(cell.Char, fg, bg, cellRect)
+	text, err := typeface.RenderGlyph(cell.Char, fg, bg, cellRect)
 	if err != nil {
 		return err
 	}
@@ -233,7 +233,7 @@ func _printCellToSurface(cell *types.Cell, cellRect *sdl.Rect, font *ttf.Font, s
 	if err != nil {
 		return err
 	}
-	if config.Config.Terminal.TypeFace.Ligatures && cell.Sgr.Bitwise.Is(types.SGR_BOLD) {
+	if config.Config.TypeFace.Ligatures && cell.Sgr.Bitwise.Is(types.SGR_BOLD) {
 		_ = text.SetBlendMode(sdl.BLENDMODE_ADD)
 		_ = text.Blit(nil, surface, cellRect)
 	}
@@ -253,7 +253,7 @@ func (sr *sdlRender) setFontStyle(style types.SgrFlag) {
 func fontStyle(style types.SgrFlag) ttf.Style {
 	var i ttf.Style
 
-	if style.Is(types.SGR_BOLD) && !config.Config.Terminal.TypeFace.Ligatures {
+	if style.Is(types.SGR_BOLD) && !config.Config.TypeFace.Ligatures {
 		i |= ttf.STYLE_BOLD
 	}
 

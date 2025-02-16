@@ -14,14 +14,11 @@ import (
 	"github.com/veandco/go-sdl2/sdl"
 )
 
-// TODO: refine this function
-func renderGlyphHarfbuzz(char rune, fg, bg *types.Colour, cellRect *sdl.Rect) (*sdl.Surface, error) {
+func RenderGlyph(char rune, fg, bg *types.Colour, cellRect *sdl.Rect) (*sdl.Surface, error) {
 	if false {
-		//return fontFile.RenderGlyphBlended(char, sdl.Color{R: fg.Red, G: fg.Green, B: fg.Blue, A: 255})
 		return fontFile.RenderGlyphBlended(char, sdl.Color{R: fg.Red, G: fg.Green, B: fg.Blue, A: 255})
 	}
 
-	//fill := color.Color(bg)
 	if bg == nil {
 		bg = types.SGR_DEFAULT.Bg
 	}
@@ -36,14 +33,15 @@ func renderGlyphHarfbuzz(char rune, fg, bg *types.Colour, cellRect *sdl.Rect) (*
 	}
 
 	textRenderer := &render.Renderer{
-		FontSize: float32(config.Config.Terminal.TypeFace.FontSize),
+		FontSize: float32(config.Config.TypeFace.FontSize),
 		Color:    fg,
 	}
 
 	_ = textRenderer.DrawString(string(char), img, typeface)
 
-	pitch := cellRect.W * 4
-	//r, g, b, a := bg.RGBA()
-	//return sdl.CreateRGBSurfaceFrom(unsafe.Pointer(&img.Pix[0]), cellRect.W, cellRect.H, 32, int(pitch), r, g, b, a)
-	return sdl.CreateRGBSurfaceWithFormatFrom(unsafe.Pointer(&img.Pix[0]), cellRect.W, cellRect.H, 32, pitch, uint32(sdl.PIXELFORMAT_RGBA32))
+	return sdl.CreateRGBSurfaceWithFormatFrom(
+		unsafe.Pointer(&img.Pix[0]),
+		cellRect.W, cellRect.H,
+		32, cellRect.W*4, uint32(sdl.PIXELFORMAT_RGBA32),
+	)
 }

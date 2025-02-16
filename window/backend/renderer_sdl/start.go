@@ -10,7 +10,6 @@ import (
 	"github.com/lmorg/mxtty/types"
 	"github.com/lmorg/mxtty/window/backend/typeface"
 	"github.com/veandco/go-sdl2/sdl"
-	"github.com/veandco/go-sdl2/ttf"
 	"golang.design/x/clipboard"
 )
 
@@ -61,14 +60,14 @@ func Initialise() (types.Renderer, *types.XY) {
 	sr.ligCache = newCachedLigatures(sr)
 	sr.keyIgnore = make(chan bool)
 
-	font, err := typeface.Open(
-		config.Config.Terminal.TypeFace.FontName,
-		config.Config.Terminal.TypeFace.FontSize,
+	err = typeface.Open(
+		config.Config.TypeFace.FontName,
+		config.Config.TypeFace.FontSize,
 	)
 	if err != nil {
 		panic(err.Error())
 	}
-	sr.setTypeFace(font)
+	sr.setTypeFace()
 
 	sr.window.SetMinimumSize(
 		(40*sr.glyphSize.X)+(_PANE_LEFT_MARGIN),
@@ -139,8 +138,7 @@ func (sr *sdlRender) setIcon() error {
 	return nil
 }
 
-func (sr *sdlRender) setTypeFace(f *ttf.Font) {
-	sr.font = f
+func (sr *sdlRender) setTypeFace() {
 	sr.glyphSize = typeface.GetSize()
 }
 

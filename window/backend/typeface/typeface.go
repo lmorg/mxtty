@@ -27,22 +27,22 @@ func Close() {
 	ttf.Quit()
 }
 
-func Open(name string, size int) (font *ttf.Font, err error) {
+func Open(name string, size int) (err error) {
 	if name != "" {
-		font, err = openSystemTtf(name, size)
+		fontFile, err = openSystemTtf(name, size)
 	}
 	if name == "" || err != nil {
-		font, err = openCompiledTtf(size)
+		fontFile, err = openCompiledTtf(size)
 	}
 
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	font.SetHinting(ttf.HINTING_MONO)
+	fontFile.SetHinting(ttf.HINTING_MONO)
 
-	fontSize, err = getSize(font)
-	return font, err
+	fontSize, err = getSize(fontFile)
+	return err
 }
 
 func GetSize() *types.XY {

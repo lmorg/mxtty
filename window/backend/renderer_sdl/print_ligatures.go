@@ -141,7 +141,7 @@ func (sr *sdlRender) PrintCellBlock(cells []*types.Cell, cellPos *types.XY) {
 		}
 	}
 
-	if config.Config.Terminal.TypeFace.DropShadow && bg == nil {
+	if config.Config.TypeFace.DropShadow && bg == nil {
 		shadowRect := &sdl.Rect{
 			X: cellBlockRect.X + dropShadowOffset,
 			Y: cellBlockRect.Y + dropShadowOffset,
