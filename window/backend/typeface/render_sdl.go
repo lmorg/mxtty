@@ -6,14 +6,15 @@ import (
 
 	"github.com/flopp/go-findfont"
 	"github.com/lmorg/mxtty/assets"
+	"github.com/lmorg/mxtty/debug"
 	"github.com/lmorg/mxtty/types"
 	"github.com/veandco/go-sdl2/sdl"
 	"github.com/veandco/go-sdl2/ttf"
 )
 
 type fontSdl struct {
-	size *types.XY
-	font *ttf.Font
+	size  *types.XY
+	fonts [3]*ttf.Font
 }
 
 func (f *fontSdl) Init() error { return ttf.Init() }
@@ -23,21 +24,33 @@ func (f *fontSdl) Open(name string, size int) (err error) {
 		err = f.openSystemTtf(name, size)
 	}
 	if name == "" || err != nil {
-		err = f.openCompiledTtf(size)
+		f.fonts[_FONT_DEFAULT], err = f.openCompiledTtf(assets.TYPEFACE_DEFAULT, size)
 	}
 
 	if err != nil {
 		return err
 	}
 
-	f.font.SetHinting(ttf.HINTING_MONO)
+	f.fonts[_FONT_DEFAULT].SetHinting(ttf.HINTING_MONO)
+
+	f.fonts[_FONT_FALLBACK], err = f.openCompiledTtf(assets.TYPEFACE_FALLBACK, size)
+	if err != nil {
+		panic(err)
+	}
+	f.fonts[_FONT_FALLBACK].SetHinting(ttf.HINTING_MONO)
+
+	f.fonts[_FONT_EMOJI], err = f.openCompiledTtf(assets.TYPEFACE_EMOJI, size)
+	if err != nil {
+		panic(err)
+	}
+	f.fonts[_FONT_EMOJI].SetHinting(ttf.HINTING_MONO)
 
 	err = f._getSize()
 	return err
 }
 
 func (f *fontSdl) _getSize() error {
-	x, y, err := f.font.SizeUTF8("W")
+	x, y, err := f.fonts[_FONT_DEFAULT].SizeUTF8("W")
 	f.size = &types.XY{int32(x), int32(y)}
 	return err
 }
@@ -53,7 +66,7 @@ func (f *fontSdl) openSystemTtf(name string, size int) error {
 		log.Println("defaulting to compiled log...")
 	}
 
-	f.font, err = ttf.OpenFont(path, size)
+	f.fonts[_FONT_DEFAULT], err = ttf.OpenFont(path, size)
 	if err != nil {
 		return fmt.Errorf("error in ttf.OpenFont(): %s", err.Error())
 	}
@@ -61,28 +74,53 @@ func (f *fontSdl) openSystemTtf(name string, size int) error {
 	return nil
 }
 
-func (f *fontSdl) openCompiledTtf(size int) error {
-	rwops, err := sdl.RWFromMem(assets.Get(assets.TYPEFACE))
+func (f *fontSdl) openCompiledTtf(assetName string, size int) (*ttf.Font, error) {
+	rwops, err := sdl.RWFromMem(assets.Get(assetName))
 	if err != nil {
-		return fmt.Errorf("error in sdl.RWFromMem(): %s", err.Error())
+		return nil, fmt.Errorf("error in sdl.RWFromMem(): %s", err.Error())
 	}
 
-	f.font, err = ttf.OpenFontRW(rwops, 0, size)
+	font, err := ttf.OpenFontRW(rwops, 0, size)
 	if err != nil {
-		return fmt.Errorf("error in ttf.OpenFontRW(): %s", err.Error())
+		return nil, fmt.Errorf("error in ttf.OpenFontRW(): %s", err.Error())
 	}
-	return nil
+	return font, nil
 }
 
 // RenderGlyph should be called from a font atlas
-func (f *fontSdl) RenderGlyph(char rune, fg, bg *types.Colour, cellRect *sdl.Rect) (*sdl.Surface, error) {
-	return f.font.RenderGlyphBlended(char, sdl.Color{R: fg.Red, G: fg.Green, B: fg.Blue, A: 255})
+func (f *fontSdl) RenderGlyph(char rune, fg *types.Colour, cellRect *sdl.Rect) (*sdl.Surface, error) {
+	for fontId := range f.fonts {
+		if f.glyphIsProvided(fontId, char) {
+			return f.fonts[fontId].RenderGlyphBlended(char, sdl.Color{
+				R: fg.Red,
+				G: fg.Green,
+				B: fg.Blue,
+				A: fg.Alpha,
+			})
+		}
+		debug.Log(fmt.Sprintf("[sdl] emoji not in font %d: %s", fontId, string(char)))
+	}
+
+	// not found
+	return f.fonts[_FONT_DEFAULT].RenderGlyphBlended(char, sdl.Color{
+		R: fg.Red,
+		G: fg.Green,
+		B: fg.Blue,
+		A: fg.Alpha,
+	})
+}
+
+func (f *fontSdl) glyphIsProvided(fontId int, r rune) bool {
+	return f.fonts[fontId].GlyphIsProvided(uint16(r))
 }
 
 func (f *fontSdl) Close() {
+	for _, font := range f.fonts {
+		font.Close()
+	}
 	ttf.Quit()
 }
 
 func (f *fontSdl) Deprecated_GetFont() *ttf.Font {
-	return f.font
+	return f.fonts[_FONT_DEFAULT]
 }

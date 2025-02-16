@@ -11,10 +11,17 @@ type typefaceRenderer interface {
 	Init() error
 	Open(string, int) error
 	GetSize() *types.XY
-	RenderGlyph(rune, *types.Colour, *types.Colour, *sdl.Rect) (*sdl.Surface, error)
+	RenderGlyph(rune, *types.Colour, *sdl.Rect) (*sdl.Surface, error)
+	glyphIsProvided(int, rune) bool
 	Deprecated_GetFont() *ttf.Font
 	Close()
 }
+
+const (
+	_FONT_DEFAULT = iota
+	_FONT_FALLBACK
+	_FONT_EMOJI
+)
 
 var renderer typefaceRenderer
 
@@ -36,8 +43,8 @@ func GetSize() *types.XY {
 	return renderer.GetSize()
 }
 
-func RenderGlyph(char rune, fg, bg *types.Colour, cellRect *sdl.Rect) (*sdl.Surface, error) {
-	return renderer.RenderGlyph(char, fg, bg, cellRect)
+func RenderGlyph(char rune, fg *types.Colour, cellRect *sdl.Rect) (*sdl.Surface, error) {
+	return renderer.RenderGlyph(char, fg, cellRect)
 }
 
 func Close() {
@@ -46,4 +53,29 @@ func Close() {
 
 func Deprecated_GetFont() *ttf.Font {
 	return renderer.Deprecated_GetFont()
+}
+
+func (f *fontSdl) LigSplitSequence(runes []rune) [][]rune {
+	var (
+		seq [][]rune
+		i   int
+	)
+
+	for _, r := range runes {
+		if renderer.glyphIsProvided(_FONT_DEFAULT, r) {
+			seq[i] = append(seq[i], r)
+			continue
+		}
+
+		if len(seq[i]) == 0 {
+			seq[i] = append(seq[i], r)
+			seq = append(seq, []rune{})
+			i++
+		} else {
+			seq = append(seq, []rune{r}, []rune{})
+			i += 2
+		}
+	}
+
+	return seq
 }
