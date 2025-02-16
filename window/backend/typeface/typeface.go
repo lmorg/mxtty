@@ -12,6 +12,7 @@ type typefaceRenderer interface {
 	Open(string, int) error
 	GetSize() *types.XY
 	RenderGlyph(rune, *types.Colour, *types.Colour, *sdl.Rect) (*sdl.Surface, error)
+	Deprecated_GetFont() *ttf.Font
 	Close()
 }
 
@@ -41,4 +42,8 @@ func RenderGlyph(char rune, fg, bg *types.Colour, cellRect *sdl.Rect) (*sdl.Surf
 
 func Close() {
 	ttf.Quit()
+}
+
+func Deprecated_GetFont() *ttf.Font {
+	return renderer.Deprecated_GetFont()
 }
