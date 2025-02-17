@@ -38,21 +38,10 @@ func (term *Term) searchBuf(search string) {
 	term._mutex.Lock()
 	defer term._mutex.Unlock()
 
-	_, normOk := term._searchBuf(term._normBuf, search)
-	/*offset*/ _, scrollOk := term._searchBuf(term._scrollBuf, search)
+	normOk := term._searchBuf(term._normBuf, search)
+	scrollOk := term._searchBuf(term._scrollBuf, search)
 
 	term._searchHighlight = term._searchHighlight || normOk || scrollOk
-
-	/*if normOk {
-		return
-	}
-
-	if scrollOk {
-		// +_SEARCH_OFFSET to add some before context
-		term._scrollOffset = len(term._scrollBuf) - offset + _SEARCH_OFFSET
-		term.updateScrollback()
-		return
-	}*/
 
 	if normOk || scrollOk {
 		term.ShowSearchResults()
@@ -76,7 +65,7 @@ func (term *Term) searchClearResults() {
 	return
 }
 
-func (term *Term) _searchBuf(buf types.Screen, search string) (int, bool) {
+func (term *Term) _searchBuf(buf types.Screen, search string) bool {
 	firstMatch := -1
 	for y := len(buf) - 1; y >= 0; y-- {
 		for x := len(buf[y].Cells) - 1; x >= 0; x-- {
@@ -113,7 +102,7 @@ func (term *Term) _searchBuf(buf types.Screen, search string) (int, bool) {
 			}
 		}
 	}
-	return firstMatch, firstMatch != -1
+	return firstMatch != -1
 }
 
 func (term *Term) ShowSearchResults() {

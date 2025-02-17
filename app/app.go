@@ -7,21 +7,21 @@ import (
 )
 
 // Name is the name of the $TERM
-const Name = "mxtty"
+const Name = "Ttyphoon"
 
 // Version number of $TERM
 // Format of version string should be "(major).(minor).(revision) DESCRIPTION"
 const (
 	version  = "%d.%d.%d"
 	Major    = 0
-	Minor    = 3
-	Revision = 4100
+	Minor    = 4
+	Revision = 1000
 )
 
-const Title = "mxtty - Multimedia Terminal Emulator"
+const Title = "Ttyphoon - Multimedia Terminal Emulator"
 
 // Copyright is the copyright owner string
-const Copyright = "© 2023-2024 Laurence Morgan"
+const Copyright = "© 2023-2025 Laurence Morgan"
 
 // License is the projects software license
 const License = "License GPL v2"
