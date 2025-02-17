@@ -15,7 +15,7 @@ func (term *Term) Search() {
 		return
 	}
 
-	if term._searchLastString == "" {
+	if len(term._searchResults) == 0 {
 		term.search()
 	} else {
 		term.ShowSearchResults()
@@ -27,13 +27,14 @@ func (term *Term) search() {
 }
 
 func (term *Term) searchBuf(search string) {
-	search = strings.ToLower(search)
-	term._searchLastString = search
+	term.searchClearResults()
 
 	if search == "" {
-		term.searchClearResults()
 		return
 	}
+
+	search = strings.ToLower(search)
+	term._searchLastString = search
 
 	term._mutex.Lock()
 	defer term._mutex.Unlock()
