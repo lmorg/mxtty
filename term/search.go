@@ -15,6 +15,14 @@ func (term *Term) Search() {
 		return
 	}
 
+	if term._searchLastString == "" {
+		term.search()
+	} else {
+		term.ShowSearchResults()
+	}
+}
+
+func (term *Term) search() {
 	term.renderer.DisplayInputBox("Value to search for", term._searchLastString, term.searchBuf)
 }
 
@@ -23,16 +31,7 @@ func (term *Term) searchBuf(search string) {
 	term._searchLastString = search
 
 	if search == "" {
-		term._searchHighlight = false
-		for _, cell := range term._searchHlHistory {
-			if cell != nil && cell.Sgr != nil {
-				cell.Sgr.Bitwise.Unset(types.SGR_HIGHLIGHT_SEARCH_RESULT)
-			}
-		}
-		term._searchHlHistory = []*types.Cell{}
-		term._searchResults = nil
-		term._scrollOffset = 0
-		term.updateScrollback()
+		term.searchClearResults()
 		return
 	}
 
@@ -40,23 +39,41 @@ func (term *Term) searchBuf(search string) {
 	defer term._mutex.Unlock()
 
 	_, normOk := term._searchBuf(term._normBuf, search)
-	offset, scrollOk := term._searchBuf(term._scrollBuf, search)
+	/*offset*/ _, scrollOk := term._searchBuf(term._scrollBuf, search)
 
 	term._searchHighlight = term._searchHighlight || normOk || scrollOk
 
-	if normOk {
+	/*if normOk {
 		return
 	}
 
 	if scrollOk {
 		// +_SEARCH_OFFSET to add some before context
 		term._scrollOffset = len(term._scrollBuf) - offset + _SEARCH_OFFSET
-		//term.ShowCursor(false)
 		term.updateScrollback()
+		return
+	}*/
+
+	if normOk || scrollOk {
+		term.ShowSearchResults()
 		return
 	}
 
 	term.renderer.DisplayNotification(types.NOTIFY_WARN, fmt.Sprintf("Search string not found: '%s'", search))
+}
+
+func (term *Term) searchClearResults() {
+	term._searchHighlight = false
+	for _, cell := range term._searchHlHistory {
+		if cell != nil && cell.Sgr != nil {
+			cell.Sgr.Bitwise.Unset(types.SGR_HIGHLIGHT_SEARCH_RESULT)
+		}
+	}
+	term._searchHlHistory = []*types.Cell{}
+	term._searchResults = nil
+	term._scrollOffset = 0
+	term.updateScrollback()
+	return
 }
 
 func (term *Term) _searchBuf(buf types.Screen, search string) (int, bool) {
@@ -117,11 +134,8 @@ func (term *Term) ShowSearchResults() {
 	cbCancel := func(int) {
 		term._scrollOffset = offset
 		term.updateScrollback()
+		term.search()
 	}
 	cbSelect := func(int) {}
 	term.renderer.DisplayMenu("Search results", results, cbHighlight, cbSelect, cbCancel)
-
-	/*if term._scrollOffset != 0 {
-		term.ShowCursor(false)
-	}*/
 }
