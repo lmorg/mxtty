@@ -1,6 +1,7 @@
 package rendersdl
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/lmorg/mxtty/codes"
@@ -18,20 +19,21 @@ var (
 type inputBoxCallbackT func(string)
 
 type inputBoxWidgetT struct {
-	title      string
-	callback   inputBoxCallbackT
-	value      string
-	blinkState bool
+	title        string
+	callback     inputBoxCallbackT
+	value        string
+	defaultValue string
+	blinkState   bool
 }
 
 func (sr *sdlRender) DisplayInputBox(title string, defaultValue string, callback func(string)) {
 	sr.inputBox = &inputBoxWidgetT{
-		title:    title,
-		value:    defaultValue,
-		callback: callback,
+		title:        title,
+		defaultValue: defaultValue,
+		callback:     callback,
 	}
 
-	sr.footerText = "[Return] Ok  |  [Esc] Cancel  |  [Ctrl+u] Clear text"
+	sr.footerText = fmt.Sprintf(`[Return] Ok  |  [Esc] Cancel  |  [Ctrl+u] Clear text  |  [Up] Default: "%s"`, defaultValue)
 	sr.term.ShowCursor(false)
 	cursor.Arrow()
 	go sr.inputBox.inputBoxCursorBlink(sr)
@@ -50,21 +52,30 @@ func (inputBox *inputBoxWidgetT) eventTextInput(sr *sdlRender, evt *sdl.TextInpu
 func (inputBox *inputBoxWidgetT) eventKeyPress(sr *sdlRender, evt *sdl.KeyboardEvent) {
 	mod := keyEventModToCodesModifier(evt.Keysym.Mod)
 	switch evt.Keysym.Sym {
-	case sdl.K_ESCAPE:
-		sr.closeInputBox()
-	case sdl.K_RETURN:
-		sr.closeInputBox()
-		inputBox.callback(inputBox.value)
 	case sdl.K_BACKSPACE:
 		if inputBox.value != "" {
 			inputBox.value = inputBox.value[:len(inputBox.value)-1]
 		} else {
 			sr.Bell()
 		}
+
+	case sdl.K_UP:
+		if inputBox.value == "" {
+			inputBox.value = inputBox.defaultValue
+		}
+
 	case sdl.K_u:
 		if mod == codes.MOD_CTRL {
 			inputBox.value = ""
 		}
+
+	case sdl.K_ESCAPE:
+		sr.closeInputBox()
+
+	case sdl.K_RETURN:
+		sr.closeInputBox()
+		inputBox.callback(inputBox.value)
+
 	}
 }
 
