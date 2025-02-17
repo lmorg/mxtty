@@ -11,6 +11,7 @@ type typefaceRenderer interface {
 	Init() error
 	Open(string, int) error
 	GetSize() *types.XY
+	SetStyle(types.SgrFlag)
 	RenderGlyph(rune, *types.Colour, *sdl.Rect) (*sdl.Surface, error)
 	glyphIsProvided(int, rune) bool
 	Deprecated_GetFont() *ttf.Font
@@ -35,6 +36,10 @@ func Open(name string, size int) (err error) {
 
 func GetSize() *types.XY {
 	return renderer.GetSize()
+}
+
+func SetStyle(style types.SgrFlag) {
+	renderer.SetStyle(style)
 }
 
 func RenderGlyph(char rune, fg *types.Colour, cellRect *sdl.Rect) (*sdl.Surface, error) {

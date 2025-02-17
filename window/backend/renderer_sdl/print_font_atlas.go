@@ -91,6 +91,7 @@ func (fa *fontAtlasT) newFontTexture(chars []rune, sgr *types.Sgr, glyphSize *ty
 	cellRect := &sdl.Rect{W: glyphSize.X, H: glyphSize.Y}
 
 	font.SetStyle(fontStyle(cell.Sgr.Bitwise))
+	typeface.SetStyle(cell.Sgr.Bitwise)
 
 	var i int
 	var err error

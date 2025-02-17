@@ -86,6 +86,20 @@ func (f *fontSdl) openCompiledTtf(assetName string, size int) (*ttf.Font, error)
 	return font, nil
 }
 
+func (f *fontSdl) SetStyle(style types.SgrFlag) {
+	var ttfStyle ttf.Style
+
+	switch {
+	case style.Is(types.SGR_BOLD):
+		ttfStyle |= ttf.STYLE_BOLD
+
+	case style.Is(types.SGR_ITALIC):
+		ttfStyle |= ttf.STYLE_ITALIC
+	}
+
+	f.fonts[_FONT_DEFAULT].SetStyle(ttfStyle)
+}
+
 // RenderGlyph should be called from a font atlas
 func (f *fontSdl) RenderGlyph(char rune, fg *types.Colour, cellRect *sdl.Rect) (*sdl.Surface, error) {
 	for fontId := range f.fonts {

@@ -26,15 +26,6 @@ var textShadow = []*types.Colour{ // RGBA
 	_HLTEXTURE_MATCH_RANGE:   {64, 255, 64, 255},
 }
 
-func (sr *sdlRender) setFontStyle(style types.SgrFlag) {
-	/*if style == sr._fontStyle {
-		return
-	}*/
-
-	sr.font.SetStyle(fontStyle(style))
-	//sr._fontStyle = style
-}
-
 func fontStyle(style types.SgrFlag) ttf.Style {
 	var i ttf.Style
 
