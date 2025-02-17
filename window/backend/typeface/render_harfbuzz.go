@@ -1,16 +1,16 @@
 package typeface
 
 import (
-	"fmt"
 	"image"
+	"log"
 	"os"
 	"unsafe"
 
 	"github.com/go-text/render"
 	"github.com/go-text/typesetting/font"
+	"github.com/go-text/typesetting/fontscan"
 	"github.com/lmorg/mxtty/assets"
 	"github.com/lmorg/mxtty/config"
-	"github.com/lmorg/mxtty/debug"
 	"github.com/lmorg/mxtty/types"
 	"github.com/veandco/go-sdl2/sdl"
 	"github.com/veandco/go-sdl2/ttf"
@@ -18,11 +18,19 @@ import (
 
 type fontHarfbuzz struct {
 	//size *types.XY
-	fonts [3]*font.Face
-	sdl   *fontSdl // just needed while I figure out how to do everything in harfbuzz
+	face *font.Face
+	fmap *fontscan.FontMap
+	sdl  *fontSdl // just needed while I figure out how to do everything in harfbuzz
 }
 
 func (f *fontHarfbuzz) Init() error {
+	f.fmap = fontscan.NewFontMap(log.Default())
+	err := f.fmap.UseSystemFonts("")
+	if err != nil {
+		return err
+	}
+	f.fmap.SetQuery(fontscan.Query{Families: []string{"monospace", "emoji", "math", "fantasy"}})
+
 	f.sdl = new(fontSdl)
 	return f.sdl.Init()
 }
@@ -34,22 +42,10 @@ func (f *fontHarfbuzz) Open(name string, size int) (err error) {
 		file, err = os.Open(name)
 	}
 	if name == "" || err != nil {
-		file = assets.Reader(assets.TYPEFACE_DEFAULT)
+		file = assets.Reader(assets.TYPEFACE)
 	}
 
-	f.fonts[_FONT_DEFAULT], err = font.ParseTTF(file)
-	if err != nil {
-		return err
-	}
-
-	f.fonts[_FONT_FALLBACK], err = font.ParseTTF(assets.Reader(assets.TYPEFACE_FALLBACK))
-	if err != nil {
-		panic(err)
-	}
-	f.fonts[_FONT_EMOJI], err = font.ParseTTF(assets.Reader(assets.TYPEFACE_EMOJI))
-	if err != nil {
-		panic(err)
-	}
+	f.face, err = font.ParseTTF(file)
 
 	return f.sdl.Open(name, size)
 }
@@ -67,16 +63,13 @@ func (f *fontHarfbuzz) RenderGlyph(char rune, fg *types.Colour, cellRect *sdl.Re
 		Color:    fg,
 	}
 
-	for fontId := range f.fonts {
-		if f.glyphIsProvided(fontId, char) {
-			_ = textRenderer.DrawString(string(char), img, f.fonts[fontId])
-			goto found
-		}
-		debug.Log(fmt.Sprintf("[harfbuzz] emoji not in font %d: %s", fontId, string(char)))
+	if f.glyphIsProvided(0, char) {
+		_ = textRenderer.DrawString(string(char), img, f.face)
+		goto found
 	}
 
 	// not found
-	_ = textRenderer.DrawString(string(char), img, f.fonts[_FONT_DEFAULT])
+	_ = textRenderer.DrawString(string(char), img, f.fmap.ResolveFace(char))
 
 found:
 
@@ -87,8 +80,8 @@ found:
 	)
 }
 
-func (f *fontHarfbuzz) glyphIsProvided(fontId int, r rune) bool {
-	_, found := f.fonts[fontId].NominalGlyph(r)
+func (f *fontHarfbuzz) glyphIsProvided(_ int, r rune) bool {
+	_, found := f.face.NominalGlyph(r)
 	return found
 }
 

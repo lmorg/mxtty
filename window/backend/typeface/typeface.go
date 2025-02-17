@@ -17,12 +17,6 @@ type typefaceRenderer interface {
 	Close()
 }
 
-const (
-	_FONT_DEFAULT = iota
-	_FONT_FALLBACK
-	_FONT_EMOJI
-)
-
 var renderer typefaceRenderer
 
 func Init() error {
@@ -55,7 +49,8 @@ func Deprecated_GetFont() *ttf.Font {
 	return renderer.Deprecated_GetFont()
 }
 
-func (f *fontSdl) LigSplitSequence(runes []rune) [][]rune {
+/*
+func ligSplitSequence(runes []rune) [][]rune {
 	var (
 		seq [][]rune
 		i   int
@@ -79,3 +74,4 @@ func (f *fontSdl) LigSplitSequence(runes []rune) [][]rune {
 
 	return seq
 }
+*/

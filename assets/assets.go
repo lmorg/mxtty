@@ -26,9 +26,8 @@ const (
 	ICON_DOWN     = "icon-down.bmp"
 	ICON_QUESTION = "icon-question.bmp"
 
-	TYPEFACE_DEFAULT  = "Hasklig-Regular.ttf"
-	TYPEFACE_FALLBACK = "NotoSansMono-Variable.ttf"
-	TYPEFACE_EMOJI    = "NotoColorEmoji-emojicompat.ttf"
+	TYPEFACE = "Hasklig-Regular.ttf"
+	EMOJI    = "NotoColorEmoji-emojicompat.ttf"
 )
 
 //go:embed bell.mp3

@@ -14,8 +14,13 @@ import (
 
 type fontSdl struct {
 	size  *types.XY
-	fonts [3]*ttf.Font
+	fonts [2]*ttf.Font
 }
+
+const (
+	_FONT_DEFAULT = iota
+	_FONT_EMOJI
+)
 
 func (f *fontSdl) Init() error { return ttf.Init() }
 
@@ -24,7 +29,7 @@ func (f *fontSdl) Open(name string, size int) (err error) {
 		err = f.openSystemTtf(name, size)
 	}
 	if name == "" || err != nil {
-		f.fonts[_FONT_DEFAULT], err = f.openCompiledTtf(assets.TYPEFACE_DEFAULT, size)
+		f.fonts[_FONT_DEFAULT], err = f.openCompiledTtf(assets.TYPEFACE, size)
 	}
 
 	if err != nil {
@@ -33,13 +38,7 @@ func (f *fontSdl) Open(name string, size int) (err error) {
 
 	f.fonts[_FONT_DEFAULT].SetHinting(ttf.HINTING_MONO)
 
-	f.fonts[_FONT_FALLBACK], err = f.openCompiledTtf(assets.TYPEFACE_FALLBACK, size)
-	if err != nil {
-		panic(err)
-	}
-	f.fonts[_FONT_FALLBACK].SetHinting(ttf.HINTING_MONO)
-
-	f.fonts[_FONT_EMOJI], err = f.openCompiledTtf(assets.TYPEFACE_EMOJI, size)
+	f.fonts[_FONT_EMOJI], err = f.openCompiledTtf(assets.EMOJI, size)
 	if err != nil {
 		panic(err)
 	}
