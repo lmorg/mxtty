@@ -1,4 +1,6 @@
-<h1>mxtty</h1>
+<h1>Ttyphoon</h1>
+
+(previously called mxtty)
 
 ![logo](assets/icon-large.bmp)
 
@@ -40,8 +42,8 @@ however hooks will be built into [Murex](https://github.com/lmorg/murex) so
 the terminal will be instantly usable even before wider support across other
 shells and command line applications is adopted.
 
-At its heart, `mxtty` is a regular terminal emulator. Like Kitty, iTerm2, and
-PuTTY (to name a few). But where `mxtty` differs is that it also supports
+At its heart, `Ttyphoon` is a regular terminal emulator. Like Kitty, iTerm2, and
+PuTTY (to name a few). But where `Ttyphoon` differs is that it also supports
 inlining rich content. Some terminal emulators support inlining images. Others
 might also allow videos. But none bar some edge case Electron terminals offer
 collapsible trees for JSON printouts. Easy to navigate directory views. Nor any
@@ -52,9 +54,9 @@ The few terminal emulators that do attempt to offer this usually fail to be
 good, or even just compatible, with all the CLI tools that we've come to depend
 on.
 
-`mxtty` aims to do _both well_. Even if you never want for any interactive
-widgets, `mxtty` will be a good terminal emulator. And for those who want a
-little more GUI in their CLI, `mxtty` will be a great modern user interface.
+`Ttyphoon` aims to do _both well_. Even if you never want for any interactive
+widgets, `Ttyphoon` will be a good terminal emulator. And for those who want a
+little more GUI in their CLI, `Ttyphoon` will be a great modern user interface.
 
 ## Screenshots
 
@@ -119,13 +121,13 @@ Search terms can be highlighted to quickly find instances of that term
 
 ### Plus more
 
-`mxtty` has only been in development for a few months and features a purpose
-built, hardware accelerated, rendering engine to facilitate this hybrid of text
-and media. So expect many more feature to come!
+Ttyphoon has only been in development for a little over a year and features a
+purpose built, hardware accelerated, rendering engine to facilitate this hybrid
+of text and media. So expect many more feature to come!
 
 ## How It Works
 
-`mxtty` uses SDL ([Simple DirectMedia Layer](https://en.wikipedia.org/wiki/Simple_DirectMedia_Layer))
+Ttyphoon uses SDL ([Simple DirectMedia Layer](https://en.wikipedia.org/wiki/Simple_DirectMedia_Layer))
 which is a simple hardware-assisted multimedia library. This enables the
 terminal emulator to be both performant and also cross-platform. Essentially
 providing some of the conveniences that people have come to love from tools
@@ -136,8 +138,8 @@ terminal applications via ANSI escape sequences. Before groan, yes I agree that
 in-band escape sequences are a lousy way of encoding meta-information. However
 to succeed at being a good terminal emulator, it needs to support some historic
 design decisions no matter how archaic they might seem today. This allows
-`mxtty` to work with existing terminal applications _and_ for third parties to
-easily add support for their applications to render rich content in `mxtty`
+Ttyphoon to work with existing terminal applications _and_ for third parties to
+easily add support for their applications to render rich content in Ttyphoon
 without breaking compatibility for legacy terminal emulators.
 
 ## Whats Left To Do
@@ -189,7 +191,7 @@ ticked but not working as expected, then please raise an issue in Github.
   - [x] Shift modifiers
   - [x] special keys (eg function keys, number pad, etc)
     - [ ] glitch free (some bugs still exist)
-  - [ ] tmux support for modifiers
+  - [x] tmux support for modifiers
 - Mouse tracking
   - [ ] common: can run most CLI applications
   - [ ] broad: can run older or more complicated CLI applications
@@ -222,7 +224,7 @@ eg `xterm` and similar terminal emulators
 - [ ] Hyperlink support
 - [ ] Bracketed paste mode
 - Inlining images
-  - [x] mxtty codes
+  - [x] Ttyphoon codes
   - [ ] iterm2 compatible
   - [ ] sixel graphics
   - [ ] ReGIS graphics
@@ -281,7 +283,7 @@ Support for the following platforms is planned:
   - [ ] tested on 12.x, Monterey
   - [ ] tested on 13.x, Ventura
   - [x] tested on 14.x, Sonoma
-  - [ ] tested on 15.x, Sequoia
+  - [x] tested on 15.x, Sequoia
 - [ ] Windows
   - [ ] PTY support implemented
   - [ ] tested on Windows 10
@@ -289,7 +291,7 @@ Support for the following platforms is planned:
 
 ## Install Guide
 
-Currently mxtty can only be compiled from source.
+Currently Ttyphoon can only be compiled from source.
 
 To do so you will need the following installed:
 - C compiler (eg GNU C)
@@ -313,7 +315,7 @@ this project:
 
 - **Testing**: There is a plethora of different software that needs to run
   inside a terminal emulator and a multitude of distinct platforms that this
-  could run on. Any support testing `mxtty` would be greatly appreciated.
+  could run on. Any support testing Ttyphoon would be greatly appreciated.
 
 - **Documentation**: This is possibly the hardest part of any project to get
   right. Eventually documentation for this will follow the same structure as
@@ -325,7 +327,7 @@ this project:
   worthwhile discussion to have.
 
 - **Porting escape codes to other applications**: Currently [Murex](https://github.com/lmorg/murex)
-  is the pioneer for supporting `mxtty`-specific ANSI escape codes. However it
+  is the pioneer for supporting Ttyphoon-specific ANSI escape codes. However it
   would be good to see some of these extensions expanded out further. Maybe
   even to a point where this terminal emulator isn't required any more than a
   place to beta test future proposed escape sequences.
