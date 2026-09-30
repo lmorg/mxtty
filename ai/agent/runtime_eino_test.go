@@ -287,6 +287,159 @@ func TestStructuredToolRejectsLegacyInputWrapper(t *testing.T) {
 	}
 }
 
+func TestStructuredToolSchemaIsSelfContainedObject(t *testing.T) {
+	tool, err := newEinoAgentTool(nil, &fakeStructuredAgentTool{fakeAgentTool: &fakeAgentTool{enabled: true}})
+	if err != nil {
+		t.Fatalf("newEinoAgentTool: %v", err)
+	}
+	info, err := tool.Info(context.Background())
+	if err != nil {
+		t.Fatalf("Info: %v", err)
+	}
+	generated, err := info.ParamsOneOf.ToJSONSchema()
+	if err != nil {
+		t.Fatalf("ToJSONSchema: %v", err)
+	}
+	schemaJSON, err := json.Marshal(generated)
+	if err != nil {
+		t.Fatalf("marshal tool schema: %v", err)
+	}
+	if !strings.Contains(string(schemaJSON), `"type":"object"`) {
+		t.Fatalf("tool schema is not a root object: %s", schemaJSON)
+	}
+	for _, unwanted := range []string{`"$ref"`, `"$defs"`, `"$schema"`, `"$id"`} {
+		if strings.Contains(string(schemaJSON), unwanted) {
+			t.Fatalf("tool schema contains %s indirection the provider cannot resolve: %s", unwanted, schemaJSON)
+		}
+	}
+}
+
+type stringifiedOptionsTestT struct {
+	FileFilter string `json:"fileFilter,omitempty"`
+}
+
+type stringifiedRequestTestT struct {
+	Name   string `json:"name"`
+	Prompt string `json:"prompt"`
+}
+
+type stringifiedInputTestT struct {
+	Files    []string                   `json:"files,omitempty"`
+	Options  stringifiedOptionsTestT    `json:"options,omitempty"`
+	Requests []*stringifiedRequestTestT `json:"requests,omitempty"`
+	Note     string                     `json:"note,omitempty"`
+	Payload  any                        `json:"payload,omitempty"`
+}
+
+func TestDecodeStructuredToolInputRepairsStringifiedJSON(t *testing.T) {
+	tests := []struct {
+		name   string
+		args   string
+		verify func(*testing.T, *stringifiedInputTestT)
+	}{
+		{
+			name: "array encoded as string",
+			args: `{"files":"[\"a.go\"]"}`,
+			verify: func(t *testing.T, got *stringifiedInputTestT) {
+				if len(got.Files) != 1 || got.Files[0] != "a.go" {
+					t.Fatalf("files = %#v, want [a.go]", got.Files)
+				}
+			},
+		},
+		{
+			name: "object encoded as string",
+			args: `{"options":"{\"fileFilter\":\"*.go\"}"}`,
+			verify: func(t *testing.T, got *stringifiedInputTestT) {
+				if got.Options.FileFilter != "*.go" {
+					t.Fatalf("options.fileFilter = %q, want *.go", got.Options.FileFilter)
+				}
+			},
+		},
+		{
+			name: "array of objects encoded as string",
+			args: `{"requests":"[{\"name\":\"d1\",\"prompt\":\"p\"}]"}`,
+			verify: func(t *testing.T, got *stringifiedInputTestT) {
+				if len(got.Requests) != 1 || got.Requests[0].Name != "d1" || got.Requests[0].Prompt != "p" {
+					t.Fatalf("requests = %#v, want one decoded request", got.Requests)
+				}
+			},
+		},
+		{
+			name: "string field keeps its literal JSON text",
+			args: `{"note":"{\"not\":\"parsed\"}"}`,
+			verify: func(t *testing.T, got *stringifiedInputTestT) {
+				if got.Note != `{"not":"parsed"}` {
+					t.Fatalf("note = %q, want the literal string preserved", got.Note)
+				}
+			},
+		},
+		{
+			name: "arbitrary JSON field keeps a string value",
+			args: `{"payload":"{\"a\":1}"}`,
+			verify: func(t *testing.T, got *stringifiedInputTestT) {
+				if got.Payload != `{"a":1}` {
+					t.Fatalf("payload = %#v, want the string preserved", got.Payload)
+				}
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var got stringifiedInputTestT
+			if err := decodeStructuredToolInput(test.args, &got); err != nil {
+				t.Fatalf("decodeStructuredToolInput(%s): %v", test.args, err)
+			}
+			test.verify(t, &got)
+		})
+	}
+}
+
+func TestDecodeStructuredToolInputErrorsUseJSONVocabulary(t *testing.T) {
+	tests := []struct {
+		name string
+		args string
+		want []string
+	}{
+		{
+			name: "type mismatch names the field and JSON type",
+			args: `{"files":123}`,
+			want: []string{`field "files"`, "array of strings", "number"},
+		},
+		{
+			name: "unknown field lists the allowed fields",
+			args: `{"input":"legacy"}`,
+			want: []string{`unknown field "input"`, "allowed fields", "files"},
+		},
+		{
+			name: "malformed JSON is reported as invalid JSON",
+			args: `{"files":`,
+			want: []string{"not valid JSON"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var got stringifiedInputTestT
+			err := decodeStructuredToolInput(test.args, &got)
+			if err == nil {
+				t.Fatalf("decodeStructuredToolInput(%s) error = nil, want error", test.args)
+			}
+			message := err.Error()
+			for _, want := range test.want {
+				if !strings.Contains(message, want) {
+					t.Errorf("error %q does not contain %q", message, want)
+				}
+			}
+			for _, leak := range []string{"Go struct", "stringifiedInputTestT", "[]string", "json:"} {
+				if strings.Contains(message, leak) {
+					t.Errorf("error %q leaks the internal Go type detail %q", message, leak)
+				}
+			}
+		})
+	}
+}
+
 func TestToolsConfig_DuplicateSanitizedNamesAreMadeUnique(t *testing.T) {
 	rt := &einoRuntime{agent: &Agent{_tools: []aitypes.Tool{
 		&mcpTool{server: "atlassian", name: "search", description: "one", schema: []byte(`{"type":"object"}`), enabled: true},

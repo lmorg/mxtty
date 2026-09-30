@@ -126,7 +126,7 @@ func newEinoAgentTool(r *einoRuntime, t aitypes.Tool) (*einoAgentTool, error) {
 		if structuredInput.Kind() == reflect.Interface {
 			return nil, fmt.Errorf("structured tool %q input type %s is not a concrete JSON type", t.Name(), structuredInput)
 		}
-		params = schema.NewParamsOneOfByJSONSchema(jsonschema.ReflectFromType(structuredInput))
+		params = schema.NewParamsOneOfByJSONSchema(structuredToolSchema(structuredInput))
 	} else {
 		return nil, fmt.Errorf("native tool %q must implement StructuredTool", t.Name())
 	}
@@ -227,23 +227,6 @@ func (t *einoAgentTool) InvokableRun(ctx context.Context, argumentsInJSON string
 
 	recordContinuationToolObservation(ctx, t.toolObservationForInput(argumentsInJSON, structuredInput, output, nil))
 	return output, nil
-}
-
-func decodeStructuredToolInput(argumentsInJSON string, input any) error {
-	decoder := json.NewDecoder(strings.NewReader(argumentsInJSON))
-	decoder.UseNumber()
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(input); err != nil {
-		return err
-	}
-	var trailing any
-	if err := decoder.Decode(&trailing); err != io.EOF {
-		if err == nil {
-			return fmt.Errorf("multiple JSON values in structured tool arguments")
-		}
-		return err
-	}
-	return nil
 }
 
 func (t *einoAgentTool) toolObservationForInput(rawInput string, structuredInput any, output string, err error) aitypes.ToolObservation {
