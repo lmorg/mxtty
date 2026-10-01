@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 
+	"github.com/lmorg/ttyphoon/utils/notes"
 	"github.com/lmorg/ttyphoon/window/elements/element_table/tablecore"
 )
 
@@ -21,10 +22,11 @@ type NotesTableSeedT struct {
 // NotesTableRequestT is the frontend's view state plus, optionally, the data to
 // rebuild the table from.
 //
-// View state travels with every request rather than living on the Go side, so a
-// dropped or evicted table costs nothing but the data itself.
+// Rendered state travels with every request; persisted state is restored when a
+// table is first rendered so evicted tables remain recoverable.
 type NotesTableRequestT struct {
 	Key        tablecore.Key    `json:"key"`
+	Workspace  string           `json:"workspace"`
 	Seed       *NotesTableSeedT `json:"seed"`
 	SortColumn int              `json:"sortColumn"`
 	SortDesc   bool             `json:"sortDesc"`
@@ -114,12 +116,40 @@ func (a *WApp) notesTableApply(req NotesTableRequestT, apply func(*tablecore.Tab
 	}
 
 	column, desc := table.SortState()
-	return NotesTableResultT{
+	result = NotesTableResultT{
 		Order:      order,
 		SortColumn: column,
 		SortDesc:   desc,
 		Filter:     table.Filter(),
 	}
+	notes.SetTableState(req.Workspace, req.Key.Document, req.Key.Index, table.Headings(), notes.TableState{
+		SortColumn: result.SortColumn,
+		SortDesc:   result.SortDesc,
+		Filter:     result.Filter,
+	})
+	return result
+}
+
+// NotesTableRestore returns the persisted state for a newly rendered table.
+func (a *WApp) NotesTableRestore(req NotesTableRequestT) NotesTableResultT {
+	table, release, result := a.notesTableResolve(req)
+	if table == nil {
+		return result
+	}
+	if release != nil {
+		defer release()
+	}
+	persisted := notes.GetTableState(req.Workspace, req.Key.Document, req.Key.Index, table.Headings())
+	if err := table.SetFilter(persisted.Filter); err != nil {
+		return NotesTableResultT{Error: err.Error()}
+	}
+	table.SetSort(persisted.SortColumn, persisted.SortDesc)
+	order, err := table.Order(0, 0)
+	if err != nil {
+		return NotesTableResultT{Error: err.Error()}
+	}
+	column, desc := table.SortState()
+	return NotesTableResultT{Order: order, SortColumn: column, SortDesc: desc, Filter: table.Filter()}
 }
 
 // notesTableResolve returns the table for a request, building it from the seed

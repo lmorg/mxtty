@@ -386,7 +386,7 @@ export function createAIPipelineFormatter(container, options = {}) {
     }
 
     function isRawBlock(kind) {
-        return ['tool-call', 'tool-output', 'tool-error', 'tool-summary', 'notice'].includes(String(kind || ''));
+        return ['tool-call', 'tool-output', 'tool-error', 'tool-summary'].includes(String(kind || ''));
     }
 
     function isCollapsedToolOutput(kind) {

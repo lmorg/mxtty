@@ -9,6 +9,7 @@ const (
 	NS_NOTESW_PROJECT      = "notesw_project"
 	NS_NOTESW_DOCUMENT     = "notesw_document"
 	NS_NOTESW_COLUMN_WIDTH = "notesw_table_column_width"
+	NS_NOTESW_TABLE_STATE  = "notesw_table_state"
 )
 
 func InitCache() {
@@ -20,6 +21,7 @@ func InitCache() {
 	initNamespace(NS_NOTESW_PROJECT)
 	initNamespace(NS_NOTESW_DOCUMENT)
 	initNamespace(NS_NOTESW_COLUMN_WIDTH)
+	initNamespace(NS_NOTESW_TABLE_STATE)
 }
 
 func initNamespace(namespace string) {

@@ -271,9 +271,12 @@ func (t *einoAgentTool) toolObservation(input, output string, err error) aitypes
 // Reasoning arrives token by token, so chunks are buffered and flushed at most
 // every aiStreamEmitInterval to keep the IPC message count down.
 type aiStreamEmitter struct {
-	mu         sync.Mutex
-	fn         func(string)
-	blocks     *aiStreamBlockWriter
+	mu     sync.Mutex
+	fn     func(string)
+	blocks *aiStreamBlockWriter
+	// scope is the block ID owning this emitter: a sub-agent's block, or "" for
+	// the root agent. Sub-agents share the writer, so this keeps blocks apart.
+	scope      string
 	inThinking bool
 	pending    strings.Builder
 	lastEmit   time.Time
@@ -312,8 +315,8 @@ func (e *aiStreamEmitter) emitText(text string) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	if e.blocks != nil {
-		e.blocks.CloseCurrentThinking()
-		e.blocks.AppendText(text)
+		e.blocks.CloseCurrentThinking(e.scope)
+		e.blocks.AppendText(text, e.scope)
 		return
 	}
 	if e.fn != nil {
@@ -347,7 +350,7 @@ func (e *aiStreamEmitter) emitReasoning(text string) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	if e.blocks != nil {
-		e.blocks.AppendThinking(text)
+		e.blocks.AppendThinking(text, e.scope)
 		return
 	}
 	if e.fn == nil {
@@ -452,7 +455,7 @@ func emitAIStreamToolProgress(ctx context.Context, text string) {
 }
 
 func newChildAIStreamEmitter(ctx context.Context, emit func(string)) *aiStreamEmitter {
-	emitter := &aiStreamEmitter{fn: emit}
+	emitter := &aiStreamEmitter{fn: emit, scope: aiStreamBlockParent(ctx)}
 	emitter.blocks = streamBlockWriterFromContext(ctx)
 	return emitter
 }
@@ -936,9 +939,10 @@ func (r *einoRuntime) RunLLMWithMessageStream(ctx context.Context, messages []*s
 			nextContinuation = 1
 		}
 
+		// User-facing counts describe windows, where the initial run is window 1.
 		emitAIStreamToolProgress(ctx, fmt.Sprintf(
 			"\n\n**Continuing after max steps (%d/%d)**\n\n",
-			nextContinuation, config.Config.Ai.MaxContinuations,
+			nextContinuation+1, config.Config.Ai.MaxContinuations+1,
 		))
 		continuationMessages = append(continuationMessages, schema.UserMessage(continuationSummary))
 	}

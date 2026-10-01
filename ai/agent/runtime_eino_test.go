@@ -1062,7 +1062,7 @@ func TestEinoRuntimeContinuationAppendsPreviousWindowOutput(t *testing.T) {
 	if !strings.Contains(last.Content, "Tool observations") || !strings.Contains(last.Content, "readFiles") || !strings.Contains(last.Content, "main.go contents") {
 		t.Fatalf("continuation message content = %q, want captured tool observation", last.Content)
 	}
-	if !strings.Contains(streamed.String(), "Continuing after max steps (1/3)") {
+	if !strings.Contains(streamed.String(), "Continuing after max steps (2/4)") {
 		t.Fatalf("streamed output = %q, want continuation progress marker", streamed.String())
 	}
 }
@@ -1276,7 +1276,7 @@ func TestEinoRuntimeContinuationContinueChoiceOpensAnotherWindow(t *testing.T) {
 	if len(secondCallMessages) != 2 {
 		t.Fatalf("second call messages = %d, want original + continuation", len(secondCallMessages))
 	}
-	if !strings.Contains(streamed.String(), "Continuing after max steps (1/1)") {
+	if !strings.Contains(streamed.String(), "Continuing after max steps (2/2)") {
 		t.Fatalf("streamed output = %q, want reset continuation progress marker", streamed.String())
 	}
 }

@@ -1,6 +1,6 @@
 import {
     GetWindowStyle, GetNotesMaxLogLines, GetNotesColumnWidths, SetNotesColumnWidths, GetFile,
-    NotesTableSort, NotesTableClearSort, NotesTableFilter, NotesTableReconcile, NotesTableDisposeAll,
+    NotesTableSort, NotesTableClearSort, NotesTableFilter, NotesTableReconcile, NotesTableRestore, NotesTableDisposeAll,
     GetNotesStructViewMaxSizeKB,
     ListFiles, SaveFile, SaveBinaryFile, DeleteFile, RenameFile,
     CancelNotesListFiles,
@@ -383,7 +383,7 @@ hljs.registerLanguage('xl', xl);
 hljs.registerLanguage('xquery', xquery);
 hljs.registerLanguage('zephir', zephir);
 
-import { configureMarked, processMarkdownContainer, enableFullscreenImages, processLinks, notesAssetURL } from './markdown-utils.js';
+import { autoHyperlink, configureMarked, processMarkdownContainer, enableFullscreenImages, processLinks, notesAssetURL } from './markdown-utils.js';
 import { getScrollbarStyles, getMarkdownContentStyles, getHighlightJsTheme, getCheckboxStyles, getMarkdownBaseTextSizeStyles, getSwaggerUIStyles, DARKEN_BACKGROUND_OVERLAY } from './style-utils.js';
 import { 
     isStructuredDataFile, hasSwaggerKey, parseSwaggerSpec, generateRequestBuilderHTML, generateResponseHTML,
@@ -2037,6 +2037,9 @@ function renderCsvView(content, options = {}) {
     // Enable column sorting (available in both view and run mode)
     setupNotesTableQueries(elements.csvView, 'csv', state.currentFile || '');
     void setupTableColumnResizing(elements.csvView, false, state.currentFile);
+    if (!interactive) {
+        void autoHyperlink(elements.csvView);
+    }
 }
 
 function setCodeEditorMode(enabled) {
@@ -3735,11 +3738,38 @@ function notesTableRequest(table, includeSeed) {
             document: table.dataset.tableDocument || '',
             index: Number(table.dataset.tableIndex) || 0,
         },
+        workspace: state.currentWorkspaceKey || '',
         seed: includeSeed ? notesTableSeed(table) : null,
         sortColumn: Number(table.dataset.sortColumn) || 0,
         sortDesc: table.dataset.sortDesc === 'true',
         filter: table.dataset.tableFilter || '',
     };
+}
+
+function renderNotesTableFilterFooter(table) {
+    const parent = table?.parentElement;
+    if (!parent) {
+        return;
+    }
+    parent.querySelectorAll(':scope > .notes-table-sql-filter-footer').forEach((footer) => footer.remove());
+    const filter = String(table.dataset.tableFilter || '').trim();
+    if (!filter) {
+        return;
+    }
+
+    const footer = document.createElement('button');
+    footer.type = 'button';
+    footer.className = 'notes-table-sql-filter-footer';
+    footer.title = 'Edit SQL filter';
+    const label = document.createElement('strong');
+    label.textContent = 'SQL filter: ';
+    const value = document.createElement('code');
+    value.textContent = filter;
+    footer.append(label, value);
+    footer.addEventListener('click', () => {
+        void promptNotesTableFilter(table);
+    });
+    parent.appendChild(footer);
 }
 
 async function notesTableInvoke(table, call) {
@@ -3767,6 +3797,7 @@ function applyNotesTableResult(table, result) {
 
     applyNotesTableOrder(table, Array.isArray(result.order) ? result.order : []);
     renderNotesTableSortIndicator(table);
+    renderNotesTableFilterFooter(table);
 }
 
 function applyNotesTableOrder(table, order) {
@@ -3910,6 +3941,8 @@ function setupNotesTableQueries(container, surface, documentPath = '') {
             row.dataset.sourceRow = String(i);
         });
 
+        void restoreNotesTableState(table);
+
         if (table.dataset.tableQueriesBound === 'true') return;
         table.dataset.tableQueriesBound = 'true';
 
@@ -3961,6 +3994,15 @@ function setupNotesTableQueries(container, surface, documentPath = '') {
         }
     } catch (err) {
         console.error('Failed to reconcile Notes tables:', err);
+    }
+}
+
+async function restoreNotesTableState(table) {
+    try {
+        const result = await NotesTableRestore(notesTableRequest(table, true));
+        applyNotesTableResult(table, result);
+    } catch (err) {
+        console.error('Failed to restore Notes table state:', err);
     }
 }
 

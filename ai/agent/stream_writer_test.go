@@ -124,6 +124,165 @@ func TestAIStreamBlockWriter_ConcurrentParentedBlocks(t *testing.T) {
 	}
 }
 
+func TestAIStreamBlockWriter_ScopedThinkingSurvivesSiblingAgentBlocks(t *testing.T) {
+	workspace := "stream-writer-scoped-thinking-test"
+	state, err := sessiondb.CreateSession(workspace, "", 24)
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatalf("UserHomeDir: %v", err)
+	}
+	path := filepath.Join(home, "Documents", app.DirName, "session."+workspace+".db")
+	t.Cleanup(func() { _ = os.Remove(path) })
+
+	var eventsMu sync.Mutex
+	writer := &aiStreamBlockWriter{
+		workspace: workspace,
+		sessionID: state.ActiveSessionID,
+		runID:     101,
+		emit: func(sessiondb.AIStreamBlock) {
+			eventsMu.Lock()
+			eventsMu.Unlock()
+		},
+	}
+
+	alpha := writer.Open(sessiondb.StreamBlockSubagent, "")
+	bravo := writer.Open(sessiondb.StreamBlockSubagent, "")
+	if alpha == nil || bravo == nil {
+		t.Fatal("Open subagent blocks returned nil")
+	}
+	alphaScope := alpha.block.BlockID
+	bravoScope := bravo.block.BlockID
+
+	writer.AppendThinking("alpha reasons ", alphaScope)
+	alphaThinking := writer.rolling[rollingBlockKey{kind: sessiondb.StreamBlockThinking, scope: alphaScope}]
+	if alphaThinking == nil {
+		t.Fatal("alpha has no thinking block")
+	}
+
+	// A sibling agent's tool call must not truncate alpha's reasoning.
+	writer.Open(sessiondb.StreamBlockToolCall, bravoScope).Close()
+	writer.AppendThinking("and keeps reasoning", alphaScope)
+
+	stillAlpha := writer.rolling[rollingBlockKey{kind: sessiondb.StreamBlockThinking, scope: alphaScope}]
+	if stillAlpha != alphaThinking {
+		t.Fatal("sibling agent's tool call closed another agent's thinking block")
+	}
+	if alphaThinking.isClosed() {
+		t.Fatal("alpha thinking block was closed by a sibling agent")
+	}
+
+	// Alpha's own tool call still ends alpha's reasoning.
+	writer.Open(sessiondb.StreamBlockToolCall, alphaScope).Close()
+	if !alphaThinking.isClosed() {
+		t.Fatal("alpha's own tool call did not close its thinking block")
+	}
+
+	writer.AppendThinking("bravo reasons", bravoScope)
+	bravoThinking := writer.rolling[rollingBlockKey{kind: sessiondb.StreamBlockThinking, scope: bravoScope}]
+	if bravoThinking == nil || bravoThinking == alphaThinking {
+		t.Fatal("bravo did not get its own thinking block")
+	}
+	if bravoThinking.block.ParentID != bravoScope {
+		t.Fatalf("bravo thinking parent = %q, want %q", bravoThinking.block.ParentID, bravoScope)
+	}
+
+	writer.CloseAll()
+	alpha.Close()
+	bravo.Close()
+
+	if err := sessiondb.FinalizeStreamPrompt(workspace, state.ActiveSessionID, 101, 43, "finish"); err != nil {
+		t.Fatalf("FinalizeStreamPrompt: %v", err)
+	}
+	alphaContent, err := sessiondb.GetStreamBlockContent(workspace, state.ActiveSessionID, 43, alphaThinking.block.BlockID)
+	if err != nil {
+		t.Fatalf("GetStreamBlockContent alpha thinking: %v", err)
+	}
+	if alphaContent != "alpha reasons and keeps reasoning" {
+		t.Fatalf("alpha thinking content = %q, want the uninterrupted sentence", alphaContent)
+	}
+}
+
+func TestAIStreamBlockWriter_ConcurrentScopedThinkingKeepsEveryDelta(t *testing.T) {
+	workspace := "stream-writer-concurrent-thinking-test"
+	state, err := sessiondb.CreateSession(workspace, "", 24)
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatalf("UserHomeDir: %v", err)
+	}
+	path := filepath.Join(home, "Documents", app.DirName, "session."+workspace+".db")
+	t.Cleanup(func() { _ = os.Remove(path) })
+
+	writer := &aiStreamBlockWriter{
+		workspace: workspace,
+		sessionID: state.ActiveSessionID,
+		runID:     102,
+		emit:      func(sessiondb.AIStreamBlock) {},
+	}
+
+	scopes := []string{"", "agent-a", "agent-b", "agent-c"}
+	marker := func(scope string) string {
+		if scope == "" {
+			return "root"
+		}
+		return scope
+	}
+	var wg sync.WaitGroup
+	for _, scope := range scopes {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := 0; i < 50; i++ {
+				writer.AppendThinking(marker(scope)+"|", scope)
+				if i%10 == 0 {
+					// Interleave a tool call from a different agent.
+					writer.Open(sessiondb.StreamBlockToolCall, "agent-noise").Close()
+				}
+			}
+		}()
+	}
+	wg.Wait()
+	writer.CloseAll()
+
+	if err := sessiondb.FinalizeStreamPrompt(workspace, state.ActiveSessionID, 102, 44, "finish"); err != nil {
+		t.Fatalf("FinalizeStreamPrompt: %v", err)
+	}
+	blocks, err := sessiondb.ListStreamBlockMeta(workspace, state.ActiveSessionID, 44)
+	if err != nil {
+		t.Fatalf("ListStreamBlockMeta: %v", err)
+	}
+
+	totals := map[string]int{}
+	for _, meta := range blocks {
+		if meta.Kind != sessiondb.StreamBlockThinking {
+			continue
+		}
+		content, err := sessiondb.GetStreamBlockContent(workspace, state.ActiveSessionID, 44, meta.BlockID)
+		if err != nil {
+			t.Fatalf("GetStreamBlockContent: %v", err)
+		}
+		for _, chunk := range strings.Split(content, "|") {
+			if chunk == "" {
+				continue
+			}
+			if chunk != marker(meta.ParentID) {
+				t.Fatalf("thinking block for scope %q contains another agent's text %q", meta.ParentID, chunk)
+			}
+			totals[chunk]++
+		}
+	}
+	for _, scope := range scopes {
+		if totals[marker(scope)] != 50 {
+			t.Fatalf("scope %q recorded %d reasoning chunks, want 50", scope, totals[marker(scope)])
+		}
+	}
+}
+
 func TestAIStreamBlockWriter_SplitsThinkingAroundToolBlock(t *testing.T) {
 	workspace := "stream-writer-thinking-boundary-test"
 	state, err := sessiondb.CreateSession(workspace, "", 24)
@@ -147,17 +306,22 @@ func TestAIStreamBlockWriter_SplitsThinkingAroundToolBlock(t *testing.T) {
 		},
 	}
 
-	writer.AppendThinking("before tool")
-	firstThinkingID := writer.thinking.block.BlockID
+	writer.AppendThinking("before tool", "")
+	firstThinking := writer.rolling[rollingBlockKey{kind: sessiondb.StreamBlockThinking}]
+	if firstThinking == nil {
+		t.Fatal("AppendThinking did not open a thinking block")
+	}
+	firstThinkingID := firstThinking.block.BlockID
 	tool := writer.Open(sessiondb.StreamBlockToolCall, "")
 	if tool == nil {
 		t.Fatal("Open tool returned nil")
 	}
 	tool.Append("input")
 	tool.Close()
-	writer.AppendThinking("after tool")
+	writer.AppendThinking("after tool", "")
 
-	if writer.thinking == nil || writer.thinking.block.BlockID == tool.block.BlockID {
+	secondThinking := writer.rolling[rollingBlockKey{kind: sessiondb.StreamBlockThinking}]
+	if secondThinking == nil || secondThinking.block.BlockID == tool.block.BlockID || secondThinking.block.BlockID == firstThinkingID {
 		t.Fatal("thinking block was not reopened after the tool block")
 	}
 	closedBeforeTool := false

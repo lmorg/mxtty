@@ -581,6 +581,7 @@ export namespace main {
 	}
 	export class NotesTableRequestT {
 	    key: tablecore.Key;
+	    workspace: string;
 	    seed?: NotesTableSeedT;
 	    sortColumn: number;
 	    sortDesc: boolean;
@@ -593,6 +594,7 @@ export namespace main {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.key = this.convertValues(source["key"], tablecore.Key);
+	        this.workspace = source["workspace"];
 	        this.seed = this.convertValues(source["seed"], NotesTableSeedT);
 	        this.sortColumn = source["sortColumn"];
 	        this.sortDesc = source["sortDesc"];

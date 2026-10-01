@@ -1320,14 +1320,24 @@ body {
 
 #notes-csv-view th,
 #notes-csv-view td {
+    position: relative;
     border-bottom: 1px solid rgba(var(--fg-rgb), 0.18);
     padding: 4px 8px;
     text-align: left;
-    white-space: nowrap;
+    white-space: pre-wrap;
 }
 
 #notes-csv-view thead th {
     border-bottom: 1px solid rgba(var(--fg-rgb), 0.28);
+}
+
+#notes-csv-view th .notes-table-col-resize-handle::before {
+    background: var(--fg);
+}
+
+#notes-csv-view .notes-table-col-resize-handle:hover::before,
+#notes-csv-view .notes-table-col-resize-handle.is-dragging::before {
+    background: var(--accent);
 }
 
 .notes-csv-empty {
@@ -1897,6 +1907,16 @@ body {
     white-space: pre-wrap;
     overflow-wrap: anywhere;
     word-break: break-word;
+}
+
+/* Agent progress notices are prose, not tool payloads: no code block, no quote. */
+#notes-ai-output [data-block-kind='notice'] .notes-ai-markdown {
+    font-size: var(--notes-font-size-minus-1);
+    opacity: 0.85;
+}
+
+#notes-ai-output [data-block-kind='notice'] .notes-ai-markdown p {
+    margin: 4px 0;
 }
 
 /* Transcripts recorded before block storage, flagged so they are not mistaken
@@ -2632,6 +2652,27 @@ body {
 .notes-table-col-resize-handle:hover::before,
 .notes-table-col-resize-handle.is-dragging::before {
     background: var(--accent);
+}
+
+.notes-table-sql-filter-footer {
+    margin: 6px 0 10px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--fg);
+    cursor: pointer;
+    font-size: var(--notes-font-size-minus-1);
+    text-align: left;
+}
+
+.notes-table-sql-filter-footer strong {
+    font-weight: 700;
+}
+
+.notes-table-sql-filter-footer code {
+    display: inline;
+    font-family: var(--font-family-fixed);
+    white-space: pre-wrap;
 }
 
 #notes-preview.notes-table-wordwrap-on .notes-table-scroll-wrap table,

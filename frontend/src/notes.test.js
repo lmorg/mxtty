@@ -21,6 +21,7 @@ const notesTableSortMock = vi.fn(() => Promise.resolve(emptyTableResult()));
 const notesTableClearSortMock = vi.fn(() => Promise.resolve(emptyTableResult()));
 const notesTableFilterMock = vi.fn(() => Promise.resolve(emptyTableResult()));
 const notesTableReconcileMock = vi.fn(() => Promise.resolve());
+const notesTableRestoreMock = vi.fn(() => Promise.resolve(emptyTableResult()));
 const notesTableDisposeAllMock = vi.fn(() => Promise.resolve());
 const getFileMock = vi.fn();
 const listFilesMock = vi.fn();
@@ -263,6 +264,7 @@ vi.mock('../wailsjs/go/main/WApp', () => ({
     NotesTableClearSort: notesTableClearSortMock,
     NotesTableFilter: notesTableFilterMock,
     NotesTableReconcile: notesTableReconcileMock,
+    NotesTableRestore: notesTableRestoreMock,
     NotesTableDisposeAll: notesTableDisposeAllMock,
     GetHyperlinkMenuActions: getHyperlinkMenuActionsMock,
     RunHyperlinkMenuAction: runHyperlinkMenuActionMock,
@@ -403,6 +405,8 @@ describe('notes rendering', () => {
         notesTableFilterMock.mockResolvedValue(emptyTableResult());
         notesTableReconcileMock.mockReset();
         notesTableReconcileMock.mockResolvedValue();
+        notesTableRestoreMock.mockReset();
+        notesTableRestoreMock.mockResolvedValue(emptyTableResult());
         notesTableDisposeAllMock.mockReset();
         notesTableDisposeAllMock.mockResolvedValue();
         getFileMock.mockReset();
@@ -2872,7 +2876,7 @@ describe('notes rendering', () => {
         await importNotesModule();
 
         const markdownUtils = await import('./markdown-utils.js');
-        vi.mocked(markdownUtils.processMarkdownContainer).mockClear();
+        vi.mocked(markdownUtils.autoHyperlink).mockClear();
         vi.mocked(markdownUtils.processLinks).mockClear();
 
         const aiStartHandler = getEventHandler('aiJobStart');
@@ -3019,6 +3023,28 @@ describe('notes rendering', () => {
         expect(blocks[1].querySelector('code').textContent).toBe('<b>two</b>');
         expect(blocks[0].querySelector('b')).toBeNull();
         expect(blocks[1].querySelector('b')).toBeNull();
+    });
+
+    it('renders agent notices as formatted prose rather than code or quotes', async () => {
+        const { createAIPipelineFormatter } = await import('./ai_pipeline_formatter.js');
+        const wrapper = document.createElement('div');
+        const fmt = createAIPipelineFormatter(wrapper, { marked });
+
+        fmt.startJob();
+        fmt.appendBlock({
+            blockId: 'notice-1',
+            kind: 'notice',
+            delta: '\n\n**Continuing after max steps (1/3)**\n\n',
+            status: 'closed',
+        });
+        await flushPromises();
+        await flushPromises();
+
+        const block = wrapper.querySelector('[data-block-id="notice-1"]');
+        expect(block).not.toBeNull();
+        expect(block.querySelector('pre')).toBeNull();
+        expect(block.querySelector('blockquote')).toBeNull();
+        expect(block.querySelector('strong')?.textContent).toBe('Continuing after max steps (1/3)');
     });
 
     it('keeps labelled tool-call input collapsed until its heading is clicked', async () => {
@@ -4627,17 +4653,65 @@ describe('notes rendering', () => {
 
         await importNotesModule();
 
+        const markdownUtils = await import('./markdown-utils.js');
+
         const fileButton = document.querySelector('[data-file="$NOTES/table.csv"]');
         fileButton.click();
         await flushPromises();
         await flushPromises();
 
         const runTab = document.getElementById('notes-tab-csv-run');
+        vi.mocked(markdownUtils.autoHyperlink).mockClear();
         runTab.click();
         await flushPromises();
         await flushPromises();
 
         expect(runNoteMock).not.toHaveBeenCalled();
+    expect(markdownUtils.autoHyperlink).not.toHaveBeenCalled();
+    });
+
+    it('processes CSV view cells for custom markdown URLs and adds resize handles', async () => {
+        listFilesMock.mockResolvedValue(['$NOTES/table.csv']);
+        getFileMock.mockResolvedValue({
+            contents: 'Name,URL\nAlpha,https://example.com',
+            text: '',
+            error: '',
+        });
+
+        const markdownUtils = await import('./markdown-utils.js');
+        vi.mocked(markdownUtils.autoHyperlink).mockClear();
+
+        await importNotesModule();
+
+        const fileButton = document.querySelector('[data-file="$NOTES/table.csv"]');
+        fileButton.click();
+        await flushPromises();
+        await flushPromises();
+
+        const csvView = document.querySelector('#notes-csv-view');
+        expect(csvView.querySelectorAll('.notes-table-col-resize-handle')).toHaveLength(4);
+        expect(vi.mocked(markdownUtils.autoHyperlink)).toHaveBeenCalledWith(csvView);
+        expect(getNotesRenderedStyles()).toContain('#notes-csv-view th .notes-table-col-resize-handle::before');
+    });
+
+    it('preserves newlines inside CSV view cells', async () => {
+        listFilesMock.mockResolvedValue(['$NOTES/table.csv']);
+        getFileMock.mockResolvedValue({
+            contents: 'Name,Description\nAlpha,"first line\nsecond line"',
+            text: '',
+            error: '',
+        });
+
+        await importNotesModule();
+
+        const fileButton = document.querySelector('[data-file="$NOTES/table.csv"]');
+        fileButton.click();
+        await flushPromises();
+        await flushPromises();
+
+        const cell = document.querySelector('#notes-csv-view tbody tr td:nth-child(2)');
+        expect(cell?.textContent).toBe('first line\nsecond line');
+        expect(getNotesRenderedStyles()).toContain('white-space: pre-wrap;');
     });
 
     it('undoes and redoes CSV table row insertion from Run mode context menu', async () => {
@@ -4994,6 +5068,24 @@ describe('notes rendering', () => {
             expect(showLocalMenuMock).toHaveBeenCalled();
             expect(showLocalMenuMock.mock.calls[0][0].options).toEqual(
                 expect.arrayContaining(['Clear sorting', 'SQL filter...']));
+        });
+
+        it('opens the SQL filter dialog when the filter footer is clicked', async () => {
+            notesTableRestoreMock.mockResolvedValue({
+                missing: false, order: [0, 1, 2], sortColumn: 0, sortDesc: false,
+                filter: '"Value" > 1', error: '',
+            });
+            const table = await loadMarkdownTable();
+            const footer = document.querySelector('.notes-table-sql-filter-footer');
+            expect(footer).toBeTruthy();
+            expect(footer.querySelector('strong')?.textContent).toBe('SQL filter: ');
+            expect(footer.querySelector('code')?.textContent).toBe('"Value" > 1');
+
+            footer.click();
+            await flushPromises();
+
+            expect(document.getElementById('notes-modal-title').textContent).toBe('SQL filter');
+            expect(document.getElementById('notes-modal-input').value).toBe('"Value" > 1');
         });
 
         it('clears the sort on a middle-click, as the terminal does', async () => {

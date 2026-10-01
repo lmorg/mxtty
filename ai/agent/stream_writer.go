@@ -16,9 +16,14 @@ type aiStreamBlockWriter struct {
 
 	mu          sync.Mutex
 	nextOrdinal int64
-	text        *aiStreamBlockHandle
-	thinking    *aiStreamBlockHandle
-	notice      *aiStreamBlockHandle
+	// Rolling blocks are keyed by the owning scope (a sub-agent's block ID, or ""
+	// for the root agent) so concurrent sub-agents never share a block.
+	rolling map[rollingBlockKey]*aiStreamBlockHandle
+}
+
+type rollingBlockKey struct {
+	kind  sessiondb.StreamBlockKind
+	scope string
 }
 
 type aiStreamBlockHandle struct {
@@ -53,8 +58,10 @@ func (w *aiStreamBlockWriter) OpenWithLabel(kind sessiondb.StreamBlockKind, pare
 	if w == nil {
 		return nil
 	}
+	// Only the scope opening the block stops thinking; a sibling sub-agent's
+	// tool call must not truncate another agent's reasoning mid-sentence.
 	if kind != sessiondb.StreamBlockThinking {
-		w.CloseCurrentThinking()
+		w.CloseCurrentThinking(parentID)
 	}
 	w.mu.Lock()
 	ordinal := w.nextOrdinal
@@ -80,78 +87,67 @@ func (w *aiStreamBlockWriter) OpenWithLabel(kind sessiondb.StreamBlockKind, pare
 	return &aiStreamBlockHandle{writer: w, block: block}
 }
 
-func (w *aiStreamBlockWriter) AppendText(text string) {
+func (w *aiStreamBlockWriter) AppendText(text, scope string) {
+	w.appendRolling(sessiondb.StreamBlockText, text, scope)
+}
+
+func (w *aiStreamBlockWriter) AppendThinking(text, scope string) {
+	w.appendRolling(sessiondb.StreamBlockThinking, text, scope)
+}
+
+func (w *aiStreamBlockWriter) AppendNotice(text, scope string) {
+	w.appendRolling(sessiondb.StreamBlockNotice, text, scope)
+}
+
+// appendRolling appends to the scope's current block of this kind, reopening it
+// if a concurrent writer closed it between lookup and append.
+func (w *aiStreamBlockWriter) appendRolling(kind sessiondb.StreamBlockKind, text, scope string) {
 	if w == nil || text == "" {
 		return
 	}
-	w.mu.Lock()
-	block := w.text
-	w.mu.Unlock()
-	if block == nil || block.isClosed() {
-		block = w.Open(sessiondb.StreamBlockText, "")
-		w.mu.Lock()
-		if w.text == nil || w.text.isClosed() {
-			w.text = block
-		} else {
-			block.Close()
-			block = w.text
+	for attempt := 0; attempt < 3; attempt++ {
+		handle := w.rollingHandle(kind, scope)
+		if handle == nil {
+			return
 		}
-		w.mu.Unlock()
-	}
-	if block != nil {
-		block.Append(text)
+		if handle.appendIfOpen(text) {
+			return
+		}
 	}
 }
 
-func (w *aiStreamBlockWriter) AppendThinking(text string) {
-	if w == nil || text == "" {
-		return
-	}
-	w.mu.Lock()
-	block := w.thinking
-	w.mu.Unlock()
-	if block == nil || block.isClosed() {
-		block = w.Open(sessiondb.StreamBlockThinking, "")
-		w.mu.Lock()
-		if w.thinking == nil || w.thinking.isClosed() {
-			w.thinking = block
-		} else {
-			block.Close()
-			block = w.thinking
-		}
-		w.mu.Unlock()
-	}
-	if block != nil {
-		block.Append(text)
-	}
-}
+func (w *aiStreamBlockWriter) rollingHandle(kind sessiondb.StreamBlockKind, scope string) *aiStreamBlockHandle {
+	key := rollingBlockKey{kind: kind, scope: scope}
 
-func (w *aiStreamBlockWriter) AppendNotice(text string) {
-	if w == nil || text == "" {
-		return
-	}
 	w.mu.Lock()
-	block := w.notice
+	existing := w.rolling[key]
 	w.mu.Unlock()
-	if block == nil || block.isClosed() {
-		block = w.Open(sessiondb.StreamBlockNotice, "")
-		w.mu.Lock()
-		if w.notice == nil || w.notice.isClosed() {
-			w.notice = block
-		} else {
-			block.Close()
-			block = w.notice
-		}
-		w.mu.Unlock()
+	if existing != nil && !existing.isClosed() {
+		return existing
 	}
-	if block != nil {
-		block.Append(text)
+
+	opened := w.Open(kind, scope)
+	if opened == nil {
+		return nil
 	}
+
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if current := w.rolling[key]; current != nil && !current.isClosed() {
+		// Another goroutine won the race; discard the block we just opened.
+		opened.Close()
+		return current
+	}
+	if w.rolling == nil {
+		w.rolling = make(map[rollingBlockKey]*aiStreamBlockHandle)
+	}
+	w.rolling[key] = opened
+	return opened
 }
 
 func (w *aiStreamBlockWriter) AppendNoticeForParent(text, parentID string) {
 	if parentID == "" {
-		w.AppendNotice(text)
+		w.AppendNotice(text, "")
 		return
 	}
 	w.AppendStandalone(sessiondb.StreamBlockNotice, text, parentID)
@@ -174,15 +170,14 @@ func (w *aiStreamBlockWriter) AppendStandaloneWithLabel(kind sessiondb.StreamBlo
 	return block.block.BlockID
 }
 
-func (w *aiStreamBlockWriter) CloseCurrentThinking() {
+func (w *aiStreamBlockWriter) CloseCurrentThinking(scope string) {
 	if w == nil {
 		return
 	}
 	w.mu.Lock()
-	defer w.mu.Unlock()
-	if w.thinking != nil {
-		w.thinking.Close()
-	}
+	handle := w.rolling[rollingBlockKey{kind: sessiondb.StreamBlockThinking, scope: scope}]
+	w.mu.Unlock()
+	handle.Close()
 }
 
 func (w *aiStreamBlockWriter) CloseAll() {
@@ -190,28 +185,36 @@ func (w *aiStreamBlockWriter) CloseAll() {
 		return
 	}
 	w.mu.Lock()
-	blocks := []*aiStreamBlockHandle{w.text, w.thinking, w.notice}
+	blocks := make([]*aiStreamBlockHandle, 0, len(w.rolling))
+	for _, block := range w.rolling {
+		blocks = append(blocks, block)
+	}
 	w.mu.Unlock()
 	for _, block := range blocks {
-		if block != nil {
-			block.Close()
-		}
+		block.Close()
 	}
 }
 
 func (h *aiStreamBlockHandle) Append(delta string) {
+	h.appendIfOpen(delta)
+}
+
+// appendIfOpen reports false when the block was closed concurrently, so the
+// caller can reopen rather than silently dropping the delta.
+func (h *aiStreamBlockHandle) appendIfOpen(delta string) bool {
 	if h == nil || h.writer == nil || delta == "" {
-		return
+		return true
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.closed {
-		return
+		return false
 	}
 	h.pending += delta
 	if h.timer == nil {
 		h.timer = time.AfterFunc(streamBlockFlushInterval, h.flush)
 	}
+	return true
 }
 
 func (h *aiStreamBlockHandle) Close() {
