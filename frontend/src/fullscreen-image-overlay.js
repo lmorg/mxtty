@@ -46,14 +46,25 @@ export function showFullscreenImageOverlay(options = {}) {
 
     let contentElement;
     if (svgElement) {
-        // Clone or use the SVG element for fullscreen display
-        contentElement = svgElement instanceof SVGElement ? svgElement : svgElement.cloneNode(true);
+        contentElement = svgElement.cloneNode(true);
+        const viewBox = String(contentElement.getAttribute('viewBox') || '')
+            .trim()
+            .split(/[\s,]+/)
+            .map(Number);
+        const width = sourceWidth || viewBox[2] || Number.parseFloat(contentElement.getAttribute('width')) || 800;
+        const height = sourceHeight || viewBox[3] || Number.parseFloat(contentElement.getAttribute('height')) || 600;
+        if (!contentElement.hasAttribute('viewBox')) {
+            contentElement.setAttribute('viewBox', `0 0 ${width} ${height}`);
+        }
+        contentElement.setAttribute('width', String(width));
+        contentElement.setAttribute('height', String(height));
         contentElement.style.cssText = `
             display: block;
+            width: ${width}px;
+            height: ${height}px;
             max-width: calc(100vw - 40px);
             max-height: calc(100vh - 40px);
-            width: auto;
-            height: auto;
+            object-fit: contain;
             box-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
             border-radius: 8px;
             background: transparent;

@@ -779,6 +779,136 @@ body {
     border-color: var(--accent);
 }
 
+#notes-modal-body {
+    display: none;
+    min-width: 0;
+    max-height: min(68vh, 760px);
+    overflow: auto;
+}
+
+.notes-graph-form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 12px;
+    width: 100%;
+}
+
+.notes-graph-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.notes-graph-field-label {
+    color: var(--accent);
+    font-size: var(--notes-font-size-minus-1);
+}
+
+.notes-graph-help,
+.notes-graph-count {
+    opacity: 0.75;
+    font-size: var(--notes-font-size-minus-2);
+}
+
+.notes-graph-dropdown,
+.notes-graph-text {
+    min-width: 0;
+    width: 100%;
+    border-radius: 0;
+    border: 1px solid var(--fg);
+    background: transparent;
+    color: var(--fg);
+    padding: 8px;
+    font: inherit;
+    text-align: left;
+}
+
+.notes-graph-dropdown {
+    border-radius: 5px;
+    border-width: 2px;
+    cursor: pointer;
+}
+
+.notes-graph-dropdown:hover,
+.notes-graph-dropdown:focus,
+.notes-graph-text:focus {
+    border-color: var(--accent);
+    outline: none;
+}
+
+.notes-graph-list-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.notes-graph-small-button {
+    border: 1px solid var(--fg);
+    border-radius: 5px;
+    background: transparent;
+    color: var(--fg);
+    padding: 4px 8px;
+    cursor: pointer;
+    font: inherit;
+    font-size: var(--notes-font-size-minus-2);
+}
+
+.notes-graph-small-button:hover,
+.notes-graph-small-button:focus {
+    border-color: var(--accent);
+    color: var(--accent);
+    outline: none;
+}
+
+.notes-graph-options-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-height: 48px;
+    max-height: 150px;
+    overflow: auto;
+    border: 1px solid rgba(var(--fg-rgb), 0.35);
+    padding: 4px;
+}
+
+.notes-graph-row-list {
+    max-height: 190px;
+}
+
+.notes-graph-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    min-width: 0;
+    padding: 3px 4px;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+    font-size: var(--notes-font-size-minus-1);
+}
+
+.notes-graph-option:hover {
+    background: rgba(var(--accent-rgb), 0.12);
+}
+
+.notes-graph-option input {
+    flex: 0 0 auto;
+    margin: 2px 0 0;
+    accent-color: var(--accent);
+}
+
+@media (max-width: 700px) {
+    #notes-modal-card {
+        min-width: 0;
+        width: min(94vw, 600px);
+    }
+
+    .notes-graph-form {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
 .notes-toolbar {
     display: flex;
     gap: 4px;
@@ -2673,6 +2803,26 @@ body {
     display: inline;
     font-family: var(--font-family-fixed);
     white-space: pre-wrap;
+}
+
+.notes-table-extras {
+    width: 100%;
+    min-width: 0;
+}
+
+.notes-table-graph {
+    margin: 4px 0 14px;
+    min-width: 0;
+}
+
+.notes-table-graph-image {
+    display: block;
+    width: min(100%, 800px);
+    height: auto;
+}
+
+.notes-table-graph[aria-busy="true"] {
+    min-height: 24px;
 }
 
 #notes-preview.notes-table-wordwrap-on .notes-table-scroll-wrap table,

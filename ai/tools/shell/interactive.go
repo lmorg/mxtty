@@ -14,61 +14,61 @@ import (
 	"github.com/lmorg/ttyphoon/types"
 )
 
-type CommandLine struct {
+type Interactive struct {
 	agent   aitypes.Agent
 	enabled bool
 	term    types.Term
 }
 
 func init() {
-	agent.ToolsAdd(&CommandLine{})
+	agent.ToolsAdd(&Interactive{})
 }
 
-//go:embed cmdline_description.md
-var cmdlineDescription string
+//go:embed interactive_description.md
+var interactiveDescription string
 
-func (t *CommandLine) New(agent aitypes.Agent) (aitypes.Tool, error) {
-	return &CommandLine{agent: agent, enabled: false}, nil
+func (t *Interactive) New(agent aitypes.Agent) (aitypes.Tool, error) {
+	return &Interactive{agent: agent, enabled: true}, nil
 }
 
-func (t *CommandLine) Enabled() bool { return t.enabled }
-func (t *CommandLine) Toggle()       { t.enabled = !t.enabled }
+func (t *Interactive) Enabled() bool { return t.enabled }
+func (t *Interactive) Toggle()       { t.enabled = !t.enabled }
 
-func (t *CommandLine) Name() string { return "commandLine" }
-func (t *CommandLine) Path() string { return "internal" }
-func (t *CommandLine) Description() string {
+func (t *Interactive) Name() string { return "interactive" }
+func (t *Interactive) Path() string { return "internal" }
+func (t *Interactive) Description() string {
 	t.term = t.agent.Renderer().ActiveTile().GetTerm()
-	return cmdlineDescription + "\n$SHELL=" + t.shellName()
+	return interactiveDescription + "\n$SHELL=" + t.shellName()
 }
-func (t *CommandLine) DefaultPermissions() aitypes.DefaultPermissions {
+func (t *Interactive) DefaultPermissions() aitypes.DefaultPermissions {
 	return aitypes.DefaultPermissions{Invocation: "askPermission", Subagents: "deny"}
 }
 
-type commandLineInputT struct {
+type interactiveInputT struct {
 	Command string `json:"command"`
 }
 
-func (t *CommandLine) InputType() reflect.Type { return reflect.TypeOf(commandLineInputT{}) }
+func (t *Interactive) InputType() reflect.Type { return reflect.TypeOf(interactiveInputT{}) }
 
-func (t *CommandLine) shellName() string {
+func (t *Interactive) shellName() string {
 	return t.term.GetEnvVars()["SHELL"]
 }
 
-func (t *CommandLine) Call(ctx context.Context, input string) (string, error) {
+func (t *Interactive) Call(ctx context.Context, input string) (string, error) {
 	debug.Log(input)
 	return t.run(input)
 }
 
-func (t *CommandLine) CallStructured(_ context.Context, input any) (string, error) {
-	request, ok := input.(*commandLineInputT)
+func (t *Interactive) CallStructured(_ context.Context, input any) (string, error) {
+	request, ok := input.(*interactiveInputT)
 	if !ok || request == nil {
-		return "", fmt.Errorf("commandLine received an invalid structured input %T", input)
+		return "", fmt.Errorf("interactive received an invalid structured input %T", input)
 	}
 	debug.Log(request.Command)
 	return t.run(request.Command)
 }
 
-func (t *CommandLine) run(input string) (string, error) {
+func (t *Interactive) run(input string) (string, error) {
 	c := make(chan *types.BlockCallbackT, 1)
 
 	t.term.SetCommandCallback(func(cb *types.BlockCallbackT) {
@@ -93,19 +93,19 @@ func (t *CommandLine) run(input string) (string, error) {
 	return string(b), nil
 }
 
-func (t *CommandLine) Observation(input, output string, err error) aitypes.ToolObservation {
+func (t *Interactive) Observation(input, output string, err error) aitypes.ToolObservation {
 	return t.observation(input, output, err)
 }
 
-func (t *CommandLine) ObservationStructured(input any, output string, err error) aitypes.ToolObservation {
-	request, ok := input.(*commandLineInputT)
+func (t *Interactive) ObservationStructured(input any, output string, err error) aitypes.ToolObservation {
+	request, ok := input.(*interactiveInputT)
 	if !ok || request == nil {
 		return aitypes.ToolObservation{Tool: t.Name(), Status: "error", Error: fmt.Sprintf("invalid structured input %T", input)}
 	}
 	return t.observation(request.Command, output, err)
 }
 
-func (t *CommandLine) observation(input, output string, err error) aitypes.ToolObservation {
+func (t *Interactive) observation(input, output string, err error) aitypes.ToolObservation {
 	observation := aitypes.ToolObservation{Tool: t.Name(), Status: "ok"}
 	if err != nil {
 		observation.Status = "error"

@@ -195,7 +195,11 @@ export function NotesTableFilter(arg1:main.NotesTableRequestT,arg2:string):Promi
 
 export function NotesTableReconcile(arg1:string,arg2:string,arg3:Array<number>):Promise<void>;
 
+export function NotesTableRenderGraph(arg1:main.NotesTableRequestT,arg2:main.NotesTableGraphSpecT):Promise<main.NotesTableGraphResultT>;
+
 export function NotesTableRestore(arg1:main.NotesTableRequestT):Promise<main.NotesTableResultT>;
+
+export function NotesTableSetGraph(arg1:main.NotesTableRequestT,arg2:main.NotesTableGraphSpecT):Promise<main.NotesTableResultT>;
 
 export function NotesTableSort(arg1:main.NotesTableRequestT,arg2:number):Promise<main.NotesTableResultT>;
 

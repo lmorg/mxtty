@@ -26,7 +26,7 @@ func init() {
 var envVarsDescription string
 
 func (t *EnvVars) New(agent aitypes.Agent) (aitypes.Tool, error) {
-	return &EnvVars{agent: agent, enabled: false}, nil
+	return &EnvVars{agent: agent, enabled: true}, nil
 }
 
 func (t *EnvVars) Enabled() bool { return t.enabled }

@@ -16,12 +16,14 @@ const getNotesMaxLogLinesMock = vi.fn();
 const getNotesLanguageTabIndentMock = vi.fn();
 const getNotesColumnWidthsMock = vi.fn();
 const setNotesColumnWidthsMock = vi.fn(() => Promise.resolve());
-const emptyTableResult = () => ({ missing: false, order: [], sortColumn: 0, sortDesc: false, filter: '', error: '' });
+const emptyTableResult = () => ({ missing: false, order: [], sortColumn: 0, sortDesc: false, filter: '', graph: null, error: '' });
 const notesTableSortMock = vi.fn(() => Promise.resolve(emptyTableResult()));
 const notesTableClearSortMock = vi.fn(() => Promise.resolve(emptyTableResult()));
 const notesTableFilterMock = vi.fn(() => Promise.resolve(emptyTableResult()));
 const notesTableReconcileMock = vi.fn(() => Promise.resolve());
 const notesTableRestoreMock = vi.fn(() => Promise.resolve(emptyTableResult()));
+const notesTableSetGraphMock = vi.fn((_request, graph) => Promise.resolve({ graph }));
+const notesTableRenderGraphMock = vi.fn(() => Promise.resolve({ svg: '<svg xmlns="http://www.w3.org/2000/svg"></svg>', error: '' }));
 const notesTableDisposeAllMock = vi.fn(() => Promise.resolve());
 const getFileMock = vi.fn();
 const listFilesMock = vi.fn();
@@ -265,6 +267,8 @@ vi.mock('../wailsjs/go/main/WApp', () => ({
     NotesTableFilter: notesTableFilterMock,
     NotesTableReconcile: notesTableReconcileMock,
     NotesTableRestore: notesTableRestoreMock,
+    NotesTableSetGraph: notesTableSetGraphMock,
+    NotesTableRenderGraph: notesTableRenderGraphMock,
     NotesTableDisposeAll: notesTableDisposeAllMock,
     GetHyperlinkMenuActions: getHyperlinkMenuActionsMock,
     RunHyperlinkMenuAction: runHyperlinkMenuActionMock,
@@ -407,6 +411,10 @@ describe('notes rendering', () => {
         notesTableReconcileMock.mockResolvedValue();
         notesTableRestoreMock.mockReset();
         notesTableRestoreMock.mockResolvedValue(emptyTableResult());
+        notesTableSetGraphMock.mockReset();
+        notesTableSetGraphMock.mockImplementation((_request, graph) => Promise.resolve({ graph }));
+        notesTableRenderGraphMock.mockReset();
+        notesTableRenderGraphMock.mockResolvedValue({ svg: '<svg xmlns="http://www.w3.org/2000/svg"></svg>', error: '' });
         notesTableDisposeAllMock.mockReset();
         notesTableDisposeAllMock.mockResolvedValue();
         getFileMock.mockReset();
@@ -4694,6 +4702,55 @@ describe('notes rendering', () => {
         expect(getNotesRenderedStyles()).toContain('#notes-csv-view th .notes-table-col-resize-handle::before');
     });
 
+    it('offers Create graph from any CSV table cell', async () => {
+        listFilesMock.mockResolvedValue(['$NOTES/table.csv']);
+        getFileMock.mockResolvedValue({ contents: 'Name,Value\nAlpha,1', text: '', error: '' });
+        await importNotesModule();
+        document.querySelector('[data-file="$NOTES/table.csv"]').click();
+        await flushPromises();
+        await flushPromises();
+
+        const cell = document.querySelector('#notes-csv-view tbody td');
+        cell.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 8, clientY: 8 }));
+        const menu = showLocalMenuMock.mock.calls.at(-1)[0];
+        expect(menu.options.filter((option) => option.startsWith('Create graph'))).toEqual(['Create graph...']);
+    });
+
+    it('detects CSV value columns formatted with currency symbols and commas', async () => {
+        listFilesMock.mockResolvedValue(['$NOTES/accounts.csv']);
+        getFileMock.mockResolvedValue({
+            contents: [
+                'Project,Account,USD',
+                'CFR,dev,$ 744.00',
+                'CFR,prod,"$ 1,001.56"',
+                'Health App,test,$ 42.04',
+                'Health App,prod,"$ 5,396.07"',
+            ].join('\n'),
+            text: '',
+            error: '',
+        });
+        await importNotesModule();
+        document.querySelector('[data-file="$NOTES/accounts.csv"]').click();
+        await flushPromises();
+        await flushPromises();
+
+        const cell = document.querySelector('#notes-csv-view tbody td');
+        cell.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 8, clientY: 8 }));
+        const menu = showLocalMenuMock.mock.calls.at(-1)[0];
+        menu.onSelect(menu.options.indexOf('Create graph...'));
+        await flushPromises();
+        document.getElementById('notes-modal-create').click();
+        await flushPromises();
+        await flushPromises();
+
+        expect(notesTableSetGraphMock).toHaveBeenCalledTimes(1);
+        expect(notesTableSetGraphMock.mock.calls[0][1]).toMatchObject({
+            categoryColumn: 0,
+            valueColumns: [2],
+            seriesNames: ['USD'],
+        });
+    });
+
     it('preserves newlines inside CSV view cells', async () => {
         listFilesMock.mockResolvedValue(['$NOTES/table.csv']);
         getFileMock.mockResolvedValue({
@@ -5086,6 +5143,142 @@ describe('notes rendering', () => {
 
             expect(document.getElementById('notes-modal-title').textContent).toBe('SQL filter');
             expect(document.getElementById('notes-modal-input').value).toBe('"Value" > 1');
+        });
+
+        it('offers one graph action when right-clicking anywhere on a table', async () => {
+            const table = await loadMarkdownTable();
+            table.querySelector('tbody td').dispatchEvent(
+                new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 10, clientY: 10 }));
+            const menu = showLocalMenuMock.mock.calls.at(-1)[0];
+            expect(menu.options.filter((option) => option.startsWith('Create graph'))).toEqual(['Create graph...']);
+
+            menu.onSelect(menu.options.indexOf('Create graph...'));
+            await flushPromises();
+
+            expect(document.getElementById('notes-modal-title').textContent).toBe('Create graph');
+            expect(document.querySelector('#notes-modal-body .notes-graph-dropdown')?.textContent.trim()).toContain('Line');
+            const columnsField = Array.from(document.querySelectorAll('.notes-graph-field'))
+                .find((field) => field.querySelector('.notes-graph-field-label')?.textContent === 'Columns');
+            const rowsField = Array.from(document.querySelectorAll('.notes-graph-field'))
+                .find((field) => field.querySelector('.notes-graph-field-label')?.textContent === 'Rows');
+            expect(columnsField.querySelectorAll('input[type="checkbox"]')).toHaveLength(2);
+            expect(Array.from(columnsField.querySelectorAll('input[type="checkbox"]')).every((input) => input.checked)).toBe(true);
+            expect(rowsField.querySelectorAll('input[type="checkbox"]')).toHaveLength(3);
+            expect(Array.from(rowsField.querySelectorAll('input[type="checkbox"]')).every((input) => input.checked)).toBe(true);
+
+            const typeDropdown = document.querySelector('.notes-graph-dropdown');
+            typeDropdown.click();
+            const typeMenu = showLocalMenuMock.mock.calls.at(-1)[0];
+            expect(typeMenu.options).toContain('Doughnut');
+            typeMenu.onSelect(typeMenu.options.indexOf('Bar'));
+            expect(typeDropdown.textContent).toContain('Bar');
+        });
+
+        it('persists a graph and intersects selected rows with SQL-filtered rows', async () => {
+            const table = await loadMarkdownTable();
+            notesTableFilterMock.mockResolvedValue({
+                missing: false,
+                order: [1],
+                sortColumn: 0,
+                sortDesc: false,
+                filter: '"Value" > 1',
+                graph: null,
+                error: '',
+            });
+
+            const openTableMenu = () => {
+                table.querySelector('tbody td').dispatchEvent(
+                    new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 10, clientY: 10 }));
+                return showLocalMenuMock.mock.calls.at(-1)[0];
+            };
+            let menu = openTableMenu();
+            menu.onSelect(menu.options.indexOf('SQL filter...'));
+            await flushPromises();
+            document.getElementById('notes-modal-input').value = '"Value" > 1';
+            document.getElementById('notes-modal-create').click();
+            await flushPromises();
+            await flushPromises();
+
+            menu = openTableMenu();
+            menu.onSelect(menu.options.indexOf('Create graph...'));
+            await flushPromises();
+            const rowsField = Array.from(document.querySelectorAll('.notes-graph-field'))
+                .find((field) => field.querySelector('.notes-graph-field-label')?.textContent === 'Rows');
+            const rowCheckboxes = rowsField.querySelectorAll('input[type="checkbox"]');
+            rowCheckboxes[0].click();
+            rowCheckboxes[2].click();
+            document.getElementById('notes-modal-create').click();
+            await flushPromises();
+            await flushPromises();
+
+            expect(notesTableSetGraphMock).toHaveBeenCalledTimes(1);
+            const [persistRequest, spec] = notesTableSetGraphMock.mock.calls[0];
+            expect(persistRequest.workspace).toBeTruthy();
+            expect(persistRequest.key.document).toBe('$NOTES/table.md');
+            expect(persistRequest.key.index).toBe(0);
+            expect(persistRequest.stateIndex).toBe(0);
+            expect(spec).toMatchObject({ type: 'line', categoryColumn: 0, valueColumns: [1], rowIndices: [1] });
+
+            const [renderRequest] = notesTableRenderGraphMock.mock.calls[0];
+            expect(renderRequest.seed.headings).toEqual(['Name', 'Value']);
+            expect(renderRequest.seed.rows).toEqual([['Alpha', '1'], ['Beta', '2'], ['Gamma', '3']]);
+            expect(renderRequest.filter).toBe('"Value" > 1');
+
+            const extras = document.querySelector('.notes-table-extras');
+            expect(extras.children[0].classList.contains('notes-table-sql-filter-footer')).toBe(true);
+            expect(extras.children[1].classList.contains('notes-table-graph')).toBe(true);
+            expect(extras.querySelector('.notes-table-graph-image')?.getAttribute('src')).toContain('data:image/svg+xml');
+            extras.querySelector('.notes-table-graph-image').click();
+            const fullscreenSvg = document.querySelector('#fullscreen-image-overlay svg');
+            expect(fullscreenSvg).not.toBeNull();
+            expect(fullscreenSvg.getAttribute('width')).toBe('800');
+            expect(fullscreenSvg.getAttribute('height')).toBe('600');
+            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        });
+
+        it('renders an unfiltered graph from every table row', async () => {
+            const table = await loadMarkdownTable();
+            table.querySelector('tbody td').dispatchEvent(
+                new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 10, clientY: 10 }));
+            const menu = showLocalMenuMock.mock.calls.at(-1)[0];
+            menu.onSelect(menu.options.indexOf('Create graph...'));
+            await flushPromises();
+            document.getElementById('notes-modal-create').click();
+            await flushPromises();
+            await flushPromises();
+
+            const [renderRequest] = notesTableRenderGraphMock.mock.calls[0];
+            expect(renderRequest.filter).toBe('');
+            expect(renderRequest.seed.rows).toEqual([
+                ['Alpha', '1'],
+                ['Beta', '2'],
+                ['Gamma', '3'],
+            ]);
+        });
+
+        it('removes the persisted graph from the graph context menu', async () => {
+            const table = await loadMarkdownTable();
+            table.querySelector('tbody td').dispatchEvent(
+                new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 10, clientY: 10 }));
+            const tableMenu = showLocalMenuMock.mock.calls.at(-1)[0];
+            tableMenu.onSelect(tableMenu.options.indexOf('Create graph...'));
+            await flushPromises();
+            document.getElementById('notes-modal-create').click();
+            await flushPromises();
+            await flushPromises();
+
+            const graph = document.querySelector('.notes-table-graph');
+            graph.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 12, clientY: 12 }));
+            const graphMenu = showLocalMenuMock.mock.calls.at(-1)[0];
+            expect(graphMenu.options).toEqual(['Remove graph']);
+            graphMenu.onSelect(0);
+            await flushPromises();
+
+            expect(notesTableSetGraphMock).toHaveBeenLastCalledWith(
+                expect.objectContaining({ key: expect.objectContaining({ document: '$NOTES/table.md' }) }),
+                null,
+            );
+            expect(document.querySelector('.notes-table-graph')).toBeNull();
         });
 
         it('clears the sort on a middle-click, as the terminal does', async () => {

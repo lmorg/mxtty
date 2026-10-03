@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 
+	"github.com/lmorg/ttyphoon/utils/graphs"
 	"github.com/lmorg/ttyphoon/utils/notes"
 	"github.com/lmorg/ttyphoon/window/elements/element_table/tablecore"
 )
@@ -27,6 +28,7 @@ type NotesTableSeedT struct {
 type NotesTableRequestT struct {
 	Key        tablecore.Key    `json:"key"`
 	Workspace  string           `json:"workspace"`
+	StateIndex int              `json:"stateIndex"`
 	Seed       *NotesTableSeedT `json:"seed"`
 	SortColumn int              `json:"sortColumn"`
 	SortDesc   bool             `json:"sortDesc"`
@@ -36,12 +38,30 @@ type NotesTableRequestT struct {
 // NotesTableResultT is the new view state and the source row indices to render.
 type NotesTableResultT struct {
 	// Missing asks the caller to resend the seed and retry once.
-	Missing    bool   `json:"missing"`
-	Order      []int  `json:"order"`
-	SortColumn int    `json:"sortColumn"`
-	SortDesc   bool   `json:"sortDesc"`
-	Filter     string `json:"filter"`
-	Error      string `json:"error"`
+	Missing    bool                  `json:"missing"`
+	Order      []int                 `json:"order"`
+	SortColumn int                   `json:"sortColumn"`
+	SortDesc   bool                  `json:"sortDesc"`
+	Filter     string                `json:"filter"`
+	Graph      *NotesTableGraphSpecT `json:"graph"`
+	Error      string                `json:"error"`
+}
+
+type NotesTableGraphSpecT struct {
+	Type              string   `json:"type"`
+	Format            string   `json:"format"`
+	Title             string   `json:"title"`
+	CategoryColumn    int      `json:"categoryColumn"`
+	ValueColumns      []int    `json:"valueColumns"`
+	SeriesNames       []string `json:"seriesNames"`
+	RowIndices        []int    `json:"rowIndices"`
+	CategoryAxisTitle string   `json:"categoryAxisTitle"`
+	ValueAxisTitle    string   `json:"valueAxisTitle"`
+}
+
+type NotesTableGraphResultT struct {
+	SVG   string `json:"svg"`
+	Error string `json:"error"`
 }
 
 // NotesTableSort applies the terminal's heading-click rule to column (1-based).
@@ -116,17 +136,18 @@ func (a *WApp) notesTableApply(req NotesTableRequestT, apply func(*tablecore.Tab
 	}
 
 	column, desc := table.SortState()
+	state := notes.GetTableStateWithLegacyIndex(req.Workspace, req.Key.Document, req.StateIndex, req.Key.Index, table.Headings())
 	result = NotesTableResultT{
 		Order:      order,
 		SortColumn: column,
 		SortDesc:   desc,
 		Filter:     table.Filter(),
+		Graph:      graphSpecFromStored(state.Graph),
 	}
-	notes.SetTableState(req.Workspace, req.Key.Document, req.Key.Index, table.Headings(), notes.TableState{
-		SortColumn: result.SortColumn,
-		SortDesc:   result.SortDesc,
-		Filter:     result.Filter,
-	})
+	state.SortColumn = result.SortColumn
+	state.SortDesc = result.SortDesc
+	state.Filter = result.Filter
+	notes.SetTableState(req.Workspace, req.Key.Document, req.StateIndex, table.Headings(), state)
 	return result
 }
 
@@ -139,7 +160,7 @@ func (a *WApp) NotesTableRestore(req NotesTableRequestT) NotesTableResultT {
 	if release != nil {
 		defer release()
 	}
-	persisted := notes.GetTableState(req.Workspace, req.Key.Document, req.Key.Index, table.Headings())
+	persisted := notes.GetTableStateWithLegacyIndex(req.Workspace, req.Key.Document, req.StateIndex, req.Key.Index, table.Headings())
 	if err := table.SetFilter(persisted.Filter); err != nil {
 		return NotesTableResultT{Error: err.Error()}
 	}
@@ -149,7 +170,115 @@ func (a *WApp) NotesTableRestore(req NotesTableRequestT) NotesTableResultT {
 		return NotesTableResultT{Error: err.Error()}
 	}
 	column, desc := table.SortState()
-	return NotesTableResultT{Order: order, SortColumn: column, SortDesc: desc, Filter: table.Filter()}
+	return NotesTableResultT{Order: order, SortColumn: column, SortDesc: desc, Filter: table.Filter(), Graph: graphSpecFromStored(persisted.Graph)}
+}
+
+// NotesTableSetGraph stores a graph specification using the table's SQL-state cache key.
+func (a *WApp) NotesTableSetGraph(req NotesTableRequestT, graph *NotesTableGraphSpecT) NotesTableResultT {
+	table, release, result := a.notesTableResolve(req)
+	if table == nil {
+		return result
+	}
+	if release != nil {
+		defer release()
+	}
+	state := notes.GetTableStateWithLegacyIndex(req.Workspace, req.Key.Document, req.StateIndex, req.Key.Index, table.Headings())
+	state.Graph = graphSpecToStored(graph)
+	notes.SetTableState(req.Workspace, req.Key.Document, req.StateIndex, table.Headings(), state)
+	return NotesTableResultT{Graph: graph}
+}
+
+// NotesTableRenderGraph renders the rows supplied by the caller as an SVG.
+func (a *WApp) NotesTableRenderGraph(req NotesTableRequestT, graph *NotesTableGraphSpecT) NotesTableGraphResultT {
+	if req.Seed == nil {
+		return NotesTableGraphResultT{Error: "table data was not supplied"}
+	}
+	if graph == nil {
+		return NotesTableGraphResultT{Error: "graph specification was not supplied"}
+	}
+	if len(req.Seed.Headings) == 0 {
+		return NotesTableGraphResultT{Error: "table headings were not supplied"}
+	}
+	table, release, err := a.notesTables.Build(req.Key, req.Seed.Headings, req.Seed.Rows)
+	if err != nil {
+		return NotesTableGraphResultT{Error: err.Error()}
+	}
+	defer release()
+	if err := table.SetFilter(req.Filter); err != nil {
+		return NotesTableGraphResultT{Error: err.Error()}
+	}
+	order, err := table.Order(0, 0)
+	if err != nil {
+		return NotesTableGraphResultT{Error: err.Error()}
+	}
+	selected := make(map[int]struct{}, len(graph.RowIndices))
+	for _, index := range graph.RowIndices {
+		selected[index] = struct{}{}
+	}
+	rows := make([][]string, 0, len(order))
+	for _, sourceIndex := range order {
+		if len(selected) > 0 {
+			if _, ok := selected[sourceIndex]; !ok {
+				continue
+			}
+		}
+		if sourceIndex >= 0 && sourceIndex < len(req.Seed.Rows) {
+			rows = append(rows, req.Seed.Rows[sourceIndex])
+		}
+	}
+	if len(rows) == 0 {
+		return NotesTableGraphResultT{Error: "no rows are selected for this graph"}
+	}
+	spec := graph.toGraphsSpec()
+	spec.Format = graphs.SVG
+	spec.RowIndices = nil
+	data, err := graphs.RenderTable(graphs.Table{Headings: req.Seed.Headings, Rows: rows}, spec)
+	if err != nil {
+		return NotesTableGraphResultT{Error: err.Error()}
+	}
+	return NotesTableGraphResultT{SVG: string(data)}
+}
+
+func graphSpecFromStored(spec *graphs.Spec) *NotesTableGraphSpecT {
+	if spec == nil {
+		return nil
+	}
+	return &NotesTableGraphSpecT{
+		Type:              string(spec.Type),
+		Format:            string(spec.Format),
+		Title:             spec.Title,
+		CategoryColumn:    spec.CategoryColumn,
+		ValueColumns:      append([]int(nil), spec.ValueColumns...),
+		SeriesNames:       append([]string(nil), spec.SeriesNames...),
+		RowIndices:        append([]int(nil), spec.RowIndices...),
+		CategoryAxisTitle: spec.CategoryAxisTitle,
+		ValueAxisTitle:    spec.ValueAxisTitle,
+	}
+}
+
+func graphSpecToStored(spec *NotesTableGraphSpecT) *graphs.Spec {
+	if spec == nil {
+		return nil
+	}
+	converted := spec.toGraphsSpec()
+	return &converted
+}
+
+func (spec *NotesTableGraphSpecT) toGraphsSpec() graphs.Spec {
+	if spec == nil {
+		return graphs.Spec{}
+	}
+	return graphs.Spec{
+		Type:              graphs.Type(spec.Type),
+		Format:            graphs.Format(spec.Format),
+		Title:             spec.Title,
+		CategoryColumn:    spec.CategoryColumn,
+		ValueColumns:      append([]int(nil), spec.ValueColumns...),
+		SeriesNames:       append([]string(nil), spec.SeriesNames...),
+		RowIndices:        append([]int(nil), spec.RowIndices...),
+		CategoryAxisTitle: spec.CategoryAxisTitle,
+		ValueAxisTitle:    spec.ValueAxisTitle,
+	}
 }
 
 // notesTableResolve returns the table for a request, building it from the seed

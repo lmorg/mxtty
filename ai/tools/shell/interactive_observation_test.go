@@ -9,9 +9,9 @@ import (
 )
 
 func TestShellToolsExposeStructuredInputTypes(t *testing.T) {
-	var commandLine aitypes.StructuredTool = &CommandLine{}
-	if got := commandLine.InputType(); got != reflect.TypeOf(commandLineInputT{}) {
-		t.Fatalf("commandLine InputType() = %v, want commandLineInputT", got)
+	var interactive aitypes.StructuredTool = &Interactive{}
+	if got := interactive.InputType(); got != reflect.TypeOf(interactiveInputT{}) {
+		t.Fatalf("interactive InputType() = %v, want interactiveInputT", got)
 	}
 
 	var envVars aitypes.StructuredTool = &EnvVars{}
@@ -26,9 +26,9 @@ func TestCommandLineObservationRecordsCommandRun(t *testing.T) {
 		t.Fatalf("Marshal: %v", err)
 	}
 
-	observation := (&CommandLine{}).Observation("go test ./...", string(output), nil)
-	if observation.Tool != "commandLine" || observation.Status != "ok" {
-		t.Fatalf("observation = %+v, want commandLine ok", observation)
+	observation := (&Interactive{}).Observation("go test ./...", string(output), nil)
+	if observation.Tool != "interactive" || observation.Status != "ok" {
+		t.Fatalf("observation = %+v, want interactive ok", observation)
 	}
 	if len(observation.CommandsRun) != 1 {
 		t.Fatalf("CommandsRun = %d, want 1", len(observation.CommandsRun))
@@ -45,7 +45,7 @@ func TestCommandLineObservationMarksNonZeroExitFailed(t *testing.T) {
 		t.Fatalf("Marshal: %v", err)
 	}
 
-	observation := (&CommandLine{}).Observation("go test ./...", string(output), nil)
+	observation := (&Interactive{}).Observation("go test ./...", string(output), nil)
 	if observation.Status != "error" {
 		t.Fatalf("Status = %q, want error", observation.Status)
 	}
@@ -55,12 +55,12 @@ func TestCommandLineObservationMarksNonZeroExitFailed(t *testing.T) {
 }
 
 func TestCommandLineStructuredObservationUsesDecodedCommand(t *testing.T) {
-	command := commandLineInputT{Command: "go test ./..."}
+	command := interactiveInputT{Command: "go test ./..."}
 	output, err := json.Marshal(resultT{Output: "all good", ExitCode: 0})
 	if err != nil {
 		t.Fatalf("Marshal: %v", err)
 	}
-	observation := (&CommandLine{}).ObservationStructured(&command, string(output), nil)
+	observation := (&Interactive{}).ObservationStructured(&command, string(output), nil)
 	if len(observation.CommandsRun) != 1 || observation.CommandsRun[0].Command != command.Command {
 		t.Fatalf("CommandsRun = %+v, want command %q", observation.CommandsRun, command.Command)
 	}

@@ -374,8 +374,16 @@ export function NotesTableReconcile(arg1, arg2, arg3) {
   return window['go']['main']['WApp']['NotesTableReconcile'](arg1, arg2, arg3);
 }
 
+export function NotesTableRenderGraph(arg1, arg2) {
+  return window['go']['main']['WApp']['NotesTableRenderGraph'](arg1, arg2);
+}
+
 export function NotesTableRestore(arg1) {
   return window['go']['main']['WApp']['NotesTableRestore'](arg1);
+}
+
+export function NotesTableSetGraph(arg1, arg2) {
+  return window['go']['main']['WApp']['NotesTableSetGraph'](arg1, arg2);
 }
 
 export function NotesTableSort(arg1, arg2) {

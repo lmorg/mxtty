@@ -1,6 +1,6 @@
 import {
     GetWindowStyle, GetNotesMaxLogLines, GetNotesColumnWidths, SetNotesColumnWidths, GetFile,
-    NotesTableSort, NotesTableClearSort, NotesTableFilter, NotesTableReconcile, NotesTableRestore, NotesTableDisposeAll,
+    NotesTableSort, NotesTableClearSort, NotesTableFilter, NotesTableReconcile, NotesTableRestore, NotesTableSetGraph, NotesTableRenderGraph, NotesTableDisposeAll,
     GetNotesStructViewMaxSizeKB,
     ListFiles, SaveFile, SaveBinaryFile, DeleteFile, RenameFile,
     CancelNotesListFiles,
@@ -384,6 +384,7 @@ hljs.registerLanguage('xquery', xquery);
 hljs.registerLanguage('zephir', zephir);
 
 import { autoHyperlink, configureMarked, processMarkdownContainer, enableFullscreenImages, processLinks, notesAssetURL } from './markdown-utils.js';
+import { showFullscreenImageOverlay } from './fullscreen-image-overlay.js';
 import { getScrollbarStyles, getMarkdownContentStyles, getHighlightJsTheme, getCheckboxStyles, getMarkdownBaseTextSizeStyles, getSwaggerUIStyles, DARKEN_BACKGROUND_OVERLAY } from './style-utils.js';
 import { 
     isStructuredDataFile, hasSwaggerKey, parseSwaggerSpec, generateRequestBuilderHTML, generateResponseHTML,
@@ -623,6 +624,7 @@ app.innerHTML = `
                 <button id="notes-modal-location" type="button" aria-label="Location" title="Select location">$NOTES</button>
                 <input id="notes-modal-input" type="text" placeholder="example-note" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
             </div>
+            <div id="notes-modal-body"></div>
             <div id="notes-modal-actions">
                 <button id="notes-modal-cancel" type="button">Cancel</button>
                 <button id="notes-modal-create" type="button">Create</button>
@@ -726,6 +728,7 @@ const elements = {
     swaggerRequestBuilder: document.getElementById('notes-swagger-request-builder'),
     swaggerResponse: document.getElementById('notes-swagger-response'),
     modal: document.getElementById('notes-modal'),
+    modalBody: document.getElementById('notes-modal-body'),
     modalLocationRow: document.getElementById('notes-modal-location-row'),
     modalLocation: document.getElementById('notes-modal-location'),
     modalInput: document.getElementById('notes-modal-input'),
@@ -819,6 +822,8 @@ const state = {
     viewMode: 'viewer',
     renamingFile: null,
     textPromptHandler: null,
+    graphPromptHandler: null,
+    graphPromptSubmit: null,
     deletingFile: null,
     deleteConfirmAction: null,
     findMatches: [],
@@ -3739,6 +3744,7 @@ function notesTableRequest(table, includeSeed) {
             index: Number(table.dataset.tableIndex) || 0,
         },
         workspace: state.currentWorkspaceKey || '',
+        stateIndex: Number(table.dataset.tableStateIndex) || 0,
         seed: includeSeed ? notesTableSeed(table) : null,
         sortColumn: Number(table.dataset.sortColumn) || 0,
         sortDesc: table.dataset.sortDesc === 'true',
@@ -3747,11 +3753,11 @@ function notesTableRequest(table, includeSeed) {
 }
 
 function renderNotesTableFilterFooter(table) {
-    const parent = table?.parentElement;
-    if (!parent) {
+    const extras = notesTableExtras(table, true);
+    if (!extras) {
         return;
     }
-    parent.querySelectorAll(':scope > .notes-table-sql-filter-footer').forEach((footer) => footer.remove());
+    extras.querySelectorAll(':scope > .notes-table-sql-filter-footer').forEach((footer) => footer.remove());
     const filter = String(table.dataset.tableFilter || '').trim();
     if (!filter) {
         return;
@@ -3769,7 +3775,419 @@ function renderNotesTableFilterFooter(table) {
     footer.addEventListener('click', () => {
         void promptNotesTableFilter(table);
     });
-    parent.appendChild(footer);
+    const graph = extras.querySelector(':scope > .notes-table-graph');
+    extras.insertBefore(footer, graph || null);
+}
+
+function notesTableExtras(table, create = false) {
+    if (!table?.parentElement) {
+        return null;
+    }
+    const scrollWrap = table.closest('.notes-table-scroll-wrap');
+    const parent = scrollWrap?.parentElement || table.parentElement;
+    const tableIndex = String(table.dataset.tableIndex || '0');
+    let extras = Array.from(parent.children).find((child) =>
+        child.classList?.contains('notes-table-extras') && child.dataset.tableIndex === tableIndex);
+    if (!extras && create) {
+        extras = document.createElement('div');
+        extras.className = 'notes-table-extras';
+        extras.dataset.tableIndex = tableIndex;
+        const anchor = scrollWrap || table;
+        anchor.insertAdjacentElement('afterend', extras);
+    }
+    return extras || null;
+}
+
+function notesTableNumericColumns(table, categoryColumn) {
+    const seed = notesTableSeed(table);
+    return seed.headings.flatMap((_, column) => {
+        if (column === categoryColumn) {
+            return [];
+        }
+        const values = seed.rows.map((row) => String(row[column] || '').trim()).filter(Boolean);
+        const isNumeric = (value) => {
+            const normalized = value.replace(/[\p{Sc},]/gu, '').trim();
+            return normalized !== '' && Number.isFinite(Number(normalized));
+        };
+        if (values.length === 0 || !values.every(isNumeric)) {
+            return [];
+        }
+        return [column];
+    });
+}
+
+const notesGraphTypes = [
+    { value: 'line', label: 'Line' },
+    { value: 'area', label: 'Area' },
+    { value: 'bar', label: 'Bar' },
+    { value: 'horizontal-bar', label: 'Horizontal bar' },
+    { value: 'scatter', label: 'Scatter' },
+    { value: 'pie', label: 'Pie' },
+    { value: 'doughnut', label: 'Doughnut' },
+];
+
+const notesGraphRowPageSize = 100;
+
+function notesGraphField(labelText) {
+    const field = document.createElement('div');
+    field.className = 'notes-graph-field';
+    const label = document.createElement('div');
+    label.className = 'notes-graph-field-label';
+    label.textContent = labelText;
+    field.appendChild(label);
+    return { field, label };
+}
+
+function openNotesTableGraphPrompt(table) {
+    const headings = Array.from(table.querySelectorAll('thead th')).map((cell) => getTableCellTextContent(cell));
+    if (headings.length < 2) {
+        notifyTerminal('A graph needs a category column and at least one value column.', 'warn');
+        return;
+    }
+
+    let existing = null;
+    try {
+        existing = JSON.parse(table.dataset.tableGraphSpec || 'null');
+    } catch {
+        existing = null;
+    }
+    const selectedColumns = existing
+        ? new Set([existing.categoryColumn, ...(existing.valueColumns || [])])
+        : new Set(headings.map((_, index) => index));
+    const tableRows = notesTableSourceRows(table);
+    const savedRows = Array.isArray(existing?.rowIndices) ? existing.rowIndices : [];
+    const prompt = {
+        table,
+        headings,
+        rows: tableRows,
+        type: existing?.type || 'line',
+        title: existing?.title || '',
+        selectedColumns,
+        selectedRows: savedRows.length > 0 ? new Set(savedRows) : null,
+        rowQuery: '',
+        rowLimit: notesGraphRowPageSize,
+        rowList: null,
+        rowCount: null,
+    };
+
+    state.graphPromptHandler = (spec) => {
+        if (spec) {
+            void setNotesTableGraph(table, spec);
+        }
+    };
+    state.graphPromptSubmit = null;
+    state.renamingFile = null;
+    state.textPromptHandler = null;
+    elements.modal.dataset.open = 'true';
+    elements.modal.setAttribute('aria-hidden', 'false');
+    elements.modalLocationRow.style.display = 'none';
+    elements.modalBody.style.display = 'flex';
+    elements.modalInput.value = '';
+    elements.modal.querySelector('#notes-modal-title').textContent = 'Create graph';
+    elements.modalCreate.textContent = 'Create graph';
+    elements.modalBody.replaceChildren();
+
+    const form = document.createElement('div');
+    form.className = 'notes-graph-form';
+    elements.modalBody.appendChild(form);
+
+    const typeField = notesGraphField('Chart type');
+    const typeButton = document.createElement('button');
+    typeButton.type = 'button';
+    typeButton.className = 'notes-graph-dropdown';
+    const updateTypeButton = () => {
+        typeButton.textContent = `${notesGraphTypes.find((item) => item.value === prompt.type)?.label || 'Line'}  \u2304`;
+    };
+    updateTypeButton();
+    typeButton.addEventListener('click', () => {
+        const rect = typeButton.getBoundingClientRect();
+        showNotesLocalMenu(notesGraphTypes.map((item) => ({
+            title: item.label,
+            icon: prompt.type === item.value ? CONTEXT_ICON_TICK : 0,
+            onSelect: () => {
+                prompt.type = item.value;
+                updateTypeButton();
+            },
+        })), rect.left, rect.bottom, 'Chart type');
+    });
+    typeField.field.appendChild(typeButton);
+    form.appendChild(typeField.field);
+
+    const titleField = notesGraphField('Title');
+    const titleInput = document.createElement('input');
+    titleInput.type = 'text';
+    titleInput.className = 'notes-graph-text';
+    titleInput.value = prompt.title;
+    titleInput.placeholder = 'Optional chart title';
+    titleInput.addEventListener('input', () => { prompt.title = titleInput.value; });
+    titleField.field.appendChild(titleInput);
+    form.appendChild(titleField.field);
+
+    const columnsField = notesGraphField('Columns');
+    const columnsHelp = document.createElement('div');
+    columnsHelp.className = 'notes-graph-help';
+    columnsHelp.textContent = 'The first selected column labels rows; selected numeric columns become series.';
+    columnsField.field.appendChild(columnsHelp);
+    const columnActions = document.createElement('div');
+    columnActions.className = 'notes-graph-list-actions';
+    const selectAllColumns = document.createElement('button');
+    selectAllColumns.type = 'button';
+    selectAllColumns.className = 'notes-graph-small-button';
+    selectAllColumns.textContent = 'Select all';
+    selectAllColumns.addEventListener('click', () => {
+        prompt.selectedColumns = new Set(headings.map((_, index) => index));
+        renderColumns();
+    });
+    columnActions.appendChild(selectAllColumns);
+    columnsField.field.appendChild(columnActions);
+    const columnsList = document.createElement('div');
+    columnsList.className = 'notes-graph-options-list';
+    columnsField.field.appendChild(columnsList);
+    form.appendChild(columnsField.field);
+
+    const renderColumns = () => {
+        columnsList.replaceChildren();
+        headings.forEach((heading, index) => {
+            const option = document.createElement('label');
+            option.className = 'notes-graph-option';
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.checked = prompt.selectedColumns.has(index);
+            checkbox.addEventListener('change', () => {
+                if (checkbox.checked) prompt.selectedColumns.add(index);
+                else prompt.selectedColumns.delete(index);
+            });
+            const text = document.createElement('span');
+            text.textContent = heading || `Column ${index + 1}`;
+            option.append(checkbox, text);
+            columnsList.appendChild(option);
+        });
+    };
+    renderColumns();
+
+    const rowsField = notesGraphField('Rows');
+    const rowsHelp = document.createElement('div');
+    rowsHelp.className = 'notes-graph-help';
+    rowsHelp.textContent = 'All rows are selected by default. The SQL filter, when active, is applied too.';
+    rowsField.field.appendChild(rowsHelp);
+    const rowActions = document.createElement('div');
+    rowActions.className = 'notes-graph-list-actions';
+    const selectAllRows = document.createElement('button');
+    selectAllRows.type = 'button';
+    selectAllRows.className = 'notes-graph-small-button';
+    selectAllRows.textContent = 'Select all';
+    selectAllRows.addEventListener('click', () => {
+        prompt.selectedRows = null;
+        prompt.rowLimit = notesGraphRowPageSize;
+        renderRows();
+    });
+    prompt.rowCount = document.createElement('span');
+    prompt.rowCount.className = 'notes-graph-count';
+    rowActions.append(selectAllRows, prompt.rowCount);
+    rowsField.field.appendChild(rowActions);
+
+    const rowSearch = document.createElement('input');
+    rowSearch.type = 'search';
+    rowSearch.className = 'notes-graph-text';
+    rowSearch.placeholder = 'Find rows…';
+    rowSearch.addEventListener('input', () => {
+        prompt.rowQuery = rowSearch.value.trim().toLowerCase();
+        prompt.rowLimit = notesGraphRowPageSize;
+        renderRows();
+    });
+    rowsField.field.appendChild(rowSearch);
+    prompt.rowList = document.createElement('div');
+    prompt.rowList.className = 'notes-graph-options-list notes-graph-row-list';
+    rowsField.field.appendChild(prompt.rowList);
+    form.appendChild(rowsField.field);
+
+    function renderRows() {
+        const matches = prompt.rows.filter((row, index) => {
+            if (!prompt.rowQuery) return true;
+            const label = `${index + 1} ${Array.from(row.querySelectorAll('td, th')).map((cell) => getTableCellTextContent(cell)).join(' ')}`;
+            return label.toLowerCase().includes(prompt.rowQuery);
+        });
+        const selectedCount = prompt.selectedRows === null
+            ? prompt.rows.length
+            : prompt.selectedRows.size;
+        prompt.rowCount.textContent = `${selectedCount} of ${prompt.rows.length} selected`;
+        prompt.rowList.replaceChildren();
+        matches.slice(0, prompt.rowLimit).forEach((row) => {
+            const index = Number(row.dataset.sourceRow) || 0;
+            const label = document.createElement('label');
+            label.className = 'notes-graph-option';
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.checked = prompt.selectedRows === null || prompt.selectedRows.has(index);
+            checkbox.addEventListener('change', () => {
+                if (prompt.selectedRows === null) {
+                    prompt.selectedRows = new Set(prompt.rows.map((item) => Number(item.dataset.sourceRow) || 0));
+                }
+                if (checkbox.checked) prompt.selectedRows.add(index);
+                else prompt.selectedRows.delete(index);
+                if (prompt.selectedRows.size === prompt.rows.length) prompt.selectedRows = null;
+                updateRowCount();
+            });
+            const cells = Array.from(row.querySelectorAll('td, th')).map((cell) => getTableCellTextContent(cell));
+            const text = document.createElement('span');
+            text.textContent = `${index + 1}. ${cells.join(' | ')}`;
+            label.append(checkbox, text);
+            prompt.rowList.appendChild(label);
+        });
+        if (matches.length > prompt.rowLimit) {
+            const more = document.createElement('button');
+            more.type = 'button';
+            more.className = 'notes-graph-small-button';
+            more.textContent = `Show ${Math.min(notesGraphRowPageSize, matches.length - prompt.rowLimit)} more`;
+            more.addEventListener('click', () => {
+                prompt.rowLimit += notesGraphRowPageSize;
+                renderRows();
+            });
+            prompt.rowList.appendChild(more);
+        }
+    }
+
+    function updateRowCount() {
+        const selectedCount = prompt.selectedRows === null
+            ? prompt.rows.length
+            : prompt.selectedRows.size;
+        prompt.rowCount.textContent = `${selectedCount} of ${prompt.rows.length} selected`;
+    }
+    renderRows();
+
+    state.graphPromptSubmit = () => {
+        const columns = [...prompt.selectedColumns].sort((a, b) => a - b);
+        if (columns.length < 2) {
+            notifyTerminal('Select a category column and at least one value column.', 'warn');
+            return;
+        }
+        const categoryColumn = columns[0];
+        const numericColumns = new Set(notesTableNumericColumns(table, categoryColumn));
+        let valueColumns = columns.slice(1).filter((column) => numericColumns.has(column));
+        if (prompt.type === 'pie' || prompt.type === 'doughnut') valueColumns = valueColumns.slice(0, 1);
+        if (valueColumns.length === 0) {
+            notifyTerminal('Select at least one numeric value column.', 'warn');
+            return;
+        }
+        if (prompt.selectedRows !== null && prompt.selectedRows.size === 0) {
+            notifyTerminal('Select at least one row.', 'warn');
+            return;
+        }
+        const allSourceRows = prompt.rows.length;
+        const rowIndices = prompt.selectedRows === null || prompt.selectedRows.size === allSourceRows
+            ? []
+            : [...prompt.selectedRows].sort((a, b) => a - b);
+        finishNotesTableGraphPrompt({
+            type: prompt.type,
+            format: 'svg',
+            title: prompt.title.trim(),
+            categoryColumn,
+            valueColumns,
+            rowIndices,
+            seriesNames: valueColumns.map((column) => headings[column]),
+            categoryAxisTitle: headings[categoryColumn],
+        });
+    };
+
+    elements.modalCreate.textContent = 'Create graph';
+    setTimeout(() => typeButton.focus(), 0);
+}
+
+function finishNotesTableGraphPrompt(spec) {
+    if (!state.graphPromptHandler) return;
+    const handler = state.graphPromptHandler;
+    state.graphPromptHandler = null;
+    state.graphPromptSubmit = null;
+    elements.modalLocationRow.style.display = '';
+    elements.modalBody.style.display = 'none';
+    elements.modalBody.replaceChildren();
+    elements.modalInput.placeholder = 'example-note';
+    elements.modal.dataset.open = 'false';
+    elements.modal.setAttribute('aria-hidden', 'true');
+    handler(spec);
+}
+
+async function setNotesTableGraph(table, spec) {
+    const request = notesTableRequest(table, true);
+    const result = await NotesTableSetGraph(request, spec);
+    if (result?.error) {
+        notifyTerminal(String(result.error), 'error');
+        return;
+    }
+    table.dataset.tableGraphSpec = spec ? JSON.stringify(spec) : '';
+    await renderNotesTableGraph(table);
+}
+
+async function renderNotesTableGraph(table) {
+    const extras = notesTableExtras(table, false);
+    if (!extras) {
+        return;
+    }
+    let spec;
+    try {
+        spec = JSON.parse(table.dataset.tableGraphSpec || 'null');
+    } catch {
+        spec = null;
+    }
+    let graph = extras.querySelector(':scope > .notes-table-graph');
+    if (!spec) {
+        graph?.remove();
+        return;
+    }
+    if (!graph) {
+        graph = document.createElement('div');
+        graph.className = 'notes-table-graph';
+        extras.appendChild(graph);
+        graph.addEventListener('contextmenu', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            showNotesLocalMenu([{
+                title: 'Remove graph',
+                icon: 0,
+                onSelect: () => void setNotesTableGraph(table, null),
+            }], event.clientX, event.clientY, 'Graph');
+        });
+    }
+    const renderID = String(Number(graph.dataset.renderID || '0') + 1);
+    graph.dataset.renderID = renderID;
+    graph.setAttribute('aria-busy', 'true');
+    const result = await NotesTableRenderGraph(notesTableRequest(table, true), spec);
+    if (!graph.isConnected || graph.dataset.renderID !== renderID) {
+        return;
+    }
+    graph.setAttribute('aria-busy', 'false');
+    if (result?.error) {
+        graph.textContent = String(result.error);
+        return;
+    }
+    if (!result?.svg) {
+        graph.replaceChildren();
+        return;
+    }
+    const image = document.createElement('img');
+    image.className = 'notes-table-graph-image';
+    image.alt = String(spec.title || 'Table graph');
+    image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(result.svg)}`;
+    image.dataset.fullscreenBound = 'true';
+    image.style.cursor = 'zoom-in';
+    image.addEventListener('click', (event) => {
+        event.preventDefault();
+        const document = new DOMParser().parseFromString(result.svg, 'image/svg+xml');
+        const svg = document.documentElement;
+        if (svg.localName !== 'svg') {
+            return;
+        }
+        const viewBox = svg.viewBox?.baseVal;
+        const dimensions = String(svg.getAttribute('viewBox') || '').trim().split(/[\s,]+/).map(Number);
+        const width = viewBox?.width || dimensions[2] || Number.parseFloat(svg.getAttribute('width')) || 800;
+        const height = viewBox?.height || dimensions[3] || Number.parseFloat(svg.getAttribute('height')) || 600;
+        showFullscreenImageOverlay({
+            svgElement: svg.cloneNode(true),
+            sourceWidth: Math.round(width),
+            sourceHeight: Math.round(height),
+        });
+    });
+    graph.replaceChildren(image);
 }
 
 async function notesTableInvoke(table, call) {
@@ -3794,10 +4212,14 @@ function applyNotesTableResult(table, result) {
     table.dataset.sortColumn = String(Number(result.sortColumn) || 0);
     table.dataset.sortDesc = result.sortDesc ? 'true' : 'false';
     table.dataset.tableFilter = String(result.filter || '');
+    if (Object.prototype.hasOwnProperty.call(result, 'graph')) {
+        table.dataset.tableGraphSpec = result.graph ? JSON.stringify(result.graph) : '';
+    }
 
     applyNotesTableOrder(table, Array.isArray(result.order) ? result.order : []);
     renderNotesTableSortIndicator(table);
     renderNotesTableFilterFooter(table);
+    void renderNotesTableGraph(table);
 }
 
 function applyNotesTableOrder(table, order) {
@@ -3885,10 +4307,15 @@ function createTableFilterMenuItem(table) {
     };
 }
 
-function openNotesTableHeaderMenu(table, colIndex, x, y) {
-    const headerCells = table.querySelectorAll('thead th');
-    const heading = getTableCellTextContent(headerCells[colIndex]) || `Column ${colIndex + 1}`;
+function createTableGraphMenuItem(table) {
+    return {
+        title: 'Create graph...',
+        icon: 0xf201,
+        onSelect: () => openNotesTableGraphPrompt(table),
+    };
+}
 
+function openNotesTableContextMenu(table, x, y) {
     const menuItems = [
         {
             title: 'Clear sorting',
@@ -3900,6 +4327,8 @@ function openNotesTableHeaderMenu(table, colIndex, x, y) {
         },
         { title: '-' },
         createTableFilterMenuItem(table),
+        { title: '-' },
+        createTableGraphMenuItem(table),
     ];
 
     const highlightCallback = (itemIndex) => {
@@ -3911,17 +4340,18 @@ function openNotesTableHeaderMenu(table, colIndex, x, y) {
         if (item.title === 'Clear sorting') {
             highlightEntireTable(table, true);
         } else if (item.title.startsWith('SQL filter')) {
-            highlightTableColumn(table, colIndex, true);
+            highlightEntireTable(table, true);
         }
     };
 
-    showNotesLocalMenu(menuItems, x, y, `Table: ${heading}`, highlightCallback, () => clearTableHighlight(table));
+    showNotesLocalMenu(menuItems, x, y, 'Table', highlightCallback, () => clearTableHighlight(table));
 }
 
 function setupNotesTableQueries(container, surface, documentPath = '') {
     if (!container) return;
 
     const indices = [];
+    const headingOccurrences = new Map();
 
     Array.from(container.querySelectorAll('table')).forEach((table, tableIndex) => {
         const tbody = table.querySelector('tbody');
@@ -3933,6 +4363,10 @@ function setupNotesTableQueries(container, surface, documentPath = '') {
         table.dataset.tableSurface = surface;
         table.dataset.tableDocument = documentPath;
         table.dataset.tableIndex = String(tableIndex);
+        const headingIdentity = JSON.stringify(getTableHeadingValues(table).map((heading) => heading.trim()));
+        const stateIndex = headingOccurrences.get(headingIdentity) || 0;
+        headingOccurrences.set(headingIdentity, stateIndex + 1);
+        table.dataset.tableStateIndex = String(stateIndex);
         table.dataset.sortColumn = table.dataset.sortColumn || '0';
         table.dataset.sortDesc = table.dataset.sortDesc || 'false';
         table.dataset.tableFilter = table.dataset.tableFilter || '';
@@ -3959,12 +4393,6 @@ function setupNotesTableQueries(container, surface, documentPath = '') {
                 void sortNotesTableColumn(table, colIndex + 1);
             });
 
-            th.addEventListener('contextmenu', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                openNotesTableHeaderMenu(table, colIndex, e.clientX, e.clientY);
-            });
-
             // Middle-click clears the sort, as in the terminal. Browsers deliver
             // it as auxclick, and mousedown has to be suppressed or WebKit starts
             // autoscroll instead.
@@ -3983,6 +4411,15 @@ function setupNotesTableQueries(container, surface, documentPath = '') {
                 e.stopPropagation();
                 void clearNotesTableSort(table);
             });
+        });
+
+        table.addEventListener('contextmenu', (event) => {
+            if (container === elements.csvView) {
+                return;
+            }
+            event.preventDefault();
+            event.stopPropagation();
+            openNotesTableContextMenu(table, event.clientX, event.clientY);
         });
     });
 
@@ -10474,6 +10911,10 @@ async function openRenamePrompt(file) {
 }
 
 function closeNewFilePrompt() {
+    if (state.graphPromptHandler) {
+        finishNotesTableGraphPrompt(null);
+        return;
+    }
     if (state.textPromptHandler) {
         finishTextPrompt(null);
         return;
@@ -12571,6 +13012,10 @@ function initStructuredDataTreeContextMenu(container, options = {}) {
 }
 
 async function createNewFile() {
+    if (state.graphPromptHandler) {
+        state.graphPromptSubmit?.();
+        return;
+    }
     if (state.textPromptHandler) {
         finishTextPrompt((elements.modalInput.value || '').trim());
         return;
@@ -14736,7 +15181,12 @@ elements.csvView.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     const table = e.target instanceof Element ? e.target.closest('table') : null;
     if (!table || !elements.csvView.contains(table)) return;
-    const menuItems = [...createTableCopyMenuItems(table), createTableFilterMenuItem(table)];
+    const menuItems = [
+        ...createTableCopyMenuItems(table),
+        createTableFilterMenuItem(table),
+        { title: '-' },
+        createTableGraphMenuItem(table),
+    ];
     const isRunMode = state.viewMode === 'csv-run';
     if (isRunMode) {
         const insertItems = createTableInsertMenuItems(table, e.target, 0);

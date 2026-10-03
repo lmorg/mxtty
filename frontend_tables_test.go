@@ -2,8 +2,12 @@ package main
 
 import (
 	"fmt"
+	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/lmorg/ttyphoon/utils/graphs"
+	"github.com/lmorg/ttyphoon/utils/notes"
 	"github.com/lmorg/ttyphoon/window/elements/element_table/tablecore"
 )
 
@@ -213,6 +217,107 @@ func TestNotesTableSort_RecreateAfterEvictionMatchesRetained(t *testing.T) {
 	for i := range retained.Order {
 		if rebuilt.Order[i] != retained.Order[i] {
 			t.Fatalf("rebuilt order diverged at %d: %d vs %d", i, rebuilt.Order[i], retained.Order[i])
+		}
+	}
+}
+
+func TestNotesTableGraphStatePersistsByWorkspaceAndDocument(t *testing.T) {
+	app := newTableTestApp()
+	workspace := t.TempDir()
+	viewRequest := NotesTableRequestT{
+		Key:       tablecore.Key{Surface: "preview", Document: filepath.Join(workspace, "table.md"), Index: 0},
+		Workspace: workspace,
+		Seed: &NotesTableSeedT{
+			Headings: []string{"Category", "Value"},
+			Rows:     [][]string{{"A", "1"}, {"B", "2"}},
+		},
+	}
+	spec := &NotesTableGraphSpecT{Type: string(graphs.Line), CategoryColumn: 0, ValueColumns: []int{1}, RowIndices: []int{1}}
+	runRequest := viewRequest
+	runRequest.Key.Surface = "jupyter"
+	runRequest.Key.Index = 1
+	if result := app.NotesTableSetGraph(runRequest, spec); result.Error != "" {
+		t.Fatalf("NotesTableSetGraph() error = %q", result.Error)
+	}
+	app.NotesTableDisposeAll()
+
+	restored := app.NotesTableRestore(viewRequest)
+	if restored.Error != "" {
+		t.Fatalf("NotesTableRestore() error = %q", restored.Error)
+	}
+	if restored.Graph == nil || restored.Graph.Type != spec.Type || restored.Graph.CategoryColumn != spec.CategoryColumn || len(restored.Graph.ValueColumns) != 1 || restored.Graph.ValueColumns[0] != 1 || len(restored.Graph.RowIndices) != 1 || restored.Graph.RowIndices[0] != 1 {
+		t.Fatalf("restored graph = %+v, want %+v", restored.Graph, spec)
+	}
+
+	otherWorkspace := viewRequest
+	otherWorkspace.Workspace = filepath.Join(workspace, "other")
+	otherWorkspace.Key.Document = viewRequest.Key.Document
+	other := app.NotesTableRestore(otherWorkspace)
+	if other.Graph != nil {
+		t.Fatalf("other workspace graph = %+v, want no graph state", other.Graph)
+	}
+}
+
+func TestNotesTableRestoreMigratesGraphFromLegacySurfaceIndex(t *testing.T) {
+	app := newTableTestApp()
+	workspace := t.TempDir()
+	document := filepath.Join(workspace, "legacy-run-table.md")
+	headings := []string{"Category", "Value"}
+	legacySpec := &graphs.Spec{Type: graphs.Bar, CategoryColumn: 0, ValueColumns: []int{1}}
+	notes.SetTableState(workspace, document, 1, headings, notes.TableState{Graph: legacySpec})
+
+	request := NotesTableRequestT{
+		Key:       tablecore.Key{Surface: "preview", Document: document, Index: 0},
+		Workspace: workspace,
+		Seed: &NotesTableSeedT{
+			Headings: headings,
+			Rows:     [][]string{{"A", "1"}},
+		},
+	}
+	result := app.NotesTableRestore(request)
+	if result.Error != "" {
+		t.Fatalf("NotesTableRestore() error = %q", result.Error)
+	}
+	if result.Graph == nil || result.Graph.Type != string(graphs.Bar) {
+		t.Fatalf("restored graph = %+v, want legacy graph spec", result.Graph)
+	}
+
+	migrated := notes.GetTableState(workspace, document, 0, headings)
+	if migrated.Graph == nil || migrated.Graph.Type != graphs.Bar {
+		t.Fatalf("stable graph state = %+v, want migrated legacy graph", migrated.Graph)
+	}
+}
+
+func TestNotesTableRenderGraphIntersectsSelectedRowsWithSQLFilter(t *testing.T) {
+	app := newTableTestApp()
+	request := NotesTableRequestT{
+		Key:       tablecore.Key{Surface: "preview", Document: filepath.Join(t.TempDir(), "graph-filter.md"), Index: 0},
+		Workspace: t.TempDir(),
+		Filter:    `"Value" > 1`,
+		Seed: &NotesTableSeedT{
+			Headings: []string{"Category", "Value"},
+			Rows: [][]string{
+				{"ExcludeBySQL", "1"},
+				{"SelectedMatch", "2"},
+				{"MatchButNotSelected", "3"},
+			},
+		},
+	}
+	result := app.NotesTableRenderGraph(request, &NotesTableGraphSpecT{
+		Type:           string(graphs.Bar),
+		CategoryColumn: 0,
+		ValueColumns:   []int{1},
+		RowIndices:     []int{0, 1},
+	})
+	if result.Error != "" {
+		t.Fatalf("NotesTableRenderGraph() error = %q", result.Error)
+	}
+	if !strings.Contains(result.SVG, "SelectedMatch") {
+		t.Fatalf("SVG does not contain selected SQL match: %s", result.SVG)
+	}
+	for _, excluded := range []string{"ExcludeBySQL", "MatchButNotSelected"} {
+		if strings.Contains(result.SVG, excluded) {
+			t.Fatalf("SVG contains excluded row %q", excluded)
 		}
 	}
 }

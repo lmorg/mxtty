@@ -16,6 +16,7 @@ require (
 	github.com/ebitengine/purego v0.10.2
 	github.com/eino-contrib/jsonschema v1.0.3
 	github.com/fsnotify/fsnotify v1.10.1
+	github.com/go-analyze/charts v0.6.1
 	github.com/lmorg/murex v0.0.0-20260202231244-8678ad89405c
 	github.com/mattn/go-runewidth v0.0.28
 	github.com/mattn/go-sixel v0.0.12
@@ -87,10 +88,12 @@ require (
 	github.com/eino-contrib/ollama v0.1.0 // indirect
 	github.com/evanphx/json-patch v0.5.2 // indirect
 	github.com/felixge/httpsnoop v1.1.0 // indirect
+	github.com/go-analyze/bulk v0.1.5 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/godbus/dbus/v5 v5.2.2 // indirect
+	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/google/jsonschema-go v0.4.3 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/google/uuid v1.6.0 // indirect
