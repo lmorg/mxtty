@@ -45,15 +45,20 @@ And here is a complete program
 ```go
 package main
 
+import (
+	"fmt"
+	"time"
+)
+
 func main() {
-    fmt.Println("hello world")
+	fmt.Println("hello world")
 
-    for i := range 5 {
-        time.Sleep(1 * time.Second)
-        fmt.Println(i+1)
-    }
+	for i := range 5 {
+		time.Sleep(1 * time.Second)
+		fmt.Println(i + 1)
+	}
 
-    fmt.Println("goodbye cruel world")
+	fmt.Println("goodbye cruel world")
 }
 ```
 

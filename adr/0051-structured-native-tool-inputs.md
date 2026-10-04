@@ -34,7 +34,9 @@ remove the wrapper schema.
 - Migrate native tools case by case. Grep is the prototype; readFiles,
   readDirectory, writeFile, insertLines, patchFile, jq, and generateImage now
   use the same path.
-- `commandLine` uses a direct JSON string; `envVars` uses an empty JSON object.
+- `interactive` accepts a `{command}` object and sends the command directly to
+  the active TTY; `bash` accepts a `{script}` object and executes a temporary
+  non-interactive Bash script. `envVars` uses an empty JSON object.
 - `delegate` and `report` use arrays of `{name, prompt}` objects; `askUser` uses
   a `{question, choices}` object.
 - `searchDuckDuckGo` uses a JSON string; `scrapeWebPage` uses a `{url}` object.
@@ -60,5 +62,6 @@ remove the wrapper schema.
 - `ai/agent/runtime_eino_test.go` - schema and typed invocation regression
 - `ai/tools/file/observation_test.go` - grep structured invocation coverage
 - `ai/tools/image/generate.go` - structured generation/edit input
-- `ai/tools/web_tools.go` - structured web search and page scraping inputs
+- `ai/tools/webtools/web_tools.go` - structured web search and page scraping inputs
+- `ai/tools/shell/interactive.go` and `ai/tools/shell/bash.go` - structured shell inputs
 - ADR 0030 - legacy native string-input compatibility

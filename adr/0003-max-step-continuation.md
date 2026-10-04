@@ -205,7 +205,7 @@ The second pass adds the semantic observation contract and checkpoint compactor:
   for MCP and other tools that do not.
 - Semantic observation providers are implemented for `readFiles`,
   `readDirectory`, `grep`, `writeFile`, `patchFile`, `insertLines`,
-  `generateImage`, and `commandLine`.
+  `generateImage`, `interactive`, and `bash`.
 - The continuation formatter emits semantic sections for files, directories,
   searches, commands, counts, errors, outputs, and visible assistant output.
 - Each field is capped at 4000 characters, and the total continuation

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { getStructuredEditor, jsonEditor, yamlEditor } from './structured-editors.js';
+import { getStructuredEditor, jsonEditor, xmlEditor, yamlEditor } from './structured-editors.js';
 
 describe('getStructuredEditor', () => {
     it('resolves the JSON editor for .json files', () => {
@@ -12,6 +12,10 @@ describe('getStructuredEditor', () => {
         expect(getStructuredEditor('config.yaml')).toBe(yamlEditor);
         expect(getStructuredEditor('config.yml')).toBe(yamlEditor);
         expect(getStructuredEditor('CONFIG.YML')).toBe(yamlEditor);
+    });
+
+    it('resolves the XML editor from a declaration in a text file', () => {
+        expect(getStructuredEditor('notes.txt', '<?xml version="1.0"?>\n<root/>')).toBe(xmlEditor);
     });
 
     it('returns null for unknown formats', () => {

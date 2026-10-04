@@ -5,6 +5,7 @@ import {
     extractHeaders,
     generateRequestBuilderHTML,
     hasSwaggerKey,
+    isStructuredDataFile,
     parseSwaggerSpec,
 } from './swagger-utils';
 
@@ -66,6 +67,13 @@ const openApiSpec = {
 describe('swagger-utils', () => {
     afterEach(() => {
         vi.restoreAllMocks();
+    });
+
+    it('detects XML declarations in text files without treating later declarations as a file type', () => {
+        expect(isStructuredDataFile('settings.txt', '<?xml version="1.0"?>\n<root/>')).toBe(true);
+        expect(isStructuredDataFile('settings.txt', '\uFEFF<?xml version="1.0"?>\n<root/>')).toBe(true);
+        expect(isStructuredDataFile('settings.txt', 'text\n<?xml version="1.0"?>')).toBe(false);
+        expect(isStructuredDataFile('settings.xml', '<root/>')).toBe(true);
     });
 
     it('parses structured specs from json and yaml and detects swagger keys', () => {

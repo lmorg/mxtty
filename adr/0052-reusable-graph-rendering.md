@@ -19,11 +19,11 @@ rendering should be independent of AI and frontend integration details.
 - Provide a table-shaped input with headings and rows, plus an explicit chart
   specification that selects the zero-based category column and numeric value
   columns. Do not guess which columns to plot.
- Support table-compatible line, area, bar, horizontal bar, scatter, pie, and
- doughnut charts. Exclude specialized chart types whose input does not map
- naturally from ordinary tabular data, including radar, heatmap, candlestick,
- funnel, violin, and rendered-table charts.
- Require exactly one value series for pie and doughnut charts. Scatter charts
+- Support table-compatible line, area, bar, horizontal bar, scatter, pie, and
+  doughnut charts. Exclude specialized chart types whose input does not map
+  naturally from ordinary tabular data, including radar, heatmap, candlestick,
+  funnel, violin, and rendered-table charts.
+- Require exactly one value series for pie and doughnut charts. Scatter charts
   use the selected category column for sample positions and numeric columns as
   Y series, matching the library's tabular scatter model.
 - Return rendered bytes in SVG or PNG format, defaulting to SVG. Do not write

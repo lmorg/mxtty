@@ -2408,10 +2408,63 @@ function getToCHeadingKey(level, text) {
     return `${String(level)}::${String(text || '').trim().toLowerCase()}`;
 }
 
-function getHeadingDescriptors(root) {
+function markdownInlineText(value) {
+    const holder = document.createElement('div');
+    holder.innerHTML = marked.parseInline(String(value || ''));
+    return String(holder.textContent || '').trim();
+}
+
+function getMarkdownHeadingSourceDescriptors(markdown) {
+    const lines = String(markdown || '').split('\n');
+    const headings = [];
+    let start = 0;
+    if ((lines[0] || '').trim() === '---') {
+        const end = lines.findIndex((line, index) => index > 0 && /^(---|\.\.\.)\s*$/.test(line.trim()));
+        if (end >= 0) start = end + 1;
+    }
+
+    let fence = null;
+    for (let index = start; index < lines.length; index += 1) {
+        const line = lines[index];
+        const trimmed = line.trim();
+        const fenceMatch = trimmed.match(/^(`{3,}|~{3,})/);
+        if (fenceMatch) {
+            const marker = fenceMatch[1];
+            if (!fence) fence = { char: marker[0], length: marker.length };
+            else if (marker[0] === fence.char && marker.length >= fence.length) fence = null;
+            continue;
+        }
+        if (fence) continue;
+
+        const setext = index + 1 < lines.length ? lines[index + 1].match(/^ {0,3}(=+|-+)\s*$/) : null;
+        if (trimmed && setext) {
+            headings.push({ level: setext[1][0] === '=' ? 1 : 2, text: markdownInlineText(trimmed), sourceLine: index + 1 });
+            index += 1;
+            continue;
+        }
+
+        const atx = line.match(/^ {0,3}(#{1,6})(?:\s+|$)(.*?)\s*#*\s*$/);
+        if (atx) {
+            const text = markdownInlineText(atx[2]);
+            if (text) headings.push({ level: atx[1].length, text, sourceLine: index + 1 });
+            continue;
+        }
+
+        const html = line.match(/^ {0,3}<h([1-6])\b[^>]*>(.*?)<\/h\1>/i);
+        if (html) {
+            const text = markdownInlineText(html[2].replace(/<[^>]*>/g, ''));
+            if (text) headings.push({ level: Number(html[1]), text, sourceLine: index + 1 });
+        }
+    }
+    return headings;
+}
+
+function getHeadingDescriptors(root, sourceMarkdown = null) {
     const headings = Array.from(root?.querySelectorAll?.('h1, h2, h3, h4, h5, h6') || []);
     const seen = new Map();
     const descriptors = [];
+    const sourceHeadings = sourceMarkdown === null ? [] : getMarkdownHeadingSourceDescriptors(sourceMarkdown);
+    let sourceCursor = 0;
 
     headings.forEach((heading) => {
         const level = Number.parseInt(String(heading.tagName).slice(1), 10) || 1;
@@ -2424,12 +2477,27 @@ function getHeadingDescriptors(root) {
         const occurrence = seen.get(key) || 0;
         seen.set(key, occurrence + 1);
 
+        let sourceMatch = -1;
+        for (let index = sourceCursor; index < sourceHeadings.length; index += 1) {
+            const source = sourceHeadings[index];
+            if (source.level === level && source.text.trim().toLowerCase() === text.toLowerCase()) {
+                sourceMatch = index;
+                break;
+            }
+        }
+        if (sourceMatch < 0 && descriptors.length < sourceHeadings.length) {
+            sourceMatch = descriptors.length;
+        }
+        const sourceLine = sourceMatch >= 0 ? sourceHeadings[sourceMatch]?.sourceLine : undefined;
+        if (sourceMatch >= sourceCursor) sourceCursor = sourceMatch + 1;
+
         descriptors.push({
             heading,
             level,
             text,
             occurrence,
             anchor: String(heading.id || ''),
+            sourceLine,
         });
     });
 
@@ -2535,7 +2603,17 @@ function refreshToolsToC() {
         return;
     }
 
-    const descriptors = getHeadingDescriptors(elements.preview);
+    const markdown = state.viewMode === 'editor'
+        ? String(elements.editor?.value || '')
+        : getMainEditorValue();
+    const descriptors = state.viewMode === 'editor'
+        ? getMarkdownHeadingSourceDescriptors(markdown).map((entry, index, all) => ({
+            ...entry,
+            heading: null,
+            anchor: '',
+            occurrence: all.slice(0, index).filter((candidate) => candidate.level === entry.level && candidate.text.toLowerCase() === entry.text.toLowerCase()).length,
+        }))
+        : getHeadingDescriptors(elements.preview, markdown);
     if (!descriptors.length) {
         elements.toolsToC.innerHTML = '<div class="notes-tools-toc-empty">No headings found</div>';
         clearToolsToCHighlight(false);
@@ -2553,6 +2631,7 @@ function refreshToolsToC() {
         item.dataset.text = entry.text;
         item.dataset.occurrence = String(entry.occurrence);
         item.dataset.anchor = String(entry.anchor || '');
+        if (Number.isFinite(entry.sourceLine)) item.dataset.sourceLine = String(entry.sourceLine);
         item.style.paddingLeft = `${Math.max(0, entry.level - 1) * 14 + 10}px`;
         item.textContent = entry.text;
         list.appendChild(item);
@@ -2568,6 +2647,14 @@ function refreshToolsToC() {
 }
 
 function scrollToToolsToCHeading(entryButton) {
+    if (state.viewMode === 'editor') {
+        const sourceLine = Number.parseInt(String(entryButton?.dataset?.sourceLine || ''), 10);
+        if (Number.isFinite(sourceLine) && sourceLine > 0) {
+            jumpEditorToLine(sourceLine);
+        }
+        return;
+    }
+
     const modeContext = getToolsToCModeContext();
     if (!modeContext?.headingRoot) {
         return;
@@ -6884,6 +6971,9 @@ function setViewMode(mode) {
     }
 
     updateFindAvailability();
+    if (state.currentFileType === 'markdown') {
+        refreshToolsToC();
+    }
     syncToolsToCHighlightForMode();
 
     if (isHex) {
@@ -8547,6 +8637,14 @@ function parseStructuredScalar(text) {
     }
 }
 
+function parseStructuredDocument(fileName, source) {
+    const editor = getStructuredEditor(fileName, source);
+    if (typeof editor?.parse === 'function') {
+        return editor.parse(String(source ?? ''));
+    }
+    return parseSwaggerSpec(String(source ?? ''));
+}
+
 function getValueAtPath(root, path) {
     return path.reduce((current, segment) => {
         if (current === null || current === undefined) {
@@ -8679,7 +8777,7 @@ function validateKeyRename(root, path, nextKey) {
 
 async function commitStructuredViewerEdit({ editType, path, text }) {
     try {
-        const source = state.swaggerSpec ?? parseSwaggerSpec(elements.editor.value);
+        const source = state.swaggerSpec ?? parseStructuredDocument(state.currentFile, elements.editor.value);
         if (!source || !Array.isArray(path)) {
             return;
         }
@@ -8688,8 +8786,8 @@ async function commitStructuredViewerEdit({ editType, path, text }) {
         // is rewritten, preserving comments and formatting (and therefore git
         // diffs). Fall back to a whole-document re-serialise for any format
         // without a registered editor.
-        const editor = getStructuredEditor(state.currentFile);
         const originalText = elements.editor.value;
+        const editor = getStructuredEditor(state.currentFile, originalText);
         let nextText;
 
         if (editType === 'key') {
@@ -8737,7 +8835,7 @@ async function commitStructuredViewerEdit({ editType, path, text }) {
             label: 'Apply structured edit',
             emit: true,
         });
-        state.swaggerSpec = parseSwaggerSpec(elements.editor.value);
+        state.swaggerSpec = parseStructuredDocument(state.currentFile, elements.editor.value);
 
         state.swaggerRunAvailable = hasSwaggerKey(state.swaggerSpec);
         updateTabVisibility('json');
@@ -9348,12 +9446,12 @@ async function loadFile(file, options = {}) {
         // Capture the current project context to prevent autosave issues if user switches projects
         state.currentFileProject = await GetCurrentProject();
 
-        const loadingJson     = isStructuredDataFile(file);
+        const loadingJsonByExtension = isStructuredDataFile(file);
         const loadingMarkdown = isMarkdownNotesFile(file);
         const loadingHtml     = isHtmlViewFile(file);
         const loadingImage    = isImageFile(file);
         const loadingCsv      = isCsvFile(file);
-        stickyId = loadingJson ? Date.now() : null;
+        stickyId = loadingJsonByExtension ? Date.now() : null;
 
         if (!loadingMarkdown) {
             // Keep wrap-mode effects from leaking into non-markdown editors.
@@ -9453,6 +9551,8 @@ async function loadFile(file, options = {}) {
             return;
         }
 
+        const loadingJson = isStructuredDataFile(file, doc);
+
         // Keep hex source data available, but only render when hex tab is opened.
         setHexSource(file, 'text', doc || '', {
             fontSize: result.fontSize,
@@ -9467,7 +9567,7 @@ async function loadFile(file, options = {}) {
             state.swaggerViewTooLarge = isStructViewTooLarge(doc);
             updateStickyProgress(stickyId, `Loading ${fileName}… parsing json`);
             await yieldToUI();
-            state.swaggerSpec = parseSwaggerSpec(doc);
+            state.swaggerSpec = parseStructuredDocument(file, doc);
             state.swaggerRunAvailable = hasSwaggerKey(state.swaggerSpec);
 
             if (!state.swaggerSpec) {
@@ -12882,7 +12982,7 @@ function initStructuredDataTreeContextMenu(container, options = {}) {
         ? options.isActive
         : () => state.viewMode === 'swagger-view';
     const getRoot = typeof options.getRoot === 'function' ? options.getRoot : () => null;
-    const menuTitle = options.menuTitle || 'JSON/YAML field';
+    const menuTitle = options.menuTitle || 'Document';
 
     container.addEventListener('contextmenu', (e) => {
         if (!isActive()) {
@@ -14235,6 +14335,22 @@ if (elements.toolsToC) {
             return;
         }
 
+        if (state.currentFileType === 'markdown' && state.viewMode === 'editor') {
+            let line = Number.parseInt(String(tocButton.dataset.sourceLine || ''), 10);
+            if (!Number.isFinite(line) || line < 1) {
+                const level = Number.parseInt(String(tocButton.dataset.level || '1'), 10) || 1;
+                const text = String(tocButton.dataset.text || tocButton.textContent || '').trim().toLowerCase();
+                const occurrence = Number.parseInt(String(tocButton.dataset.occurrence || '0'), 10) || 0;
+                const matches = getMarkdownHeadingSourceDescriptors(String(elements.editor?.value || ''))
+                    .filter((heading) => heading.level === level && heading.text.toLowerCase() === text);
+                line = matches[occurrence]?.sourceLine;
+            }
+            if (Number.isFinite(line) && line > 0) {
+                jumpEditorToLine(line);
+            }
+            return;
+        }
+
         if (state.viewMode !== 'viewer' && state.viewMode !== 'jupyter') {
             return;
         }
@@ -14927,7 +15043,7 @@ if (elements.editor) {
         if (state.currentFileType === 'json') {
             // Revalidate JSON/YAML and only expose Run for docs with a swagger key.
             // The tree view render itself is deferred to the View tab click.
-            state.swaggerSpec = parseSwaggerSpec(elements.editor.value);
+            state.swaggerSpec = parseStructuredDocument(state.currentFile, elements.editor.value);
             state.swaggerRunAvailable = hasSwaggerKey(state.swaggerSpec);
             state.swaggerViewCurrent = false;
             updateTabVisibility('json');
@@ -15235,8 +15351,8 @@ elements.csvView.addEventListener('contextmenu', (e) => {
 });
 initStructuredDataTreeContextMenu(elements.swaggerView, {
     isActive: () => state.viewMode === 'swagger-view',
-    getRoot: () => state.swaggerSpec ?? parseSwaggerSpec(elements.editor.value),
-    menuTitle: 'JSON/YAML field',
+    getRoot: () => state.swaggerSpec ?? parseStructuredDocument(state.currentFile, elements.editor.value),
+    menuTitle: 'Document',
 });
 initStructuredDataTreeContextMenu(elements.toolsFrontmatter, {
     isActive: () => state.currentFileType === 'markdown' && state.frontmatter != null,

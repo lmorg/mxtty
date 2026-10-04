@@ -49,7 +49,14 @@ Recoverable (return `(message, nil)`):
 To distinguish them, `ai/agent/agent.go` defines a sentinel:
 
 ```go
-var ErrToolPermissionRefused = errors.New("tool call refused")
+package main
+
+import "errors"
+
+func main() {
+	var ErrToolPermissionRefused = errors.New("tool call refused")
+
+}
 ```
 
 `InvokableRun` converts anything matching `errors.Is(err, ErrToolPermissionRefused)`

@@ -17,8 +17,10 @@
  * @typedef {Object} StructuredEditor
  * @property {string} id
  *   Stable identifier, useful for tests and diagnostics.
- * @property {(fileName: string) => boolean} match
+ * @property {(fileName: string, source?: string) => boolean} match
  *   Returns true when this editor handles the given file name.
+ * @property {(source: string) => any} [parse]
+ *   Parses source into the JSON-like tree model used by the structured viewer.
  * @property {(source: string, path: Array<string|number>, value: any) => string} setValue
  *   Returns new source text with the scalar at `path` replaced by `value`.
  * @property {(source: string, path: Array<string|number>, nextKey: string) => string} renameKey
@@ -36,6 +38,7 @@
 
 import YAML from 'yaml';
 import { applyEdits, findNodeAtLocation, modify, parseTree } from 'jsonc-parser';
+import { xmlEditor } from './xml-structured-editor.js';
 
 const JSON_FORMATTING = { tabSize: 2, insertSpaces: true, eol: '\n' };
 
@@ -180,15 +183,16 @@ const yamlEditor = {
     },
 };
 
-const editors = [jsonEditor, yamlEditor];
+const editors = [jsonEditor, yamlEditor, xmlEditor];
 
 /**
  * Resolves the surgical editor for a file, or null when no format matches.
  * @param {string} fileName
+ * @param {string} [source]
  * @returns {StructuredEditor|null}
  */
-export function getStructuredEditor(fileName) {
-    return editors.find((editor) => editor.match(fileName)) || null;
+export function getStructuredEditor(fileName, source) {
+    return editors.find((editor) => editor.match(fileName, source)) || null;
 }
 
-export { jsonEditor, yamlEditor };
+export { jsonEditor, yamlEditor, xmlEditor };

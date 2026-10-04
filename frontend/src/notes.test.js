@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import * as swaggerUtils from './swagger-utils.js';
-import { renderJsonViewer } from './json-viewer.js';
+import { attachJsonViewerEditHandler, renderJsonViewer } from './json-viewer.js';
 import { marked } from 'marked';
 
 const notesCss = readFileSync('./src/notes.css', 'utf8');
@@ -309,7 +309,8 @@ vi.mock('./style-utils.js', () => ({
 }));
 
 vi.mock('./swagger-utils.js', () => ({
-    isStructuredDataFile: vi.fn((fileName) => /\.(json|ya?ml)$/i.test(fileName || '')),
+    isStructuredDataFile: vi.fn((fileName, content = '') => /\.(json|ya?ml|xml)$/i.test(fileName || '') || /^\uFEFF?<\?xml\s[\s\S]*?\?>/.test(String(content || ''))),
+    isXMLDocument: vi.fn((content) => /^\uFEFF?<\?xml\s[\s\S]*?\?>/.test(String(content || ''))),
     hasSwaggerKey: vi.fn(() => false),
     parseSwaggerSpec: vi.fn(() => null),
     generateRequestBuilderHTML: vi.fn(() => ''),
@@ -676,6 +677,55 @@ describe('notes rendering', () => {
         expect(getFileMock).toHaveBeenCalledWith('$NOTES/todo.md');
         expect(document.getElementById('notes-preview')?.textContent).toContain('Hello Notes');
         expect(document.querySelector('[data-file="$NOTES/todo.md"]')?.dataset.active).toBe('true');
+    });
+
+    it.each(['settings.xml', 'settings.txt'])('opens XML in structured View for %s and preserves surrounding source when editing a value', async (fileName) => {
+        const xml = '<?xml version="1.0"?>\n<root id="old">\n  <!-- keep this comment -->\n  <name>Old</name>\n  <count>2</count>\n</root>\n';
+        listFilesMock.mockResolvedValue([`$NOTES/${fileName}`]);
+        getFileMock.mockResolvedValue({ contents: xml, text: '', error: '' });
+        await importNotesModule();
+
+        document.querySelector(`[data-file="$NOTES/${fileName}"]`).click();
+        for (let tick = 0; tick < 8; tick += 1) await flushPromises();
+        expect(document.getElementById('notes-tab-swagger-edit').getAttribute('aria-selected')).toBe('true');
+        const previousWindowRAF = window.requestAnimationFrame;
+        const previousGlobalRAF = globalThis.requestAnimationFrame;
+        const immediateRAF = (callback) => { callback(0); return 1; };
+        window.requestAnimationFrame = immediateRAF;
+        globalThis.requestAnimationFrame = immediateRAF;
+        try {
+            document.getElementById('notes-tab-swagger-view').click();
+            expect(document.getElementById('notes-tab-swagger-view').getAttribute('aria-selected')).toBe('true');
+        } finally {
+            window.requestAnimationFrame = previousWindowRAF;
+            globalThis.requestAnimationFrame = previousGlobalRAF;
+        }
+        await flushPromises();
+
+        const actualJsonViewer = await vi.importActual('./json-viewer.js');
+        const renderCall = renderJsonViewer.mock.calls.at(-1);
+        const editHandlerCall = attachJsonViewerEditHandler.mock.calls.at(-1);
+        expect(renderCall?.[0]).toBe(document.getElementById('notes-swagger-view'));
+        expect(editHandlerCall?.[0]).toBe(document.getElementById('notes-swagger-view'));
+        actualJsonViewer.renderJsonViewer(...renderCall);
+        actualJsonViewer.attachJsonViewerEditHandler(...editHandlerCall);
+
+        const value = Array.from(document.querySelectorAll('#notes-swagger-view .json-editable[data-json-edit="value"]'))
+            .find((element) => element.dataset.jsonPath === JSON.stringify(['root', 'name']));
+        expect(value).toBeTruthy();
+        expect(value?.textContent).toContain('Old');
+        value.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }));
+        const input = document.querySelector('#notes-swagger-view .json-inline-editor');
+        expect(input).toBeTruthy();
+        input.value = 'Updated';
+        input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+        await flushPromises();
+        await flushPromises();
+
+        const editor = document.getElementById('notes-editor');
+        expect(editor.value).toContain('  <!-- keep this comment -->');
+        expect(editor.value).toContain('  <name>Updated</name>');
+        expect(editor.value).toContain('  <count>2</count>');
     });
 
     it('inserts clipboard images through the active editor surface', async () => {
@@ -2875,6 +2925,28 @@ describe('notes rendering', () => {
         expect(paneAI.dataset.active).toBe('true');
         expect(paneToC.dataset.active).toBe('false');
         expect(toolsPanel.dataset.collapsed).toBe('false');
+    });
+
+    it('jumps from the ToC to a heading source line in Markdown Edit mode', async () => {
+        const markdown = '# Guide\n\nIntro\n\n## First section\n\nBody\n\n### Nested section\n';
+        listFilesMock.mockResolvedValue(['$NOTES/guide.md']);
+        getFileMock.mockResolvedValue({ contents: markdown, text: '', error: '' });
+
+        await importNotesModule();
+        document.querySelector('[data-file="$NOTES/guide.md"]').click();
+        await flushPromises();
+        await flushPromises();
+        document.getElementById('notes-tab-editor').click();
+        await flushPromises();
+
+        const entries = Array.from(document.querySelectorAll('.notes-tools-toc-item'));
+        const firstSection = entries.find((entry) => entry.textContent === 'First section');
+        expect(firstSection, `editor=${document.getElementById('notes-editor').value}; toc=${document.getElementById('notes-tools-toc').textContent}`).toBeTruthy();
+        firstSection.click();
+
+        const editor = document.getElementById('notes-editor');
+        expect(editor.selectionStart).toBe(markdown.indexOf('## First section'));
+        expect(editor.selectionEnd).toBe(markdown.indexOf('\n\nBody'));
     });
 
     it('reuses markdown processing pipeline for AI sections', async () => {

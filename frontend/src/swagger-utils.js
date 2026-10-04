@@ -6,14 +6,18 @@
 import YAML from 'yaml';
 
 /**
- * Detect if a filename is a JSON or YAML file
+ * Detect if a filename or its contents identify a structured JSON, YAML, or XML file
  * @param {string} filename - File path
- * @returns {boolean} True if file ends with .json, .yml, or .yaml
+ * @param {string} [content] - Optional text contents, used to detect XML declarations
+ * @returns {boolean} True if the file has a structured extension or starts with an XML declaration
  */
-export function isStructuredDataFile(filename) {
-    if (!filename) return false;
-    const lower = filename.toLowerCase();
-    return lower.endsWith('.json') || lower.endsWith('.yml') || lower.endsWith('.yaml');
+export function isStructuredDataFile(filename, content = '') {
+    const lower = String(filename || '').toLowerCase();
+    return lower.endsWith('.json') || lower.endsWith('.yml') || lower.endsWith('.yaml') || lower.endsWith('.xml') || isXMLDocument(content);
+}
+
+export function isXMLDocument(content) {
+    return /^\uFEFF?<\?xml\s[\s\S]*?\?>/.test(String(content || ''));
 }
 
 /**

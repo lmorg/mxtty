@@ -8,8 +8,8 @@ Accepted
 
 ## Context
 
-`Term.GetEnvVars()` backs the `envVars` and `commandLine` tools, the latter using
-it to resolve `$SHELL`.
+`Term.GetEnvVars()` backs the `envVars` and `interactive` tools, the latter using
+it to resolve `$SHELL` for commands sent to the active terminal.
 
 It originally returned `term._blockMeta.EnvVars` — the *current* block's snapshot.
 That is unreliable, because `endOutputBlock` immediately allocates a fresh

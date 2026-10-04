@@ -35,6 +35,9 @@ reopening a table.
   mean all rows.
 - Render the chart as SVG below the table's horizontal-scroll wrapper and, when
   present, below the SQL filter footer.
+- Right-clicking a rendered SVG offers `Remove graph`; clicking it clears the
+  persisted specification. Clicking the graph opens the shared fullscreen image
+  overlay with an inline SVG sized from its viewBox.
 - Apply the SQL filter through the Go table engine before intersecting it with
   selected source rows. With no SQL filter, render the selected rows from the
   whole table.

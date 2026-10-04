@@ -48,6 +48,10 @@ helper, `jumpEditorToOffset(start, end = start)`:
 4. Otherwise fall through to the textarea path (`focus` +
    `scrollEditorToSelection`).
 
+The Markdown ToC uses the same navigation path in Edit mode. Its entries map
+rendered headings back to source lines, then call `jumpEditorToLine`; in View
+and Run modes they continue scrolling the rendered heading instead.
+
 `jumpEditorToLine` is now a thin wrapper that computes the end-of-line offset and
 delegates. The default collapsed range (`end = start`) is deliberate:
 
@@ -101,5 +105,6 @@ fails.
   `goToCurrentLspSymbol`, `goToWorkspaceLspSymbol`, `requestLspDefinition`
 - `frontend/src/notes.test.js` — `navigates to selected document symbol from
   editor context menu`, `navigates to selected workspace symbol from editor
-  context menu`
+  context menu`, `jumps from the ToC to a heading source line in Markdown Edit
+  mode`
 - ADR 0018 — Monaco provider rendering

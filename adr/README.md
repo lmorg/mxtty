@@ -63,6 +63,12 @@ Each record uses: **Status**, **Context**, **Decision**, **Consequences**,
 | [0049](0049-collapsed-ai-tool-output.md) | Collapse AI tool output by default | AI panel |
 | [0050](0050-nested-subagent-output-uses-typed-blocks.md) | Nested subagent output uses typed stream blocks | AI panel |
 | [0051](0051-structured-native-tool-inputs.md) | Native tools can declare structured inputs | AI tools |
+| [0052](0052-reusable-graph-rendering.md) | Reusable graph rendering package | Graphs |
+| [0053](0053-ai-graph-generation-tool.md) | AI graph tool uses the shared tabular renderer | AI tools |
+| [0054](0054-persisted-graphs-for-notes-tables.md) | Persisted graphs for Notes tables | Notes |
+| [0055](0055-chart-numeric-cell-normalization.md) | Normalize formatted numeric chart cells | Graphs |
+| [0056](0056-shell-tools-separate-tty-and-script-execution.md) | Separate interactive terminal commands from Bash scripts | AI tools |
+| [0057](0057-xml-structured-notes-view.md) | XML uses source-preserving structured Notes View | Notes |
 
 ## Recurring themes
 

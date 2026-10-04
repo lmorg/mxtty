@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Example XML file for testing the structured XML view.
+  Demonstrates: declaration, comments, attributes, nested and
+  repeated elements, CDATA, and common data types.
+-->
+<library xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="library.xsd">
+
+  <metadata>
+    <name>Ttyphoon Public Library</name>
+    <established year="2026"/>
+    <address>
+      <street>1 Terminal Way</street>
+      <city>Cupertino</city>
+      <postcode>CA 95014</postcode>
+    </address>
+    <contact type="email">info@example.com</contact>
+  </metadata>
+
+  <books count="4">
+    <book id="bk001" available="true">
+      <title lang="en">The C Programming Language</title>
+      <author>
+        <first>Brian</first>
+        <last>Kernighan</last>
+      </author>
+      <author>
+        <first>Dennis</first>
+        <last>Ritchie</last>
+      </author>
+      <publisher>Prentice Hall</publisher>
+      <year>1978</year>
+      <price currency="USD">55.00</price>
+      <description><![CDATA[A classic introduction to the C language, co-authored by its creators.]]></description>
+    </book>
+
+    <book id="bk002" available="false">
+      <title lang="en">The Unix Programming Environment</title>
+      <author>
+        <first>Brian</first>
+        <last>Kernighan</last>
+      </author>
+      <author>
+        <first>Rob</first>
+        <last>Pike</last>
+      </author>
+      <publisher>Prentice Hall</publisher>
+      <year>1984</year>
+      <price currency="USD">48.50</price>
+      <description><![CDATA[How to use the UNIX system and its primitives, with a focus on the programmer's perspective.]]></description>
+    </book>
+
+    <book id="bk003" available="true">
+      <title lang="fr">Le Petit Prince</title>
+      <author>
+        <first>Antoine</first>
+        <middle>de Saint</middle>
+        <last>Exupéry</last>
+      </author>
+      <publisher>Gallimard</publisher>
+      <year>1943</year>
+      <price currency="EUR">12.99</price>
+      <description><![CDATA[Un conte poétique sur l'amitié, la perte et l'imaginaire.]]></description>
+    </book>
+
+    <book id="bk004" available="true">
+      <title lang="en">Structure and Interpretation of Computer Programs</title>
+      <author>
+        <first>Harold</first>
+        <last>Abelson</last>
+      </author>
+      <author>
+        <first>Gerald Jay</first>
+        <last>Sussman</last>
+      </author>
+      <publisher>MIT Press</publisher>
+      <year>1985</year>
+      <price currency="USD">72.00</price>
+      <description><![CDATA[An influential text teaching fundamental principles of programming using Scheme.]]></description>
+    </book>
+  </books>
+
+  <members>
+    <member id="m001" type="regular">
+      <name>Grace Hopper</name>
+      <email>grace@example.com</email>
+      <joined>2026-01-15</joined>
+      <borrowed>
+        <item book-id="bk002" due="2026-11-01"/>
+      </borrowed>
+    </member>
+
+    <member id="m002" type="staff">
+      <name>Ada Lovelace</name>
+      <email>ada@example.com</email>
+      <joined>2026-03-02</joined>
+      <borrowed/>
+    </member>
+
+    <member id="m003" type="regular">
+      <name>Alan Turing</name>
+      <email>alan@example.com</email>
+      <joined>2026-06-20</joined>
+      <borrowed>
+        <item book-id="bk001" due="2026-10-28"/>
+        <item book-id="bk004" due="2026-11-10"/>
+      </borrowed>
+    </member>
+  </members>
+
+  <!-- Summary figures -->
+  <statistics>
+    <total-books>4</total-books>
+    <total-members>3</total-members>
+    <books-on-loan>3</books-on-loan>
+    <fines-outstanding currency="USD">0.00</fines-outstanding>
+  </statistics>
+
+</library>

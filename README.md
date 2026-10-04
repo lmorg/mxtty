@@ -61,7 +61,7 @@ TTYphoon aims to do _both well_. Even if you never want for any interactive
 widgets, TTYphoon will be a good terminal emulator. And for those who want a
 little more GUI in their CLI, TTYphoon will be a great modern user interface.
 
-## Screenshots
+## Terminal Features
 
 ### Output Blocks
 
@@ -97,14 +97,14 @@ Click to collapse that block of text
 Output can be presented as tables. Which can be sorted and even filtered using
 SQL. All without having to rerun the commands that generated that output
 
-![tables](images/tables.png)
+![1791025464](README.md.d/1791025464.png)
 
 ### Images
 
 Support for inlined images, where images are treated as images. for example
 they can be copied to clipboard
 
-![image support](images/images.png)
+![1791026082](README.md.d/1791026082.png)
 
 ### Tmux Support
 
@@ -112,7 +112,7 @@ Tmux support built in using tmux's control plane. This allows for the power of
 tmux but with the easy of use and elegance of being fully integrated into the
 terminal emulator
 
-![search](images/tmux.png)
+![1791026230](README.md.d/1791026230.png)
 
 (in this screenshot, tmux's prefix key was rebinded to `F2` in `~/.tmux.conf`)
 
@@ -120,17 +120,37 @@ terminal emulator
 
 Search terms can be highlighted to quickly find instances of that term
 
-![search](images/search.png)
+![1791026348](README.md.d/1791026348.png)
+
+## IDE
 
 ### Markdown Viewer
 
 You can write notes in markdown alongside your terminal sessions. View readme's, have your documentation with you instead of switching between windows
 
-![markdown](images/markdown.png)
+![1791027069](README.md.d/1791027069.png)
 
-And you can even execute the code blocks inline. Bringing you the flexibility of Jupyter Notebooks and the power of a full terminal emulator
+#### Executable Notebooks
 
-![markdown](images/jupyter.png)
+You can even execute the code blocks inline. Bringing you the flexibility of Jupyter Notebooks and the power of a full terminal emulator
+
+![1791028879](README.md.d/1791028879.png)
+
+#### Structured Data Documents
+
+Work with JSON, YAML and XML config files more easily
+
+![1791115885](README.md.d/1791115885.png)
+
+### Spreadsheets
+
+CSV files can be edited directly inside the editor. You can even add algaberic operations
+
+![1791116570](README.md.d/1791116570.png)
+
+Or use markdown tables if you want to build your own formula functions
+
+
 
 ### Vim-style Editor Keys
 
@@ -245,11 +265,7 @@ Current limitations:
 - no dedicated LSP hotkeys in the MVP UI yet
 - incremental sync is not enabled yet
 
-### Config Files
 
-Work with JSON and YAML config files more easily
-
-![jsonyaml](images/jsonyaml.png)
 
 ### Swagger
 
