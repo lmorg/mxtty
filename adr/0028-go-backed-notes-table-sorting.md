@@ -22,7 +22,7 @@ formulas, editing, resizing and word wrap.
 
 The two behave differently in almost every respect:
 
-| | Terminal | Notes today |
+| | Terminal | Notes before this decision |
 |---|---|---|
 | Trigger | Left-click heading toggles sort | Left-click heading opens a 6-item menu |
 | Sort options | ASC/DESC, type inferred | Explicit "by number" / "by characters", asc/desc |
@@ -32,8 +32,9 @@ The two behave differently in almost every respect:
 | Filtering | Raw SQL `WHERE`, double-click a data row | None |
 | Engine | SQLite | JS array sort |
 
-Note the current Notes binding is a **left**-click (`th.addEventListener('click', …)`,
-line 3758) that opens a context menu — it is not a right-click menu.
+Before this decision, the Notes binding was a **left**-click
+(`th.addEventListener('click', …)`, line 3758) that opened a context menu — it
+was not a right-click menu.
 
 The JS implementation also has behavioural quirks the SQL engine does not:
 `parseFloat(aText) || 0` coerces every non-numeric cell to `0`, so mixed
@@ -287,8 +288,18 @@ Agreed Notes behaviour:
 
 | Target | Left | Middle | Right | Double-click |
 |---|---|---|---|---|
-| Heading | **Toggle sort ASC/DESC** (terminal parity) | **Clear sort** | Context menu incl. "Clear sorting" and "SQL filter…" | — |
-| Data cell | (unchanged — text selection) | — | Context menu incl. "SQL filter…" | **Edit cell (unchanged)** |
+| Heading | **Toggle sort ASC/DESC** (terminal parity) | **Clear sort** | Unified table context menu: copy, clear sorting, SQL filter, and graph actions | — |
+| Data cell | (unchanged — text selection) | — | Same unified table context menu | **Edit cell (unchanged)** |
+
+The unified menu includes "Copy", "Copy table (CSV)", and "Copy table
+(Markdown)" alongside "Clear sorting", "SQL filter…", and "Create graph…".
+Run-mode tables retain row/column insertion and deletion actions, and rendered
+Markdown/Jupyter tables retain the word-wrap toggle.
+
+Run mode preserves inline Markdown formatting in table cells, including
+emphasis and code spans. It renders link labels as text and does not create
+anchors for Markdown links or bare URLs. Raw HTML in computed cell output is
+escaped.
 
 Deliberate divergences from the terminal, each with a reason:
 
@@ -379,11 +390,11 @@ eviction and the ten-minute idle sweep described above.
 
 ## Resolved decisions
 
-1. **Heading right-click opens a context menu** containing "Clear sorting" and
-   "SQL filter…", rather than clearing the sort immediately. This is the one
-   deliberate departure from terminal mouse parity, accepted because Notes needs
-   a right-click affordance to reach the SQL filter and its existing table
-   actions.
+1. **Right-clicking a heading or data cell opens the same table context menu.**
+  It combines copy/export, clear sorting, SQL filtering, and graph actions;
+  heading right-click does not clear sorting immediately. This is the deliberate
+  departure from terminal mouse parity, accepted because Notes needs a right-click
+  affordance for SQL filtering and the other table actions.
 2. **Scope is all four surfaces**: CSV view, markdown preview, Jupyter view and
    the AI output panel.
 3. **No filter persistence.** A filter resets on re-render and reload, matching

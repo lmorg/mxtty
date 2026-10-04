@@ -677,6 +677,10 @@ describe('notes rendering', () => {
         expect(getFileMock).toHaveBeenCalledWith('$NOTES/todo.md');
         expect(document.getElementById('notes-preview')?.textContent).toContain('Hello Notes');
         expect(document.querySelector('[data-file="$NOTES/todo.md"]')?.dataset.active).toBe('true');
+        expect(document.getElementById('notes-title-group').children[0].id).toBe('notes-title');
+        expect(document.getElementById('notes-title-group').children[1].id).toBe('notes-current-file');
+        expect(document.getElementById('notes-current-file').textContent).toBe('todo.md');
+        expect(document.getElementById('notes-current-file').hidden).toBe(false);
     });
 
     it.each(['settings.xml', 'settings.txt'])('opens XML in structured View for %s and preserves surrounding source when editing a value', async (fileName) => {
@@ -3009,6 +3013,8 @@ describe('notes rendering', () => {
         expect(menuConfig.options).toContain('Copy');
         expect(menuConfig.options).toContain('Copy table (CSV)');
         expect(menuConfig.options).toContain('Copy table (Markdown)');
+        expect(menuConfig.options).toContain('Clear sorting');
+        expect(menuConfig.options).toContain('Create graph...');
         expect(menuConfig.options).toContain('Word wrap table contents');
         expect(menuConfig.options).not.toContain('Find');
         expect(menuConfig.options).not.toContain('Ask AI...');
@@ -4448,6 +4454,35 @@ describe('notes rendering', () => {
         expect(notesEditor.value).toContain('| Gamma | 1 |');
     });
 
+    it('renders Markdown in Run table cells without creating hyperlinks', async () => {
+        listFilesMock.mockResolvedValue(['$NOTES/table-markdown.md']);
+        getFileMock.mockResolvedValue({ contents: [
+            '# Table',
+            '',
+            '| Emphasis | Code | Link | URL |',
+            '| --- | --- | --- | --- |',
+            '| **bold** and *italic* | `const x = 1` | [label](https://example.com) | https://example.com |',
+        ].join('\n'), text: '', error: '' });
+
+        await importNotesModule();
+        document.querySelector('[data-file="$NOTES/table-markdown.md"]').click();
+        await flushPromises();
+        await flushPromises();
+
+        document.getElementById('notes-tab-jupyter').click();
+        await flushPromises();
+        await flushPromises();
+
+        const cells = document.querySelectorAll('#notes-jupyter tbody tr:first-child td');
+        expect(cells[0].querySelector('strong')?.textContent).toBe('bold');
+        expect(cells[0].querySelector('em')?.textContent).toBe('italic');
+        expect(cells[1].querySelector('code')?.textContent).toBe('const x = 1');
+        expect(cells[2].querySelector('a')).toBeNull();
+        expect(cells[2].textContent).toContain('label');
+        expect(cells[3].querySelector('a')).toBeNull();
+        expect(cells[3].textContent).toContain('https://example.com');
+    });
+
     it('executes markdown table functions from H2-H6 code blocks and uses stdout as cell value', async () => {
         listFilesMock.mockResolvedValue(['$NOTES/table-fn.md']);
         runFunctionMock.mockResolvedValue({ Output: '5', IsError: false, CellId: 'A2' });
@@ -5195,8 +5230,15 @@ describe('notes rendering', () => {
             await flushPromises();
 
             expect(showLocalMenuMock).toHaveBeenCalled();
-            expect(showLocalMenuMock.mock.calls[0][0].options).toEqual(
-                expect.arrayContaining(['Clear sorting', 'SQL filter...']));
+            expect(showLocalMenuMock).toHaveBeenCalledTimes(1);
+            expect(showLocalMenuMock.mock.calls[0][0].options).toEqual(expect.arrayContaining([
+                'Copy',
+                'Copy table (CSV)',
+                'Copy table (Markdown)',
+                'Clear sorting',
+                'SQL filter...',
+                'Create graph...',
+            ]));
         });
 
         it('opens the SQL filter dialog when the filter footer is clicked', async () => {
@@ -5222,6 +5264,8 @@ describe('notes rendering', () => {
             table.querySelector('tbody td').dispatchEvent(
                 new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 10, clientY: 10 }));
             const menu = showLocalMenuMock.mock.calls.at(-1)[0];
+            expect(menu.options).toContain('Copy table (CSV)');
+            expect(menu.options).toContain('Copy table (Markdown)');
             expect(menu.options.filter((option) => option.startsWith('Create graph'))).toEqual(['Create graph...']);
 
             menu.onSelect(menu.options.indexOf('Create graph...'));

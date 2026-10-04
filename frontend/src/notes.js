@@ -449,7 +449,10 @@ app.innerHTML = `
     <div id="notes-app">
         <aside id="notes-sidebar">
             <div id="notes-sidebar-header">
-                <div id="notes-title">Notes</div>
+                <div id="notes-title-group">
+                    <div id="notes-title">Notes</div>
+                    <div id="notes-current-file" hidden></div>
+                </div>
                 <div id="notes-list-filter-wrap">
                     <input id="notes-list-filter" type="text" placeholder="Filter files..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
                     <button id="notes-list-filter-clear" type="button" title="Clear filter" aria-label="Clear filter">&#xf410;</button>
@@ -684,6 +687,7 @@ app.innerHTML = `
 const elements = {
     appRoot: app,
     title: document.getElementById('notes-title'),
+    currentFileTitle: document.getElementById('notes-current-file'),
     list: document.getElementById('notes-list'),
     listFilter: document.getElementById('notes-list-filter'),
     listFilterClear: document.getElementById('notes-list-filter-clear'),
@@ -3402,6 +3406,21 @@ async function runMarkdownTableFunction(container, fnName, fnArgs, row, col, row
     }
 }
 
+function renderMarkdownTableCell(value) {
+    const renderer = new marked.Renderer();
+    renderer.link = function ({ tokens }) {
+        return this.parser.parseInline(tokens);
+    };
+    renderer.html = ({ text }) => escapeHtml(text);
+    return marked.parseInline(String(value ?? ''), { renderer });
+}
+
+function unwrapTableCellLinks(cell) {
+    cell.querySelectorAll('a').forEach((link) => {
+        link.replaceWith(...Array.from(link.childNodes));
+    });
+}
+
 async function evaluateTableFormulasInPlace(container) {
     const isJsdom = typeof navigator !== 'undefined' && /jsdom/i.test(String(navigator.userAgent || ''));
 
@@ -3462,7 +3481,8 @@ async function evaluateTableFormulasInPlace(container) {
         // Render non-formula cells immediately so UI has baseline content.
         for (const { cell, val, ref } of tableCells) {
             if (!isTableFormula(val)) {
-                cell.innerHTML = `<span class="notes-table-cell-wrap"><span>${escapeHtml(val)}</span><span class="notes-cellref">${ref}</span></span>`;
+                unwrapTableCellLinks(cell);
+                cell.innerHTML = `<span class="notes-table-cell-wrap"><span>${cell.innerHTML}</span><span class="notes-cellref">${ref}</span></span>`;
             }
         }
 
@@ -3517,7 +3537,7 @@ async function evaluateTableFormulasInPlace(container) {
 
                 rows[row][col] = String(content ?? '');
                 cell.dataset.formula = val;
-                cell.innerHTML = `<span class="notes-table-cell-wrap"><span>${escapeHtml(content)}</span><span class="notes-cellref">${ref}</span></span>`;
+                cell.innerHTML = `<span class="notes-table-cell-wrap"><span>${renderMarkdownTableCell(content)}</span><span class="notes-cellref">${ref}</span></span>`;
                 computedRefs.add(ref);
             }));
 
@@ -3552,7 +3572,7 @@ async function evaluateTableFormulasInPlace(container) {
                 : evaluateTableFormula(val, row, col, rows);
             rows[row][col] = String(content ?? '');
             cell.dataset.formula = val;
-            cell.innerHTML = `<span class="notes-table-cell-wrap"><span>${escapeHtml(content)}</span><span class="notes-cellref">${ref}</span></span>`;
+            cell.innerHTML = `<span class="notes-table-cell-wrap"><span>${renderMarkdownTableCell(content)}</span><span class="notes-cellref">${ref}</span></span>`;
 
             if (!isJsdom) {
                 await flushUiPaint();
@@ -4402,36 +4422,15 @@ function createTableGraphMenuItem(table) {
     };
 }
 
-function openNotesTableContextMenu(table, x, y) {
-    const menuItems = [
-        {
-            title: 'Clear sorting',
-            icon: 0,
-            onSelect: () => {
-                void clearNotesTableSort(table);
-                clearTableHighlight(table);
-            },
+function createClearTableSortMenuItem(table) {
+    return {
+        title: 'Clear sorting',
+        icon: 0,
+        onSelect: () => {
+            void clearNotesTableSort(table);
+            clearTableHighlight(table);
         },
-        { title: '-' },
-        createTableFilterMenuItem(table),
-        { title: '-' },
-        createTableGraphMenuItem(table),
-    ];
-
-    const highlightCallback = (itemIndex) => {
-        const item = menuItems[itemIndex];
-        clearTableHighlight(table);
-        if (!item) {
-            return;
-        }
-        if (item.title === 'Clear sorting') {
-            highlightEntireTable(table, true);
-        } else if (item.title.startsWith('SQL filter')) {
-            highlightEntireTable(table, true);
-        }
     };
-
-    showNotesLocalMenu(menuItems, x, y, 'Table', highlightCallback, () => clearTableHighlight(table));
 }
 
 function setupNotesTableQueries(container, surface, documentPath = '') {
@@ -4500,14 +4499,6 @@ function setupNotesTableQueries(container, surface, documentPath = '') {
             });
         });
 
-        table.addEventListener('contextmenu', (event) => {
-            if (container === elements.csvView) {
-                return;
-            }
-            event.preventDefault();
-            event.stopPropagation();
-            openNotesTableContextMenu(table, event.clientX, event.clientY);
-        });
     });
 
     // Declaring what still exists lets the backend drop everything else for this
@@ -6858,6 +6849,9 @@ function focusActiveEditorForViewMode() {
 function emitCurrentFileName() {
     const fileName = state.currentFile ? getPathFileName(state.currentFile) : '';
     app.dataset.currentFileName = fileName;
+    elements.currentFileTitle.textContent = fileName;
+    elements.currentFileTitle.hidden = !fileName;
+    elements.currentFileTitle.title = fileName;
     window.dispatchEvent(new CustomEvent('notes-current-file', {
         detail: { fileName }
     }));
@@ -12679,7 +12673,14 @@ function initAIOutputContextMenu(container) {
         const isFinalAIResponse = aiBlock?.dataset.blockKind === 'text'
             && aiBlock?.dataset.blockStatus === 'closed';
         const tableItems = table && container.contains(table)
-            ? [...createTableCopyMenuItems(table), createTableFilterMenuItem(table), { title: '-' }]
+            ? [
+                ...createTableCopyMenuItems(table),
+                { title: '-' },
+                createClearTableSortMenuItem(table),
+                createTableFilterMenuItem(table),
+                createTableGraphMenuItem(table),
+                { title: '-' },
+            ]
             : [];
 
         const wordWrapItems = (table && container.contains(table))
@@ -12725,7 +12726,7 @@ function initAIOutputContextMenu(container) {
                     return;
                 }
                 clearTableHighlight(table);
-                if (item.title.toLowerCase().includes('copy table') || item.title.toLowerCase().includes('word wrap table')) {
+                if (item.title === 'Clear sorting' || item.title.startsWith('SQL filter') || item.title.toLowerCase().includes('copy table') || item.title.toLowerCase().includes('word wrap table')) {
                     highlightEntireTable(table, true);
                 }
             };
@@ -12847,7 +12848,14 @@ function initRenderedNotesContextMenu(container, viewMode) {
         const isRunMode = state.viewMode === 'jupyter';
         const tableIndex = table ? Array.from(container.querySelectorAll('table')).indexOf(table) : -1;
         const tableItems = table && container.contains(table)
-            ? [...createTableCopyMenuItems(table), createTableFilterMenuItem(table), { title: '-' }]
+            ? [
+                ...createTableCopyMenuItems(table),
+                { title: '-' },
+                createClearTableSortMenuItem(table),
+                createTableFilterMenuItem(table),
+                createTableGraphMenuItem(table),
+                { title: '-' },
+            ]
             : [];
         const insertItems = (table && isRunMode && container.contains(table))
             ? [...createTableInsertMenuItems(table, e.target, tableIndex), { title: '-' }]
@@ -12902,7 +12910,7 @@ function initRenderedNotesContextMenu(container, viewMode) {
                         // Unhighlight all first
                         clearTableHighlight(table);
                         // Highlight based on item title
-                        if (item.title.toLowerCase().includes('copy table')) {
+                        if (item.title === 'Clear sorting' || item.title.startsWith('SQL filter') || item.title.toLowerCase().includes('copy table')) {
                             highlightEntireTable(table, true);
                         } else if (item.title.includes('row') && !item.title.includes('column')) {
                             highlightTableRow(table, pos.row, true);
@@ -12918,7 +12926,7 @@ function initRenderedNotesContextMenu(container, viewMode) {
                     const item = allMenuItems[itemIndex];
                     if (!item) return;
                     clearTableHighlight(table);
-                    if (item.title.toLowerCase().includes('copy table')) {
+                    if (item.title === 'Clear sorting' || item.title.startsWith('SQL filter') || item.title.toLowerCase().includes('copy table')) {
                         highlightEntireTable(table, true);
                     }
                 };
@@ -15299,8 +15307,9 @@ elements.csvView.addEventListener('contextmenu', (e) => {
     if (!table || !elements.csvView.contains(table)) return;
     const menuItems = [
         ...createTableCopyMenuItems(table),
-        createTableFilterMenuItem(table),
         { title: '-' },
+        createClearTableSortMenuItem(table),
+        createTableFilterMenuItem(table),
         createTableGraphMenuItem(table),
     ];
     const isRunMode = state.viewMode === 'csv-run';

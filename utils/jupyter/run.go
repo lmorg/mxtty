@@ -68,7 +68,7 @@ func runNote(ctx context.Context, bookId, codeId, pwd, code string, ch chan *Out
 
 		format := expandVars(binding.FormatCommand, filePath)
 		if len(format) > 0 {
-			execute(ctx, codeId, pwd, format, ch)
+			_ = execute(ctx, codeId, pwd, format, nil)
 		}
 
 		build1 := expandVars(binding.BuildCommand, filePath)
@@ -99,20 +99,39 @@ func runNote(ctx context.Context, bookId, codeId, pwd, code string, ch chan *Out
 	}()
 }
 
+func logType(isErr bool) string {
+	if isErr {
+		return "error"
+	}
+	return "info"
+}
+
 func execute(ctx context.Context, codeId, pwd string, argv []string, ch chan *OutputT) int {
+	if len(argv) == 0 {
+		if ch != nil {
+			ch <- &OutputT{
+				Id:     codeId,
+				Output: "I don't know how to execute this document type",
+				IsErr:  true,
+			}
+		}
+		return 1
+	}
+
+	if ch == nil {
+		ch = make(chan *OutputT)
+		defer close(ch)
+		go func() {
+			for out := range ch {
+				log.Printf("[%s] %s: %s", _LOG_TYPE[out.IsErr], argv[0], out.Output)
+			}
+		}()
+	}
+
 	select {
 	case <-ctx.Done():
 		return 1
 	default:
-	}
-
-	if len(argv) == 0 {
-		ch <- &OutputT{
-			Id:     codeId,
-			Output: "I don't know how to execute this document type",
-			IsErr:  true,
-		}
-		return 1
 	}
 
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)

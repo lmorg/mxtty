@@ -92,10 +92,26 @@ body {
     gap: 12px;
 }
 
+#notes-title-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
 #notes-title {
     font-size: var(--notes-title-font-size);
     color: var(--accent);
     padding: 10px 10px 0 10px;
+}
+
+#notes-current-file {
+    overflow: hidden;
+    padding: 0 10px;
+    color: rgba(var(--fg-rgb), 0.72);
+    font-size: var(--notes-font-size-minus-1);
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 #notes-list-filter-wrap {

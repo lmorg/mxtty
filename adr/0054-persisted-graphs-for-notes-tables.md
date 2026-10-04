@@ -27,6 +27,11 @@ reopening a table.
   on Markdown and CSV tables. It opens the existing Notes prompt modal with a
   chart-type dropdown and multi-select column and row fields, defaulting to all
   columns and rows.
+- Keep graph creation in the existing table context menu alongside `Copy`,
+  `Copy table (CSV)`, `Copy table (Markdown)`, `Clear sorting`, and `SQL filter…`.
+  Heading and body-cell right-clicks use the same menu; table-level handlers must
+  not stop propagation and hide the other actions. Run-mode row/column editing
+  and the word-wrap toggle remain available where applicable.
 - Right-clicking a rendered graph offers `Remove graph`, which removes the
   rendered SVG and clears the persisted graph specification.
 - The first selected column is the category; selected numeric columns after it

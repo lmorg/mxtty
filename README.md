@@ -124,6 +124,24 @@ Search terms can be highlighted to quickly find instances of that term
 
 ## IDE
 
+### Programming Language Tools (LSP)
+
+Current LSP support includes:
+
+- diagnostics with gutter markers and inline squiggles
+- hover and signature help
+- completion
+- go to definition
+- workspace symbol
+- inlay hints
+- code lens actions
+- semantic tokens
+- document and range formatting
+- code actions / quick fixes
+- rename symbol
+- document symbols
+
+
 ### Markdown Viewer
 
 You can write notes in markdown alongside your terminal sessions. View readme's, have your documentation with you instead of switching between windows
@@ -150,7 +168,7 @@ CSV files can be edited directly inside the editor. You can even add algaberic o
 
 Or use markdown tables if you want to build your own formula functions
 
-
+![1791139581](README.md.d/1791139581.png)
 
 ### Vim-style Editor Keys
 
@@ -209,69 +227,17 @@ The Notes editor and Jupyter code blocks support Vim-style keyboard navigation. 
 
 All operators and motions accept a **count prefix** (e.g. `3w`, `5dd`, `10j`).
 
-### Programming Language Tools (LSP)
-
-Notes can attach a language server when the current file type resolves to a configured entry in `Notes.LSP`.
-
-Current Notes LSP support includes:
-
-- diagnostics with gutter markers and inline squiggles
-- hover and signature help
-- completion
-- go to definition
-- workspace symbol
-- inlay hints
-- code lens actions
-- semantic tokens
-- document and range formatting
-- code actions / quick fixes
-- rename symbol
-- document symbols
-
-LSP servers are configured in the main config file under `Notes.LSP`. Keys are canonical language ids and values are the command argv used to start the server.
-
-Example:
-
-```yaml
-Notes:
-  Languages:
-    go:
-      LSP: [gopls]
-    javascript:
-      LSP: [typescript-language-server, --stdio]
-    typescript:
-      LSP: [typescript-language-server, --stdio]
-    terraform:
-      LSP: [terraform-ls, serve]
-      TabSpaceIndent: 2
-    python:
-      LSP: [pylsp]
-```
-
-Notes resolves the language id from the same Jupyter language metadata used elsewhere in the project, so file extensions such as `.go`, `.js`, `.ts`, `.tf`, and `.py` map onto the configured LSP entries automatically.
-
-Current Notes LSP behavior:
-
-- enablement is automatic when a matching `Notes.LSP.<language>` entry exists
-- startup failures are surfaced to the UI instead of failing silently
-- hover content supports markdown rendering and external links
-- inlay hints render inline in the editor overlay when the server provides them
-- code lens actions are available from the editor context menu when provided by the server
-- semantic tokens render in the editor overlay when the server provides them
-- completion and code actions are currently mouse-driven in the MVP UI
-
-Current limitations:
-
-- no dedicated LSP hotkeys in the MVP UI yet
-- incremental sync is not enabled yet
-
-
-
 ### Swagger
 
 Native support for Swagger and OpenAPI files. So you don't need to be a `curl` expert all of the time
 
 ![swagger](images/swagger.png)
+
+### Hex Viewer
+
+Sometimes you just need to view the raw bytes of a file
+
+![1791147137](README.md.d/1791147137.png)
 
 ### Non-Intrusive AI
 
