@@ -96,16 +96,6 @@ type imageResponseT struct {
 	} `json:"error"`
 }
 
-func (t *GenerateImage) Call(ctx context.Context, input string) (string, error) {
-	debug.Log(input)
-
-	var request generateImageInputT
-	if err := json.Unmarshal([]byte(input), &request); err != nil {
-		return fmt.Sprintf("ERROR: input must be valid JSON matching the tool schema: %s", err), nil
-	}
-	return t.generate(ctx, &request)
-}
-
 func (t *GenerateImage) CallStructured(ctx context.Context, input any) (string, error) {
 	request, ok := input.(*generateImageInputT)
 	if !ok || request == nil {

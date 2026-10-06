@@ -199,18 +199,27 @@ func ResolveWritePermissionRequest(id, decision string) error {
 	return nil
 }
 
-func formatToolPermissionRequestMarkdown(toolName, requestID string) string {
+func formatToolPermissionRequestMarkdown(toolName, requestID, description string) string {
+	descriptionBlock := ""
+	if description != "" {
+		descriptionBlock = description + "\n\n"
+	}
+
 	return fmt.Sprintf(
-		"\n\n**Access requested for tool %s**\n\n"+
+		"\n\n**Access requested for tool %s**\n\n%s"+
 			"- [Allow this invocation](ttyphoon://ai-tool-permission?request=%s&decision=allow-once)\n"+
 			"- [Allow for this prompt](ttyphoon://ai-tool-permission?request=%s&decision=allow-prompt)\n"+
 			"- [Deny this invocation](ttyphoon://ai-tool-permission?request=%s&decision=deny-once)\n"+
 			"- [Deny for this prompt](ttyphoon://ai-tool-permission?request=%s&decision=deny-prompt)\n\n",
-		toolName, requestID, requestID, requestID, requestID,
+		toolName, descriptionBlock, requestID, requestID, requestID, requestID,
 	)
 }
 
 func (agt *Agent) RequestToolPermission(ctx context.Context, toolName string) error {
+	return agt.requestToolPermission(ctx, toolName, nil)
+}
+
+func (agt *Agent) requestToolPermission(ctx context.Context, toolName string, describeCall func() string) error {
 	state := agt.ToolState(toolName)
 	if state == ToolStateDisabled {
 		return fmt.Errorf("%w: tool %q is disabled", ErrToolPermissionRefused, toolName)
@@ -260,7 +269,11 @@ func (agt *Agent) RequestToolPermission(ctx context.Context, toolName string) er
 		agt.toolPermissionMu.Unlock()
 
 		reqID, decisionCh := newWritePermissionRequest()
-		permissionMarkdown := formatToolPermissionRequestMarkdown(toolName, reqID)
+		description := ""
+		if describeCall != nil {
+			description = describeCall()
+		}
+		permissionMarkdown := formatToolPermissionRequestMarkdown(toolName, reqID, description)
 		emitAIStreamToolBlock(ctx, sessiondb.StreamBlockQuestion, permissionMarkdown)
 
 		var decision string

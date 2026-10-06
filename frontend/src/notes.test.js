@@ -155,6 +155,7 @@ const getNotesFindFieldValuesMock = vi.fn(() => Promise.resolve([]));
 const addNotesFindFieldValueMock = vi.fn(() => Promise.resolve([]));
 const eventsOnMock = vi.fn();
 const clipboardSetTextMock = vi.fn(() => Promise.resolve());
+const clipboardSetHTMLMock = vi.fn(() => Promise.resolve());
 const showLocalMenuMock = vi.fn();
 
 vi.mock('../wailsjs/go/main/WApp', () => ({
@@ -273,6 +274,7 @@ vi.mock('../wailsjs/go/main/WApp', () => ({
     GetHyperlinkMenuActions: getHyperlinkMenuActionsMock,
     RunHyperlinkMenuAction: runHyperlinkMenuActionMock,
     DisplayHyperlinkMenu: displayHyperlinkMenuMock,
+    ClipboardSetHTML: clipboardSetHTMLMock,
     ShowTooltip: showTooltipMock,
     CloseTooltip: closeTooltipMock,
     NotesKeyPress: notesKeyPressMock,
@@ -489,11 +491,18 @@ describe('notes rendering', () => {
         listAIStreamBlocksMock.mockResolvedValue([]);
         getAIStreamBlockContentMock.mockReset();
         getAIStreamBlockContentMock.mockResolvedValue('');
+        getAISessionManagementMock.mockReset();
+        getAISessionManagementMock.mockResolvedValue({ activeSessionId: 0, sessions: [], history: [] });
+        createAISessionMock.mockReset();
+        createAISessionMock.mockResolvedValue({ activeSessionId: 1, sessions: [], history: [] });
+        setActiveAISessionMock.mockReset();
+        setActiveAISessionMock.mockResolvedValue({ activeSessionId: 1, sessions: [], history: [] });
         getHyperlinkMenuActionsMock.mockReset();
         runHyperlinkMenuActionMock.mockReset();
         displayHyperlinkMenuMock.mockReset();
         eventsOnMock.mockReset();
         clipboardSetTextMock.mockClear();
+            clipboardSetHTMLMock.mockClear();
         showLocalMenuMock.mockReset();
 
         getWindowStyleMock.mockResolvedValue(theme);
@@ -681,6 +690,88 @@ describe('notes rendering', () => {
         expect(document.getElementById('notes-title-group').children[1].id).toBe('notes-current-file');
         expect(document.getElementById('notes-current-file').textContent).toBe('todo.md');
         expect(document.getElementById('notes-current-file').hidden).toBe(false);
+    });
+
+    it('opens the same recent-files menu from the active filename', async () => {
+        listFilesMock.mockResolvedValue(['$NOTES/current.md']);
+        getFileMock.mockResolvedValue({ contents: '# Current', text: '', error: '' });
+        notesRecentFilesMock.mockResolvedValueOnce(['$NOTES/previous.md', '$NOTES/current.md']);
+
+        await importNotesModule();
+        document.querySelector('[data-file="$NOTES/current.md"]').click();
+        await flushPromises();
+        await flushPromises();
+        showLocalMenuMock.mockReset();
+
+        document.getElementById('notes-current-file').dispatchEvent(new MouseEvent('click', {
+            bubbles: true,
+            cancelable: true,
+            detail: 1,
+            clientX: 64,
+            clientY: 92,
+        }));
+        await flushPromises();
+
+        expect(notesRecentFilesMock).toHaveBeenCalledOnce();
+        const menu = showLocalMenuMock.mock.calls[0][0];
+        expect(menu.title).toBe('Recent files');
+        expect(menu.options).toEqual(['$NOTES/previous.md', '$NOTES/current.md']);
+        expect(menu.x).toBe(64);
+        expect(menu.y).toBe(92);
+    });
+
+    it('opens the terminal window menu next to the workspace title click', async () => {
+        const terminalTabs = document.createElement('div');
+        terminalTabs.id = 'terminal-tabs';
+        const shellTab = document.createElement('button');
+        shellTab.className = 'terminal-tab';
+        shellTab.dataset.windowId = 'shell';
+        shellTab.textContent = 'shell';
+        const notesTab = document.createElement('button');
+        notesTab.className = 'terminal-tab';
+        notesTab.dataset.windowId = '__jupyter__';
+        notesTab.textContent = 'Notes';
+        const shellTabClick = vi.spyOn(shellTab, 'click');
+        const notesTabClick = vi.spyOn(notesTab, 'click');
+        terminalTabs.append(shellTab, notesTab);
+        document.body.appendChild(terminalTabs);
+
+        await importNotesModule();
+        document.getElementById('notes-title').dispatchEvent(new MouseEvent('click', {
+            bubbles: true,
+            clientX: 42,
+            clientY: 76,
+        }));
+
+        expect(showLocalMenuMock).toHaveBeenCalledTimes(1);
+        const menu = showLocalMenuMock.mock.calls[0][0];
+        expect(menu.title).toBe('Choose a window');
+        expect(menu.options).toEqual(['shell', 'Notes']);
+        expect(menu.x).toBe(42);
+        expect(menu.y).toBe(76);
+        expect(menu.showNextToMouseCursor).toBe(true);
+
+        menu.onSelect(0);
+        expect(shellTabClick).toHaveBeenCalledOnce();
+        menu.onSelect(1);
+        expect(notesTabClick).toHaveBeenCalledOnce();
+    });
+
+    it('uses Markdown heading styles for Rename and Delete prompt titles', async () => {
+        await importNotesModule();
+        const fileActionHandler = getEventHandler('fileActionDialog');
+
+        fileActionHandler({ action: 'rename', filePath: '$NOTES/note.md' });
+        await flushPromises();
+        expect(document.querySelector('#notes-modal-title h3')?.textContent).toBe('Rename note');
+        expect(document.getElementById('notes-modal-title').classList.contains('markdown-body')).toBe(true);
+        document.getElementById('notes-modal-cancel').click();
+
+        fileActionHandler({ action: 'delete', filePath: '$NOTES/note.md' });
+        expect(document.querySelector('#notes-delete-modal-title h3')?.textContent).toBe('Delete note');
+        expect(document.getElementById('notes-delete-modal-title').classList.contains('markdown-body')).toBe(true);
+        expect(Array.from(document.getElementById('notes-delete-modal-actions').children).map((button) => button.id))
+            .toEqual(['notes-delete-confirm', 'notes-delete-cancel']);
     });
 
     it.each(['settings.xml', 'settings.txt'])('opens XML in structured View for %s and preserves surrounding source when editing a value', async (fileName) => {
@@ -2208,6 +2299,7 @@ describe('notes rendering', () => {
         document.getElementById('notes-new').click();
         await flushPromises();
 
+        expect(document.querySelector('#notes-modal-title h3')?.textContent).toBe('New note name');
         const modalInput = document.getElementById('notes-modal-input');
         const modalLocation = document.getElementById('notes-modal-location');
 
@@ -2722,6 +2814,10 @@ describe('notes rendering', () => {
         await flushPromises();
 
         const historyList = document.getElementById('notes-ai-settings-history-list');
+        const historyClear = document.getElementById('notes-ai-settings-history-clear');
+        expect(historyList.previousElementSibling).toBe(historyClear.parentElement);
+        expect(historyClear.parentElement.previousElementSibling.textContent).toBe('Recent prompts and responses from the active session.');
+        expect(historyClear.parentElement.previousElementSibling.previousElementSibling.textContent).toBe('Active Session Transcript');
         const eraseButtons = historyList.querySelectorAll('button[data-action="erase"]');
         expect(eraseButtons).toHaveLength(2);
         expect(eraseButtons[0].dataset.entryId).toBe('42');
@@ -2774,6 +2870,58 @@ describe('notes rendering', () => {
         await flushPromises();
 
         expect(showAISkillsMenuMock).toHaveBeenCalledWith(0, 4);
+    });
+
+    it('places Prompt after Skills and provides a session menu for creating and switching sessions', async () => {
+        listFilesMock.mockResolvedValue(['$NOTES/summary.md']);
+        getFileMock.mockResolvedValue({ contents: '# Summary', text: '', error: '' });
+        getAISessionManagementMock.mockResolvedValue({
+            activeSessionId: 5,
+            sessions: [
+                { tableId: 5, summary: 'Planning', active: true },
+                { tableId: 6, summary: 'Research', active: false },
+            ],
+            history: [],
+        });
+        setActiveAISessionMock.mockResolvedValue({
+            activeSessionId: 6,
+            sessions: [
+                { tableId: 5, summary: 'Planning', active: false },
+                { tableId: 6, summary: 'Research', active: true },
+            ],
+            history: [],
+        });
+
+        await importNotesModule();
+
+        const headerButtons = Array.from(document.querySelectorAll('.notes-tools-pane-header button')).map((button) => button.id);
+        expect(headerButtons.indexOf('notes-tools-ai-prompt-jump')).toBe(headerButtons.indexOf('notes-tools-ai-skills') + 1);
+        expect(document.getElementById('notes-tools-ai-session')?.textContent).toBe('Session');
+
+        const sessionButton = document.getElementById('notes-tools-ai-session');
+        sessionButton.click();
+        await flushPromises();
+
+        let menu = showLocalMenuMock.mock.calls.at(-1)?.[0];
+        expect(menu.title).toBe('Sessions');
+        expect(menu.options).toEqual(['New session', '-', 'Planning', 'Research']);
+        expect(menu.icons).toEqual([0xf067, 0, 0xf00c, 0]);
+
+        menu.onSelect(3);
+        await flushPromises();
+        expect(setActiveAISessionMock).toHaveBeenCalledWith(6);
+
+        createAISessionMock.mockResolvedValueOnce({
+            activeSessionId: 7,
+            sessions: [{ tableId: 7, summary: 'New session', active: true }],
+            history: [],
+        });
+        sessionButton.click();
+        await flushPromises();
+        menu = showLocalMenuMock.mock.calls.at(-1)?.[0];
+        menu.onSelect(0);
+        await flushPromises();
+        expect(createAISessionMock).toHaveBeenCalledTimes(1);
     });
 
     it('uses href as fallback label when right-clicking an empty anchor label', async () => {
@@ -3019,6 +3167,46 @@ describe('notes rendering', () => {
         expect(menuConfig.options).not.toContain('Find');
         expect(menuConfig.options).not.toContain('Ask AI...');
         expect(menuConfig.options).not.toContain('Print');
+    });
+
+    it('preserves table cell breaks in Markdown copy and quotes newlines in CSV copy', async () => {
+        listFilesMock.mockResolvedValue(['$NOTES/guide.md']);
+        getFileMock.mockResolvedValue({ contents: '# Guide', text: '', error: '' });
+        await importNotesModule();
+
+        const aiOutput = document.getElementById('notes-ai-output');
+        aiOutput.innerHTML = '<table><thead><tr><th>First</th><th>Second</th></tr></thead><tbody><tr><td><strong>one</strong><br/>two</td><td>alpha<br/>beta, "gamma"</td></tr></tbody></table>';
+        const tableCell = aiOutput.querySelector('tbody td');
+        tableCell.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 100, clientY: 100 }));
+        await flushPromises();
+
+        let menu = showLocalMenuMock.mock.calls.at(-1)[0];
+        menu.onSelect(menu.options.indexOf('Copy table (CSV)'));
+        await flushPromises();
+        expect(clipboardSetTextMock).toHaveBeenLastCalledWith('First,Second\n"one\ntwo","alpha\nbeta, ""gamma"""');
+
+        clipboardSetTextMock.mockClear();
+        tableCell.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 100, clientY: 100 }));
+        await flushPromises();
+        menu = showLocalMenuMock.mock.calls.at(-1)[0];
+        menu.onSelect(menu.options.indexOf('Copy table (Markdown)'));
+        await flushPromises();
+        expect(clipboardSetTextMock).toHaveBeenLastCalledWith('| First | Second |\n| --- | --- |\n| one<br/>two | alpha<br/>beta, "gamma" |');
+
+        clipboardSetHTMLMock.mockClear();
+        tableCell.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 100, clientY: 100 }));
+        await flushPromises();
+        menu = showLocalMenuMock.mock.calls.at(-1)[0];
+        expect(menu.options).toContain('Copy table (HTML)');
+        menu.onSelect(menu.options.indexOf('Copy table (HTML)'));
+        await flushPromises();
+        expect(clipboardSetHTMLMock).toHaveBeenCalledOnce();
+        const [html, plainText] = clipboardSetHTMLMock.mock.calls[0];
+        expect(html).toContain('<table>');
+        expect(html).toContain('<strong>one</strong><br>two');
+        expect(html).not.toContain('notes-cellref');
+        expect(html).not.toContain('contenteditable');
+        expect(plainText).toBe('First,Second\n"one\ntwo","alpha\nbeta, ""gamma"""');
     });
 
     // Images in the AI stream get the same menu as images in a rendered note,
@@ -3897,13 +4085,43 @@ describe('notes rendering', () => {
         await flushPromises();
 
         expect(aiMaximize.dataset.enabled).toBe('true');
+        expect(aiMaximize.textContent).toBe(String.fromCodePoint(0xf065));
         expect(appRoot.dataset.aiMaximized).toBe('true');
 
         aiMaximize.click();
         await flushPromises();
 
         expect(aiMaximize.dataset.enabled).toBe('false');
+        expect(aiMaximize.textContent).toBe(String.fromCodePoint(0xf065));
         expect(appRoot.dataset.aiMaximized).toBe('false');
+    });
+
+    it('uses Font Awesome glyphs for AI and Log panel action buttons', async () => {
+        listFilesMock.mockResolvedValue(['$NOTES/guide.md']);
+        getFileMock.mockResolvedValue({ contents: '# Guide', text: '', error: '' });
+
+        await importNotesModule();
+
+        const icons = [
+            ['notes-tools-ai-maximize', 0xf065, 'Maximize AI view'],
+            ['notes-tools-ai-settings', 0xf013, 'AI session management'],
+            ['notes-tools-log-clear', 0xf2ed, 'Clear log'],
+            ['notes-tools-log-copy', 0xf0c5, 'Copy log to clipboard'],
+            ['notes-tools-log-maximize', 0xf065, 'Maximize log view'],
+            ['notes-tools-log-deselect', 0xf850, 'Deselect log lines'],
+            ['notes-tools-log-timestamp', 0xf017, 'Toggle timestamps'],
+            ['notes-tools-log-wordwrap', 0x21b5, 'Toggle word wrap'],
+            ['notes-tools-log-trace', 0xf188, 'Show trace-level log lines'],
+        ];
+
+        icons.forEach(([id, codePoint, label]) => {
+            const button = document.getElementById(id);
+            expect(button.textContent).toBe(String.fromCodePoint(codePoint));
+            expect(button.classList.contains('notes-tools-icon')).toBe(true);
+            expect(button.getAttribute('aria-label')).toBe(label);
+        });
+
+        expect(notesCss).toContain('font-family: "Font Awesome Solid", "Font Awesome", sans-serif;');
     });
 
     it('keeps Find tools tab visible but disables controls in Hex and Meta modes', async () => {
@@ -4928,7 +5146,7 @@ describe('notes rendering', () => {
         expect(editor.value).toBe('Name,Value\nAlpha,1\n,');
     });
 
-    it('clears table highlight styles when context menu is cancelled', async () => {
+    it('does not attach table highlight callbacks in Run view', async () => {
         listFilesMock.mockResolvedValue(['$NOTES/table.md']);
         getFileMock.mockResolvedValue({ contents: [
             '| Name | Value |',
@@ -4960,40 +5178,13 @@ describe('notes rendering', () => {
         }));
         await flushPromises();
 
-        // Verify onHighlight and onCancel were passed to showLocalMenu
         expect(showLocalMenuMock).toHaveBeenCalledTimes(1);
         const menuConfig = showLocalMenuMock.mock.calls[0][0];
-        expect(menuConfig.onHighlight).toBeTruthy();
-        expect(menuConfig.onCancel).toBeTruthy();
-
-        // Manually apply highlight to table to simulate what onHighlight would do
-        const firstDataRow = table.querySelector('tbody tr');
-        firstDataRow.style.backgroundColor = 'red';
-        firstDataRow.style.color = 'white';
-        firstDataRow.querySelectorAll('td, th').forEach(testCell => {
-            testCell.style.backgroundColor = 'red';
-            testCell.style.color = 'white';
-        });
-
-        // Verify highlight was applied
-        expect(firstDataRow.style.backgroundColor).toBe('red');
-
-        // Simulate menu close by calling onCancel
-        menuConfig.onCancel();
-        await flushPromises();
-
-        // Verify highlight was cleared from all rows
-        table.querySelectorAll('tr').forEach(row => {
-            expect(row.style.backgroundColor).toBe('');
-            expect(row.style.color).toBe('');
-            row.querySelectorAll('td, th').forEach(testCell => {
-                expect(testCell.style.backgroundColor).toBe('');
-                expect(testCell.style.color).toBe('');
-            });
-        });
+        expect(menuConfig.onHighlight).toBeNull();
+        expect(menuConfig.onCancel).toBeNull();
     });
 
-    it('passes onCancel callback through showNotesLocalMenu to showLocalMenu', async () => {
+    it('does not attach table highlight callbacks in Notes view', async () => {
         listFilesMock.mockResolvedValue(['$NOTES/table.md']);
         getFileMock.mockResolvedValue({ contents: [
             '| Name | Value |',
@@ -5027,23 +5218,11 @@ describe('notes rendering', () => {
         expect(showLocalMenuMock).toHaveBeenCalled();
         const menuConfig = showLocalMenuMock.mock.calls[0][0];
 
-        // Verify both callbacks exist
-        expect(typeof menuConfig.onHighlight).toBe('function');
-        expect(typeof menuConfig.onCancel).toBe('function');
-
-        // Verify onCancel is callable and resets styles
-        const testRow = table.querySelector('tbody tr');
-        testRow.style.backgroundColor = 'var(--accent)';
-        testRow.style.color = 'var(--bg)';
-
-        menuConfig.onCancel();
-        await flushPromises();
-
-        expect(testRow.style.backgroundColor).toBe('');
-        expect(testRow.style.color).toBe('');
+        expect(menuConfig.onHighlight).toBeNull();
+        expect(menuConfig.onCancel).toBeNull();
     });
 
-    it('clears column highlights when context menu is cancelled on CSV table', async () => {
+    it('does not attach table highlight callbacks on CSV tables', async () => {
         listFilesMock.mockResolvedValue(['$NOTES/data.csv']);
         getFileMock.mockResolvedValue({ contents: 'Name,Value\nAlpha,1\nBeta,2', text: '', error: '' });
 
@@ -5090,26 +5269,8 @@ describe('notes rendering', () => {
         }
 
         const menuConfig = showLocalMenuMock.mock.calls[0][0];
-        if (!menuConfig.onCancel) {
-            // onCancel might not be set for non-Run-mode tables
-            expect(true).toBe(true);
-            return;
-        }
-
-        // Apply highlight to a cell manually
-        const testCell = table.querySelector('td');
-        if (testCell) {
-            testCell.style.backgroundColor = 'var(--accent)';
-            testCell.style.color = 'var(--bg)';
-
-            // Call onCancel
-            menuConfig.onCancel();
-            await flushPromises();
-
-            // Verify highlight was cleared
-            expect(testCell.style.backgroundColor).toBe('');
-            expect(testCell.style.color).toBe('');
-        }
+        expect(menuConfig.onHighlight).toBeNull();
+        expect(menuConfig.onCancel).toBeNull();
     });
 
     // Sorting and filtering are owned by the Go engine so the terminal and Notes
@@ -5204,6 +5365,60 @@ describe('notes rendering', () => {
             expect(rows.filter((row) => !row.classList.contains('notes-table-row-filtered'))).toHaveLength(1);
         });
 
+        it('copies only SQL-filtered rows in Notes and Run views', async () => {
+            notesTableRestoreMock.mockResolvedValue({
+                missing: false, order: [1], sortColumn: 0, sortDesc: false,
+                filter: '"Value" > 1', error: '',
+            });
+            await loadMarkdownTable();
+
+            const copyFormats = async (table) => {
+                const visibleRow = table.querySelector('tbody tr:not(.notes-table-row-filtered)');
+                expect(visibleRow).toBeTruthy();
+                const visibleCells = Array.from(visibleRow.querySelectorAll('td')).map((cell) => {
+                    const clone = cell.cloneNode(true);
+                    clone.querySelectorAll('.notes-cellref').forEach((node) => node.remove());
+                    return clone.textContent.trim();
+                });
+                const csv = `Name,Value\n${visibleCells.join(',')}`;
+                const markdown = `| Name | Value |\n| --- | --- |\n| ${visibleCells.join(' | ')} |`;
+
+                const openMenu = async () => {
+                    table.querySelector('tbody td').dispatchEvent(
+                        new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 10, clientY: 10 }));
+                    await flushPromises();
+                    return showLocalMenuMock.mock.calls.at(-1)[0];
+                };
+
+                let menu = await openMenu();
+                menu.onSelect(menu.options.indexOf('Copy table (CSV)'));
+                await flushPromises();
+                expect(clipboardSetTextMock).toHaveBeenLastCalledWith(csv);
+
+                menu = await openMenu();
+                menu.onSelect(menu.options.indexOf('Copy table (Markdown)'));
+                await flushPromises();
+                expect(clipboardSetTextMock).toHaveBeenLastCalledWith(markdown);
+
+                menu = await openMenu();
+                menu.onSelect(menu.options.indexOf('Copy table (HTML)'));
+                await flushPromises();
+                const [html, plainText] = clipboardSetHTMLMock.mock.calls.at(-1);
+                const copiedTable = document.createElement('div');
+                copiedTable.innerHTML = html;
+                expect(Array.from(copiedTable.querySelectorAll('tbody tr')).map((row) =>
+                    Array.from(row.querySelectorAll('td')).map((cell) => cell.textContent.trim()))).toEqual([visibleCells]);
+                expect(plainText).toBe(csv);
+            };
+
+            await copyFormats(document.querySelector('#notes-preview table'));
+
+            document.getElementById('notes-tab-jupyter').click();
+            await flushPromises();
+            await flushPromises();
+            await copyFormats(document.querySelector('#notes-jupyter table'));
+        });
+
         // Losing server-side state must be recoverable, so a miss is retried once
         // with the data attached rather than surfacing as a broken table.
         it('resends the seed when Go reports the table is missing', async () => {
@@ -5272,14 +5487,28 @@ describe('notes rendering', () => {
             await flushPromises();
 
             expect(document.getElementById('notes-modal-title').textContent).toBe('Create graph');
+            expect(document.querySelector('#notes-modal-title h3')?.textContent).toBe('Create graph');
+            expect(getNotesRenderedStyles()).toMatch(/\.notes-graph-options-list\s*\{[^}]*height:\s*190px;[^}]*min-height:\s*190px;[^}]*max-height:\s*190px;/s);
             expect(document.querySelector('#notes-modal-body .notes-graph-dropdown')?.textContent.trim()).toContain('Line');
+            const actions = Array.from(document.getElementById('notes-modal-actions').children).map((button) => button.id);
+            expect(actions).toEqual(['notes-modal-create', 'notes-modal-cancel']);
             const columnsField = Array.from(document.querySelectorAll('.notes-graph-field'))
                 .find((field) => field.querySelector('.notes-graph-field-label')?.textContent === 'Columns');
             const rowsField = Array.from(document.querySelectorAll('.notes-graph-field'))
                 .find((field) => field.querySelector('.notes-graph-field-label')?.textContent === 'Rows');
             expect(columnsField.querySelectorAll('input[type="checkbox"]')).toHaveLength(2);
+            expect(columnsField.querySelector('.notes-graph-options-list').classList.contains('markdown-body')).toBe(true);
             expect(Array.from(columnsField.querySelectorAll('input[type="checkbox"]')).every((input) => input.checked)).toBe(true);
+            const columnSearch = columnsField.querySelector('input[placeholder="Find columns…"]');
+            columnSearch.value = 'Value';
+            columnSearch.dispatchEvent(new Event('input', { bubbles: true }));
+            expect(columnsField.querySelectorAll('.notes-graph-option')).toHaveLength(1);
+            expect(columnsField.querySelector('.notes-graph-option span').textContent).toBe('Value');
+            columnSearch.value = '';
+            columnSearch.dispatchEvent(new Event('input', { bubbles: true }));
+            expect(columnsField.querySelectorAll('.notes-graph-option')).toHaveLength(2);
             expect(rowsField.querySelectorAll('input[type="checkbox"]')).toHaveLength(3);
+            expect(rowsField.querySelector('.notes-graph-options-list').classList.contains('markdown-body')).toBe(true);
             expect(Array.from(rowsField.querySelectorAll('input[type="checkbox"]')).every((input) => input.checked)).toBe(true);
 
             const typeDropdown = document.querySelector('.notes-graph-dropdown');
@@ -5288,6 +5517,12 @@ describe('notes rendering', () => {
             expect(typeMenu.options).toContain('Doughnut');
             typeMenu.onSelect(typeMenu.options.indexOf('Bar'));
             expect(typeDropdown.textContent).toContain('Bar');
+
+            const graphModal = document.getElementById('notes-modal');
+            graphModal.querySelector('#notes-modal-card').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+            expect(graphModal.dataset.open).toBe('true');
+            graphModal.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+            expect(graphModal.dataset.open).toBe('false');
         });
 
         it('persists a graph and intersects selected rows with SQL-filtered rows', async () => {
@@ -5439,7 +5674,7 @@ describe('notes rendering', () => {
         });
     });
 
-    it('highlights entire table when Copy table menu item is hovered in Run mode', async () => {
+    it('does not highlight the table when hovering its Run menu items', async () => {
         listFilesMock.mockResolvedValue(['$NOTES/table.md']);
         getFileMock.mockResolvedValue({ contents: [
             '| Name | Value |',
@@ -5483,43 +5718,11 @@ describe('notes rendering', () => {
 
         expect(showLocalMenuMock).toHaveBeenCalled();
         const menuConfig = showLocalMenuMock.mock.calls[0][0];
-        expect(menuConfig.onCancel).toBeTruthy();
-
-        // Manually apply entire table highlight to simulate onHighlight for copy table
-        table.querySelectorAll('tr').forEach(row => {
-            row.style.backgroundColor = 'blue';
-            row.style.color = 'white';
-            row.querySelectorAll('td, th').forEach(testCell => {
-                testCell.style.backgroundColor = 'blue';
-                testCell.style.color = 'white';
-            });
-        });
-
-        // Verify highlight was applied
-        let highlightedCount = 0;
-        table.querySelectorAll('tr').forEach(row => {
-            if (row.style.backgroundColor === 'blue') {
-                highlightedCount++;
-            }
-        });
-        expect(highlightedCount).toBeGreaterThan(0);
-
-        // Simulate menu close by calling onCancel
-        menuConfig.onCancel();
-        await flushPromises();
-
-        // Verify onCancel clears the highlight from entire table
-        table.querySelectorAll('tr').forEach(row => {
-            expect(row.style.backgroundColor).toBe('');
-            expect(row.style.color).toBe('');
-            row.querySelectorAll('td, th').forEach(testCell => {
-                expect(testCell.style.backgroundColor).toBe('');
-                expect(testCell.style.color).toBe('');
-            });
-        });
+        expect(menuConfig.onHighlight).toBeNull();
+        expect(menuConfig.onCancel).toBeNull();
     });
 
-    it('enables copy table highlighting even in non-Run mode', async () => {
+    it('does not highlight the table when hovering its Notes menu items', async () => {
         listFilesMock.mockResolvedValue(['$NOTES/table.md']);
         getFileMock.mockResolvedValue({ contents: [
             '| Name | Value |',
@@ -5565,38 +5768,8 @@ describe('notes rendering', () => {
         }
 
         const menuConfig = showLocalMenuMock.mock.calls[0][0];
-        if (!menuConfig.onHighlight || !menuConfig.onCancel) {
-            // onHighlight should be enabled for copy table items
-            expect(true).toBe(true);
-            return;
-        }
-
-        // Manually highlight entire table
-        table.querySelectorAll('tr').forEach(row => {
-            row.style.backgroundColor = 'green';
-            row.style.color = 'white';
-            row.querySelectorAll('td, th').forEach(testCell => {
-                testCell.style.backgroundColor = 'green';
-                testCell.style.color = 'white';
-            });
-        });
-
-        // Verify highlight was applied
-        expect(table.querySelector('tr').style.backgroundColor).toBe('green');
-
-        // Call onCancel to clear
-        menuConfig.onCancel();
-        await flushPromises();
-
-        // Verify all highlights cleared
-        table.querySelectorAll('tr').forEach(row => {
-            expect(row.style.backgroundColor).toBe('');
-            expect(row.style.color).toBe('');
-            row.querySelectorAll('td, th').forEach(testCell => {
-                expect(testCell.style.backgroundColor).toBe('');
-                expect(testCell.style.color).toBe('');
-            });
-        });
+        expect(menuConfig.onHighlight).toBeNull();
+        expect(menuConfig.onCancel).toBeNull();
     });
 
 });

@@ -47,4 +47,23 @@ describe('notes log panel', () => {
         expect(elements.logOutput.childElementCount).toBe(2);
         expect(getLineTexts(elements.logOutput)).toEqual(['gamma', 'delta']);
     });
+
+    it('keeps the Font Awesome maximize glyph while toggling the log panel', () => {
+        const elements = createElements();
+        const handlers = {};
+        const eventsOn = (name, handler) => {
+            handlers[name] = handler;
+        };
+
+        initNotesLogPanel(elements, eventsOn, 10);
+        expect(elements.toolsLogMaximize.textContent).toBe(String.fromCodePoint(0xf065));
+
+        elements.toolsLogMaximize.click();
+        expect(elements.toolsLogMaximize.dataset.enabled).toBe('true');
+        expect(elements.toolsLogMaximize.textContent).toBe(String.fromCodePoint(0xf065));
+
+        elements.toolsLogMaximize.click();
+        expect(elements.toolsLogMaximize.dataset.enabled).toBe('false');
+        expect(elements.toolsLogMaximize.textContent).toBe(String.fromCodePoint(0xf065));
+    });
 });

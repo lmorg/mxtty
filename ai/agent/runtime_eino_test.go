@@ -36,6 +36,16 @@ type fakeStructuredAgentTool struct {
 	input *structuredToolTestInput
 }
 
+type fakeDescribedStructuredAgentTool struct {
+	*fakeStructuredAgentTool
+	describedInput any
+}
+
+func (f *fakeDescribedStructuredAgentTool) CallDescription(_ context.Context, input any) string {
+	f.describedInput = input
+	return "### Invocation details\n\nThis describes the requested operation."
+}
+
 func (f *fakeStructuredAgentTool) InputType() reflect.Type {
 	return reflect.TypeOf(structuredToolTestInput{})
 }
@@ -242,6 +252,77 @@ func TestStructuredToolUsesFieldSchemaAndDecodedInput(t *testing.T) {
 	jsonValue, ok := delegate.input.JSON.(map[string]any)
 	if !ok || jsonValue["n"] != json.Number("9007199254740993") {
 		t.Fatalf("structured arbitrary JSON = %#v, want exact integer preserved as json.Number", delegate.input.JSON)
+	}
+}
+
+func TestStructuredToolCallDescriptionUsesDecodedCallInputForApproval(t *testing.T) {
+	delegate := &fakeDescribedStructuredAgentTool{
+		fakeStructuredAgentTool: &fakeStructuredAgentTool{fakeAgentTool: &fakeAgentTool{enabled: true}},
+	}
+	permissionAgent := &Agent{toolStates: map[string]string{delegate.Name(): ToolStateApproval}}
+	tool, err := newEinoAgentTool(&einoRuntime{agent: permissionAgent}, delegate)
+	if err != nil {
+		t.Fatalf("newEinoAgentTool: %v", err)
+	}
+
+	resultCh := make(chan error, 1)
+	go func() {
+		_, callErr := tool.InvokableRun(context.Background(), `{"query":"needle","options":{"fileFilter":"*.go"}}`)
+		resultCh <- callErr
+	}()
+
+	var requestID string
+	for range 200 {
+		writePermissionRequests.mu.Lock()
+		for id := range writePermissionRequests.m {
+			requestID = id
+		}
+		writePermissionRequests.mu.Unlock()
+		if requestID != "" {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	if requestID == "" {
+		t.Fatal("no pending permission request was raised")
+	}
+
+	if err := ResolveWritePermissionRequest(requestID, "allow-once"); err != nil {
+		t.Fatalf("ResolveWritePermissionRequest: %v", err)
+	}
+	if err := <-resultCh; err != nil {
+		t.Fatalf("InvokableRun: %v", err)
+	}
+
+	input, ok := delegate.describedInput.(*structuredToolTestInput)
+	if !ok {
+		t.Fatalf("CallDescription input type = %T, want *structuredToolTestInput", delegate.describedInput)
+	}
+	if input != delegate.input {
+		t.Fatalf("CallDescription input %p differs from CallStructured input %p", input, delegate.input)
+	}
+	if input.Query != "needle" || input.Options.FileFilter != "*.go" {
+		t.Fatalf("CallDescription input = %+v, want decoded invocation arguments", input)
+	}
+}
+
+func TestFormatToolPermissionRequestMarkdownIncludesDescriptionBeforeOptions(t *testing.T) {
+	description := "### Invocation details\n\nThe requested operation."
+	got := formatToolPermissionRequestMarkdown("fake.tool", "wp-test", description)
+	descriptionIndex := strings.Index(got, description)
+	allowIndex := strings.Index(got, "[Allow this invocation]")
+	if descriptionIndex < 0 || allowIndex < 0 || descriptionIndex > allowIndex {
+		t.Fatalf("permission Markdown = %q, want description before the approval options", got)
+	}
+
+	legacy := formatToolPermissionRequestMarkdown("fake.tool", "wp-test", "")
+	wantLegacy := "\n\n**Access requested for tool fake.tool**\n\n" +
+		"- [Allow this invocation](ttyphoon://ai-tool-permission?request=wp-test&decision=allow-once)\n" +
+		"- [Allow for this prompt](ttyphoon://ai-tool-permission?request=wp-test&decision=allow-prompt)\n" +
+		"- [Deny this invocation](ttyphoon://ai-tool-permission?request=wp-test&decision=deny-once)\n" +
+		"- [Deny for this prompt](ttyphoon://ai-tool-permission?request=wp-test&decision=deny-prompt)\n\n"
+	if legacy != wantLegacy {
+		t.Fatalf("permission Markdown without a description = %q, want unchanged format %q", legacy, wantLegacy)
 	}
 }
 
@@ -700,7 +781,7 @@ func TestBuildEinoConversationMessages_TrimsToMaxHistoryTurns(t *testing.T) {
 }
 
 func TestNewEinoAgentToolRejectsUnstructuredNativeTool(t *testing.T) {
-	if _, err := newEinoAgentTool(nil, &fakeAgentTool{enabled: true}); err == nil || !strings.Contains(err.Error(), "must implement StructuredTool") {
+	if _, err := newEinoAgentTool(nil, &fakeAgentTool{enabled: true}); err == nil || !strings.Contains(err.Error(), "must implement StructuredTool or JSONSchemaTool") {
 		t.Fatalf("newEinoAgentTool() error = %v, want StructuredTool requirement", err)
 	}
 }

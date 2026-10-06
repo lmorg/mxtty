@@ -96,6 +96,7 @@ type continuationCheckpoint struct {
 type einoAgentTool struct {
 	runtime         *einoRuntime
 	delegate        aitypes.Tool
+	stringInputTool aitypes.StringInputTool
 	info            *schema.ToolInfo
 	structuredInput reflect.Type
 }
@@ -108,13 +109,19 @@ func newEinoAgentTool(r *einoRuntime, t aitypes.Tool) (*einoAgentTool, error) {
 	var (
 		params          *schema.ParamsOneOf
 		structuredInput reflect.Type
+		stringInputTool aitypes.StringInputTool
 	)
-	if mcp, ok := t.(*mcpTool); ok && len(mcp.schema) > 0 {
+	if jsonSchemaTool, ok := t.(aitypes.JSONSchemaTool); ok {
+		rawSchema := jsonSchemaTool.JSONSchema()
+		if len(rawSchema) == 0 {
+			return nil, fmt.Errorf("JSON schema tool %q returned an empty schema", t.Name())
+		}
 		var js jsonschema.Schema
-		if err := json.Unmarshal(mcp.schema, &js); err != nil {
+		if err := json.Unmarshal(rawSchema, &js); err != nil {
 			return nil, fmt.Errorf("invalid schema for tool %q: %w", t.Name(), err)
 		}
 		params = schema.NewParamsOneOfByJSONSchema(&js)
+		stringInputTool = jsonSchemaTool
 	} else if structured, ok := t.(aitypes.StructuredTool); ok {
 		structuredInput = structured.InputType()
 		if structuredInput == nil {
@@ -128,12 +135,13 @@ func newEinoAgentTool(r *einoRuntime, t aitypes.Tool) (*einoAgentTool, error) {
 		}
 		params = schema.NewParamsOneOfByJSONSchema(structuredToolSchema(structuredInput))
 	} else {
-		return nil, fmt.Errorf("native tool %q must implement StructuredTool", t.Name())
+		return nil, fmt.Errorf("tool %q must implement StructuredTool or JSONSchemaTool", t.Name())
 	}
 
 	return &einoAgentTool{
 		runtime:         r,
 		delegate:        t,
+		stringInputTool: stringInputTool,
 		structuredInput: structuredInput,
 		info: &schema.ToolInfo{
 			Name:        sanitizeToolName(t.Name()),
@@ -172,7 +180,17 @@ func (t *einoAgentTool) InvokableRun(ctx context.Context, argumentsInJSON string
 	}
 
 	if t.runtime != nil && t.runtime.agent != nil {
-		if err := t.runtime.agent.RequestToolPermission(ctx, t.delegate.Name()); err != nil {
+		var describeCall func() string
+		if describer, ok := t.delegate.(aitypes.ToolCallDescriber); ok {
+			callInput := any(argumentsInJSON)
+			if structuredInput != nil {
+				callInput = structuredInput
+			}
+			describeCall = func() string {
+				return describer.CallDescription(ctx, callInput)
+			}
+		}
+		if err := t.runtime.agent.requestToolPermission(ctx, t.delegate.Name(), describeCall); err != nil {
 			emitAIStreamToolBlock(ctx, sessiondb.StreamBlockToolError, err.Error())
 			recordContinuationToolObservation(ctx, t.toolObservationForInput(argumentsInJSON, structuredInput, "", err))
 			if errors.Is(err, ErrToolPermissionRefused) {
@@ -189,8 +207,15 @@ func (t *einoAgentTool) InvokableRun(ctx context.Context, argumentsInJSON string
 	if t.structuredInput != nil {
 		output, err = t.delegate.(aitypes.StructuredTool).CallStructured(ctx, structuredInput)
 	} else {
-		// MCP tools retain their own declared object schema and JSON adapter.
-		output, err = t.delegate.Call(ctx, argumentsInJSON)
+		stringInputTool := t.stringInputTool
+		if stringInputTool == nil {
+			var ok bool
+			stringInputTool, ok = t.delegate.(aitypes.StringInputTool)
+			if !ok {
+				return "", fmt.Errorf("tool %q has no string-input adapter", t.delegate.Name())
+			}
+		}
+		output, err = stringInputTool.Call(ctx, argumentsInJSON)
 	}
 	if err != nil {
 		emitAIStreamToolBlock(ctx, sessiondb.StreamBlockToolError, err.Error())

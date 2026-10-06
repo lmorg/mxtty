@@ -13,6 +13,7 @@ import (
 	"github.com/lmorg/ttyphoon/ai/agent"
 	"github.com/lmorg/ttyphoon/ai/agent/aitypes"
 	"github.com/lmorg/ttyphoon/ai/agent/sessiondb"
+	"github.com/lmorg/ttyphoon/utils/markdownutil"
 )
 
 type Bash struct {
@@ -28,7 +29,7 @@ func init() {
 var bashDescription string
 
 func (t *Bash) New(agt aitypes.Agent) (aitypes.Tool, error) {
-	return &Bash{agent: agt, enabled: false}, nil
+	return &Bash{agent: agt, enabled: true}, nil
 }
 
 func (t *Bash) Enabled() bool { return t.enabled }
@@ -51,16 +52,20 @@ type bashInputT struct {
 func (t *Bash) InputType() reflect.Type { return reflect.TypeOf(bashInputT{}) }
 func (t *Bash) StreamsOutput() bool     { return true }
 
-func (t *Bash) Call(ctx context.Context, input string) (string, error) {
-	return t.run(ctx, input)
-}
-
 func (t *Bash) CallStructured(ctx context.Context, input any) (string, error) {
 	request, ok := input.(*bashInputT)
 	if !ok || request == nil {
 		return "", fmt.Errorf("bash received an invalid structured input %T", input)
 	}
 	return t.run(ctx, request.Script)
+}
+
+func (t *Bash) CallDescription(ctx context.Context, input any) string {
+	request, ok := input.(*bashInputT)
+	if !ok || request == nil {
+		return "Tool received an invalid structured input"
+	}
+	return markdownutil.MarkdownCodeBlock(request.Script, "bash")
 }
 
 func (t *Bash) run(ctx context.Context, script string) (string, error) {

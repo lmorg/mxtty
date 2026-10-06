@@ -99,6 +99,29 @@ func TestApplyPatchEdits(t *testing.T) {
 	}
 }
 
+func TestPatchFileCallDescriptionRendersEmbeddedTemplate(t *testing.T) {
+	patch := &patchInputT{
+		File: "src/<example>.go",
+		Edits: []patchEditT{
+			{Old: "<old> **first** |", New: "new first"},
+			{Old: "old second", New: "new second"},
+		},
+	}
+
+	description := (&PatchFile{}).CallDescription(context.Background(), patch)
+	for _, want := range []string{
+		"File: src/&lt;example&gt;\\.go",
+		"&lt;old&gt; \\*\\*first\\*\\* \\|",
+		"| + | new first |",
+		"| - | old second |",
+		"| + | new second |",
+	} {
+		if !strings.Contains(description, want) {
+			t.Errorf("CallDescription() = %q, want it to contain %q", description, want)
+		}
+	}
+}
+
 func TestResolveWorkspacePath(t *testing.T) {
 	pwd := t.TempDir()
 	agent := &pathTestAgent{projectRoot: pwd}

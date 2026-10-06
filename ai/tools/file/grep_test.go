@@ -18,7 +18,7 @@ func TestGrepCallReturnsMatchingFiles(t *testing.T) {
 	}
 
 	tool := &Grep{agent: &pathTestAgent{projectRoot: root}}
-	response, err := tool.Call(context.Background(), `{"query":"needle"}`)
+	response, err := tool.CallStructured(context.Background(), &grepInputT{Query: "needle"})
 	if err != nil {
 		t.Fatalf("Call() error = %v", err)
 	}
@@ -77,7 +77,7 @@ func TestGrepCallReturnsRequestedPage(t *testing.T) {
 	}
 
 	tool := &Grep{agent: &pathTestAgent{projectRoot: root}}
-	response, err := tool.Call(context.Background(), `{"query":"needle"}`)
+	response, err := tool.CallStructured(context.Background(), &grepInputT{Query: "needle"})
 	if err != nil {
 		t.Fatalf("Call(search) error = %v", err)
 	}
@@ -89,7 +89,7 @@ func TestGrepCallReturnsRequestedPage(t *testing.T) {
 		t.Fatalf("first page = pageCount %d pageNumber %d results %d, want 2, 1, 50", first.PageCount, first.PageNumber, len(first.Results))
 	}
 
-	response, err = tool.Call(context.Background(), `{"page":2}`)
+	response, err = tool.CallStructured(context.Background(), &grepInputT{Page: 2})
 	if err != nil {
 		t.Fatalf("Call(page): %v", err)
 	}

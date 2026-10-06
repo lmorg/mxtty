@@ -3,7 +3,6 @@ package graphtools
 import (
 	"context"
 	_ "embed"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -53,14 +52,6 @@ type createGraphInputT struct {
 	SeriesNames       []string   `json:"seriesNames,omitempty"`
 	CategoryAxisTitle string     `json:"categoryAxisTitle,omitempty"`
 	ValueAxisTitle    string     `json:"valueAxisTitle,omitempty"`
-}
-
-func (t *CreateGraph) Call(ctx context.Context, input string) (string, error) {
-	var request createGraphInputT
-	if err := json.Unmarshal([]byte(input), &request); err != nil {
-		return "", fmt.Errorf("invalid graph arguments: %w", err)
-	}
-	return t.create(ctx, &request, "")
 }
 
 func (t *CreateGraph) CallStructured(ctx context.Context, input any) (string, error) {

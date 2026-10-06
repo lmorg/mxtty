@@ -4,10 +4,9 @@ Date: 2026-09-29
 
 ## Status
 
-Accepted. Grep was the prototype; all native tools in `ai/tools/file`, jq, the
-image generator, shell tools, subagents, askUser, web tools, and dateTime now
-use the structured contract. Other native tools remain on the legacy
-string-input contract until migrated individually.
+Accepted. The base tool interface contains lifecycle and metadata only. All
+built-in native tools use structured invocation; MCP uses a separate
+JSON-schema/string-input capability.
 
 ## Context
 
@@ -20,20 +19,30 @@ remove the wrapper schema.
 
 ## Decision
 
-- Keep `aitypes.Tool.Call(context.Context, string)` for unmigrated native tools.
-- Add the optional `aitypes.StructuredTool` contract: it exposes its Go input
-  type (object, array, or scalar) and accepts the decoded typed value through
-  `CallStructured`.
+- Keep `aitypes.Tool` focused on lifecycle and metadata. It does not require an
+  invocation method, so a tool can compose only the capabilities it supports.
+- Add `aitypes.StructuredTool`: it exposes its Go input type (object, array, or
+  scalar) and accepts the decoded typed value through `CallStructured`.
+- Isolate the compatibility `Call(context.Context, string)` method in
+  `aitypes.StringInputTool`. New native tools should use `StructuredTool`
+  instead of implementing this legacy adapter.
+- Add `aitypes.JSONSchemaTool` as a composition of `StringInputTool` and a
+  declared JSON Schema. MCP tools use this capability to retain their server-
+  supplied schema and JSON argument adapter.
+- Eino accepts native `StructuredTool` implementations and `JSONSchemaTool`
+  adapters. It dispatches native calls through `CallStructured` and invokes
+  `Call` only through the explicit string-input capability.
 - Generate the Eino JSON Schema from that input type. The model sees the real
   object properties rather than a `{ "input": "..." }` wrapper.
 - Decode `argumentsInJSON` once into the declared struct before invoking the
   structured tool. A structured observation provider receives the same decoded
   value, avoiding a second input unmarshal for continuation records.
-- Keep MCP tools on their declared JSON Schema/object path, and keep existing
-  native string tools on the ADR 0030 compatibility path.
-- Migrate native tools case by case. Grep is the prototype; readFiles,
-  readDirectory, writeFile, insertLines, patchFile, jq, and generateImage now
-  use the same path.
+- Keep MCP tools on their declared JSON Schema/object path and pass their JSON
+  arguments to the MCP adapter through `JSONSchemaTool` / `StringInputTool`.
+- The native migration is complete: dateTime, readDirectory, grep, readFiles,
+  writeFile, insertLines, patchFile, createGraph, generateImage, jq, bash,
+  envVars, interactive, delegate, report, askUser, searchDuckDuckGo, and
+  scrapeWebPage all implement `StructuredTool`.
 - `interactive` accepts a `{command}` object and sends the command directly to
   the active TTY; `bash` accepts a `{script}` object and executes a temporary
   non-interactive Bash script. `envVars` uses an empty JSON object.
@@ -44,24 +53,33 @@ remove the wrapper schema.
   direction; omitting them returns the current local date and time.
 - jq accepts a structured JSON object with a query and arbitrary JSON value. The
   value is encoded to jq's stdin without an XML wrapper or lossy number decoding.
+- Add the optional `aitypes.ToolCallDescriber` contract for tools that need to
+  explain a specific invocation before user approval. It receives the same
+  decoded input as `CallStructured` or the string input passed to a
+  `StringInputTool`, and returns Markdown inserted before the approval links.
+  Tools without the contract retain the original approval prompt.
 
 ## Consequences
 
 - Structured native tools receive validated, typed fields on their first call.
 - Tool descriptions and schemas can agree on nested options and field names.
-- The migration is incremental; only tools implementing `StructuredTool` use
-  the new schema and invocation path.
-- The legacy string contract remains available but is no longer required for
-  new native tools.
+- All built-in native tools use the structured schema and invocation path; the
+  base `Tool` interface no longer forces them to implement `Call`.
+- Built-in native concrete types no longer implement the legacy `Call` method.
+  The `StringInputTool` capability remains for MCP's JSON-schema adapter.
+- Approval descriptions are optional and scoped to the invocation; they do not
+  change tool schemas or the behavior of tools without a description method.
 
 ## Reference
 
-- `ai/agent/aitypes/aitypes.go` - optional structured-tool contracts
+- `ai/agent/aitypes/aitypes.go` - composable tool and invocation contracts
 - `ai/agent/runtime_eino.go` - schema generation and single decode
+- `ai/agent/agent.go` - permission request formatting and approval flow
 - `ai/tools/file/grep.go` - prototype structured native tool
 - `ai/agent/runtime_eino_test.go` - schema and typed invocation regression
 - `ai/tools/file/observation_test.go` - grep structured invocation coverage
 - `ai/tools/image/generate.go` - structured generation/edit input
 - `ai/tools/webtools/web_tools.go` - structured web search and page scraping inputs
 - `ai/tools/shell/interactive.go` and `ai/tools/shell/bash.go` - structured shell inputs
+- `utils/markdownutil` - escaping helpers used by invocation descriptions
 - ADR 0030 - legacy native string-input compatibility

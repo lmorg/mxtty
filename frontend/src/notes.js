@@ -8,7 +8,7 @@ import {
     GetLanguageDescriptions, GetAllLanguageDescriptions, TerminalCopyImageDataURL,
     ResolveFilePath, GetHyperlinkMenuActions, RunHyperlinkMenuAction,
     DisplayHyperlinkMenu,
-    SaveImageDialog, SaveCodeDialog, WindowPrint, GetClipboardData, SwaggerRequest, NotesKeyPress,
+    SaveImageDialog, SaveCodeDialog, WindowPrint, GetClipboardData, ClipboardSetHTML, SwaggerRequest, NotesKeyPress,
     ShowCommandPalette, GetCurrentProject, GetCurrentGroupName, GetFileMetaMarkdown, AskAI, AskAIImage,
     ShowAISkillsMenu,
     GetAISessionCache,
@@ -450,8 +450,8 @@ app.innerHTML = `
         <aside id="notes-sidebar">
             <div id="notes-sidebar-header">
                 <div id="notes-title-group">
-                    <div id="notes-title">Notes</div>
-                    <div id="notes-current-file" hidden></div>
+                    <button id="notes-title" type="button" aria-haspopup="menu">Notes</button>
+                    <button id="notes-current-file" type="button" aria-haspopup="menu" title="Recent files" hidden></button>
                 </div>
                 <div id="notes-list-filter-wrap">
                     <input id="notes-list-filter" type="text" placeholder="Filter files..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
@@ -539,11 +539,12 @@ app.innerHTML = `
                     <div id="notes-tools-content" class="notes-tools-content">
                         <div id="notes-tools-ai-pane" class="notes-tools-pane" data-tab="ai" data-active="false">
                             <div class="notes-tools-pane-header">
-                                <button id="notes-tools-ai-prompt-jump" type="button" class="notes-ai-model-picker" title="Prompt">Prompt</button>
                                 <button id="notes-tools-ai-ask" type="button" class="notes-tools-clear" title="Ask AI">Ask…</button>
                                 <button id="notes-tools-ai-skills" type="button" class="notes-tools-clear" title="Ask AI with a skill">Skills</button>
-                                <button id="notes-tools-ai-maximize" type="button" class="notes-tools-clear" title="Maximize AI view">Maximize</button>
-                                <button id="notes-tools-ai-settings" type="button" class="notes-tools-clear" title="AI session management">Settings</button>
+                                <button id="notes-tools-ai-prompt-jump" type="button" class="notes-ai-model-picker" title="Prompt">Prompt</button>
+                                <button id="notes-tools-ai-session" type="button" class="notes-ai-model-picker" title="Sessions">Session</button>
+                                <button id="notes-tools-ai-settings" type="button" class="notes-tools-clear notes-tools-icon" title="AI session management" aria-label="AI session management">&#xf013;</button>
+                                <button id="notes-tools-ai-maximize" type="button" class="notes-tools-clear notes-tools-icon" title="Maximize AI view" aria-label="Maximize AI view">&#xf065;</button>
                             </div>
                             <div id="notes-ai-output" class="notes-ai-output"></div>
                             <button id="notes-ai-scroll-bottom" type="button" class="notes-ai-scroll-bottom" data-visible="false" title="Scroll to latest AI output">Latest</button>
@@ -603,13 +604,13 @@ app.innerHTML = `
                         </div>
                         <div id="notes-tools-log-pane" class="notes-tools-pane" data-tab="log" data-active="false">
                             <div class="notes-tools-pane-header">
-                                <button id="notes-tools-log-copy" type="button" class="notes-tools-clear" title="Copy log to clipboard">Copy</button>
-                                <button id="notes-tools-log-deselect" type="button" class="notes-tools-clear" title="Deselect log lines">Deselect</button>
-                                <button id="notes-tools-log-trace" type="button" class="notes-tools-clear" title="Show trace-level log lines">Trace</button>
-                                <button id="notes-tools-log-timestamp" type="button" class="notes-tools-clear" title="Toggle timestamps">Timestamp</button>
-                                <button id="notes-tools-log-wordwrap" type="button" class="notes-tools-clear" title="Toggle word wrap">Wrap</button>
-                                <button id="notes-tools-log-maximize" type="button" class="notes-tools-clear" title="Maximize log view">Maximize</button>
-                                <button id="notes-tools-log-clear" type="button" class="notes-tools-clear" title="Clear log">Clear</button>
+                                <button id="notes-tools-log-copy" type="button" class="notes-tools-clear notes-tools-icon" title="Copy log to clipboard" aria-label="Copy log to clipboard">&#xf0c5;</button>
+                                <button id="notes-tools-log-deselect" type="button" class="notes-tools-clear notes-tools-icon" title="Deselect log lines" aria-label="Deselect log lines">&#xf850;</button>
+                                <button id="notes-tools-log-trace" type="button" class="notes-tools-clear notes-tools-icon" title="Show trace-level log lines" aria-label="Show trace-level log lines">&#xf188;</button>
+                                <button id="notes-tools-log-timestamp" type="button" class="notes-tools-clear notes-tools-icon" title="Toggle timestamps" aria-label="Toggle timestamps">&#xf017;</button>
+                                <button id="notes-tools-log-wordwrap" type="button" class="notes-tools-clear notes-tools-icon" title="Toggle word wrap" aria-label="Toggle word wrap">&#x21b5;</button>
+                                <button id="notes-tools-log-clear" type="button" class="notes-tools-clear notes-tools-icon" title="Clear log" aria-label="Clear log">&#xf2ed;</button>
+                                <button id="notes-tools-log-maximize" type="button" class="notes-tools-clear notes-tools-icon" title="Maximize log view" aria-label="Maximize log view">&#xf065;</button>
                             </div>
                             <div id="notes-log-output" class="notes-log-output" style="white-space: pre; overflow-wrap: normal;"></div>
                             <button id="notes-log-scroll-bottom" type="button" class="notes-ai-scroll-bottom" data-visible="false" title="Scroll to latest log output">Latest</button>
@@ -629,8 +630,8 @@ app.innerHTML = `
             </div>
             <div id="notes-modal-body"></div>
             <div id="notes-modal-actions">
-                <button id="notes-modal-cancel" type="button">Cancel</button>
                 <button id="notes-modal-create" type="button">Create</button>
+                <button id="notes-modal-cancel" type="button">Cancel</button>
             </div>
         </div>
     </div>
@@ -639,8 +640,8 @@ app.innerHTML = `
             <div id="notes-delete-modal-title">Delete note</div>
             <div id="notes-delete-modal-body"></div>
             <div id="notes-delete-modal-actions">
-                <button id="notes-delete-cancel" type="button">Cancel</button>
                 <button id="notes-delete-confirm" type="button">Delete</button>
+                <button id="notes-delete-cancel" type="button">Cancel</button>
             </div>
         </div>
     </div>
@@ -667,12 +668,14 @@ app.innerHTML = `
             <p>Create, switch, clear, or delete sessions for this workspace.</p>
             <div class="notes-ai-settings-controls">
                 <button id="notes-ai-settings-session-new" type="button">New session</button>
-                <button id="notes-ai-settings-history-clear" type="button">Clear active history</button>
             </div>
             <div id="notes-ai-settings-sessions-list" class="notes-ai-settings-sessions-list"></div>
 
             <h2>Active Session Transcript</h2>
             <p>Recent prompts and responses from the active session.</p>
+            <div class="notes-ai-settings-controls">
+                <button id="notes-ai-settings-history-clear" type="button">Clear active history</button>
+            </div>
             <div id="notes-ai-settings-history-list" class="notes-ai-settings-history-list"></div>
 
             <div id="notes-ai-tool-meta-modal" data-open="false" aria-hidden="true">
@@ -787,6 +790,7 @@ const elements = {
     toolsAIAsk: document.getElementById('notes-tools-ai-ask'),
     toolsAISkills: document.getElementById('notes-tools-ai-skills'),
     toolsAISettings: document.getElementById('notes-tools-ai-settings'),
+    toolsAISession: document.getElementById('notes-tools-ai-session'),
     aiOutput: document.getElementById('notes-ai-output'),
     aiScrollBottom: document.getElementById('notes-ai-scroll-bottom'),
     aiSettingsModal: document.getElementById('notes-ai-settings-modal'),
@@ -3945,6 +3949,25 @@ function notesGraphField(labelText) {
     return { field, label };
 }
 
+function setNotesModalTitle(text, markdownHeading = false) {
+    const title = elements.modal.querySelector('#notes-modal-title');
+    title.classList.toggle('markdown-body', markdownHeading);
+    title.classList.toggle('notes-graph-title', markdownHeading);
+    if (!markdownHeading) {
+        title.textContent = text;
+        return;
+    }
+
+    setMarkdownModalHeading(title, text);
+}
+
+function setMarkdownModalHeading(container, text) {
+    container.classList.add('markdown-body');
+    const heading = document.createElement('h3');
+    heading.textContent = text;
+    container.replaceChildren(heading);
+}
+
 function openNotesTableGraphPrompt(table) {
     const headings = Array.from(table.querySelectorAll('thead th')).map((cell) => getTableCellTextContent(cell));
     if (headings.length < 2) {
@@ -3970,6 +3993,7 @@ function openNotesTableGraphPrompt(table) {
         type: existing?.type || 'line',
         title: existing?.title || '',
         selectedColumns,
+        columnQuery: '',
         selectedRows: savedRows.length > 0 ? new Set(savedRows) : null,
         rowQuery: '',
         rowLimit: notesGraphRowPageSize,
@@ -3990,7 +4014,7 @@ function openNotesTableGraphPrompt(table) {
     elements.modalLocationRow.style.display = 'none';
     elements.modalBody.style.display = 'flex';
     elements.modalInput.value = '';
-    elements.modal.querySelector('#notes-modal-title').textContent = 'Create graph';
+    setNotesModalTitle('Create graph', true);
     elements.modalCreate.textContent = 'Create graph';
     elements.modalBody.replaceChildren();
 
@@ -4023,7 +4047,7 @@ function openNotesTableGraphPrompt(table) {
     const titleField = notesGraphField('Title');
     const titleInput = document.createElement('input');
     titleInput.type = 'text';
-    titleInput.className = 'notes-graph-text';
+    titleInput.className = 'notes-graph-text-title';
     titleInput.value = prompt.title;
     titleInput.placeholder = 'Optional chart title';
     titleInput.addEventListener('input', () => { prompt.title = titleInput.value; });
@@ -4047,14 +4071,27 @@ function openNotesTableGraphPrompt(table) {
     });
     columnActions.appendChild(selectAllColumns);
     columnsField.field.appendChild(columnActions);
+    const columnSearch = document.createElement('input');
+    columnSearch.type = 'search';
+    columnSearch.className = 'notes-graph-text';
+    columnSearch.placeholder = 'Find columns…';
+    columnSearch.addEventListener('input', () => {
+        prompt.columnQuery = columnSearch.value.trim().toLowerCase();
+        renderColumns();
+    });
+    columnsField.field.appendChild(columnSearch);
     const columnsList = document.createElement('div');
-    columnsList.className = 'notes-graph-options-list';
+    columnsList.className = 'notes-graph-options-list markdown-body';
     columnsField.field.appendChild(columnsList);
     form.appendChild(columnsField.field);
 
     const renderColumns = () => {
         columnsList.replaceChildren();
         headings.forEach((heading, index) => {
+            const columnName = heading || `Column ${index + 1}`;
+            if (prompt.columnQuery && !`${index + 1} ${columnName}`.toLowerCase().includes(prompt.columnQuery)) {
+                return;
+            }
             const option = document.createElement('label');
             option.className = 'notes-graph-option';
             const checkbox = document.createElement('input');
@@ -4065,7 +4102,7 @@ function openNotesTableGraphPrompt(table) {
                 else prompt.selectedColumns.delete(index);
             });
             const text = document.createElement('span');
-            text.textContent = heading || `Column ${index + 1}`;
+            text.textContent = columnName;
             option.append(checkbox, text);
             columnsList.appendChild(option);
         });
@@ -4104,7 +4141,7 @@ function openNotesTableGraphPrompt(table) {
     });
     rowsField.field.appendChild(rowSearch);
     prompt.rowList = document.createElement('div');
-    prompt.rowList.className = 'notes-graph-options-list notes-graph-row-list';
+    prompt.rowList.className = 'notes-graph-options-list markdown-body';
     rowsField.field.appendChild(prompt.rowList);
     form.appendChild(rowsField.field);
 
@@ -4209,6 +4246,7 @@ function finishNotesTableGraphPrompt(spec) {
     elements.modalBody.style.display = 'none';
     elements.modalBody.replaceChildren();
     elements.modalInput.placeholder = 'example-note';
+    setNotesModalTitle('New note name');
     elements.modal.dataset.open = 'false';
     elements.modal.setAttribute('aria-hidden', 'true');
     handler(spec);
@@ -4428,7 +4466,6 @@ function createClearTableSortMenuItem(table) {
         icon: 0,
         onSelect: () => {
             void clearNotesTableSort(table);
-            clearTableHighlight(table);
         },
     };
 }
@@ -6851,7 +6888,6 @@ function emitCurrentFileName() {
     app.dataset.currentFileName = fileName;
     elements.currentFileTitle.textContent = fileName;
     elements.currentFileTitle.hidden = !fileName;
-    elements.currentFileTitle.title = fileName;
     window.dispatchEvent(new CustomEvent('notes-current-file', {
         detail: { fileName }
     }));
@@ -7876,6 +7912,25 @@ async function refreshFiles(options = {}) {
         console.error(err);
     }
 }
+
+function openWorkspaceWindowMenu(event) {
+    const tabs = Array.from(document.querySelectorAll('#terminal-tabs .terminal-tab[data-window-id]'))
+        .filter((tab) => tab.dataset.windowId && tab.textContent.trim());
+    if (tabs.length === 0) {
+        return;
+    }
+
+    showLocalMenu({
+        title: 'Choose a window',
+        options: tabs.map((tab) => tab.textContent.trim()),
+        x: event.clientX,
+        y: event.clientY,
+        showNextToMouseCursor: true,
+        onSelect: (index) => tabs[index]?.click(),
+    });
+}
+
+elements.title.addEventListener('click', openWorkspaceWindowMenu);
 
 async function loadProjectCache(options = {}) {
     try {
@@ -9755,7 +9810,7 @@ function openDeletePrompt(file) {
     state.deleteConfirmAction = null;
     const fileName = getPathFileName(file);
     if (elements.deleteModalTitle) {
-        elements.deleteModalTitle.textContent = 'Delete note';
+        setMarkdownModalHeading(elements.deleteModalTitle, 'Delete note');
     }
     elements.deleteConfirm.textContent = 'Delete';
     elements.deleteModalBody.textContent = `Are you sure you want to delete "${fileName}"?`;
@@ -9772,7 +9827,7 @@ function openConfirmPrompt({ title = 'Confirm', body = 'Are you sure?', confirmL
     state.deletingFile = null;
     state.deleteConfirmAction = typeof onConfirm === 'function' ? onConfirm : null;
     if (elements.deleteModalTitle) {
-        elements.deleteModalTitle.textContent = title;
+        setMarkdownModalHeading(elements.deleteModalTitle, title);
     }
     elements.deleteConfirm.textContent = confirmLabel;
     elements.deleteModalBody.textContent = body;
@@ -10968,7 +11023,7 @@ function openNewFilePrompt() {
     elements.modalInput.value = '';
     elements.modalLocation.textContent = '$NOTES';
     elements.modalLocation.style.display = '';
-    elements.modal.querySelector('#notes-modal-title').textContent = 'New note name';
+    setNotesModalTitle('New note name', true);
     elements.modalCreate.textContent = 'Create';
     setTimeout(() => {
         elements.modalInput.focus();
@@ -10996,7 +11051,7 @@ async function openRenamePrompt(file) {
     elements.modalLocation.textContent = location;
     elements.modalLocation.style.display = '';
     elements.modalInput.value = name;
-    elements.modal.querySelector('#notes-modal-title').textContent = 'Rename note';
+    setNotesModalTitle('Rename note', true);
     elements.modalCreate.textContent = 'Rename';
     setTimeout(() => {
         elements.modalInput.focus();
@@ -11029,7 +11084,7 @@ function openTextPrompt({ title = 'Enter value', value = '', confirmLabel = 'OK'
         elements.modalLocation.style.display = 'none';
         elements.modalInput.value = value;
         elements.modalInput.placeholder = placeholder;
-        elements.modal.querySelector('#notes-modal-title').textContent = title;
+        setNotesModalTitle(title);
         elements.modalCreate.textContent = confirmLabel;
         setTimeout(() => {
             elements.modalInput.focus();
@@ -11939,6 +11994,82 @@ function openAIPromptJumpMenu() {
     });
 }
 
+function activateAISession(sessionId) {
+    const id = Number(sessionId) || 0;
+    if (id <= 0) {
+        return;
+    }
+
+    SetActiveAISession(id).then((sessionState) => {
+        applyAISessionManagement(sessionState);
+        renderAISessionManagement();
+        void loadAISessionCache('');
+    }).catch((err) => {
+        notifyTerminal('Failed to switch AI session', 'error');
+        console.error(err);
+    });
+}
+
+function createNewAISession() {
+    CreateAISession().then((sessionState) => {
+        applyAISessionManagement(sessionState);
+        renderAISessionManagement();
+        void loadAISessionCache('');
+        notifyTerminal('AI session created', 'info');
+    }).catch((err) => {
+        notifyTerminal('Failed to create AI session', 'error');
+        console.error(err);
+    });
+}
+
+async function openAISessionMenu() {
+    if (!elements.toolsAISession) {
+        return;
+    }
+
+    try {
+        applyAISessionManagement(await GetAISessionManagement());
+    } catch (err) {
+        notifyTerminal('Failed to load AI sessions', 'error');
+        console.error(err);
+        return;
+    }
+
+    const sessions = Array.isArray(state.aiSessionManagement?.sessions)
+        ? state.aiSessionManagement.sessions
+        : [];
+    const items = [{
+        title: 'New session',
+        icon: CONTEXT_ICON_ADD,
+        onSelect: createNewAISession,
+    }];
+
+    if (sessions.length > 0) {
+        items.push({ title: '-', icon: 0 });
+    }
+
+    items.push(...sessions.map((session) => {
+        const sessionId = Number(session?.tableId) || 0;
+        const isActive = session?.active === true || sessionId === state.aiSessionManagement.activeSessionId;
+        return {
+            title: String(session?.summary || `Session ${sessionId}`),
+            icon: isActive ? CONTEXT_ICON_TICK : 0,
+            onSelect: () => activateAISession(sessionId),
+        };
+    }));
+
+    const rect = elements.toolsAISession.getBoundingClientRect();
+    showLocalMenu({
+        title: 'Sessions',
+        options: items.map((item) => item.title),
+        icons: items.map((item) => item.icon),
+        x: rect.left,
+        y: rect.bottom,
+        showNextToMouseCursor: true,
+        onSelect: (index) => items[index]?.onSelect?.(),
+    });
+}
+
 function initAIPromptJumpObserver() {
     if (!elements.aiOutput || aiPromptJumpObserver) {
         return;
@@ -12408,17 +12539,24 @@ function showNotesLocalMenu(menuItems, x, y, title = 'Select an action', onHighl
     });
 }
 
-function extractTableData(table) {
+function extractTableData(table, options = {}) {
     const getCellContent = (cell) => {
-        // Try to get content from the wrapped span (excludes cell refs)
-        const wrap = cell.querySelector('.notes-table-cell-wrap > span:first-child');
-        if (wrap) return String(wrap.textContent || '').trim();
-        // Otherwise exclude sort icons and cell refs from childNodes
-        return Array.from(cell.childNodes)
-            .filter(n => !n.classList?.contains('notes-sort-icon') && !n.classList?.contains('notes-cellref'))
-            .map(n => n.textContent)
-            .join('')
-            .trim();
+        const source = cell.querySelector('.notes-table-cell-wrap > span:first-child') || cell;
+        const clone = source.cloneNode(true);
+        clone.querySelectorAll('.notes-sort-icon, .notes-table-col-resize-handle, .notes-cellref').forEach((node) => node.remove());
+
+        const breaks = [];
+        clone.querySelectorAll('br').forEach((lineBreak, index) => {
+            const marker = `\uE000NOTES_BR_${index}\uE001`;
+            breaks.push(marker);
+            lineBreak.replaceWith(document.createTextNode(marker));
+        });
+
+        let text = String(clone.textContent || '').trim();
+        breaks.forEach((marker) => {
+            text = text.replaceAll(marker, options.preserveBreakTags ? '<br/>' : '\n');
+        });
+        return text;
     };
 
     const rows = [];
@@ -12426,7 +12564,7 @@ function extractTableData(table) {
     if (headerRow) {
         rows.push(Array.from(headerRow.querySelectorAll('th, td')).map(cell => getCellContent(cell)));
     }
-    Array.from(table.querySelectorAll('tbody tr')).forEach(tr => {
+    Array.from(table.querySelectorAll('tbody tr:not(.notes-table-row-filtered)')).forEach(tr => {
         rows.push(Array.from(tr.querySelectorAll('td, th')).map(cell => getCellContent(cell)));
     });
     return rows;
@@ -12446,6 +12584,23 @@ function tableDataToMarkdown(rows) {
     return [headerLine, separatorLine, ...bodyLines].join('\n');
 }
 
+function tableDataToHtml(table) {
+    const copy = table.cloneNode(true);
+    copy.querySelectorAll('tbody tr.notes-table-row-filtered').forEach((row) => row.remove());
+    copy.querySelectorAll('.notes-sort-icon, .notes-table-col-resize-handle, .notes-cellref').forEach((node) => node.remove());
+    copy.querySelectorAll('.notes-table-cell-wrap').forEach((wrap) => {
+        const content = wrap.querySelector(':scope > span:first-child');
+        if (content) {
+            wrap.replaceWith(...Array.from(content.childNodes));
+        }
+    });
+    copy.querySelectorAll('[contenteditable], [data-formula]').forEach((node) => {
+        node.removeAttribute('contenteditable');
+        node.removeAttribute('data-formula');
+    });
+    return copy.outerHTML;
+}
+
 function createTableCopyMenuItems(table) {
     return [
         {
@@ -12460,71 +12615,19 @@ function createTableCopyMenuItems(table) {
             title: 'Copy table (Markdown)',
             icon: CONTEXT_ICON_COPY,
             onSelect: () => {
-                const data = extractTableData(table);
+                const data = extractTableData(table, { preserveBreakTags: true });
                 copyTextToClipboard(tableDataToMarkdown(data));
             },
         },
+        {
+            title: 'Copy table (HTML)',
+            icon: CONTEXT_ICON_COPY,
+            onSelect: () => {
+                const plainText = tableDataToCsv(extractTableData(table));
+                ClipboardSetHTML(tableDataToHtml(table), plainText).catch(() => {});
+            },
+        },
     ];
-}
-
-function highlightTableRow(table, rowIndex, isHighlighted) {
-    const rows = table.querySelectorAll('tr');
-    if (rowIndex < 0 || rowIndex >= rows.length) return;
-    const row = rows[rowIndex];
-    if (isHighlighted) {
-        row.style.backgroundColor = 'var(--accent)';
-        row.style.color = 'var(--bg)';
-    } else {
-        row.style.backgroundColor = '';
-        row.style.color = '';
-    }
-}
-
-function highlightTableColumn(table, colIndex, isHighlighted) {
-    table.querySelectorAll('tr').forEach(row => {
-        const cell = row.children[colIndex];
-        if (cell) {
-            if (isHighlighted) {
-                cell.style.backgroundColor = 'var(--accent)';
-                cell.style.color = 'var(--bg)';
-            } else {
-                cell.style.backgroundColor = '';
-                cell.style.color = '';
-            }
-        }
-    });
-}
-
-function clearTableHighlight(table) {
-    table.querySelectorAll('tr').forEach(r => {
-        r.style.backgroundColor = '';
-        r.style.color = '';
-        r.querySelectorAll('td, th').forEach(c => {
-            c.style.backgroundColor = '';
-            c.style.color = '';
-        });
-    });
-}
-
-function highlightEntireTable(table, isHighlighted) {
-    table.querySelectorAll('tr').forEach(row => {
-        if (isHighlighted) {
-            row.style.backgroundColor = 'var(--accent)';
-            row.style.color = 'var(--bg)';
-        } else {
-            row.style.backgroundColor = '';
-            row.style.color = '';
-        }
-        row.querySelectorAll('td, th').forEach(cell => {
-            if (isHighlighted) {
-                cell.style.backgroundColor = 'var(--accent)';
-                cell.style.color = 'var(--bg)';
-            } else {
-                cell.style.backgroundColor = '';
-                cell.style.color = '';
-            }
-        });
-    });
 }
 
 function getCellPosition(target, table) {
@@ -12717,23 +12820,7 @@ function initAIOutputContextMenu(container) {
             ...wordWrapItems,
         ];
 
-        let highlightCallback = null;
-        let cancelCallback = null;
-        if (table && container.contains(table)) {
-            highlightCallback = (itemIndex) => {
-                const item = menuItems[itemIndex];
-                if (!item) {
-                    return;
-                }
-                clearTableHighlight(table);
-                if (item.title === 'Clear sorting' || item.title.startsWith('SQL filter') || item.title.toLowerCase().includes('copy table') || item.title.toLowerCase().includes('word wrap table')) {
-                    highlightEntireTable(table, true);
-                }
-            };
-            cancelCallback = () => clearTableHighlight(table);
-        }
-
-        showNotesLocalMenu(menuItems, e.clientX, e.clientY, 'Select an action', highlightCallback, cancelCallback);
+        showNotesLocalMenu(menuItems, e.clientX, e.clientY);
     });
 }
 
@@ -12897,44 +12984,7 @@ function initRenderedNotesContextMenu(container, viewMode) {
             createPrintMenuItem('Print'),
         ];
 
-        // Set up highlight callback for table row/column items if table exists
-        let highlightCallback = null;
-        let cancelCallback = null;
-        if (table) {
-            if (isRunMode) {
-                const pos = getCellPosition(e.target, table);
-                if (pos) {
-                    highlightCallback = (itemIndex) => {
-                        const item = allMenuItems[itemIndex];
-                        if (!item) return;
-                        // Unhighlight all first
-                        clearTableHighlight(table);
-                        // Highlight based on item title
-                        if (item.title === 'Clear sorting' || item.title.startsWith('SQL filter') || item.title.toLowerCase().includes('copy table')) {
-                            highlightEntireTable(table, true);
-                        } else if (item.title.includes('row') && !item.title.includes('column')) {
-                            highlightTableRow(table, pos.row, true);
-                        } else if (item.title.includes('column')) {
-                            highlightTableColumn(table, pos.col, true);
-                        }
-                    };
-                    cancelCallback = () => clearTableHighlight(table);
-                }
-            } else {
-                // Enable highlight for copy table items even when not in Run mode
-                highlightCallback = (itemIndex) => {
-                    const item = allMenuItems[itemIndex];
-                    if (!item) return;
-                    clearTableHighlight(table);
-                    if (item.title === 'Clear sorting' || item.title.startsWith('SQL filter') || item.title.toLowerCase().includes('copy table')) {
-                        highlightEntireTable(table, true);
-                    }
-                };
-                cancelCallback = () => clearTableHighlight(table);
-            }
-        }
-
-        showNotesLocalMenu(allMenuItems, e.clientX, e.clientY, 'Select an action', highlightCallback, cancelCallback);
+        showNotesLocalMenu(allMenuItems, e.clientX, e.clientY);
     });
 }
 
@@ -13955,6 +14005,11 @@ if (elements.toolsAIPromptJump) {
         openAIPromptJumpMenu();
     });
 }
+if (elements.toolsAISession) {
+    elements.toolsAISession.addEventListener('click', () => {
+        void openAISessionMenu();
+    });
+}
 if (elements.aiSettingsModelPicker) {
     elements.aiSettingsModelPicker.addEventListener('click', () => {
         openAIModelPickerMenu();
@@ -14067,14 +14122,7 @@ if (elements.aiSettingsSessionsList) {
                 return; // Don't activate if clicking a button inside the item
             }
 
-            SetActiveAISession(sessionId).then((sessionState) => {
-                applyAISessionManagement(sessionState);
-                renderAISessionManagement();
-                void loadAISessionCache('');
-            }).catch((err) => {
-                notifyTerminal('Failed to switch AI session', 'error');
-                console.error(err);
-            });
+            activateAISession(sessionId);
             return;
         }
     });
@@ -14105,15 +14153,7 @@ if (elements.aiSettingsHistoryList) {
 }
 if (elements.aiSettingsSessionNew) {
     elements.aiSettingsSessionNew.addEventListener('click', () => {
-        CreateAISession().then((sessionState) => {
-            applyAISessionManagement(sessionState);
-            renderAISessionManagement();
-            void loadAISessionCache('');
-            notifyTerminal('AI session created', 'info');
-        }).catch((err) => {
-            notifyTerminal('Failed to create AI session', 'error');
-            console.error(err);
-        });
+        createNewAISession();
     });
 }
 if (elements.aiSettingsModal) {
@@ -15322,41 +15362,7 @@ elements.csvView.addEventListener('contextmenu', (e) => {
 
     menuItems.push({ title: '-' }, createAskAIDocumentMenuItem());
 
-    let highlightCallback = null;
-    let cancelCallback = null;
-    if (isRunMode) {
-        const pos = getCellPosition(e.target, table);
-        if (pos) {
-            highlightCallback = (itemIndex) => {
-                const item = menuItems[itemIndex];
-                if (!item) return;
-                // Unhighlight all first
-                clearTableHighlight(table);
-                // Highlight based on item title
-                if (item.title.toLowerCase().includes('copy table')) {
-                    highlightEntireTable(table, true);
-                } else if (item.title.includes('row') && !item.title.includes('column')) {
-                    highlightTableRow(table, pos.row, true);
-                } else if (item.title.includes('column')) {
-                    highlightTableColumn(table, pos.col, true);
-                }
-            };
-            cancelCallback = () => clearTableHighlight(table);
-        }
-    } else {
-        // Enable highlight for copy table items even when not in Run mode
-        highlightCallback = (itemIndex) => {
-            const item = menuItems[itemIndex];
-            if (!item) return;
-            clearTableHighlight(table);
-            if (item.title.toLowerCase().includes('copy table')) {
-                highlightEntireTable(table, true);
-            }
-        };
-        cancelCallback = () => clearTableHighlight(table);
-    }
-
-    showNotesLocalMenu(menuItems, e.clientX, e.clientY, 'Select an action', highlightCallback, cancelCallback);
+    showNotesLocalMenu(menuItems, e.clientX, e.clientY);
 });
 initStructuredDataTreeContextMenu(elements.swaggerView, {
     isActive: () => state.viewMode === 'swagger-view',
@@ -15426,41 +15432,51 @@ elements.tabMeta.addEventListener('click', () => {
     setViewMode('meta');
 });
 
+async function openRecentFilesMenu(x, y) {
+    try {
+        const recentFiles = await NotesRecentFiles();
+        const files = Array.isArray(recentFiles) ? recentFiles : [];
+        if (files.length === 0) {
+            setStatus('No recent files', false);
+            return;
+        }
+
+        const menuItems = files.map((file) => ({
+            title: file,
+            icon: file === state.currentFile ? CONTEXT_ICON_TICK : 0,
+            onSelect: () => {
+                NotesHistoryAdd(file).catch(() => {});
+                loadFile(file).catch((err) => {
+                    notifyTerminal(`Failed to load file: ${file}`, 'warn');
+                    console.error(err);
+                });
+            },
+        }));
+
+        showNotesLocalMenu(menuItems, x, y, 'Recent files');
+    } catch {
+        setStatus('Failed to open recent files menu', true);
+    }
+}
+
+elements.currentFileTitle.addEventListener('click', (event) => {
+    event.preventDefault();
+    if (event.detail === 0) {
+        const rect = elements.currentFileTitle.getBoundingClientRect();
+        void openRecentFilesMenu(rect.left, rect.bottom);
+        return;
+    }
+    void openRecentFilesMenu(event.clientX, event.clientY);
+});
+
 if (elements.status) {
     elements.status.title = 'Recent files';
     elements.status.tabIndex = 0;
     elements.status.setAttribute('role', 'button');
 
-    const openRecentFilesMenu = async (x, y) => {
-        try {
-            const recentFiles = await NotesRecentFiles();
-            const files = Array.isArray(recentFiles) ? recentFiles : [];
-            if (files.length === 0) {
-                setStatus('No recent files', false);
-                return;
-            }
-
-            const menuItems = files.map((file) => ({
-                title: file,
-                icon: file === state.currentFile ? CONTEXT_ICON_TICK : 0,
-                onSelect: () => {
-                    NotesHistoryAdd(file).catch(() => {});
-                    loadFile(file).catch((err) => {
-                        notifyTerminal(`Failed to load file: ${file}`, 'warn');
-                        console.error(err);
-                    });
-                },
-            }));
-
-            showNotesLocalMenu(menuItems, x, y, 'Recent files');
-        } catch {
-            setStatus('Failed to open recent files menu', true);
-        }
-    };
-
     elements.status.addEventListener('click', (event) => {
         event.preventDefault();
-        openRecentFilesMenu(event.clientX, event.clientY);
+        void openRecentFilesMenu(event.clientX, event.clientY);
     });
 
     elements.status.addEventListener('keydown', (event) => {
@@ -15470,7 +15486,7 @@ if (elements.status) {
 
         event.preventDefault();
         const rect = elements.status.getBoundingClientRect();
-        openRecentFilesMenu(rect.left, rect.bottom);
+        void openRecentFilesMenu(rect.left, rect.bottom);
     });
 }
 
@@ -15543,6 +15559,12 @@ elements.newFile.addEventListener('click', () => {
 
 elements.modalCancel.addEventListener('click', () => {
     closeNewFilePrompt();
+});
+
+elements.modal.addEventListener('click', (event) => {
+    if (event.target === elements.modal) {
+        closeNewFilePrompt();
+    }
 });
 
 elements.modalCreate.addEventListener('click', () => {

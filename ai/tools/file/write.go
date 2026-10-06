@@ -1,16 +1,19 @@
 package filetools
 
 import (
+	"bytes"
 	"context"
 	_ "embed"
 	"fmt"
 	"os"
 	"reflect"
+	"text/template"
 
 	"github.com/lmorg/ttyphoon/ai/agent"
 	"github.com/lmorg/ttyphoon/ai/agent/aitypes"
 	"github.com/lmorg/ttyphoon/debug"
 	"github.com/lmorg/ttyphoon/types"
+	"github.com/lmorg/ttyphoon/utils/markdownutil"
 	"golang.org/x/tools/txtar"
 )
 
@@ -25,6 +28,11 @@ func init() {
 
 //go:embed write_description.md
 var writeFileDescription string
+
+//go:embed write_auth_desc.md
+var writeFileAuthDescription string
+
+var writeFileAuthDescriptionTemplate = template.Must(template.New("write-file-auth-description").Funcs(markdownutil.TemplateFuncMap()).Parse(writeFileAuthDescription))
 
 func (t *Write) New(agent aitypes.Agent) (aitypes.Tool, error) {
 	return &Write{agent: agent, enabled: true}, nil
@@ -54,7 +62,22 @@ func (t *Write) CallStructured(ctx context.Context, input any) (string, error) {
 	if !ok || request == nil {
 		return "", fmt.Errorf("writeFile received an invalid structured input %T", input)
 	}
-	return t.Call(ctx, request.Archive)
+	return t.writeFiles(ctx, request.Archive)
+}
+
+func (t *Write) CallDescription(_ context.Context, input any) string {
+	request, ok := input.(*writeFileInputT)
+	if !ok || request == nil {
+		return "Tool received an invalid structured input"
+	}
+
+	arc := txtar.Parse([]byte(request.Archive))
+
+	var description bytes.Buffer
+	if err := writeFileAuthDescriptionTemplate.Execute(&description, arc); err != nil {
+		return fmt.Sprintf("Unable to render description: %v", err)
+	}
+	return description.String()
 }
 
 func (t *Write) ObservationStructured(input any, output string, err error) aitypes.ToolObservation {
@@ -65,7 +88,7 @@ func (t *Write) ObservationStructured(input any, output string, err error) aityp
 	return t.observation(request.Archive, output, err)
 }
 
-func (t *Write) Call(ctx context.Context, input string) (string, error) {
+func (t *Write) writeFiles(_ context.Context, input string) (string, error) {
 	debug.Log(input)
 
 	var result string

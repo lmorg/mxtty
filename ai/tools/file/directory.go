@@ -68,10 +68,6 @@ type directoryInputT struct {
 	Filter string `json:"filter,omitempty"`
 }
 
-func (t *Directory) Call(ctx context.Context, input string) (response string, err error) {
-	return t.callFilter(ctx, input)
-}
-
 func (t *Directory) CallStructured(ctx context.Context, input any) (string, error) {
 	request, ok := input.(*directoryInputT)
 	if !ok || request == nil {

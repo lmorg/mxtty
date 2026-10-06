@@ -5,13 +5,11 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"log"
 	"reflect"
 	"sync"
 
 	"github.com/lmorg/ttyphoon/ai/agent"
 	"github.com/lmorg/ttyphoon/ai/agent/aitypes"
-	"github.com/lmorg/ttyphoon/debug"
 	"github.com/lmorg/ttyphoon/utils/grep"
 )
 
@@ -73,25 +71,6 @@ type grepReturnT struct {
 	PageCount  int            `json:"pageCount"`
 	PageNumber int            `json:"pageNumber"`
 	Error      string         `json:"error"`
-}
-
-func (t *Grep) Call(ctx context.Context, input string) (response string, err error) {
-	if debug.Trace {
-		log.Printf("Agent tool '%s' input:\n%s", t.Name(), input)
-		defer func() {
-			log.Printf("Agent tool '%s' response:\n%s", t.Name(), response)
-			log.Printf("Agent tool '%s' error: %v", t.Name(), err)
-		}()
-	}
-
-	log.Printf("[debug] agent: tool=grep input=%s\n", input)
-
-	inputT := new(grepInputT)
-	err = json.Unmarshal([]byte(input), inputT)
-	if err != nil {
-		return err.Error(), nil
-	}
-	return t.callInput(ctx, inputT)
 }
 
 func (t *Grep) CallStructured(ctx context.Context, input any) (string, error) {

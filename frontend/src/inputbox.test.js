@@ -53,6 +53,8 @@ describe('inputbox', () => {
             history: ['notes.txt', 'archive.txt'],
         });
 
+        expect(document.querySelector('#inputbox-title h3')?.textContent).toBe('Rename file');
+        expect(document.getElementById('inputbox-title').classList.contains('markdown-body')).toBe(true);
         const input = document.querySelector('.inputbox-input');
         const historyButton = document.getElementById('inputbox-history-btn');
 

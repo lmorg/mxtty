@@ -84,11 +84,6 @@ func (t *DuckDuckGoSearch) DefaultPermissions() aitypes.DefaultPermissions {
 
 func (t *DuckDuckGoSearch) InputType() reflect.Type { return reflect.TypeOf(duckDuckGoInputT{}) }
 
-func (t *DuckDuckGoSearch) Call(ctx context.Context, input string) (string, error) {
-	query := strings.TrimSpace(input)
-	return t.search(ctx, query)
-}
-
 func (t *DuckDuckGoSearch) CallStructured(ctx context.Context, input any) (string, error) {
 	request, ok := input.(*duckDuckGoInputT)
 	if !ok || request == nil {
@@ -205,14 +200,6 @@ func (t *WebScrapePage) DefaultPermissions() aitypes.DefaultPermissions {
 
 func (t *WebScrapePage) InputType() reflect.Type { return reflect.TypeOf(webScrapeInputT{}) }
 
-func (t *WebScrapePage) Call(ctx context.Context, input string) (string, error) {
-	pageURL, err := parseURLInput(input)
-	if err != nil {
-		return "", err
-	}
-	return t.fetchPage(ctx, pageURL)
-}
-
 func (t *WebScrapePage) CallStructured(ctx context.Context, input any) (string, error) {
 	request, ok := input.(*webScrapeInputT)
 	if !ok || request == nil {
@@ -278,30 +265,6 @@ func (t *WebScrapePage) ObservationStructured(input any, output string, err erro
 		observation.Summary = firstWebLine(output)
 	}
 	return observation
-}
-
-func parseURLInput(input string) (string, error) {
-	raw := strings.TrimSpace(input)
-	if raw == "" {
-		return "", fmt.Errorf("input URL cannot be empty")
-	}
-
-	type payload struct {
-		URL string `json:"url"`
-	}
-
-	if strings.HasPrefix(raw, "{") {
-		var v payload
-		if err := json.Unmarshal([]byte(raw), &v); err != nil {
-			return "", fmt.Errorf("invalid JSON input: %w", err)
-		}
-		raw = strings.TrimSpace(v.URL)
-		if raw == "" {
-			return "", fmt.Errorf("input JSON must contain non-empty url")
-		}
-	}
-
-	return validateWebURL(raw)
 }
 
 func validateWebURL(raw string) (string, error) {

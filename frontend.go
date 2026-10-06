@@ -2543,6 +2543,20 @@ type ClipboardData struct {
 	Image string `json:"image"`
 }
 
+func (a *WApp) ClipboardSetHTML(html, plainText string) error {
+	_, err := clipboard.WriteAll(context.Background(),
+		clipboard.Item{
+			Format: clipboard.Register("text/html"),
+			Bytes:  []byte(html),
+		},
+		clipboard.Item{
+			Format: clipboard.FmtText,
+			Bytes:  []byte(plainText),
+		},
+	)
+	return err
+}
+
 func (a *WApp) GetFileMetaMarkdown(filename string) string {
 	return meta.DocumentForPath(a.filePath(filename))
 }

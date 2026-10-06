@@ -26,6 +26,10 @@ export function ClearAISessionHistory() {
   return window['go']['main']['WApp']['ClearAISessionHistory']();
 }
 
+export function ClipboardSetHTML(arg1, arg2) {
+  return window['go']['main']['WApp']['ClipboardSetHTML'](arg1, arg2);
+}
+
 export function CloseNotification(arg1) {
   return window['go']['main']['WApp']['CloseNotification'](arg1);
 }

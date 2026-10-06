@@ -12,6 +12,7 @@ import (
 	"github.com/lmorg/ttyphoon/ai/agent/aitypes"
 	"github.com/lmorg/ttyphoon/debug"
 	"github.com/lmorg/ttyphoon/types"
+	"github.com/lmorg/ttyphoon/utils/markdownutil"
 )
 
 type Interactive struct {
@@ -54,11 +55,6 @@ func (t *Interactive) shellName() string {
 	return t.term.GetEnvVars()["SHELL"]
 }
 
-func (t *Interactive) Call(ctx context.Context, input string) (string, error) {
-	debug.Log(input)
-	return t.run(input)
-}
-
 func (t *Interactive) CallStructured(_ context.Context, input any) (string, error) {
 	request, ok := input.(*interactiveInputT)
 	if !ok || request == nil {
@@ -66,6 +62,14 @@ func (t *Interactive) CallStructured(_ context.Context, input any) (string, erro
 	}
 	debug.Log(request.Command)
 	return t.run(request.Command)
+}
+
+func (t *Interactive) CallDescription(ctx context.Context, input any) string {
+	request, ok := input.(*interactiveInputT)
+	if !ok || request == nil {
+		return "Tool received an invalid structured input"
+	}
+	return markdownutil.MarkdownCodeBlock(request.Command)
 }
 
 func (t *Interactive) run(input string) (string, error) {

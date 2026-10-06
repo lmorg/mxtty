@@ -28,10 +28,15 @@ reopening a table.
   chart-type dropdown and multi-select column and row fields, defaulting to all
   columns and rows.
 - Keep graph creation in the existing table context menu alongside `Copy`,
-  `Copy table (CSV)`, `Copy table (Markdown)`, `Clear sorting`, and `SQL filter…`.
+  `Copy table (CSV)`, `Copy table (Markdown)`, `Copy table (HTML)`,
+  `Clear sorting`, and `SQL filter…`.
   Heading and body-cell right-clicks use the same menu; table-level handlers must
   not stop propagation and hide the other actions. Run-mode row/column editing
   and the word-wrap toggle remain available where applicable.
+- Preserve cell line breaks when copying tables: CSV copy converts `<br>` tags
+  to newlines, allowing the CSV serializer to quote multiline fields; Markdown
+  copy retains the literal `<br/>` tag; HTML copy writes a rich `text/html`
+  clipboard representation with CSV as its plain-text fallback.
 - Right-clicking a rendered graph offers `Remove graph`, which removes the
   rendered SVG and clears the persisted graph specification.
 - The first selected column is the category; selected numeric columns after it

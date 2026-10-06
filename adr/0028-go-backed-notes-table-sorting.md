@@ -301,6 +301,9 @@ emphasis and code spans. It renders link labels as text and does not create
 anchors for Markdown links or bare URLs. Raw HTML in computed cell output is
 escaped.
 
+Run-mode formula and function results are also rendered as inline Markdown,
+subject to the same link-free and escaped-HTML behavior.
+
 Deliberate divergences from the terminal, each with a reason:
 
 - **Double-click keeps editing the cell.** Explicitly requested; the SQL filter

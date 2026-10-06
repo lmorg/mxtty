@@ -301,7 +301,7 @@ export function initNotesLogPanel(elements, eventsOn, maxLogLines = DEFAULT_MAX_
 
         if (elements.toolsLogMaximize) {
             elements.toolsLogMaximize.dataset.enabled = isLogMaximized ? 'true' : 'false';
-            elements.toolsLogMaximize.textContent = 'Maximize';
+            elements.toolsLogMaximize.textContent = String.fromCodePoint(0xf065);
         }
 
         if (isLogMaximized) {
@@ -432,7 +432,7 @@ export function initNotesLogPanel(elements, eventsOn, maxLogLines = DEFAULT_MAX_
 
     if (elements.toolsLogMaximize) {
         elements.toolsLogMaximize.dataset.enabled = 'false';
-        elements.toolsLogMaximize.textContent = 'Maximize';
+        elements.toolsLogMaximize.textContent = String.fromCodePoint(0xf065);
     }
 
     eventsOn('notesLog', (message) => {

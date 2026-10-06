@@ -22,7 +22,7 @@ function ensureInputBoxDom() {
     wrapper.innerHTML = `
         <div id="terminal-inputbox" class="inputbox-overlay" style="display:none">
             <div class="inputbox-dialog">
-                <div class="inputbox-title" id="inputbox-title"></div>
+                <div class="inputbox-title markdown-body" id="inputbox-title"><h3></h3></div>
                 <div id="inputbox-input-container"></div>
                 <div class="inputbox-hint" id="inputbox-hint">
                     <span id="inputbox-confirm-hint">Return to confirm</span>
@@ -507,7 +507,7 @@ export function initInputBox(canvas) {
         window.ttyphoonInputboxOpen = true;
         inputboxPreviousTerminalFocusedState = window.terminalFocusedState === true;
         setSharedTerminalFocusState(false, { focusVisible: false, force: true });
-        inputboxTitle.textContent = p.title ?? '';
+        inputboxTitle.querySelector('h3').textContent = p.title ?? '';
         inputboxConfirmHint.textContent = p.multiline
             ? 'Ctrl+Return to confirm'
             : 'Return to confirm';

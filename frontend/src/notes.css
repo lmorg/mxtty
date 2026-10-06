@@ -100,18 +100,33 @@ body {
 }
 
 #notes-title {
+    appearance: none;
+    align-self: flex-start;
+    border: 0;
+    background: transparent;
+    font-family: inherit;
     font-size: var(--notes-title-font-size);
     color: var(--accent);
     padding: 10px 10px 0 10px;
+    text-align: left;
+    cursor: pointer;
 }
 
 #notes-current-file {
+    appearance: none;
+    align-self: stretch;
+    border: 0;
+    background: transparent;
+    font-family: inherit;
     overflow: hidden;
     padding: 0 10px;
-    color: rgba(var(--fg-rgb), 0.72);
+    color: var(--accent);
+    opacity: 0.7;
     font-size: var(--notes-font-size-minus-1);
     text-overflow: ellipsis;
+    text-align: left;
     white-space: nowrap;
+    cursor: pointer;
 }
 
 #notes-list-filter-wrap {
@@ -741,6 +756,11 @@ body {
     font-size: var(--notes-font-size);
 }
 
+#notes-modal-title h3,
+#notes-delete-modal-title h3 {
+    margin: 0;
+}
+
 #notes-modal-location-row {
     display: flex;
     align-items: center;
@@ -835,22 +855,51 @@ body {
     border: 1px solid var(--fg);
     background: transparent;
     color: var(--fg);
-    padding: 8px;
     font: inherit;
+    font-size: var(--notes-font-size);
+    line-height: normal;
+    padding: 4px 8px;
     text-align: left;
 }
 
 .notes-graph-dropdown {
     border-radius: 5px;
-    border-width: 2px;
     cursor: pointer;
 }
 
 .notes-graph-dropdown:hover,
 .notes-graph-dropdown:focus,
 .notes-graph-text:focus {
-    border-color: var(--accent);
+    border: 1px solid var(--accent) !important;
     outline: none;
+}
+
+.notes-graph-text {
+    margin-bottom: -6px !important;
+    border-radius: 5px 5px 0 0;
+    border-bottom: 1px solid rgba(var(--fg-rgb), 0.35) !important;
+}
+
+.notes-graph-text-title {
+    min-width: 0;
+    width: 100%;
+    border-radius: 0;
+    border: 1px solid var(--fg);
+    background: transparent;
+    color: var(--fg);
+    font: inherit;
+    font-size: var(--notes-font-size);
+    line-height: normal;
+    padding: 4px 8px;
+    text-align: left;
+    border-radius: 5px;
+}
+
+.notes-graph-options-list {
+    margin-top: 0 !important;
+    border-radius: 0 0 5px 5px;
+    border: 1px solid var(--fg) !important;
+    border-top: 0 !important;
 }
 
 .notes-graph-list-actions {
@@ -882,15 +931,12 @@ body {
     display: flex;
     flex-direction: column;
     gap: 2px;
-    min-height: 48px;
-    max-height: 150px;
+    height: 190px;
+    min-height: 190px;
+    max-height: 190px;
     overflow: auto;
     border: 1px solid rgba(var(--fg-rgb), 0.35);
     padding: 4px;
-}
-
-.notes-graph-row-list {
-    max-height: 190px;
 }
 
 .notes-graph-option {
@@ -1597,6 +1643,15 @@ body {
 .notes-tools-minimize {
     font-family: "Font Awesome Solid", "Font Awesome", sans-serif;
     font-weight: 900;
+}
+
+.notes-tools-icon {
+    min-width: 32px;
+    padding: 4px 6px;
+    font-family: "Font Awesome Solid", "Font Awesome", sans-serif;
+    font-weight: 900;
+    text-align: center;
+    border-color: var(--bg);
 }
 
 .notes-tools-minimize:hover,

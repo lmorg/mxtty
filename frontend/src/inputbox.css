@@ -32,6 +32,10 @@
     word-break: break-word;
 }
 
+.inputbox-title h3 {
+    margin: 0;
+}
+
 .inputbox-input {
     background: transparent;
     color: var(--terminal-fg, #e6edf3);
