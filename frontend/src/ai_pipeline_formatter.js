@@ -375,14 +375,28 @@ export function createAIPipelineFormatter(container, options = {}) {
         container.appendChild(jobRoot);
     }
 
-    function finishJob() {
-        container.scrollTop = container.scrollHeight;
+    async function finishJob({ scrollToBottom = true } = {}) {
+        const root = jobRoot;
+        let entries;
+        do {
+            entries = Array.from(streamBlocks.values()).filter((entry) => root?.contains(entry.wrapper));
+            await Promise.all(entries.map((entry) => entry.renderPromise).filter(Boolean));
+        } while (root === jobRoot && entries.some((entry) => entry.rendering));
+        if (root !== jobRoot) return;
 
         // Streaming renders skip images, mermaid, tables and auto-hyperlinking
         // because they re-run on every frame; apply them once here instead.
-        if (jobRoot && processMarkdownContainer) {
-            void processMarkdownContainer(jobRoot);
+        if (root && processMarkdownContainer) {
+            await processMarkdownContainer(root);
         }
+        if (scrollToBottom && root === jobRoot) container.scrollTop = container.scrollHeight;
+    }
+
+    function finalResponseElement() {
+        if (!jobRoot) return null;
+        return Array.from(jobRoot.children).filter((block) =>
+            block.dataset.blockKind === 'text' && block.dataset.blockStatus === 'closed'
+            && !block.dataset.parentId && block.textContent.trim()).at(-1) || null;
     }
 
     function isRawBlock(kind) {
@@ -684,7 +698,7 @@ export function createAIPipelineFormatter(container, options = {}) {
             return;
         }
         entry.rendering = true;
-        void (async () => {
+        entry.renderPromise = (async () => {
             let firstPass = true;
             try {
                 do {
@@ -1146,6 +1160,7 @@ export function createAIPipelineFormatter(container, options = {}) {
         clear,
         startJob,
         finishJob,
+        finalResponseElement,
         appendChunk,
         openBlock,
         appendBlock,

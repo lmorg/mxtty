@@ -57,7 +57,11 @@ func (t *Bash) CallStructured(ctx context.Context, input any) (string, error) {
 	if !ok || request == nil {
 		return "", fmt.Errorf("bash received an invalid structured input %T", input)
 	}
-	return t.run(ctx, request.Script)
+	s, err := t.run(ctx, request.Script)
+	if err != nil {
+		s += fmt.Sprintf("\n%v", err)
+	}
+	return s, nil
 }
 
 func (t *Bash) CallDescription(ctx context.Context, input any) string {

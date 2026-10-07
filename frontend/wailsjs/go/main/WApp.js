@@ -198,6 +198,10 @@ export function GetNotesLanguageTabIndent(arg1) {
   return window['go']['main']['WApp']['GetNotesLanguageTabIndent'](arg1);
 }
 
+export function GetNotesLayoutSizing() {
+  return window['go']['main']['WApp']['GetNotesLayoutSizing']();
+}
+
 export function GetNotesMaxLogLines() {
   return window['go']['main']['WApp']['GetNotesMaxLogLines']();
 }
@@ -544,6 +548,10 @@ export function SetDocumentCache(arg1, arg2) {
 
 export function SetNotesColumnWidths(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['main']['WApp']['SetNotesColumnWidths'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function SetNotesLayoutRatio(arg1, arg2) {
+  return window['go']['main']['WApp']['SetNotesLayoutRatio'](arg1, arg2);
 }
 
 export function SetProjectCache(arg1) {

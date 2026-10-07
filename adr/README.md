@@ -70,6 +70,7 @@ Each record uses: **Status**, **Context**, **Decision**, **Consequences**,
 | [0056](0056-shell-tools-separate-tty-and-script-execution.md) | Separate interactive terminal commands from Bash scripts | AI tools |
 | [0057](0057-xml-structured-notes-view.md) | XML uses source-preserving structured Notes View | Notes |
 | [0058](0058-notes-file-index-scan-once-then-watch.md) | Notes file list is a Go-owned index: scan once, then watch | Notes |
+| [0059](0059-notes-layout-sizing-persistence.md) | Notes layout sizing and persistence | Layout |
 
 ## Recurring themes
 

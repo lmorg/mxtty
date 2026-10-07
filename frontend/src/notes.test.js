@@ -12,6 +12,8 @@ function getNotesRenderedStyles() {
 }
 
 const getWindowStyleMock = vi.fn();
+const getNotesLayoutSizingMock = vi.fn(() => Promise.resolve({}));
+const setNotesLayoutRatioMock = vi.fn(() => Promise.resolve());
 const getNotesMaxLogLinesMock = vi.fn();
 const getNotesLanguageTabIndentMock = vi.fn();
 const getNotesColumnWidthsMock = vi.fn();
@@ -165,6 +167,8 @@ const showLocalMenuMock = vi.fn();
 
 vi.mock('../wailsjs/go/main/WApp', () => ({
     GetWindowStyle: getWindowStyleMock,
+    GetNotesLayoutSizing: getNotesLayoutSizingMock,
+    SetNotesLayoutRatio: setNotesLayoutRatioMock,
     GetNotesMaxLogLines: getNotesMaxLogLinesMock,
     GetNotesStructViewMaxSizeKB: vi.fn(() => Promise.resolve(1024)),
     GetNotesLanguageTabIndent: getNotesLanguageTabIndentMock,
@@ -419,6 +423,9 @@ describe('notes rendering', () => {
         }
 
         getWindowStyleMock.mockReset();
+        getNotesLayoutSizingMock.mockReset();
+        getNotesLayoutSizingMock.mockResolvedValue({});
+        setNotesLayoutRatioMock.mockClear();
         getNotesMaxLogLinesMock.mockReset();
         getNotesLanguageTabIndentMock.mockReset();
         getNotesColumnWidthsMock.mockReset();
@@ -722,6 +729,113 @@ describe('notes rendering', () => {
         expect(document.getElementById('notes-current-file').textContent).toBe('todo.md');
         expect(document.getElementById('notes-current-file').hidden).toBe(false);
         expect(getNotesRenderedStyles()).toMatch(/#notes-title\s*\{[^}]*font-family:\s*"Jura", var\(--font-family\), sans-serif;[^}]*color:\s*var\(--yellow\);[^}]*font-weight:\s*bold;/s);
+    });
+
+    it('restores and persists the file-list splitter without replacing its preferred ratio on clamp', async () => {
+        listFilesMock.mockResolvedValue([]);
+        getNotesLayoutSizingMock.mockResolvedValue({ fileListRatio: 0.4 });
+        const bounds = { width: 1002, left: 0, right: 1002, height: 800, top: 0, bottom: 800 };
+        const geometry = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(() => bounds);
+        try {
+            await importNotesModule();
+            const notesApp = document.getElementById('notes-app');
+            const splitter = document.getElementById('notes-splitter');
+            expect(notesApp.style.gridTemplateColumns).toBe('400px 2px 600px');
+            expect(setNotesLayoutRatioMock).not.toHaveBeenCalled();
+            splitter.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+            document.dispatchEvent(new MouseEvent('mousemove', { clientX: 300 }));
+            expect(setNotesLayoutRatioMock).not.toHaveBeenCalled();
+            document.dispatchEvent(new MouseEvent('mouseup'));
+            await flushPromises();
+            expect(setNotesLayoutRatioMock).toHaveBeenCalledWith('fileListRatio', 0.3);
+            bounds.width = 502;
+            window.dispatchEvent(new Event('resize'));
+            expect(notesApp.style.gridTemplateColumns).toBe('200px 2px 300px');
+            bounds.width = 242;
+            window.dispatchEvent(new Event('resize'));
+            expect(notesApp.style.gridTemplateColumns).toBe('120px 2px 120px');
+            bounds.width = 1002;
+            window.dispatchEvent(new Event('resize'));
+            expect(notesApp.style.gridTemplateColumns).toBe('300px 2px 700px');
+            expect(setNotesLayoutRatioMock).toHaveBeenCalledTimes(1);
+        } finally { geometry.mockRestore(); }
+    });
+
+    it('resizes and caches Tools height separately from collapse and maximization', async () => {
+        listFilesMock.mockResolvedValue([]);
+        getNotesLayoutSizingMock.mockResolvedValue({ toolsRatio: 0.4 });
+        const bounds = { width: 1002, left: 0, right: 1002, height: 804, top: 0, bottom: 804 };
+        const geometry = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(() => bounds);
+        try {
+            await importNotesModule();
+            document.getElementById('notes-tools-tab-find').click();
+            const handle = document.getElementById('notes-tools-resizer');
+            const tools = document.getElementById('notes-tools-panel');
+            expect(handle.dataset.enabled).toBe('true');
+            expect(tools.style.getPropertyValue('--notes-tools-size')).toBe('320px');
+            handle.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+            document.dispatchEvent(new MouseEvent('mousemove', { clientY: 404 }));
+            expect(setNotesLayoutRatioMock).not.toHaveBeenCalled();
+            document.dispatchEvent(new MouseEvent('mouseup'));
+            await flushPromises();
+            expect(setNotesLayoutRatioMock).toHaveBeenCalledWith('toolsRatio', 0.5);
+            document.getElementById('notes-tools-minimize').click();
+            expect(handle.dataset.enabled).toBe('false');
+            document.getElementById('notes-tools-restore').click();
+            expect(tools.style.getPropertyValue('--notes-tools-size')).toBe('400px');
+            const root = document.getElementById('notes-app');
+            root.dataset.aiMaximized = 'true';
+            await flushPromises();
+            handle.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+            document.dispatchEvent(new MouseEvent('mousemove', { clientY: 204 }));
+            document.dispatchEvent(new MouseEvent('mouseup'));
+            expect(setNotesLayoutRatioMock).toHaveBeenCalledTimes(1);
+            root.dataset.aiMaximized = 'false';
+            await flushPromises();
+            expect(tools.style.getPropertyValue('--notes-tools-size')).toBe('400px');
+            handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }));
+            await flushPromises();
+            expect(setNotesLayoutRatioMock).toHaveBeenLastCalledWith('toolsRatio', expect.any(Number));
+            handle.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+            await flushPromises();
+            expect(setNotesLayoutRatioMock).toHaveBeenLastCalledWith('toolsRatio', 0);
+            expect(tools.style.getPropertyValue('--notes-tools-size')).toBe('280px');
+        } finally { geometry.mockRestore(); }
+    });
+
+    it('ignores invalid cached layout ratios and restores current defaults', async () => {
+        listFilesMock.mockResolvedValue([]);
+        getNotesLayoutSizingMock.mockResolvedValue({ fileListRatio: -1, toolsRatio: '0.9' });
+        const geometry = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+            width: 1202, left: 0, right: 1202, height: 804, top: 0, bottom: 804,
+        });
+        try {
+            await importNotesModule();
+            expect(document.getElementById('notes-app').style.gridTemplateColumns).toBe('400px 2px 800px');
+            document.getElementById('notes-tools-tab-find').click();
+            expect(document.getElementById('notes-tools-panel').style.getPropertyValue('--notes-tools-size')).toBe('280px');
+            expect(getNotesLayoutSizingMock).toHaveBeenCalledTimes(1);
+            expect(setNotesLayoutRatioMock).not.toHaveBeenCalled();
+        } finally { geometry.mockRestore(); }
+    });
+
+    it('does not overwrite a user splitter drag with a late cached layout response', async () => {
+        listFilesMock.mockResolvedValue([]);
+        let restore;
+        getNotesLayoutSizingMock.mockReturnValue(new Promise((resolve) => { restore = resolve; }));
+        const geometry = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+            width: 1002, left: 0, right: 1002, height: 804, top: 0, bottom: 804,
+        });
+        try {
+            await importNotesModule();
+            document.getElementById('notes-splitter').dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+            document.dispatchEvent(new MouseEvent('mousemove', { clientX: 300 }));
+            document.dispatchEvent(new MouseEvent('mouseup'));
+            restore({ fileListRatio: 0.7 });
+            await flushPromises();
+            expect(document.getElementById('notes-app').style.gridTemplateColumns).toBe('300px 2px 700px');
+            expect(setNotesLayoutRatioMock).toHaveBeenCalledWith('fileListRatio', 0.3);
+        } finally { geometry.mockRestore(); }
     });
 
     it('restores the recorded line when navigating Notes history', async () => {
@@ -3412,6 +3526,69 @@ describe('notes rendering', () => {
         await new Promise((resolve) => setTimeout(resolve, 25));
 
         expect(scrollWrites).toBe(1);
+    });
+
+    it.each([false, true])('reveals the final answer on completion only when following (paused: %s)', async (paused) => {
+        listFilesMock.mockResolvedValue(['$NOTES/guide.md']);
+        getFileMock.mockResolvedValue({ contents: '# Guide', text: '', error: '' });
+        await importNotesModule();
+        const output = document.getElementById('notes-ai-output');
+        Object.defineProperty(output, 'scrollHeight', { configurable: true, get: () => 2000 });
+        Object.defineProperty(output, 'clientHeight', { configurable: true, get: () => 300 });
+        output.getBoundingClientRect = () => ({ top: 100 });
+        getEventHandler('aiJobStart')({ runId: 801, title: '' });
+        const append = getEventHandler('aiStreamBlock');
+        append({ runId: 801, blockId: 'thinking', kind: 'thinking', delta: 'Reasoning', status: 'closed' });
+        append({ runId: 801, blockId: 'intermediate', kind: 'text', delta: 'Preparing a result', status: 'closed' });
+        append({ runId: 801, blockId: 'tool', kind: 'tool-call', delta: '{}', status: 'closed' });
+        append({ runId: 801, blockId: 'nested', parentId: 'tool', kind: 'text', delta: 'Subagent text', status: 'closed' });
+        append({ runId: 801, blockId: 'answer', kind: 'text', delta: '# Final answer\n\nResult', status: 'closed' });
+        await flushPromises();
+        await flushPromises();
+        const answer = output.querySelector('[data-block-id="answer"]');
+        let revealReads = 0;
+        answer.getBoundingClientRect = () => { revealReads++; return { top: 100 + 900 - output.scrollTop }; };
+        getEventHandler('aiJobFinish')({ runId: 999 });
+        await flushPromises();
+        expect(revealReads).toBe(0);
+        if (paused) {
+            output.dispatchEvent(new WheelEvent('wheel', { deltaY: -100 }));
+            output.scrollTop = 275;
+        }
+        getEventHandler('aiJobFinish')({ runId: 801 });
+        await flushPromises();
+        await flushPromises();
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        expect(output.scrollTop).toBe(paused ? 275 : 900);
+        expect(document.getElementById('notes-ai-scroll-bottom').dataset.visible).toBe('true');
+    });
+
+    it('cancels final-answer reveal if the user scrolls during completion rendering', async () => {
+        await importNotesModule();
+        const markdown = await import('./markdown-utils.js');
+        let completeRender;
+        vi.mocked(markdown.processMarkdownContainer).mockImplementation((container) => {
+            if (container.classList.contains('notes-ai-job')) {
+                return new Promise((resolve) => { completeRender = resolve; });
+            }
+            return Promise.resolve();
+        });
+        const output = document.getElementById('notes-ai-output');
+        Object.defineProperty(output, 'scrollHeight', { configurable: true, get: () => 2000 });
+        Object.defineProperty(output, 'clientHeight', { configurable: true, get: () => 300 });
+        getEventHandler('aiJobStart')({ runId: 802, title: '' });
+        getEventHandler('aiStreamBlock')({ runId: 802, blockId: 'answer', kind: 'text', delta: 'Result', status: 'closed' });
+        await flushPromises();
+        getEventHandler('aiJobFinish')();
+        await flushPromises();
+        expect(completeRender).toBeTypeOf('function');
+        output.dispatchEvent(new WheelEvent('wheel', { deltaY: -100 }));
+        output.scrollTop = 123;
+        completeRender();
+        await flushPromises();
+        await flushPromises();
+        expect(output.scrollTop).toBe(123);
+        vi.mocked(markdown.processMarkdownContainer).mockResolvedValue();
     });
 
     it('offers code saving for final AI responses but not tool output', async () => {

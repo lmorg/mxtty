@@ -107,6 +107,8 @@ export function GetNotesLanguageReservedWords(arg1:string):Promise<Array<string>
 
 export function GetNotesLanguageTabIndent(arg1:string):Promise<number>;
 
+export function GetNotesLayoutSizing():Promise<notes.LayoutSizing>;
+
 export function GetNotesMaxLogLines():Promise<number>;
 
 export function GetNotesStructViewMaxSizeKB():Promise<number>;
@@ -280,6 +282,8 @@ export function SetCurrentAIModelSelection(arg1:string):Promise<void>;
 export function SetDocumentCache(arg1:string,arg2:notes.DocumentCacheT):Promise<void>;
 
 export function SetNotesColumnWidths(arg1:string,arg2:string,arg3:Array<string>,arg4:boolean,arg5:Array<number>):Promise<void>;
+
+export function SetNotesLayoutRatio(arg1:string,arg2:number):Promise<void>;
 
 export function SetProjectCache(arg1:notes.ProjectCacheT):Promise<void>;
 

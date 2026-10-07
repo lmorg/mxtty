@@ -2366,6 +2366,14 @@ func (a *WApp) GetProjectCache() *notes.ProjectCacheT {
 	return notes.GetProjectCache(a.GetCurrentProject())
 }
 
+func (a *WApp) GetNotesLayoutSizing() notes.LayoutSizing {
+	return notes.GetLayoutSizing()
+}
+
+func (a *WApp) SetNotesLayoutRatio(name string, ratio float64) error {
+	return notes.SetLayoutRatio(name, ratio)
+}
+
 func (a *WApp) SetProjectCache(ptr *notes.ProjectCacheT) {
 	notes.SetProjectCache(a.GetCurrentProject(), ptr)
 }

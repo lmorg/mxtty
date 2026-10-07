@@ -901,6 +901,22 @@ export namespace notes {
 	        this.truncated = source["truncated"];
 	    }
 	}
+	export class LayoutSizing {
+	    fileListRatio: number;
+	    notesRatio: number;
+	    toolsRatio: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new LayoutSizing(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.fileListRatio = source["fileListRatio"];
+	        this.notesRatio = source["notesRatio"];
+	        this.toolsRatio = source["toolsRatio"];
+	    }
+	}
 	export class ProjectCacheT {
 	    FileListCollapsed: Record<string, Array<string>>;
 	

@@ -1566,14 +1566,38 @@ body {
 .notes-tools-panel {
     display: flex;
     flex-direction: column;
-    border-top: 1px solid rgba(var(--fg-rgb), 0.5);
+    border-top: 0;/*1px solid rgba(var(--fg-rgb), 0.5);*/
     transition: all 0.3s ease;
     overflow: hidden;
 }
 
 .notes-tools-panel[data-collapsed="false"] {
-    flex: 0 1 35%;
+    flex: 0 0 var(--notes-tools-size, 35%);
     overflow-y: auto;
+}
+
+#notes-tools-resizer {
+    order: 1;
+    flex: 0 0 2px;
+    cursor: row-resize;
+    background: rgba(var(--fg-rgb), 0.2);
+    touch-action: none;
+}
+
+#notes-tools-resizer[data-enabled="false"],
+[data-ai-maximized="true"] #notes-tools-resizer,
+[data-log-maximized="true"] #notes-tools-resizer {
+    display: none;
+}
+
+#notes-tools-resizer:hover,
+#notes-tools-resizer:focus-visible,
+#notes-tools-resizer[data-dragging="true"] {
+    background: var(--accent);
+}
+
+#notes-tools-resizer[data-dragging="true"] + .notes-tools-panel {
+    transition: none;
 }
 
 .notes-tools-panel[data-collapsed="true"] {

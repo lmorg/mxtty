@@ -404,6 +404,7 @@ import {
 } from './table-expressions.js';
 import { createAIPipelineFormatter } from './ai_pipeline_formatter.js';
 import { initLineNavigationKeys } from './line-navigation.js';
+import { restoreLayoutRatio, saveLayoutRatio } from './layout-sizing.js';
 
 const CONTEXT_ICON_COPY = 0xf0c5;
 const CONTEXT_ICON_PASTE = 0xf0ea;
@@ -528,6 +529,7 @@ app.innerHTML = `
                         </section>
                     </div>
                 </div>
+                <div id="notes-tools-resizer" role="separator" aria-orientation="horizontal" aria-label="Resize Tools panel" tabindex="0" data-enabled="false" title="Drag to resize Tools; double-click to reset"></div>
                 <div id="notes-tools-panel" class="notes-tools-panel" data-collapsed="true">
                     <div class="notes-tools-header">
                         <div id="notes-tools-tabs" role="tablist" class="tools-tabs-container">
@@ -13760,6 +13762,7 @@ EventsOn("noteComplete", (data) => {
 function setToolsPanelCollapsed(collapsed) {
     const isCollapsed = collapsed === true;
     elements.toolsPanel.dataset.collapsed = isCollapsed ? 'true' : 'false';
+    window.dispatchEvent(new CustomEvent('ttyphoon-notes-layout'));
     if (elements.toolsRestore) {
         elements.toolsRestore.style.display = isCollapsed ? 'inline-flex' : 'none';
     }
@@ -13866,6 +13869,8 @@ function startAIJob(title) {
 }
 
 let aiActiveRunId = null;
+let aiCompletionRevealVersion = 0;
+let aiCompletionRevealPending = false;
 
 // Tells Go whether the panel is following live output; guarded so stale
 // generated bindings can't throw.
@@ -13882,6 +13887,8 @@ function setAIPanelLive(live) {
 }
 
 function startAIStreamJob(payload) {
+    aiCompletionRevealVersion++;
+    aiCompletionRevealPending = false;
     // A new job always follows live output, whichever surface triggered it.
     setAIPanelLive(true);
 
@@ -13891,9 +13898,33 @@ function startAIStreamJob(payload) {
     void refreshAIPromptJumpFromBackend();
 }
 
-function finishAIJob() {
-    aiPipelineFormatter.finishJob();
-    void refreshAIPromptJumpFromBackend();
+async function finishAIJob() {
+    const following = state.aiStickToBottom && state.aiPanelLive;
+    const runId = aiActiveRunId;
+    const version = ++aiCompletionRevealVersion;
+    aiCompletionRevealPending = following;
+    if (following) {
+        state.aiStickToBottom = false;
+        clearAIBottomScrollRetries();
+    }
+    try {
+        await aiPipelineFormatter.finishJob({ scrollToBottom: false });
+        if (version !== aiCompletionRevealVersion || runId !== aiActiveRunId || !following || !state.aiPanelLive) return;
+        const response = aiPipelineFormatter.finalResponseElement();
+        if (response) {
+            const output = elements.aiOutput;
+            output.scrollTop = Math.max(0, output.scrollTop + response.getBoundingClientRect().top
+                - output.getBoundingClientRect().top - output.clientTop);
+        } else {
+            state.aiStickToBottom = true;
+        }
+    } catch (err) {
+        console.error('Failed to finalize AI output:', err);
+    } finally {
+        if (version === aiCompletionRevealVersion) aiCompletionRevealPending = false;
+        updateAIScrollBottomButton();
+        void refreshAIPromptJumpFromBackend();
+    }
 }
 
 function setAIFinalOutput(text, options = {}) {
@@ -13968,6 +13999,8 @@ function scheduleAIStreamScrollToBottom() {
 }
 
 function requestAIScrollToBottom() {
+    aiCompletionRevealVersion++;
+    aiCompletionRevealPending = false;
     if (!elements.aiOutput) {
         return;
     }
@@ -13991,13 +14024,11 @@ function requestAIScrollToBottom() {
 }
 
 function scrollAIOutputToBottom() {
-    if (!elements.aiOutput) {
+    if (!elements.aiOutput || !state.aiStickToBottom) {
         return;
     }
 
     const output = elements.aiOutput;
-    state.aiStickToBottom = true;
-
     // Streaming calls this once per chunk. Extend the deadline of the chase
     // that's already in flight instead of starting another: overlapping rAF
     // loops would each force a layout every frame and stall the main thread.
@@ -14149,7 +14180,9 @@ EventsOn("aiJobStart", (title) => {
 
 // Event emitted by Go when an AI job finishes
 EventsOn("aiJobFinish", (payload) => {
-    finishAIJob();
+    const runId = Number(payload?.runId);
+    if (Number.isSafeInteger(runId) && runId > 0 && runId !== aiActiveRunId) return;
+    void finishAIJob();
 });
 
 EventsOn("aiStreamBlock", (payload) => {
@@ -14349,12 +14382,22 @@ if (elements.aiSettingsModelPicker) {
 if (elements.aiOutput) {
     elements.aiOutput.addEventListener('wheel', (event) => {
         if (event.deltaY !== 0) {
+            aiCompletionRevealVersion++;
+            aiCompletionRevealPending = false;
             pauseAIAutoScroll();
         }
     }, { passive: true });
     elements.aiOutput.addEventListener('touchmove', () => {
+        aiCompletionRevealVersion++;
+        aiCompletionRevealPending = false;
         pauseAIAutoScroll();
     }, { passive: true });
+    elements.aiOutput.addEventListener('pointerdown', () => {
+        if (aiCompletionRevealPending) {
+            aiCompletionRevealVersion++;
+            aiCompletionRevealPending = false;
+        }
+    });
     elements.aiOutput.addEventListener('scroll', () => {
         // Programmatic bottom writes stay in follow mode; moving away from the
         // bottom is user intent and requires Latest to resume following.
@@ -16258,20 +16301,30 @@ elements.findPrev.addEventListener('mousedown', (event) => {
     const minPaneWidth = 200;
     let isResizing = false;
     let hasManualSplit = false;
-    let manualSplitRatio = 0.33;
+    let manualSplitRatio = 1 / 3;
+    let resizeChanged = false;
+    splitter.setAttribute('role', 'separator');
+    splitter.setAttribute('aria-orientation', 'vertical');
+    splitter.setAttribute('aria-label', 'Resize file list');
+    splitter.tabIndex = 0;
+
+    function canResize() {
+        return app.isConnected && !app.closest('[data-ai-maximized="true"], [data-log-maximized="true"]');
+    }
 
     function clampLeftWidth(totalWidth, leftWidth) {
-        const maxWidth = totalWidth - minPaneWidth - splitterWidth;
-        return Math.min(Math.max(leftWidth, minPaneWidth), maxWidth);
+        const available = totalWidth - splitterWidth;
+        const minimum = Math.min(minPaneWidth, available / 2);
+        return Math.min(Math.max(leftWidth, minimum), available - minimum);
     }
 
     function applyManualSplitToCurrentWidth() {
-        if (!hasManualSplit) {
+        if (!hasManualSplit || !canResize()) {
             return;
         }
 
         const appRect = app.getBoundingClientRect();
-        if (appRect.width <= splitterWidth + (minPaneWidth * 2)) {
+        if (appRect.width <= splitterWidth) {
             return;
         }
 
@@ -16281,18 +16334,20 @@ elements.findPrev.addEventListener('mousedown', (event) => {
         const rightWidth = appRect.width - leftWidth - splitterWidth;
 
         app.style.gridTemplateColumns = `${leftWidth}px ${splitterWidth}px ${rightWidth}px`;
-        manualSplitRatio = leftWidth / availableWidth;
+        splitter.setAttribute('aria-valuenow', String(Math.round(manualSplitRatio * 100)));
     }
 
     splitter.addEventListener('mousedown', (e) => {
+        if (e.button !== 0 || !canResize() || app.getBoundingClientRect().width <= minPaneWidth * 2 + splitterWidth) return;
         e.preventDefault();
         isResizing = true;
+        resizeChanged = false;
         document.body.style.cursor = 'col-resize';
         document.body.style.userSelect = 'none';
     });
 
     document.addEventListener('mousemove', (e) => {
-        if (!isResizing) return;
+        if (!isResizing || !canResize()) return;
 
         const appRect = app.getBoundingClientRect();
         const newLeftWidth = e.clientX - appRect.left;
@@ -16304,11 +16359,14 @@ elements.findPrev.addEventListener('mousedown', (event) => {
             app.style.gridTemplateColumns = `${newLeftWidth}px ${splitterWidth}px ${rightWidth}px`;
             hasManualSplit = true;
             manualSplitRatio = newLeftWidth / (appRect.width - splitterWidth);
+            resizeChanged = true;
+            splitter.setAttribute('aria-valuenow', String(Math.round(manualSplitRatio * 100)));
         }
     });
 
     document.addEventListener('mouseup', () => {
         if (isResizing) {
+            if (resizeChanged && canResize()) void saveLayoutRatio('fileListRatio', manualSplitRatio);
             isResizing = false;
             document.body.style.cursor = '';
             document.body.style.userSelect = '';
@@ -16321,6 +16379,116 @@ elements.findPrev.addEventListener('mousedown', (event) => {
         }
 
         applyManualSplitToCurrentWidth();
+    });
+
+    splitter.addEventListener('keydown', (event) => {
+        if (!canResize() || !['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+        event.preventDefault();
+        const width = app.getBoundingClientRect().width - splitterWidth;
+        if (width <= minPaneWidth * 2) return;
+        manualSplitRatio = clampLeftWidth(width + splitterWidth, width * manualSplitRatio + (event.key === 'ArrowRight' ? 16 : -16)) / width;
+        hasManualSplit = true;
+        applyManualSplitToCurrentWidth();
+        void saveLayoutRatio('fileListRatio', manualSplitRatio);
+    });
+    splitter.addEventListener('dblclick', () => {
+        if (!canResize()) return;
+        manualSplitRatio = 1 / 3;
+        hasManualSplit = true;
+        applyManualSplitToCurrentWidth();
+        void saveLayoutRatio('fileListRatio', 0);
+    });
+    if (typeof ResizeObserver !== 'undefined') {
+        const observer = new ResizeObserver(applyManualSplitToCurrentWidth);
+        observer.observe(app);
+    }
+    window.addEventListener('ttyphoon-notes-layout', applyManualSplitToCurrentWidth);
+    void restoreLayoutRatio('fileListRatio', 1 / 3).then((ratio) => {
+        if (hasManualSplit) return;
+        manualSplitRatio = ratio;
+        hasManualSplit = true;
+        applyManualSplitToCurrentWidth();
+    });
+})();
+
+(function initToolsResizer() {
+    const handle = document.getElementById('notes-tools-resizer');
+    const panel = document.getElementById('notes-panel');
+    const tools = elements.toolsPanel;
+    let ratio = 0.35;
+    let edited = false;
+    let dragging = false;
+    let changed = false;
+
+    function enabled() {
+        return panel.isConnected && tools.dataset.collapsed === 'false'
+            && !tools.closest('[data-ai-maximized="true"], [data-log-maximized="true"]');
+    }
+    function apply() {
+        handle.dataset.enabled = enabled() ? 'true' : 'false';
+        if (!enabled()) return;
+        const available = panel.getBoundingClientRect().height - 4;
+        if (available <= 0) return;
+        const minimum = Math.min(120, available / 2);
+        const maximum = available - Math.min(140, available / 2);
+        const height = Math.min(Math.max(available * ratio, minimum), maximum);
+        tools.style.setProperty('--notes-tools-size', `${height}px`);
+        handle.setAttribute('aria-valuenow', String(Math.round(ratio * 100)));
+    }
+    function resize(height) {
+        const available = panel.getBoundingClientRect().height - 4;
+        if (available < 260) return false;
+        ratio = Math.min(Math.max(height, 120), available - 140) / available;
+        edited = true;
+        apply();
+        return true;
+    }
+    handle.addEventListener('mousedown', (event) => {
+        if (event.button !== 0 || !enabled()) return;
+        event.preventDefault();
+        dragging = true;
+        changed = false;
+        handle.dataset.dragging = 'true';
+        document.body.style.cursor = 'row-resize';
+        document.body.style.userSelect = 'none';
+    });
+    document.addEventListener('mousemove', (event) => {
+        if (!dragging || !enabled()) return;
+        changed = resize(panel.getBoundingClientRect().bottom - event.clientY) || changed;
+    });
+    document.addEventListener('mouseup', () => {
+        if (!dragging) return;
+        dragging = false;
+        handle.dataset.dragging = 'false';
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        if (changed && enabled()) void saveLayoutRatio('toolsRatio', ratio);
+    });
+    handle.addEventListener('keydown', (event) => {
+        if (!enabled() || !['ArrowUp', 'ArrowDown'].includes(event.key)) return;
+        event.preventDefault();
+        const height = tools.getBoundingClientRect().height + (event.key === 'ArrowUp' ? 16 : -16);
+        if (resize(height)) void saveLayoutRatio('toolsRatio', ratio);
+    });
+    handle.addEventListener('dblclick', () => {
+        if (!enabled()) return;
+        ratio = 0.35;
+        edited = true;
+        apply();
+        void saveLayoutRatio('toolsRatio', 0);
+    });
+    window.addEventListener('resize', apply);
+    window.addEventListener('ttyphoon-notes-layout', apply);
+    if (typeof ResizeObserver !== 'undefined') {
+        const observer = new ResizeObserver(apply);
+        observer.observe(panel);
+    }
+    const maximizeRoot = tools.closest('#notes-pane') || document.getElementById('notes-app');
+    const observer = new MutationObserver(() => { apply(); window.dispatchEvent(new CustomEvent('ttyphoon-notes-layout')); });
+    observer.observe(maximizeRoot, { attributes: true, attributeFilter: ['data-ai-maximized', 'data-log-maximized'] });
+    void restoreLayoutRatio('toolsRatio', 0.35).then((restored) => {
+        if (!edited) ratio = restored;
+        apply();
     });
 })();
 
