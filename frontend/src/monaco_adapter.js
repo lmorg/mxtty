@@ -848,7 +848,8 @@ export async function createMonacoAdapter(container, options = {}) {
             }
             const start = model.getOffsetAt(selection.getStartPosition());
             const end = model.getOffsetAt(selection.getEndPosition());
-            options.onSelectionChange(start, end);
+            const activeOffset = model.getOffsetAt(selection.getPosition());
+            options.onSelectionChange(start, end, activeOffset);
         }
     });
 

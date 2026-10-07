@@ -6,7 +6,7 @@ import {
     CancelNotesListFiles,
     RunNote, RunFunction, StopNote, SendIpc, SendToTerminal,
     GetLanguageDescriptions, GetAllLanguageDescriptions, TerminalCopyImageDataURL,
-    ResolveFilePath, GetHyperlinkMenuActions, RunHyperlinkMenuAction,
+    ResolveFilePath,
     DisplayHyperlinkMenu,
     SaveImageDialog, SaveCodeDialog, WindowPrint, GetClipboardData, ClipboardSetHTML, SwaggerRequest, NotesKeyPress,
     ShowCommandPalette, GetCurrentProject, GetCurrentGroupName, GetFileMetaMarkdown, AskAI, AskAIImage,
@@ -18,7 +18,7 @@ import {
     ListAIStreamBlocks, GetAIStreamBlockContent, ListAILiveStreamBlocks,
     GetAIToolsList, SetAIToolSubagentAllowed, SetAIToolState, ShowAIToolStateMenu, ShowAIToolSubagentMenu, ResolveAIToolPermission, GetAIMcpServers, SetAIMcpServerEnabled, ClearAISessionHistory, ClearAILog,
     ResolveNotesLspLanguage, NotesLspAvailableForRuntime, NotesRecentFiles, ResolveNoteLocation, ComposeNoteLocationPath,
-    NotesHistoryPrevious, NotesHistoryNext, NotesHistoryAdd, NotesHistoryCurrent, NotesGrepStream,
+    NotesHistoryPreviousPosition, NotesHistoryNextPosition, NotesHistoryAddPosition, NotesHistoryCurrentPosition, NotesGrepStream,
     GetProjectCache, SetProjectCache,
     GetNotesFindFieldValues, AddNotesFindFieldValue,
     GetDocumentCache, SetDocumentCache, FormatCodeBlock, FormatNotesContent, CompleteSyntax,
@@ -829,6 +829,8 @@ const state = {
     autosaveTimer: null,
     viewMode: 'viewer',
     renamingFile: null,
+    historyPositionTimer: null,
+    pendingNewFile: null,
     textPromptHandler: null,
     graphPromptHandler: null,
     graphPromptSubmit: null,
@@ -1019,6 +1021,50 @@ function getMainEditorSelectionRange() {
     return { start, end };
 }
 
+function lineNumberAtOffset(text, offset) {
+    const boundedOffset = Math.max(0, Math.min(String(text || '').length, Number(offset) || 0));
+    return String(text || '').slice(0, boundedOffset).split('\n').length;
+}
+
+function currentEditorLineForFile(file) {
+    if (!file || file !== state.currentFile) {
+        return 1;
+    }
+    return lineNumberAtOffset(getMainEditorValue(), getMainEditorSelectionRange().end);
+}
+
+function scheduleHistoryPosition(file, offset) {
+    if (!file || file !== state.currentFile || !['editor', 'swagger-edit', 'csv-edit'].includes(state.viewMode)) {
+        return;
+    }
+
+    const line = lineNumberAtOffset(getMainEditorValue(), offset);
+    clearTimeout(state.historyPositionTimer);
+    state.historyPositionTimer = setTimeout(() => {
+        state.historyPositionTimer = null;
+        if (file !== state.currentFile || !['editor', 'swagger-edit', 'csv-edit'].includes(state.viewMode)) {
+            return;
+        }
+        NotesHistoryAddPosition(file, line).catch((err) => {
+            console.error('Failed to save Notes history position:', err);
+        });
+    }, 500);
+}
+
+function addHistoryPosition(file, line = 1) {
+    NotesHistoryAddPosition(file, line).catch((err) => {
+        console.error('Failed to save Notes history position:', err);
+    });
+}
+
+function scheduleCurrentHistoryPosition() {
+    const selection = getMainEditorSelectionRange();
+    const activeOffset = !isMonacoActive() && elements.editor?.selectionDirection === 'backward'
+        ? selection.start
+        : selection.end;
+    scheduleHistoryPosition(state.currentFile, activeOffset);
+}
+
 function setMainEditorSelectionRange(start, end) {
     if (isMonacoActive()) {
         monacoMainEditor.setSelectionOffsets(start, end);
@@ -1121,12 +1167,13 @@ async function createMonacoMainEditor() {
                 elements.editor.dispatchEvent(new Event('input', { bubbles: true }));
             }
         },
-        onSelectionChange: (start, end) => {
+        onSelectionChange: (start, end, activeOffset) => {
             if (!elements.editor) {
                 return;
             }
             elements.editor.selectionStart = Number(start) || 0;
             elements.editor.selectionEnd = Number(end) || Number(start) || 0;
+            scheduleHistoryPosition(state.currentFile, activeOffset);
             if (isCurrentFileLspEligible() && state.lspOpenFile === state.currentFile) {
                 state.lspHoverLastKey = '';
                 scheduleLspHover();
@@ -2052,6 +2099,11 @@ function renderCsvView(content, options = {}) {
     void setupTableColumnResizing(elements.csvView, false, state.currentFile);
     if (!interactive) {
         void autoHyperlink(elements.csvView);
+    }
+
+    if (elements.toolsTabFind?.getAttribute('aria-selected') === 'true' && state.findQuery
+        && (state.viewMode === 'csv-view' || state.viewMode === 'csv-run')) {
+        setTimeout(() => performFind(), 0);
     }
 }
 
@@ -7944,11 +7996,17 @@ async function loadProjectCache(options = {}) {
         if (skipHistoryRestore) {
             return;
         }
-        const historyDoc = await NotesHistoryCurrent();
+        const historyPosition = await NotesHistoryCurrentPosition();
+        const historyDoc = historyPosition?.file || '';
         const hasHistoryDoc = historyDoc && state.files.includes(historyDoc);
         if (hasHistoryDoc && historyDoc !== state.lastRestoredDocument) {
             state.lastRestoredDocument = historyDoc;
             await loadFile(historyDoc);
+            if (historyPosition.line > 1) {
+                setViewMode(editViewModeForCurrentFileType());
+                await ensureMonacoVisibleAndLaidOut();
+                jumpEditorToLine(historyPosition.line);
+            }
         } else if (!hasHistoryDoc) {
             state.lastRestoredDocument = '';
         }
@@ -8406,6 +8464,62 @@ function findFolderNodeByPath(nodes, path) {
     return null;
 }
 
+function openFileParentFolderContextMenu(file, x, y) {
+    const { category, relativePath } = splitCategoryPath(file);
+    if (!category) {
+        return;
+    }
+
+    const segments = getPathParts(relativePath);
+    const folderPath = segments.slice(0, -1).join(PRIMARY_PATH_SEPARATOR);
+    const categoryNodes = getCategoryTreeNodes(category);
+    const folderNode = folderPath ? findFolderNodeByPath(categoryNodes, folderPath) : null;
+    const folderKey = folderPath ? `${category}${PRIMARY_PATH_SEPARATOR}${folderPath}` : category;
+    const folderName = folderNode?.name || `${category} folders`;
+
+    openFolderTreeContextMenu(
+        category,
+        folderNode ? folderNode.children : categoryNodes,
+        x,
+        y,
+        folderName,
+        folderKey,
+    );
+}
+
+function findFolderContextRowAbove(clientY) {
+    let closest = null;
+    let closestBottom = -Infinity;
+    const rows = elements.list.querySelectorAll('.notes-tree-folder, .notes-category-header');
+
+    rows.forEach((row) => {
+        const rect = row.getBoundingClientRect();
+        if (rect.height <= 0 || rect.bottom > clientY || rect.bottom <= closestBottom) {
+            return;
+        }
+        closest = row;
+        closestBottom = rect.bottom;
+    });
+
+    return closest;
+}
+
+function openFolderContextForListRow(row, x, y) {
+    if (row.classList.contains('notes-tree-folder')) {
+        const folderKey = row.dataset.folderKey || '';
+        const separatorIndex = folderKey.indexOf(PRIMARY_PATH_SEPARATOR);
+        const category = separatorIndex === -1 ? folderKey : folderKey.slice(0, separatorIndex);
+        const folderPath = separatorIndex === -1 ? '' : folderKey.slice(separatorIndex + 1);
+        const folderNode = findFolderNodeByPath(getCategoryTreeNodes(category), folderPath);
+        const folderName = folderNode ? folderNode.name : folderPath;
+        openFolderTreeContextMenu(category, folderNode?.children || [], x, y, folderName, folderKey);
+        return;
+    }
+
+    const category = row.dataset.category || '';
+    openFolderTreeContextMenu(category, getCategoryTreeNodes(category), x, y, `${category} folders`);
+}
+
 function setFolderExpansionState(folderKeys, expanded) {
     folderKeys.forEach((key) => {
         state.expandedFolders[key] = expanded;
@@ -8413,30 +8527,88 @@ function setFolderExpansionState(folderKeys, expanded) {
     saveProjectCache();
 }
 
-function openFolderTreeContextMenu(category, nodes, x, y, title = 'Folder actions') {
-    const folderKeys = collectFolderKeys(category, nodes);
-    if (folderKeys.length === 0) {
+function getFolderCreateTarget(folderPath) {
+    const normalized = String(folderPath || '').replaceAll('\\', '/');
+    const separatorIndex = normalized.indexOf('/');
+    if (separatorIndex === -1) {
+        return { location: normalized, pathPrefix: '' };
+    }
+
+    const location = normalized.slice(0, separatorIndex);
+    const relativePath = normalized.slice(separatorIndex + 1).replace(/\/+$/, '');
+    return {
+        location,
+        pathPrefix: relativePath ? `${relativePath}/` : '',
+    };
+}
+
+async function pasteAsNewFile(folderPath) {
+    let payload;
+    try {
+        payload = decodeClipboardPayload(await GetClipboardData());
+    } catch (err) {
+        notifyTerminal('Failed to read clipboard.', 'error');
+        console.error(err);
         return;
     }
 
-    showNotesLocalMenu([
-        {
-            title: 'Collapse Folders',
-            icon: 0xf146,
-            onSelect: () => {
-                setFolderExpansionState(folderKeys, false);
-                renderFileList();
+    const isImage = payload.image !== '';
+    if (!isImage && payload.text === '') {
+        notifyTerminal('Clipboard is empty.', 'info');
+        return;
+    }
+
+    const { location, pathPrefix } = getFolderCreateTarget(folderPath);
+    openNewFilePrompt({
+        location,
+        name: `${pathPrefix}clipboard.${isImage ? 'png' : 'md'}`,
+        pendingFile: isImage
+            ? { imageBase64: payload.image }
+            : { text: payload.text },
+    });
+}
+
+function openFolderTreeContextMenu(category, nodes, x, y, title = 'Folder actions', folderPath = category) {
+    const folderKeys = collectFolderKeys(category, nodes);
+    const { location, pathPrefix } = getFolderCreateTarget(folderPath);
+    const menuItems = [];
+
+    if (folderKeys.length > 0) {
+        menuItems.push(
+            {
+                title: 'Collapse Folders',
+                icon: CONTEXT_ICON_COLLAPSE_ALL,
+                onSelect: () => {
+                    setFolderExpansionState(folderKeys, false);
+                    renderFileList();
+                },
             },
+            {
+                title: 'Expand Folders',
+                icon: CONTEXT_ICON_EXPAND_ALL,
+                onSelect: () => {
+                    setFolderExpansionState(folderKeys, true);
+                    renderFileList();
+                },
+            },
+            { title: '-' },
+        );
+    }
+
+    menuItems.push(
+        {
+            title: 'Create new file...',
+            icon: CONTEXT_ICON_ADD,
+            onSelect: () => openNewFilePrompt({ location, name: pathPrefix }),
         },
         {
-            title: 'Expand Folders',
-            icon: 0xf0fe,
-            onSelect: () => {
-                setFolderExpansionState(folderKeys, true);
-                renderFileList();
-            },
+            title: 'Paste as new file...',
+            icon: CONTEXT_ICON_PASTE,
+            onSelect: () => void pasteAsNewFile(folderPath),
         },
-    ], x, y, title);
+    );
+
+    showNotesLocalMenu(menuItems, x, y, title);
 }
 
 /**
@@ -10513,7 +10685,7 @@ async function openProjectFindResult(item) {
         state.findFilesSelectedKey = `${file}:${Number.parseInt(String(item?.line), 10) || 1}`;
         renderProjectFindResults();
         renderFileList();
-        await NotesHistoryAdd(file);
+        await NotesHistoryAddPosition(file, Number.parseInt(String(item?.line), 10) || 1);
         await loadFile(file, {
             skipDocumentCacheRestore: true,
             keepFindTabOpen: true,
@@ -10740,6 +10912,10 @@ function getActiveFindContainer() {
         return elements.jupyter;
     }
 
+    if (state.viewMode === 'csv-view' || state.viewMode === 'csv-run') {
+        return elements.csvView;
+    }
+
     if (state.viewMode === 'swagger-view') {
         return elements.swaggerView;
     }
@@ -10761,7 +10937,7 @@ function getActiveFindEditor() {
 
 function clearHighlights() {
     // Clear highlights in all rendered panes that support find.
-    [elements.preview, elements.jupyter, elements.swaggerView].forEach((container) => {
+    [elements.preview, elements.jupyter, elements.swaggerView, elements.csvView].forEach((container) => {
         if (!container) {
             return;
         }
@@ -11016,12 +11192,13 @@ function updateFindDocOptionButtons() {
     }
 }
 
-function openNewFilePrompt() {
+function openNewFilePrompt({ location = '$NOTES', name = '', pendingFile = null } = {}) {
     state.renamingFile = null;
+    state.pendingNewFile = pendingFile;
     elements.modal.dataset.open = 'true';
     elements.modal.setAttribute('aria-hidden', 'false');
-    elements.modalInput.value = '';
-    elements.modalLocation.textContent = '$NOTES';
+    elements.modalInput.value = name;
+    elements.modalLocation.textContent = location;
     elements.modalLocation.style.display = '';
     setNotesModalTitle('New note name', true);
     elements.modalCreate.textContent = 'Create';
@@ -11033,6 +11210,7 @@ function openNewFilePrompt() {
 async function openRenamePrompt(file) {
     const source = String(file || '').trim();
     state.renamingFile = file;
+    state.pendingNewFile = null;
     elements.modal.dataset.open = 'true';
     elements.modal.setAttribute('aria-hidden', 'false');
     let location = '$NOTES';
@@ -11068,6 +11246,7 @@ function closeNewFilePrompt() {
         finishTextPrompt(null);
         return;
     }
+    state.pendingNewFile = null;
     elements.modal.dataset.open = 'false';
     elements.modal.setAttribute('aria-hidden', 'true');
 }
@@ -11246,7 +11425,13 @@ function isRelativeMarkdownImagePath(imagePath) {
 function resolveRelativeAssetPath(notePath, relativePath) {
     const slash = notePath.lastIndexOf('/');
     const dir = slash === -1 ? '' : notePath.slice(0, slash + 1);
-    return `${dir}${relativePath}`;
+    let decodedPath = relativePath;
+    try {
+        decodedPath = decodeURIComponent(relativePath);
+    } catch {
+        // Keep malformed escapes literal so existing paths remain deletable.
+    }
+    return `${dir}${decodedPath}`;
 }
 
 function enableImageContextMenus(container) {
@@ -11323,55 +11508,6 @@ function copyTextToClipboard(text) {
     }
 
     ClipboardSetText(text).catch(() => {});
-}
-
-async function openFileListContextMenu(file, x, y) {
-    const menuItems = [];
-
-    let fileUrl = '';
-    const fileLabel = getPathFileName(file);
-    try {
-        const resolvedPath = await ResolveFilePath(file);
-        const normalized = String(resolvedPath || '').replaceAll('\\', '/');
-        if (normalized) {
-            if (/^[a-zA-Z]:\//.test(normalized)) {
-                fileUrl = `file:///${normalized}`;
-            } else {
-                fileUrl = `file://${normalized.startsWith('/') ? normalized : `/${normalized}`}`;
-            }
-        }
-    } catch {
-        // Keep local actions available even if path resolution fails.
-    }
-
-    let goMenuItems = [];
-    if (fileUrl) {
-        try {
-            const resolvedMenuItems = await GetHyperlinkMenuActions(fileUrl, fileLabel || fileUrl);
-            goMenuItems = Array.isArray(resolvedMenuItems) ? resolvedMenuItems : [];
-        } catch {
-            setStatus('Failed to load file actions', true);
-        }
-    }
-
-    if (goMenuItems.length > 0) {
-        //menuItems.push({ title: '-', icon: 0 });
-
-        goMenuItems.forEach((item) => {
-            menuItems.push({
-                title: String(item?.title || ''),
-                icon: Number(item?.icon) || 0,
-                onSelect: () => {
-                    RunHyperlinkMenuAction(fileUrl, fileLabel || fileUrl, String(item?.action || ''))
-                        .catch(() => {
-                            setStatus('Failed to execute file action', true);
-                        });
-                },
-            });
-        });
-    }
-
-    showNotesLocalMenu(menuItems, x, y, getPathFileName(file) || 'File actions');
 }
 
 function getLinkTextFromAnchor(anchor) {
@@ -13227,7 +13363,12 @@ async function createNewFile() {
     }
 
     try {
-        await SaveFile(fileName, '', '');
+        const pendingFile = state.pendingNewFile;
+        if (pendingFile?.imageBase64) {
+            await SaveBinaryFile(fileName, pendingFile.imageBase64);
+        } else {
+            await SaveFile(fileName, pendingFile?.text || '', '');
+        }
         await refreshFiles();
         await loadFile(fileName);
         setViewMode('editor');
@@ -13942,11 +14083,12 @@ document.addEventListener('ttyphoon-ai-user-question', async (e) => {
 // Event emitted by Go after the user selects a file from the ViewFileInNotes menu.
 // Opens the file and selects the first (default) tab for the file type.
 EventsOn('viewFileInNotesOpen', async (payload) => {
-    const file = typeof payload === 'string' ? payload : String(payload ?? '');
+    const file = typeof payload === 'string' ? payload : String(payload?.file || payload?.filename || '');
+    const line = typeof payload === 'object' ? Number.parseInt(String(payload?.line), 10) || 1 : 1;
     if (!file) return;
 
     try {
-        NotesHistoryAdd(file).catch(() => {});
+        addHistoryPosition(file, line);
         await loadFile(file);
     } catch (err) {
         notifyTerminal(`Failed to load file: ${file}`, 'warn');
@@ -13956,11 +14098,12 @@ EventsOn('viewFileInNotesOpen', async (payload) => {
 
 // Event emitted by Go to open a file directly in the Edit tab.
 EventsOn('viewFileInNotesEdit', async (payload) => {
-    const file = typeof payload === 'string' ? payload : String(payload ?? '');
+    const file = typeof payload === 'string' ? payload : String(payload?.file || payload?.filename || '');
+    const line = typeof payload === 'object' ? Number.parseInt(String(payload?.line), 10) || 1 : 1;
     if (!file) return;
 
     try {
-        NotesHistoryAdd(file).catch(() => {});
+        addHistoryPosition(file, line);
         await loadFile(file);
         setViewMode('editor');
     } catch (err) {
@@ -14736,7 +14879,8 @@ async function savePastedImageDataUrl(dataUrl, mimeType) {
         await SaveBinaryFile(paths.imagePath, base64Payload);
 
         const alt = String(epoch);
-        const markdownImage = `![${alt}](${paths.imageFileName})`;
+        const markdownPath = paths.imageFileName.split('/').map(encodeURIComponent).join('/');
+        const markdownImage = `![${alt}](${markdownPath})`;
         insertTextInMainEditor(markdownImage);
         notifyTerminal(`Saved image ${paths.imageFileName}`, 'info');
     } catch (err) {
@@ -15166,6 +15310,10 @@ elements.editor.addEventListener('mousedown', (e) => {
     }
 });
 
+['click', 'input', 'keyup', 'mouseup', 'select'].forEach((eventName) => {
+    elements.editor.addEventListener(eventName, scheduleCurrentHistoryPosition);
+});
+
 function openMainEditorContextMenu(e) {
     // Restore selection that WebKit changed on right-click
     if (_editorSelectionBeforeContextMenu !== null) {
@@ -15445,7 +15593,7 @@ async function openRecentFilesMenu(x, y) {
             title: file,
             icon: file === state.currentFile ? CONTEXT_ICON_TICK : 0,
             onSelect: () => {
-                NotesHistoryAdd(file).catch(() => {});
+                addHistoryPosition(file, currentEditorLineForFile(file));
                 loadFile(file).catch((err) => {
                     notifyTerminal(`Failed to load file: ${file}`, 'warn');
                     console.error(err);
@@ -15535,8 +15683,11 @@ function cycleNotesTabs(direction = 1) {
 
 elements.historyPrev.addEventListener('click', async () => {
     try {
-        const file = await NotesHistoryPrevious();
-        await loadFile(file);
+        const entry = await NotesHistoryPreviousPosition();
+        await loadFile(entry.file);
+        setViewMode(editViewModeForCurrentFileType());
+        await ensureMonacoVisibleAndLaidOut();
+        jumpEditorToLine(entry.line);
     } catch (err) {
         notifyTerminal(String(err && err.message ? err.message : err), 'info');
         focusActiveEditorForViewMode();
@@ -15545,8 +15696,11 @@ elements.historyPrev.addEventListener('click', async () => {
 
 elements.historyNext.addEventListener('click', async () => {
     try {
-        const file = await NotesHistoryNext();
-        await loadFile(file);
+        const entry = await NotesHistoryNextPosition();
+        await loadFile(entry.file);
+        setViewMode(editViewModeForCurrentFileType());
+        await ensureMonacoVisibleAndLaidOut();
+        jumpEditorToLine(entry.line);
     } catch (err) {
         notifyTerminal(String(err && err.message ? err.message : err), 'info');
         focusActiveEditorForViewMode();
@@ -15824,7 +15978,7 @@ if (elements.list) {
     elements.list.addEventListener('click', (event) => {
         const fileItem = event.target.closest('.notes-file');
         if (fileItem) {
-            NotesHistoryAdd(fileItem.dataset.file).catch(() => {});
+            addHistoryPosition(fileItem.dataset.file, currentEditorLineForFile(fileItem.dataset.file));
             loadFile(fileItem.dataset.file);
             return;
         }
@@ -15850,12 +16004,12 @@ if (elements.list) {
         void openRenamePrompt(fileItem.dataset.file);
     });
 
-    elements.list.addEventListener('contextmenu', async (event) => {
+    elements.list.addEventListener('contextmenu', (event) => {
         const fileItem = event.target.closest('.notes-file');
         if (fileItem) {
             event.preventDefault();
             event.stopPropagation();
-            await openFileListContextMenu(fileItem.dataset.file, event.clientX, event.clientY);
+            openFileParentFolderContextMenu(fileItem.dataset.file, event.clientX, event.clientY);
             return;
         }
 
@@ -15863,13 +16017,7 @@ if (elements.list) {
         if (folderButton) {
             event.preventDefault();
             event.stopPropagation();
-            const folderKey = folderButton.dataset.folderKey || '';
-            const separatorIndex = folderKey.indexOf(PRIMARY_PATH_SEPARATOR);
-            const category = separatorIndex === -1 ? folderKey : folderKey.slice(0, separatorIndex);
-            const folderPath = separatorIndex === -1 ? '' : folderKey.slice(separatorIndex + 1);
-            const folderNode = findFolderNodeByPath(getCategoryTreeNodes(category), folderPath);
-            const folderName = folderNode ? folderNode.name : folderPath;
-            openFolderTreeContextMenu(category, folderNode?.children || [], event.clientX, event.clientY, folderName);
+            openFolderContextForListRow(folderButton, event.clientX, event.clientY);
             return;
         }
 
@@ -15877,8 +16025,15 @@ if (elements.list) {
         if (categoryHeader) {
             event.preventDefault();
             event.stopPropagation();
-            const category = categoryHeader.dataset.category;
-            openFolderTreeContextMenu(category, getCategoryTreeNodes(category), event.clientX, event.clientY, `${category} folders`);
+            openFolderContextForListRow(categoryHeader, event.clientX, event.clientY);
+            return;
+        }
+
+        const folderContextRow = findFolderContextRowAbove(event.clientY);
+        if (folderContextRow) {
+            event.preventDefault();
+            event.stopPropagation();
+            openFolderContextForListRow(folderContextRow, event.clientX, event.clientY);
         }
     });
 

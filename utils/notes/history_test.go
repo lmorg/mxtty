@@ -1,6 +1,7 @@
 package notes
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 )
@@ -17,8 +18,8 @@ func TestHistoryListAdd_FirstItemSetsIndex(t *testing.T) {
 	if len(h.History) != 1 {
 		t.Fatalf("history length = %d, want 1", len(h.History))
 	}
-	if h.History[0] != "a.md" {
-		t.Fatalf("history[0] = %q, want %q", h.History[0], "a.md")
+	if h.History[0].Filename != "a.md" || h.History[0].Line != 1 {
+		t.Fatalf("history[0] = %+v, want a.md at line 1", h.History[0])
 	}
 	if h.Index != 0 {
 		t.Fatalf("index = %d, want 0", h.Index)
@@ -29,7 +30,7 @@ func TestHistoryListAdd_AppendsAndMovesIndexToEnd(t *testing.T) {
 	projectRoot := t.TempDir()
 
 	setHistoryList(projectRoot, &HistoryListT{
-		History: []string{"a.md"},
+		History: []HistoryEntryT{{Filename: "a.md", Line: 1}},
 		Index:   0,
 	})
 
@@ -42,7 +43,7 @@ func TestHistoryListAdd_AppendsAndMovesIndexToEnd(t *testing.T) {
 	if len(h.History) != 2 {
 		t.Fatalf("history length = %d, want 2", len(h.History))
 	}
-	if h.History[0] != "a.md" || h.History[1] != "b.md" {
+	if h.History[0].Filename != "a.md" || h.History[1].Filename != "b.md" {
 		t.Fatalf("history = %v, want [a.md b.md]", h.History)
 	}
 	if h.Index != 1 {
@@ -54,7 +55,7 @@ func TestHistoryListAdd_TruncatesForwardHistoryFromCurrentIndex(t *testing.T) {
 	projectRoot := t.TempDir()
 
 	setHistoryList(projectRoot, &HistoryListT{
-		History: []string{"a.md", "b.md", "c.md"},
+		History: []HistoryEntryT{{Filename: "a.md", Line: 1}, {Filename: "b.md", Line: 1}, {Filename: "c.md", Line: 1}},
 		Index:   1,
 	})
 
@@ -67,7 +68,7 @@ func TestHistoryListAdd_TruncatesForwardHistoryFromCurrentIndex(t *testing.T) {
 	if len(h.History) != 3 {
 		t.Fatalf("history length = %d, want 3", len(h.History))
 	}
-	if h.History[0] != "a.md" || h.History[1] != "b.md" || h.History[2] != "x.md" {
+	if h.History[0].Filename != "a.md" || h.History[1].Filename != "b.md" || h.History[2].Filename != "x.md" {
 		t.Fatalf("history = %v, want [a.md b.md x.md]", h.History)
 	}
 	if h.Index != 2 {
@@ -78,9 +79,9 @@ func TestHistoryListAdd_TruncatesForwardHistoryFromCurrentIndex(t *testing.T) {
 func TestHistoryListAdd_CapsHistoryAtFiftyAndKeepsIndexAtLast(t *testing.T) {
 	projectRoot := t.TempDir()
 
-	history := make([]string, 0, 50)
+	history := make([]HistoryEntryT, 0, 50)
 	for i := 0; i < 50; i++ {
-		history = append(history, fmt.Sprintf("file-%02d.md", i))
+		history = append(history, HistoryEntryT{Filename: fmt.Sprintf("file-%02d.md", i), Line: 1})
 	}
 	setHistoryList(projectRoot, &HistoryListT{
 		History: history,
@@ -96,11 +97,11 @@ func TestHistoryListAdd_CapsHistoryAtFiftyAndKeepsIndexAtLast(t *testing.T) {
 	if len(h.History) != 50 {
 		t.Fatalf("history length = %d, want 50", len(h.History))
 	}
-	if h.History[0] != "file-01.md" {
-		t.Fatalf("history[0] = %q, want %q", h.History[0], "file-01.md")
+	if h.History[0].Filename != "file-01.md" {
+		t.Fatalf("history[0] = %+v, want file-01.md", h.History[0])
 	}
-	if h.History[49] != "new.md" {
-		t.Fatalf("history[49] = %q, want %q", h.History[49], "new.md")
+	if h.History[49].Filename != "new.md" {
+		t.Fatalf("history[49] = %+v, want new.md", h.History[49])
 	}
 	if h.Index != 49 {
 		t.Fatalf("index = %d, want 49", h.Index)
@@ -120,12 +121,69 @@ func TestHistoryListCurrent_ReturnsCurrentItem(t *testing.T) {
 	projectRoot := t.TempDir()
 
 	setHistoryList(projectRoot, &HistoryListT{
-		History: []string{"a.md", "b.md", "c.md"},
+		History: []HistoryEntryT{{Filename: "a.md", Line: 1}, {Filename: "b.md", Line: 1}, {Filename: "c.md", Line: 1}},
 		Index:   1,
 	})
 
 	got := HistoryListCurrent(projectRoot)
 	if got != "b.md" {
 		t.Fatalf("HistoryListCurrent() = %q, want %q", got, "b.md")
+	}
+}
+
+func TestHistoryListAddAt_StoresSameFilePositionsTwentyLinesApart(t *testing.T) {
+	projectRoot := t.TempDir()
+	if err := HistoryListAddAt(projectRoot, "a.md", 10); err != nil {
+		t.Fatal(err)
+	}
+	if err := HistoryListAddAt(projectRoot, "a.md", 29); err != nil {
+		t.Fatal(err)
+	}
+	if err := HistoryListAddAt(projectRoot, "a.md", 30); err != nil {
+		t.Fatal(err)
+	}
+
+	h := getHistoryList(projectRoot)
+	if len(h.History) != 2 {
+		t.Fatalf("history length = %d, want 2", len(h.History))
+	}
+	if h.History[0].Line != 10 || h.History[1].Line != 30 {
+		t.Fatalf("history lines = [%d %d], want [10 30]", h.History[0].Line, h.History[1].Line)
+	}
+}
+
+func TestHistoryListLegacyCacheMigratesToLineOne(t *testing.T) {
+	var history HistoryListT
+	if err := json.Unmarshal([]byte(`{"History":["a.md"],"Index":0}`), &history); err != nil {
+		t.Fatal(err)
+	}
+	if len(history.History) != 1 || history.History[0] != (HistoryEntryT{Filename: "a.md", Line: 1}) {
+		t.Fatalf("legacy history = %+v, want a.md at line 1", history.History)
+	}
+}
+
+func TestHistoryListPreviousNextEntriesRetainLineNumbers(t *testing.T) {
+	projectRoot := t.TempDir()
+	if err := HistoryListAddAt(projectRoot, "a.md", 5); err != nil {
+		t.Fatal(err)
+	}
+	if err := HistoryListAddAt(projectRoot, "a.md", 30); err != nil {
+		t.Fatal(err)
+	}
+
+	previous, err := HistoryListPreviousEntry(projectRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if previous.Filename != "a.md" || previous.Line != 5 {
+		t.Fatalf("previous entry = %+v, want a.md at line 5", previous)
+	}
+
+	next, err := HistoryListNextEntry(projectRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if next.Filename != "a.md" || next.Line != 30 {
+		t.Fatalf("next entry = %+v, want a.md at line 30", next)
 	}
 }

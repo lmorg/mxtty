@@ -143,6 +143,10 @@ const notesHistoryPreviousMock = vi.fn(() => Promise.resolve(''));
 const notesHistoryNextMock = vi.fn(() => Promise.resolve(''));
 const notesHistoryAddMock = vi.fn(() => Promise.resolve());
 const notesHistoryCurrentMock = vi.fn(() => Promise.resolve(''));
+const notesHistoryPreviousPositionMock = vi.fn(() => Promise.resolve({ file: '', line: 1 }));
+const notesHistoryNextPositionMock = vi.fn(() => Promise.resolve({ file: '', line: 1 }));
+const notesHistoryAddPositionMock = vi.fn(() => Promise.resolve());
+const notesHistoryCurrentPositionMock = vi.fn(() => Promise.resolve({ file: '', line: 1 }));
 const notesGrepMock = vi.fn(() => Promise.resolve({ results: [], error: '' }));
 const notesGrepWithOptionsMock = vi.fn(() => Promise.resolve({ results: [], error: '' }));
 const notesGrepStreamMock = vi.fn(() => Promise.resolve());
@@ -250,6 +254,10 @@ vi.mock('../wailsjs/go/main/WApp', () => ({
     NotesHistoryNext: notesHistoryNextMock,
     NotesHistoryAdd: notesHistoryAddMock,
     NotesHistoryCurrent: notesHistoryCurrentMock,
+    NotesHistoryPreviousPosition: notesHistoryPreviousPositionMock,
+    NotesHistoryNextPosition: notesHistoryNextPositionMock,
+    NotesHistoryAddPosition: notesHistoryAddPositionMock,
+    NotesHistoryCurrentPosition: notesHistoryCurrentPositionMock,
     NotesGrep: notesGrepMock,
     NotesGrepWithOptions: notesGrepWithOptionsMock,
     NotesGrepStream: notesGrepStreamMock,
@@ -295,6 +303,7 @@ vi.mock('./markdown-utils.js', () => ({
     configureMarked: vi.fn(),
     processMarkdownContainer: vi.fn(),
     enableFullscreenImages: vi.fn(),
+    notesAssetURL: vi.fn((path) => `/__asset?path=${encodeURIComponent(path)}`),
     applySyntaxHighlighting: vi.fn(),
     processLinks: vi.fn(),
     autoHyperlink: vi.fn(),
@@ -473,6 +482,10 @@ describe('notes rendering', () => {
         notesHistoryNextMock.mockReset();
         notesHistoryAddMock.mockReset();
         notesHistoryCurrentMock.mockReset();
+        notesHistoryPreviousPositionMock.mockReset();
+        notesHistoryNextPositionMock.mockReset();
+        notesHistoryAddPositionMock.mockReset();
+        notesHistoryCurrentPositionMock.mockReset();
         notesGrepMock.mockReset();
         notesGrepWithOptionsMock.mockReset();
         notesGrepStreamMock.mockReset();
@@ -552,6 +565,10 @@ describe('notes rendering', () => {
         notesHistoryNextMock.mockResolvedValue('');
         notesHistoryAddMock.mockResolvedValue();
         notesHistoryCurrentMock.mockResolvedValue('');
+        notesHistoryPreviousPositionMock.mockResolvedValue({ file: '', line: 1 });
+        notesHistoryNextPositionMock.mockResolvedValue({ file: '', line: 1 });
+        notesHistoryAddPositionMock.mockResolvedValue();
+        notesHistoryCurrentPositionMock.mockResolvedValue({ file: '', line: 1 });
         notesGrepMock.mockResolvedValue({ results: [], error: '' });
         notesGrepWithOptionsMock.mockResolvedValue({ results: [], error: '' });
         notesGrepStreamMock.mockResolvedValue();
@@ -690,6 +707,63 @@ describe('notes rendering', () => {
         expect(document.getElementById('notes-title-group').children[1].id).toBe('notes-current-file');
         expect(document.getElementById('notes-current-file').textContent).toBe('todo.md');
         expect(document.getElementById('notes-current-file').hidden).toBe(false);
+        expect(getNotesRenderedStyles()).toMatch(/#notes-title\s*\{[^}]*font-family:\s*"Jura", var\(--font-family\), sans-serif;[^}]*color:\s*var\(--yellow\);[^}]*font-weight:\s*bold;/s);
+    });
+
+    it('restores the recorded line when navigating Notes history', async () => {
+        listFilesMock.mockResolvedValue(['$NOTES/current.md', '$NOTES/previous.md']);
+        getFileMock.mockResolvedValue({
+            contents: 'one\ntwo\nthree\nfour',
+            text: '',
+            error: '',
+        });
+        notesHistoryPreviousPositionMock.mockResolvedValue({ file: '$NOTES/previous.md', line: 3 });
+
+        await importNotesModule();
+        document.getElementById('notes-history-prev').click();
+        await flushPromises();
+        await flushPromises();
+        await flushPromises();
+
+        const editor = document.getElementById('notes-editor');
+        expect(getFileMock).toHaveBeenCalledWith('$NOTES/previous.md');
+        expect(editor.value).toBe('one\ntwo\nthree\nfour');
+        expect(editor.selectionStart).toBe('one\ntwo\n'.length);
+        expect(document.getElementById('notes-tab-editor').getAttribute('aria-selected')).toBe('true');
+    });
+
+    it('records editor cursor positions after moving twenty lines in one document', async () => {
+        const previousMonacoSetting = localStorage.getItem('notes-editor-monaco');
+        localStorage.setItem('notes-editor-monaco', '0');
+        const contents = Array.from({ length: 30 }, (_, index) => `line ${index + 1}`).join('\n');
+        listFilesMock.mockResolvedValue(['$NOTES/long.md']);
+        getFileMock.mockResolvedValue({ contents, text: '', error: '' });
+
+        try {
+            await importNotesModule();
+            document.querySelector('[data-file="$NOTES/long.md"]').click();
+            await flushPromises();
+            await flushPromises();
+            document.getElementById('notes-tab-editor').click();
+
+            const editor = document.getElementById('notes-editor');
+            const lineOffset = contents.split('\n').slice(0, 24).join('\n').length + 1;
+            vi.useFakeTimers();
+            editor.setSelectionRange(lineOffset, lineOffset);
+            editor.dispatchEvent(new Event('select', { bubbles: true }));
+            await vi.advanceTimersByTimeAsync(500);
+            vi.useRealTimers();
+            await flushPromises();
+
+            expect(notesHistoryAddPositionMock).toHaveBeenCalledWith('$NOTES/long.md', 25);
+        } finally {
+            vi.useRealTimers();
+            if (previousMonacoSetting === null) {
+                localStorage.removeItem('notes-editor-monaco');
+            } else {
+                localStorage.setItem('notes-editor-monaco', previousMonacoSetting);
+            }
+        }
     });
 
     it('opens the same recent-files menu from the active filename', async () => {
@@ -824,7 +898,7 @@ describe('notes rendering', () => {
     });
 
     it('inserts clipboard images through the active editor surface', async () => {
-        listFilesMock.mockResolvedValue(['$NOTES/todo.md']);
+        listFilesMock.mockResolvedValue(['$NOTES/todo list.md']);
         getFileMock.mockResolvedValue({ contents: '# Hello Notes', text: '', error: '' });
         getClipboardDataMock.mockResolvedValue({ text: '', image: 'aW1hZ2U=' });
         const originalExecCommand = document.execCommand;
@@ -841,7 +915,7 @@ describe('notes rendering', () => {
 
         try {
             await importNotesModule();
-            document.querySelector('[data-file="$NOTES/todo.md"]').click();
+            document.querySelector('[data-file="$NOTES/todo list.md"]').click();
             await flushPromises();
             await flushPromises();
 
@@ -857,10 +931,10 @@ describe('notes rendering', () => {
             await flushPromises();
 
             expect(saveBinaryFileMock).toHaveBeenCalledWith(
-                expect.stringMatching(/^\$NOTES\/todo\.md\.d\/\d+\.png$/),
+                expect.stringMatching(/^\$NOTES\/todo list\.md\.d\/\d+\.png$/),
                 'aW1hZ2U=',
             );
-            expect(editor.value).toMatch(/!\[\d+\]\(todo\.md\.d\/\d+\.png\)$/);
+            expect(editor.value).toMatch(/!\[\d+\]\(todo%20list\.md\.d\/\d+\.png\)$/);
         } finally {
             document.execCommand = originalExecCommand;
         }
@@ -2453,48 +2527,74 @@ describe('notes rendering', () => {
         scrollSpy.mockRestore();
     });
 
-    it('shows a file context menu with copy actions and Go-provided file handlers', async () => {
-        listFilesMock.mockResolvedValue(['$PROJECT/docs/api.json']);
-        resolveFilePathMock.mockResolvedValue('/tmp/project/docs/api.json');
-        getHyperlinkMenuActionsMock.mockResolvedValue([
-            { title: 'Copy file path to clipboard', icon: 0xf0c1, action: '0' },
-            { title: 'Open file with Visual Studio Code', icon: 0xf08e, action: '3' },
-            { title: '-', icon: 0, action: '' },
-            { title: 'Rename file', icon: 0xf044, action: '4' },
-            { title: 'Delete file', icon: 0xf1f8, action: '5' },
+    it('shows a file parent folder context menu when a file is right-clicked', async () => {
+        listFilesMock.mockResolvedValue([
+            '$PROJECT/docs/reference/api.json',
+            '$PROJECT/docs/readme.md',
         ]);
 
         await importNotesModule();
 
-        const fileButton = document.querySelector('[data-file="$PROJECT/docs/api.json"]');
+        const fileButton = document.querySelector('[data-file="$PROJECT/docs/reference/api.json"]');
         fileButton.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 48, clientY: 96 }));
         await flushPromises();
 
         expect(showLocalMenuMock).toHaveBeenCalledTimes(1);
 
         const menuConfig = showLocalMenuMock.mock.calls[0][0];
-        expect(menuConfig.title).toBe('api.json');
-        expect(menuConfig.options).toEqual([
-            'Copy file path to clipboard',
-            'Open file with Visual Studio Code',
-            '-',
-            'Rename file',
-            'Delete file',
+        expect(menuConfig.title).toBe('reference');
+        expect(menuConfig.options).toEqual(['Create new file...', 'Paste as new file...']);
+        expect(getHyperlinkMenuActionsMock).not.toHaveBeenCalled();
+
+        menuConfig.onSelect(menuConfig.options.indexOf('Create new file...'));
+        expect(document.getElementById('notes-modal-location').textContent).toBe('$PROJECT');
+        expect(document.getElementById('notes-modal-input').value).toBe('docs/reference/');
+    });
+
+    it('uses the nearest preceding folder for a blank file-list context menu', async () => {
+        listFilesMock.mockResolvedValue([
+            '$PROJECT/docs/readme.md',
+            '$PROJECT/docs/reference/api.md',
+            '$PROJECT/images/logo.png',
         ]);
 
-        expect(getHyperlinkMenuActionsMock).toHaveBeenCalledWith('file:///tmp/project/docs/api.json', 'api.json');
+        await importNotesModule();
 
-        menuConfig.onSelect(1);
-        await flushPromises();
-        expect(runHyperlinkMenuActionMock).toHaveBeenCalledWith('file:///tmp/project/docs/api.json', 'api.json', '3');
+        const projectHeader = document.querySelector('.notes-category-header[data-category="$PROJECT"]');
+        const docsFolder = document.querySelector('.notes-tree-folder[data-folder-key="$PROJECT/docs"]');
+        const referenceFolder = document.querySelector('.notes-tree-folder[data-folder-key="$PROJECT/docs/reference"]');
+        const imagesFolder = document.querySelector('.notes-tree-folder[data-folder-key="$PROJECT/images"]');
+        const categoryContent = projectHeader.nextElementSibling;
+        projectHeader.getBoundingClientRect = () => ({ top: 0, bottom: 20, height: 20, width: 100 });
+        docsFolder.getBoundingClientRect = () => ({ top: 25, bottom: 45, height: 20, width: 100 });
+        referenceFolder.getBoundingClientRect = () => ({ top: 50, bottom: 70, height: 20, width: 100 });
+        imagesFolder.getBoundingClientRect = () => ({ top: 75, bottom: 95, height: 20, width: 100 });
 
-        menuConfig.onSelect(3);
-        await flushPromises();
-        expect(runHyperlinkMenuActionMock).toHaveBeenCalledWith('file:///tmp/project/docs/api.json', 'api.json', '4');
+        categoryContent.dispatchEvent(new MouseEvent('contextmenu', {
+            bubbles: true,
+            cancelable: true,
+            clientX: 64,
+            clientY: 22,
+        }));
 
-        menuConfig.onSelect(4);
-        await flushPromises();
-        expect(runHyperlinkMenuActionMock).toHaveBeenCalledWith('file:///tmp/project/docs/api.json', 'api.json', '5');
+        expect(showLocalMenuMock).toHaveBeenCalledTimes(1);
+        const sectionMenu = showLocalMenuMock.mock.calls[0][0];
+        expect(sectionMenu.title).toBe('$PROJECT folders');
+        showLocalMenuMock.mockClear();
+
+        categoryContent.dispatchEvent(new MouseEvent('contextmenu', {
+            bubbles: true,
+            cancelable: true,
+            clientX: 64,
+            clientY: 72,
+        }));
+
+        expect(showLocalMenuMock).toHaveBeenCalledTimes(1);
+        const menuConfig = showLocalMenuMock.mock.calls[0][0];
+        expect(menuConfig.title).toBe('reference');
+        expect(menuConfig.options).toEqual(['Create new file...', 'Paste as new file...']);
+        menuConfig.onSelect(menuConfig.options.indexOf('Create new file...'));
+        expect(document.getElementById('notes-modal-input').value).toBe('docs/reference/');
     });
 
     it('shows a folder-tree menu on category headers and applies collapse/expand actions', async () => {
@@ -2516,8 +2616,19 @@ describe('notes rendering', () => {
 
         expect(showLocalMenuMock).toHaveBeenCalledTimes(1);
         const menuConfig = showLocalMenuMock.mock.calls[0][0];
-        expect(menuConfig.options).toEqual(['Collapse Folders', 'Expand Folders']);
-        expect(menuConfig.icons).toEqual([0xf146, 0xf0fe]);
+        expect(menuConfig.options).toEqual([
+            'Collapse Folders',
+            'Expand Folders',
+            '-',
+            'Create new file...',
+            'Paste as new file...',
+        ]);
+        expect(menuConfig.icons.slice(0, 2)).toEqual([0xf146, 0xf0fe]);
+
+        menuConfig.onSelect(menuConfig.options.indexOf('Create new file...'));
+        expect(document.getElementById('notes-modal-location').textContent).toBe('$PROJECT');
+        expect(document.getElementById('notes-modal-input').value).toBe('');
+        document.getElementById('notes-modal-cancel').click();
 
         menuConfig.onSelect(0);
         await flushPromises();
@@ -2553,7 +2664,13 @@ describe('notes rendering', () => {
 
         expect(showLocalMenuMock).toHaveBeenCalledTimes(1);
         const menuConfig = showLocalMenuMock.mock.calls[0][0];
-        expect(menuConfig.options).toEqual(['Collapse Folders', 'Expand Folders']);
+        expect(menuConfig.options).toEqual([
+            'Collapse Folders',
+            'Expand Folders',
+            '-',
+            'Create new file...',
+            'Paste as new file...',
+        ]);
 
         menuConfig.onSelect(0);
         await flushPromises();
@@ -2566,6 +2683,79 @@ describe('notes rendering', () => {
         await flushPromises();
 
         expect(document.querySelector('.notes-tree-folder[data-folder-key="$PROJECT/docs/reference"]')?.dataset.expanded).toBe('true');
+    });
+
+    it('creates new files from a leaf folder context menu with its path prefilled', async () => {
+        listFilesMock.mockResolvedValue(['$PROJECT/docs/readme.md']);
+        getFileMock.mockResolvedValue({ contents: '# Readme', text: '', error: '' });
+
+        await importNotesModule();
+        const docsFolder = document.querySelector('.notes-tree-folder[data-folder-key="$PROJECT/docs"]');
+        docsFolder.dispatchEvent(new MouseEvent('contextmenu', {
+            bubbles: true,
+            cancelable: true,
+            clientX: 72,
+            clientY: 140,
+        }));
+
+        const menu = showLocalMenuMock.mock.calls.at(-1)[0];
+        expect(menu.options).toContain('Create new file...');
+        expect(menu.options).toContain('Paste as new file...');
+        menu.onSelect(menu.options.indexOf('Create new file...'));
+
+        const modalInput = document.getElementById('notes-modal-input');
+        expect(document.getElementById('notes-modal-location').textContent).toBe('$PROJECT');
+        expect(modalInput.value).toBe('docs/');
+
+        modalInput.value = 'docs/new-note';
+        document.getElementById('notes-modal-create').click();
+        await flushPromises();
+        await flushPromises();
+
+        expect(saveFileMock).toHaveBeenCalledWith('$PROJECT/docs/new-note.md', '', '');
+    });
+
+    it('pastes clipboard text or images as new files in the selected folder', async () => {
+        listFilesMock.mockResolvedValue(['$NOTES/assets/readme.md']);
+        getFileMock.mockResolvedValue({ contents: '# Readme', text: '', error: '' });
+
+        await importNotesModule();
+        const openAssetsMenu = () => {
+            const folder = document.querySelector('.notes-tree-folder[data-folder-key="$NOTES/assets"]');
+            folder.dispatchEvent(new MouseEvent('contextmenu', {
+                bubbles: true,
+                cancelable: true,
+                clientX: 72,
+                clientY: 140,
+            }));
+            return showLocalMenuMock.mock.calls.at(-1)[0];
+        };
+
+        getClipboardDataMock.mockResolvedValue({ text: 'clipboard text', image: '' });
+        let menu = openAssetsMenu();
+        menu.onSelect(menu.options.indexOf('Paste as new file...'));
+        await flushPromises();
+        await flushPromises();
+
+        expect(getClipboardDataMock).toHaveBeenCalledOnce();
+        expect(document.getElementById('notes-modal-location').textContent).toBe('$NOTES');
+        expect(document.getElementById('notes-modal-input').value).toBe('assets/clipboard.md');
+        document.getElementById('notes-modal-create').click();
+        await flushPromises();
+        await flushPromises();
+        expect(saveFileMock).toHaveBeenCalledWith('$NOTES/assets/clipboard.md', 'clipboard text', '');
+
+        getClipboardDataMock.mockResolvedValue({ text: '', image: 'aW1hZ2U=' });
+        menu = openAssetsMenu();
+        menu.onSelect(menu.options.indexOf('Paste as new file...'));
+        await flushPromises();
+        await flushPromises();
+
+        expect(document.getElementById('notes-modal-input').value).toBe('assets/clipboard.png');
+        document.getElementById('notes-modal-create').click();
+        await flushPromises();
+        await flushPromises();
+        expect(saveBinaryFileMock).toHaveBeenCalledWith('$NOTES/assets/clipboard.png', 'aW1hZ2U=');
     });
 
     it('shows a hyperlink context menu when right-clicking an anchor in the markdown preview', async () => {
@@ -2629,6 +2819,52 @@ describe('notes rendering', () => {
         );
         expect(askAIMock.mock.calls[0][2]).toContain('Type: markdown');
         expect(askAIMock.mock.calls[0][2]).toContain('Hello from editor.');
+    });
+
+    it('deletes URI-escaped image paths relative to notes with spaces in their names', async () => {
+        listFilesMock.mockResolvedValue(['$NOTES/file with space.md']);
+        getFileMock.mockResolvedValue({
+            contents: '![123](file%20with%20space.md.d/123.png)',
+            text: '',
+            error: '',
+        });
+
+        const originalExecCommand = document.execCommand;
+        document.execCommand = vi.fn((_command, _showUi, text) => {
+            const editor = document.activeElement;
+            const start = editor.selectionStart;
+            const end = editor.selectionEnd;
+            editor.value = editor.value.slice(0, start) + text + editor.value.slice(end);
+            editor.selectionStart = start + text.length;
+            editor.selectionEnd = editor.selectionStart;
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            return true;
+        });
+
+        try {
+            await importNotesModule();
+            document.querySelector('[data-file="$NOTES/file with space.md"]').click();
+            await flushPromises();
+            await flushPromises();
+
+            const editor = document.getElementById('notes-editor');
+            const imageStart = editor.value.indexOf('![123]');
+            editor.selectionStart = imageStart;
+            editor.selectionEnd = imageStart;
+            editor.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+            await flushPromises();
+
+            const menu = showLocalMenuMock.mock.calls.at(-1)[0];
+            const deleteImageIndex = menu.options.indexOf('Delete image from disk');
+            expect(deleteImageIndex).toBeGreaterThanOrEqual(0);
+            await menu.onSelect(deleteImageIndex);
+            await flushPromises();
+
+            expect(deleteFileMock).toHaveBeenCalledWith('$NOTES/file with space.md.d/123.png');
+            expect(editor.value).not.toContain('![123]');
+        } finally {
+            document.execCommand = originalExecCommand;
+        }
     });
 
     it('shows Ask AI in rendered preview context menu and sends current document content', async () => {
@@ -4164,6 +4400,36 @@ describe('notes rendering', () => {
         expect(findInput.disabled).toBe(false);
         expect(findPrev.disabled).toBe(false);
         expect(findNext.disabled).toBe(false);
+    });
+
+    it('finds and highlights CSV cell text in View and Run modes', async () => {
+        listFilesMock.mockResolvedValue(['$NOTES/search.csv']);
+        getFileMock.mockResolvedValue({
+            contents: 'Name,Description\nAlpha,needle here\nBeta,another needle',
+            text: '',
+            error: '',
+        });
+
+        await importNotesModule();
+        document.querySelector('[data-file="$NOTES/search.csv"]').click();
+        await flushPromises();
+        await flushPromises();
+
+        const findInput = document.getElementById('notes-find-input');
+        const counter = document.getElementById('notes-find-counter');
+        const csvView = document.getElementById('notes-csv-view');
+        findInput.value = 'needle';
+        findInput.dispatchEvent(new Event('input', { bubbles: true }));
+
+        expect(csvView.querySelectorAll('.find-highlight')).toHaveLength(2);
+        expect(counter.textContent).toBe('1 of 2');
+
+        document.getElementById('notes-tab-csv-run').click();
+        await flushPromises();
+        await flushPromises();
+
+        expect(csvView.querySelectorAll('.find-highlight')).toHaveLength(2);
+        expect(counter.textContent).toBe('1 of 2');
     });
 
     it('keeps Find tools tab visible but disables controls in Swagger Run mode', async () => {

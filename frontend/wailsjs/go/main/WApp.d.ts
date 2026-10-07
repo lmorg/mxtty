@@ -129,11 +129,19 @@ export function NotesGrepStream(arg1:string,arg2:grep.Options):Promise<void>;
 
 export function NotesHistoryAdd(arg1:string):Promise<void>;
 
+export function NotesHistoryAddPosition(arg1:string,arg2:number):Promise<void>;
+
 export function NotesHistoryCurrent():Promise<string>;
+
+export function NotesHistoryCurrentPosition():Promise<main.NotesHistoryPosition>;
 
 export function NotesHistoryNext():Promise<string>;
 
+export function NotesHistoryNextPosition():Promise<main.NotesHistoryPosition>;
+
 export function NotesHistoryPrevious():Promise<string>;
+
+export function NotesHistoryPreviousPosition():Promise<main.NotesHistoryPosition>;
 
 export function NotesKeyPress(arg1:string,arg2:boolean,arg3:boolean,arg4:boolean,arg5:boolean):Promise<Record<string, boolean>>;
 

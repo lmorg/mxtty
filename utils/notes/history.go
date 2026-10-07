@@ -1,6 +1,7 @@
 package notes
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -10,8 +11,33 @@ import (
 )
 
 type HistoryListT struct {
-	History []string
+	History []HistoryEntryT
 	Index   int
+}
+
+type HistoryEntryT struct {
+	Filename string `json:"filename"`
+	Line     int    `json:"line"`
+}
+
+func (entry *HistoryEntryT) UnmarshalJSON(data []byte) error {
+	var filename string
+	if err := json.Unmarshal(data, &filename); err == nil {
+		entry.Filename = filename
+		entry.Line = 1
+		return nil
+	}
+
+	type historyEntryAlias HistoryEntryT
+	var decoded historyEntryAlias
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return err
+	}
+	*entry = HistoryEntryT(decoded)
+	if entry.Line < 1 {
+		entry.Line = 1
+	}
+	return nil
 }
 
 func getHistoryList(projectRoot string) *HistoryListT {
@@ -27,25 +53,43 @@ func setHistoryList(projectRoot string, h *HistoryListT) {
 }
 
 func HistoryListCurrent(projectRoot string) string {
+	return HistoryListCurrentEntry(projectRoot).Filename
+}
+
+func HistoryListCurrentEntry(projectRoot string) HistoryEntryT {
 	h := getHistoryList(projectRoot)
 	if len(h.History) == 0 {
-		return ""
+		return HistoryEntryT{}
 	}
 	if h.Index < 0 || h.Index >= len(h.History) {
-		return ""
+		return HistoryEntryT{}
 	}
 
 	return h.History[h.Index]
 }
 
 func HistoryListAdd(projectRoot, filename string) error {
+	return HistoryListAddAt(projectRoot, filename, 1)
+}
+
+func HistoryListAddAt(projectRoot, filename string, line int) error {
 	if filename == "" {
 		return errors.New("no filename to add to recent list")
 	}
 
 	filename = filepath.Clean(filename)
+	if line < 1 {
+		line = 1
+	}
 
 	h := getHistoryList(projectRoot)
+	if h.Index >= 0 && h.Index < len(h.History) {
+		current := h.History[h.Index]
+		if filepath.Clean(current.Filename) == filename && abs(current.Line-line) < 20 {
+			return nil
+		}
+	}
+
 	truncateTo := h.Index + 1
 	if truncateTo < 0 {
 		truncateTo = 0
@@ -56,7 +100,7 @@ func HistoryListAdd(projectRoot, filename string) error {
 
 	h.History = h.History[:truncateTo]
 
-	h.History = append(h.History, filename)
+	h.History = append(h.History, HistoryEntryT{Filename: filename, Line: line})
 	if len(h.History) > 50 {
 		h.History = h.History[len(h.History)-50:]
 	}
@@ -77,8 +121,8 @@ func HistoryListRename(projectRoot, oldFile, newFile string) error {
 	h := getHistoryList(projectRoot)
 
 	for i := range h.History {
-		if filepath.Clean(h.History[i]) == oldFile {
-			h.History[i] = newFile
+		if filepath.Clean(h.History[i].Filename) == oldFile {
+			h.History[i].Filename = newFile
 		}
 	}
 
@@ -99,7 +143,7 @@ func HistoryListDelete(projectRoot, filename string) error {
 	for {
 		i := -1
 		for idx := range h.History {
-			if filepath.Clean(h.History[idx]) == filename {
+			if filepath.Clean(h.History[idx].Filename) == filename {
 				i = idx
 				break
 			}
@@ -129,10 +173,15 @@ func HistoryListDelete(projectRoot, filename string) error {
 
 // Previous returns a filename or error
 func HistoryListPrevious(projectRoot string) (string, error) {
+	entry, err := HistoryListPreviousEntry(projectRoot)
+	return entry.Filename, err
+}
+
+func HistoryListPreviousEntry(projectRoot string) (HistoryEntryT, error) {
 	h := getHistoryList(projectRoot)
 
 	if h.Index == 0 {
-		return "", errors.New("You already have the first history item open")
+		return HistoryEntryT{}, errors.New("You already have the first history item open")
 	}
 
 	h.Index--
@@ -142,13 +191,25 @@ func HistoryListPrevious(projectRoot string) (string, error) {
 
 // HistoryListNext returns a filename or error
 func HistoryListNext(projectRoot string) (string, error) {
+	entry, err := HistoryListNextEntry(projectRoot)
+	return entry.Filename, err
+}
+
+func HistoryListNextEntry(projectRoot string) (HistoryEntryT, error) {
 	h := getHistoryList(projectRoot)
 
 	if h.Index+1 == len(h.History) {
-		return "", errors.New("You already have the last history item open")
+		return HistoryEntryT{}, errors.New("You already have the last history item open")
 	}
 
 	h.Index++
 	setHistoryList(projectRoot, h)
 	return h.History[h.Index], nil
+}
+
+func abs(value int) int {
+	if value < 0 {
+		return -value
+	}
+	return value
 }

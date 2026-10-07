@@ -2237,8 +2237,12 @@ func (a *WApp) AddNotesFindFieldValue(fieldName, value string) []string {
 }
 
 func (a *WApp) NotesHistoryAdd(filename string) {
+	a.NotesHistoryAddPosition(filename, 1)
+}
+
+func (a *WApp) NotesHistoryAddPosition(filename string, line int) {
 	expanded := a.filePath(filename)
-	if err := notes.HistoryListAdd(a.projRoot, expanded); err != nil {
+	if err := notes.HistoryListAddAt(a.projRoot, expanded, line); err != nil {
 		if renderer, ok := renderwebkit.CurrentRenderer(); ok {
 			renderer.DisplayNotification(types.NOTIFY_ERROR, err.Error())
 		} else {
@@ -2248,25 +2252,60 @@ func (a *WApp) NotesHistoryAdd(filename string) {
 }
 
 func (a *WApp) NotesHistoryCurrent() string {
-	return a.notesPathForHistory(notes.HistoryListCurrent(a.projRoot))
+	return a.NotesHistoryCurrentPosition().File
 }
 
 func (a *WApp) NotesHistoryPrevious() (string, error) {
-	file, err := notes.HistoryListPrevious(a.projRoot)
+	entry, err := a.NotesHistoryPreviousPosition()
 	if err != nil {
 		return "", err
 	}
 
-	return a.notesPathForHistory(file), nil
+	return entry.File, nil
 }
 
 func (a *WApp) NotesHistoryNext() (string, error) {
-	file, err := notes.HistoryListNext(a.projRoot)
+	entry, err := a.NotesHistoryNextPosition()
 	if err != nil {
 		return "", err
 	}
 
-	return a.notesPathForHistory(file), nil
+	return entry.File, nil
+}
+
+type NotesHistoryPosition struct {
+	File string `json:"file"`
+	Line int    `json:"line"`
+}
+
+func (a *WApp) NotesHistoryCurrentPosition() NotesHistoryPosition {
+	return a.notesHistoryPosition(notes.HistoryListCurrentEntry(a.projRoot))
+}
+
+func (a *WApp) NotesHistoryPreviousPosition() (NotesHistoryPosition, error) {
+	entry, err := notes.HistoryListPreviousEntry(a.projRoot)
+	if err != nil {
+		return NotesHistoryPosition{}, err
+	}
+	return a.notesHistoryPosition(entry), nil
+}
+
+func (a *WApp) NotesHistoryNextPosition() (NotesHistoryPosition, error) {
+	entry, err := notes.HistoryListNextEntry(a.projRoot)
+	if err != nil {
+		return NotesHistoryPosition{}, err
+	}
+	return a.notesHistoryPosition(entry), nil
+}
+
+func (a *WApp) notesHistoryPosition(entry notes.HistoryEntryT) NotesHistoryPosition {
+	if entry.Line < 1 {
+		entry.Line = 1
+	}
+	return NotesHistoryPosition{
+		File: a.notesPathForHistory(entry.Filename),
+		Line: entry.Line,
+	}
 }
 
 func (a *WApp) GetProjectCache() *notes.ProjectCacheT {

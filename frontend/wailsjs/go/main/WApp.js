@@ -242,16 +242,32 @@ export function NotesHistoryAdd(arg1) {
   return window['go']['main']['WApp']['NotesHistoryAdd'](arg1);
 }
 
+export function NotesHistoryAddPosition(arg1, arg2) {
+  return window['go']['main']['WApp']['NotesHistoryAddPosition'](arg1, arg2);
+}
+
 export function NotesHistoryCurrent() {
   return window['go']['main']['WApp']['NotesHistoryCurrent']();
+}
+
+export function NotesHistoryCurrentPosition() {
+  return window['go']['main']['WApp']['NotesHistoryCurrentPosition']();
 }
 
 export function NotesHistoryNext() {
   return window['go']['main']['WApp']['NotesHistoryNext']();
 }
 
+export function NotesHistoryNextPosition() {
+  return window['go']['main']['WApp']['NotesHistoryNextPosition']();
+}
+
 export function NotesHistoryPrevious() {
   return window['go']['main']['WApp']['NotesHistoryPrevious']();
+}
+
+export function NotesHistoryPreviousPosition() {
+  return window['go']['main']['WApp']['NotesHistoryPreviousPosition']();
 }
 
 export function NotesKeyPress(arg1, arg2, arg3, arg4, arg5) {

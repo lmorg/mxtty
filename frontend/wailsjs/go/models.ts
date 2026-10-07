@@ -565,6 +565,20 @@ export namespace main {
 	        this.error = source["error"];
 	    }
 	}
+	export class NotesHistoryPosition {
+	    file: string;
+	    line: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new NotesHistoryPosition(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.file = source["file"];
+	        this.line = source["line"];
+	    }
+	}
 	export class NotesTableGraphResultT {
 	    svg: string;
 	    error: string;
