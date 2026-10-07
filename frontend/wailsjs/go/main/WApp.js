@@ -174,6 +174,14 @@ export function GetNotesColumnWidths(arg1, arg2, arg3, arg4) {
   return window['go']['main']['WApp']['GetNotesColumnWidths'](arg1, arg2, arg3, arg4);
 }
 
+export function GetNotesContext() {
+  return window['go']['main']['WApp']['GetNotesContext']();
+}
+
+export function GetNotesFilesSnapshot(arg1, arg2) {
+  return window['go']['main']['WApp']['GetNotesFilesSnapshot'](arg1, arg2);
+}
+
 export function GetNotesFindFieldValues(arg1) {
   return window['go']['main']['WApp']['GetNotesFindFieldValues'](arg1);
 }
@@ -228,6 +236,10 @@ export function ListAIStreamBlocks(arg1, arg2) {
 
 export function ListFiles() {
   return window['go']['main']['WApp']['ListFiles']();
+}
+
+export function ListFilesForContext(arg1) {
+  return window['go']['main']['WApp']['ListFilesForContext'](arg1);
 }
 
 export function Log(arg1) {
@@ -568,6 +580,10 @@ export function StopNote(arg1) {
 
 export function SwaggerRequest(arg1) {
   return window['go']['main']['WApp']['SwaggerRequest'](arg1);
+}
+
+export function SyncNotesContext(arg1) {
+  return window['go']['main']['WApp']['SyncNotesContext'](arg1);
 }
 
 export function TerminalCopyImageDataURL(arg1) {

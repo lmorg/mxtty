@@ -15,6 +15,7 @@ require (
 	github.com/djherbis/times v1.6.0
 	github.com/ebitengine/purego v0.10.2
 	github.com/eino-contrib/jsonschema v1.0.3
+	github.com/fsnotify/fsevents v0.2.0
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/go-analyze/charts v0.6.1
 	github.com/lmorg/murex v0.0.0-20260202231244-8678ad89405c

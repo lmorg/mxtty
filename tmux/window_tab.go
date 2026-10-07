@@ -8,6 +8,22 @@ import (
 	"github.com/lmorg/ttyphoon/types"
 )
 
+type WorkspaceDirectory struct {
+	Pwd       string
+	GroupName string
+}
+
+func (tmux *Tmux) WorkspaceDirectories() []WorkspaceDirectory {
+	directories := []WorkspaceDirectory{}
+	for win := range tmux.wins.Each() {
+		if win.closed || win.activePane == nil || win.activePane.closed {
+			continue
+		}
+		directories = append(directories, WorkspaceDirectory{Pwd: win.activePane.pwd, GroupName: win.name})
+	}
+	return directories
+}
+
 func (tmux *Tmux) GetTermTiles() *types.AppWindowTerms {
 	_ = tmux.updateWinInfo("")
 	_ = tmux.updatePaneInfo("")

@@ -58,30 +58,35 @@ var wailsAssets embed.FS
 
 // App struct
 type WApp struct {
-	ctx             context.Context
-	mdBaseDir       string
-	mdBaseDirMu     sync.RWMutex
-	projRoot        string
-	groupName       string
-	usrNotesDir     string
-	homeDir         string
-	globalNotes     string
-	visible         bool
-	notesKills      map[string]func()
-	notesStickies   map[string]types.Notification
-	notesMu         sync.Mutex
-	notesListMu     sync.Mutex
-	notesListCancel context.CancelFunc
-	notesListSeq    uint64
-	lspStartErrMu   sync.Mutex
-	lspStartErrs    map[string]string
-	lspManager      *lsp.Manager
-	lspDocs         *lsp.DocumentStore
-	typosDocs       *lsp.DocumentStore
-	typosUnavail    map[string]bool
-	typosMu         sync.Mutex
-	syntaxEngine    *syntaxcompletion.Engine
-	notesTables     *tablecore.Registry
+	ctx                   context.Context
+	mdBaseDir             string
+	mdBaseDirMu           sync.RWMutex
+	projRoot              string
+	groupName             string
+	usrNotesDir           string
+	homeDir               string
+	globalNotes           string
+	visible               bool
+	notesKills            map[string]func()
+	notesStickies         map[string]types.Notification
+	notesMu               sync.Mutex
+	notesListMu           sync.Mutex
+	notesListCancel       context.CancelFunc
+	notesListSeq          uint64
+	notesContext          notes.FileContext
+	notesFileIndex        *notes.FileIndex
+	notesIndexActivated   bool
+	notesIndexClosed      bool
+	notesIndexUnsubscribe func()
+	lspStartErrMu         sync.Mutex
+	lspStartErrs          map[string]string
+	lspManager            *lsp.Manager
+	lspDocs               *lsp.DocumentStore
+	typosDocs             *lsp.DocumentStore
+	typosUnavail          map[string]bool
+	typosMu               sync.Mutex
+	syntaxEngine          *syntaxcompletion.Engine
+	notesTables           *tablecore.Registry
 }
 
 // NewApp creates a new App application struct
@@ -123,7 +128,7 @@ func (a *WApp) notifyLspStartError(languageID string, argv []string, err error) 
 		message += ": " + strings.Join(argv, " ")
 	}*/
 
-	key := fmt.Sprintf("%s|%s", a.projRoot, languageID)
+	key := fmt.Sprintf("%s|%s", a.GetCurrentProject(), languageID)
 	a.lspStartErrMu.Lock()
 	if prev, ok := a.lspStartErrs[key]; ok && prev == message {
 		a.lspStartErrMu.Unlock()
@@ -143,7 +148,7 @@ func (a *WApp) notifyLspStartError(languageID string, argv []string, err error) 
 }
 
 func (a *WApp) clearLspStartError(languageID string) {
-	key := fmt.Sprintf("%s|%s", a.projRoot, languageID)
+	key := fmt.Sprintf("%s|%s", a.GetCurrentProject(), languageID)
 	a.lspStartErrMu.Lock()
 	defer a.lspStartErrMu.Unlock()
 	delete(a.lspStartErrs, key)
@@ -154,7 +159,7 @@ func (a *WApp) notifyLspWorkspaceFiles(send func(t *lsp.Transport) error) {
 		return
 	}
 
-	for _, sp := range a.lspManager.ServersForWorkspace(a.projRoot) {
+	for _, sp := range a.lspManager.ServersForWorkspace(a.GetCurrentProject()) {
 		if sp == nil {
 			continue
 		}
@@ -559,6 +564,7 @@ func (a *WApp) startTerminalWindow() {
 	// Set app reference on renderer for hotkey handlers
 	if wr, ok := renderwebkit.CurrentRenderer(); ok {
 		wr.SetApp(a)
+		go a.prewarmNotesFiles(wr)
 	}
 }
 
@@ -674,14 +680,14 @@ func (a *WApp) GetAllLanguageDescriptions() []string {
 func (a *WApp) RunNote(docPath, id string, code, language string) {
 	ch := make(chan *jupyter.OutputT)
 
-	bookID := jupyter.BookId(a.projRoot, a.filePath(docPath))
+	bookID := jupyter.BookId(a.GetCurrentProject(), a.filePath(docPath))
 
 	ctx, kill := context.WithCancel(context.Background())
 	a.notesMu.Lock()
 	a.notesKills[id] = kill
 	a.notesMu.Unlock()
 
-	go jupyter.RunNote(ctx, bookID, id, a.projRoot, code, language, ch)
+	go jupyter.RunNote(ctx, bookID, id, a.GetCurrentProject(), code, language, ch)
 
 	go func() {
 		for output := range ch {
@@ -756,9 +762,9 @@ func (a *WApp) CompleteSyntax(docPath, language, source string, cursor, selectio
 }
 
 func (a *WApp) RunFunction(docPath, functionName, cellId, code string, parameters []string, language string) RunFunctionReturnT {
-	bookID := jupyter.BookId(a.projRoot, a.filePath(docPath))
+	bookID := jupyter.BookId(a.GetCurrentProject(), a.filePath(docPath))
 
-	output, err := jupyter.RunFunction(context.Background(), a.projRoot, bookID, functionName, code, parameters, language)
+	output, err := jupyter.RunFunction(context.Background(), a.GetCurrentProject(), bookID, functionName, code, parameters, language)
 	if err != nil {
 		return RunFunctionReturnT{
 			Output:  err.Error(),
@@ -775,8 +781,8 @@ func (a *WApp) RunFunction(docPath, functionName, cellId, code string, parameter
 }
 
 func (a *WApp) FormatCodeBlock(docPath, codeId, code, language string) *jupyter.FormatCodeReturnT {
-	bookId := jupyter.BookId(a.projRoot, a.filePath(docPath))
-	return jupyter.FormatCode(context.Background(), bookId, "lsp_"+codeId, a.projRoot, code, language)
+	bookId := jupyter.BookId(a.GetCurrentProject(), a.filePath(docPath))
+	return jupyter.FormatCode(context.Background(), bookId, "lsp_"+codeId, a.GetCurrentProject(), code, language)
 }
 
 // FormatNotesContent formats a whole document's content (no snippet template
@@ -784,14 +790,14 @@ func (a *WApp) FormatCodeBlock(docPath, codeId, code, language string) *jupyter.
 // FormatCommand is configured, HasFormatter is false and the frontend falls
 // back to LSP formatting.
 func (a *WApp) FormatNotesContent(docPath, content, language string) *jupyter.FormatCodeReturnT {
-	bookId := jupyter.BookId(a.projRoot, a.filePath(docPath))
-	return jupyter.FormatNotesContent(context.Background(), bookId, "editor", a.projRoot, content, language)
+	bookId := jupyter.BookId(a.GetCurrentProject(), a.filePath(docPath))
+	return jupyter.FormatNotesContent(context.Background(), bookId, "editor", a.GetCurrentProject(), content, language)
 }
 
 func (a *WApp) FormatCodeFile(docPath, language string) {
-	filePath := a.filePathWithProject(docPath, a.projRoot)
-	log.Printf(`[debug] FormatCodeFile: pwd="%s" docPath="%s" language="%s"`, a.projRoot, filePath, language)
-	jupyter.FormatFile(context.Background(), a.projRoot, filePath, language)
+	filePath := a.filePathWithProject(docPath, a.GetCurrentProject())
+	log.Printf(`[debug] FormatCodeFile: pwd="%s" docPath="%s" language="%s"`, a.GetCurrentProject(), filePath, language)
+	jupyter.FormatFile(context.Background(), a.GetCurrentProject(), filePath, language)
 }
 
 func (a *WApp) StopNote(id string) {
@@ -852,7 +858,7 @@ func (a *WApp) GetFile(filename string) GetFileReturnT {
 
 	a.setMarkdownBaseDir(filepath.Dir(filename))
 	watcher.Watch(filename)
-	err = notes.RecentListAdd(a.projRoot, requestedFilename)
+	err = notes.RecentListAdd(a.GetCurrentProject(), requestedFilename)
 	if err != nil {
 		//log.Println(err)
 		return GetFileReturnT{Error: err.Error()}
@@ -935,7 +941,7 @@ func (a *WApp) resolveNotesAsset(requested string) (string, error) {
 		return "", errors.New("asset not found")
 	}
 
-	for _, root := range []string{baseDir, a.projRoot, a.usrNotesDir, a.globalNotes, a.documentsTtyphoonDir()} {
+	for _, root := range []string{baseDir, a.GetCurrentProject(), a.currentNotesContext().PathUserNotes, a.currentNotesContext().PathGlobalNotes, a.documentsTtyphoonDir()} {
 		if root == "" {
 			continue
 		}
@@ -1000,7 +1006,7 @@ func (a *WApp) GetImage(path string) string {
 	}
 
 	/*if recentFile := a.notesFileForAbsolutePath(resolvedPath); recentFile != "" {
-		notes.RecentListAdd(a.projRoot, recentFile)
+		notes.RecentListAdd(a.GetCurrentProject(), recentFile)
 	}*/
 
 	base64 := base64.StdEncoding.EncodeToString(b)
@@ -1109,35 +1115,83 @@ func (a *WApp) FilterStrings(query string, items []string) *FilterResultsT {
 }
 
 func (a *WApp) ListFiles() []string {
+	files, _ := a.ListFilesForContext(a.GetNotesContext())
+	return files
+}
+
+func (a *WApp) GetNotesContext() notes.FileContext {
 	renderer, ok := renderwebkit.CurrentRenderer()
 	if !ok {
-		return []string{}
+		return notes.FileContext{}
 	}
+	renderer.NotesFileContext()
+	return a.currentNotesContext()
+}
 
+func (a *WApp) SyncNotesContext(roots notes.FileContext) {
 	a.notesListMu.Lock()
+	defer a.notesListMu.Unlock()
+	if a.notesIndexClosed {
+		return
+	}
+	if a.notesContext == roots {
+		return
+	}
+	if a.notesListCancel != nil {
+		a.notesListCancel()
+		a.notesListCancel = nil
+	}
+	a.notesListSeq++
+	a.notesContext = roots
+	a.globalNotes = roots.PathGlobalNotes
+	a.usrNotesDir = roots.PathUserNotes
+	a.projRoot = roots.PathProjectRoot
+	a.groupName = roots.GroupName
+	index := a.notesFileIndexLocked()
+	paths := notes.FileContextRoots(roots)
+	if !a.notesIndexActivated {
+		index.Prewarm(paths)
+		a.notesIndexActivated = true
+	}
+	index.Activate(paths)
+}
+
+func (a *WApp) currentNotesContext() notes.FileContext {
+	a.notesListMu.Lock()
+	defer a.notesListMu.Unlock()
+	return notes.FileContext{
+		PathProjectRoot: a.projRoot,
+		PathGlobalNotes: a.globalNotes,
+		PathUserNotes:   a.usrNotesDir,
+		GroupName:       a.groupName,
+	}
+}
+
+func (a *WApp) ListFilesForContext(roots notes.FileContext) ([]string, error) {
+	a.notesListMu.Lock()
+	if a.notesContext != roots {
+		a.notesListMu.Unlock()
+		return nil, context.Canceled
+	}
 	if a.notesListCancel != nil {
 		a.notesListCancel()
 	}
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	a.notesListCancel = cancel
 	a.notesListSeq++
 	scanID := a.notesListSeq
 	a.notesListMu.Unlock()
 
-	ulf := notes.ListFiles(ctx, renderer)
+	ulf := notes.ScanFiles(ctx, roots)
 
 	a.notesListMu.Lock()
-	if a.notesListSeq == scanID {
-		a.notesListCancel = nil
+	defer a.notesListMu.Unlock()
+	if a.notesListSeq != scanID || a.notesContext != roots || ctx.Err() != nil {
+		return nil, context.Canceled
 	}
-	a.notesListMu.Unlock()
-
-	a.globalNotes = ulf.PathGlobalNotes
-	a.usrNotesDir = ulf.PathUserNotes
-	a.projRoot = ulf.PathProjectRoot
-	a.groupName = ulf.GroupName
-
-	return ulf.Files
+	a.notesListCancel = nil
+	return ulf.Files, ulf.Err
 }
 
 // NotesGrepStream performs a streaming grep search, sending results via EventsEmit in batches.
@@ -1149,7 +1203,7 @@ func (a *WApp) NotesGrepStream(query string, opts NotesGrepOptionsT) {
 }
 
 func (a *WApp) notesGrepStream(query string, opts NotesGrepOptionsT) {
-	searchRoot := strings.TrimSpace(a.projRoot)
+	searchRoot := strings.TrimSpace(a.GetCurrentProject())
 	if searchRoot == "" {
 		runtime.EventsEmit(a.ctx, "notesGrepError", "search root is empty")
 		return
@@ -1199,7 +1253,7 @@ func (a *WApp) CancelNotesListFiles() {
 }
 
 func (a *WApp) GetCurrentGroupName() string {
-	return a.groupName
+	return a.currentNotesContext().GroupName
 }
 
 func (a *WApp) expandMappingFuncWithProject(s, projectPath string) string {
@@ -1208,13 +1262,13 @@ func (a *WApp) expandMappingFuncWithProject(s, projectPath string) string {
 		if projectPath != "" {
 			return projectPath
 		}
-		return a.projRoot
+		return a.GetCurrentProject()
 	case "NOTES":
-		return a.usrNotesDir
+		return a.currentNotesContext().PathUserNotes
 	case "HOME":
 		return a.homeDir
 	case "GLOBAL":
-		return a.globalNotes
+		return a.currentNotesContext().PathGlobalNotes
 	//case "HISTORY":
 	//	return a.historyDir
 	default:
@@ -1232,9 +1286,9 @@ func (a *WApp) notesPathForHistory(filename string) string {
 		prefix   string
 		variable string
 	}{
-		{prefix: filepath.Clean(a.projRoot), variable: "$PROJECT"},
-		{prefix: filepath.Clean(a.usrNotesDir), variable: "$NOTES"},
-		{prefix: filepath.Clean(a.globalNotes), variable: "$GLOBAL"},
+		{prefix: filepath.Clean(a.GetCurrentProject()), variable: "$PROJECT"},
+		{prefix: filepath.Clean(a.currentNotesContext().PathUserNotes), variable: "$NOTES"},
+		{prefix: filepath.Clean(a.currentNotesContext().PathGlobalNotes), variable: "$GLOBAL"},
 		{prefix: filepath.Clean(a.homeDir), variable: "$HOME"},
 	}
 
@@ -1260,7 +1314,7 @@ func (a *WApp) filePath(filename string) string {
 		return a.expandMappingFuncWithProject(s, "")
 	})
 	if filepath.IsLocal(filename) {
-		filename = a.usrNotesDir + string(filepath.Separator) + filename
+		filename = a.currentNotesContext().PathUserNotes + string(filepath.Separator) + filename
 	}
 	return filename
 }
@@ -1272,7 +1326,7 @@ func (a *WApp) filePathWithProject(filename string, projectPath string) string {
 		return a.expandMappingFuncWithProject(s, projectPath)
 	})
 	if filepath.IsLocal(filename) {
-		filename = a.usrNotesDir + string(filepath.Separator) + filename
+		filename = a.currentNotesContext().PathUserNotes + string(filepath.Separator) + filename
 	}
 	return filename
 }
@@ -1348,9 +1402,9 @@ func (a *WApp) notesLspServerFor(absPath, languageID string) *lsp.ServerProcess 
 		return nil
 	}
 
-	alreadyRunning := a.lspManager.Has(a.projRoot, selectedLanguageID)
+	alreadyRunning := a.lspManager.Has(a.GetCurrentProject(), selectedLanguageID)
 
-	sp, err := a.lspManager.GetOrStart(a.ctx, a.projRoot, selectedLanguageID, argv, initOptions)
+	sp, err := a.lspManager.GetOrStart(a.ctx, a.GetCurrentProject(), selectedLanguageID, argv, initOptions)
 	if err != nil {
 		a.notifyLspStartError(selectedLanguageID, argv, err)
 		return nil
@@ -1384,7 +1438,7 @@ func (a *WApp) notesLspServerFor(absPath, languageID string) *lsp.ServerProcess 
 		})
 	}
 
-	if err := sp.EnsureInitialized(a.ctx, a.projRoot); err != nil {
+	if err := sp.EnsureInitialized(a.ctx, a.GetCurrentProject()); err != nil {
 		a.notifyLspStartError(selectedLanguageID, argv, err)
 		return nil
 	}
@@ -1492,16 +1546,16 @@ func (a *WApp) notesTyposServer() *lsp.ServerProcess {
 	}
 
 	a.typosMu.Lock()
-	unavailable := a.typosUnavail[a.projRoot]
+	unavailable := a.typosUnavail[a.GetCurrentProject()]
 	a.typosMu.Unlock()
 	if unavailable {
 		return nil
 	}
 
 	initOptions := config.Config.Notes.SpellCheck.TyposLsp.InitOptions
-	alreadyRunning := a.lspManager.Has(a.projRoot, typosLspLanguageID)
+	alreadyRunning := a.lspManager.Has(a.GetCurrentProject(), typosLspLanguageID)
 
-	sp, err := a.lspManager.GetOrStart(a.ctx, a.projRoot, typosLspLanguageID, argv, initOptions)
+	sp, err := a.lspManager.GetOrStart(a.ctx, a.GetCurrentProject(), typosLspLanguageID, argv, initOptions)
 	if err != nil {
 		// typos-lsp is optional; do not surface a user-facing error. Record the
 		// failure so a missing binary isn't repeatedly respawned.
@@ -1521,7 +1575,7 @@ func (a *WApp) notesTyposServer() *lsp.ServerProcess {
 		}, nil, nil)
 	}
 
-	if err := sp.EnsureInitialized(a.ctx, a.projRoot); err != nil {
+	if err := sp.EnsureInitialized(a.ctx, a.GetCurrentProject()); err != nil {
 		log.Printf("lsp: typos-lsp init failed (%v); falling back to aspell", err)
 		a.markTyposUnavailable()
 		return nil
@@ -1532,7 +1586,7 @@ func (a *WApp) notesTyposServer() *lsp.ServerProcess {
 
 func (a *WApp) markTyposUnavailable() {
 	a.typosMu.Lock()
-	a.typosUnavail[a.projRoot] = true
+	a.typosUnavail[a.GetCurrentProject()] = true
 	a.typosMu.Unlock()
 }
 
@@ -2221,11 +2275,11 @@ func (a *WApp) NotesSpellCheck(text string) []SpellCheckSuggestionT {
 // preventing issues where a file opened in one project could be overwritten
 // if the user switches projects before autosave completes.
 func (a *WApp) GetCurrentProject() string {
-	return a.projRoot
+	return a.currentNotesContext().PathProjectRoot
 }
 
 func (a *WApp) NotesRecentFiles() []string {
-	return notes.GetRecentList(a.projRoot)
+	return notes.GetRecentList(a.GetCurrentProject())
 }
 
 func (a *WApp) GetNotesFindFieldValues(fieldName string) []string {
@@ -2242,7 +2296,7 @@ func (a *WApp) NotesHistoryAdd(filename string) {
 
 func (a *WApp) NotesHistoryAddPosition(filename string, line int) {
 	expanded := a.filePath(filename)
-	if err := notes.HistoryListAddAt(a.projRoot, expanded, line); err != nil {
+	if err := notes.HistoryListAddAt(a.GetCurrentProject(), expanded, line); err != nil {
 		if renderer, ok := renderwebkit.CurrentRenderer(); ok {
 			renderer.DisplayNotification(types.NOTIFY_ERROR, err.Error())
 		} else {
@@ -2279,11 +2333,11 @@ type NotesHistoryPosition struct {
 }
 
 func (a *WApp) NotesHistoryCurrentPosition() NotesHistoryPosition {
-	return a.notesHistoryPosition(notes.HistoryListCurrentEntry(a.projRoot))
+	return a.notesHistoryPosition(notes.HistoryListCurrentEntry(a.GetCurrentProject()))
 }
 
 func (a *WApp) NotesHistoryPreviousPosition() (NotesHistoryPosition, error) {
-	entry, err := notes.HistoryListPreviousEntry(a.projRoot)
+	entry, err := notes.HistoryListPreviousEntry(a.GetCurrentProject())
 	if err != nil {
 		return NotesHistoryPosition{}, err
 	}
@@ -2291,7 +2345,7 @@ func (a *WApp) NotesHistoryPreviousPosition() (NotesHistoryPosition, error) {
 }
 
 func (a *WApp) NotesHistoryNextPosition() (NotesHistoryPosition, error) {
-	entry, err := notes.HistoryListNextEntry(a.projRoot)
+	entry, err := notes.HistoryListNextEntry(a.GetCurrentProject())
 	if err != nil {
 		return NotesHistoryPosition{}, err
 	}
@@ -2309,19 +2363,19 @@ func (a *WApp) notesHistoryPosition(entry notes.HistoryEntryT) NotesHistoryPosit
 }
 
 func (a *WApp) GetProjectCache() *notes.ProjectCacheT {
-	return notes.GetProjectCache(a.projRoot)
+	return notes.GetProjectCache(a.GetCurrentProject())
 }
 
 func (a *WApp) SetProjectCache(ptr *notes.ProjectCacheT) {
-	notes.SetProjectCache(a.projRoot, ptr)
+	notes.SetProjectCache(a.GetCurrentProject(), ptr)
 }
 
 func (a *WApp) GetDocumentCache(filename string) *notes.DocumentCacheT {
-	return notes.GetDocumentCache(a.projRoot, filename)
+	return notes.GetDocumentCache(a.GetCurrentProject(), filename)
 }
 
 func (a *WApp) SetDocumentCache(filename string, ptr *notes.DocumentCacheT) {
-	notes.SetDocumentCache(a.projRoot, filename, ptr)
+	notes.SetDocumentCache(a.GetCurrentProject(), filename, ptr)
 }
 
 func (a *WApp) GetAISessionCache(workspace string) string {
@@ -2514,6 +2568,7 @@ func (a *WApp) SaveFile(filename, contents, projectPath string) error {
 	if err := os.WriteFile(absPath, []byte(contents), 0644); err != nil {
 		return err
 	}
+	notes.NotifyFileChanges(absPath)
 
 	if created {
 		a.notifyLspWorkspaceFiles(func(t *lsp.Transport) error {
@@ -2536,7 +2591,11 @@ func (a *WApp) SaveBinaryFile(filename, base64Contents string) error {
 		return fmt.Errorf("decode base64 file contents: %w", err)
 	}
 
-	return os.WriteFile(filename, b, 0644)
+	if err := os.WriteFile(filename, b, 0644); err != nil {
+		return err
+	}
+	notes.NotifyFileChanges(filename)
+	return nil
 }
 
 func (a *WApp) SaveImageDialog(defaultFilename string) (string, error) {
@@ -2560,7 +2619,7 @@ func (a *WApp) SaveImageDialog(defaultFilename string) (string, error) {
 func (a *WApp) SaveCodeDialog(defaultFilename string) (string, error) {
 	path, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
 		Title:            "Save Code Block",
-		DefaultDirectory: a.projRoot,
+		DefaultDirectory: a.GetCurrentProject(),
 		DefaultFilename:  defaultFilename,
 		Filters: []runtime.FileFilter{
 			{DisplayName: "Code files", Pattern: "*.txt;*.md;*.go;*.js;*.ts;*.py;*.sh;*.json;*.yaml;*.yml;*.html;*.css"},
@@ -2626,12 +2685,13 @@ func (a *WApp) RenameFile(oldPath, newPath string) error {
 	if err != nil {
 		return err
 	}
+	notes.NotifyFileChanges(oldAbsPath, newAbsPath)
 
-	err = notes.RecentListRename(a.projRoot, oldPath, newPath)
+	err = notes.RecentListRename(a.GetCurrentProject(), oldPath, newPath)
 	if err != nil {
 		return err
 	}
-	err = notes.HistoryListRename(a.projRoot, oldAbsPath, newAbsPath)
+	err = notes.HistoryListRename(a.GetCurrentProject(), oldAbsPath, newAbsPath)
 	if err != nil {
 		return err
 	}
@@ -2649,12 +2709,13 @@ func (a *WApp) DeleteFile(filename string) error {
 	if err != nil {
 		return err
 	}
+	notes.NotifyFileChanges(absPath)
 
-	err = notes.RecentListDelete(a.projRoot, filename)
+	err = notes.RecentListDelete(a.GetCurrentProject(), filename)
 	if err != nil {
 		return err
 	}
-	err = notes.HistoryListDelete(a.projRoot, absPath)
+	err = notes.HistoryListDelete(a.GetCurrentProject(), absPath)
 	if err != nil {
 		return err
 	}
@@ -3240,6 +3301,20 @@ func (a *WApp) startup(ctx context.Context) {
 }
 
 func (a *WApp) shutdown(ctx context.Context) {
+	a.notesListMu.Lock()
+	a.notesIndexClosed = true
+	if a.notesListCancel != nil {
+		a.notesListCancel()
+	}
+	index := a.notesFileIndex
+	unsubscribe := a.notesIndexUnsubscribe
+	a.notesListMu.Unlock()
+	if unsubscribe != nil {
+		unsubscribe()
+	}
+	if index != nil {
+		index.Close()
+	}
 	watcher.Close()
 }
 

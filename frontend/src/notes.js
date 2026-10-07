@@ -2,11 +2,10 @@ import {
     GetWindowStyle, GetNotesMaxLogLines, GetNotesColumnWidths, SetNotesColumnWidths, GetFile,
     NotesTableSort, NotesTableClearSort, NotesTableFilter, NotesTableReconcile, NotesTableRestore, NotesTableSetGraph, NotesTableRenderGraph, NotesTableDisposeAll,
     GetNotesStructViewMaxSizeKB,
-    ListFiles, SaveFile, SaveBinaryFile, DeleteFile, RenameFile,
-    CancelNotesListFiles,
+    GetNotesContext, GetNotesFilesSnapshot, SaveFile, SaveBinaryFile, DeleteFile, RenameFile,
     RunNote, RunFunction, StopNote, SendIpc, SendToTerminal,
     GetLanguageDescriptions, GetAllLanguageDescriptions, TerminalCopyImageDataURL,
-    ResolveFilePath,
+    ResolveFilePath, GetHyperlinkMenuActions, RunHyperlinkMenuAction,
     DisplayHyperlinkMenu,
     SaveImageDialog, SaveCodeDialog, WindowPrint, GetClipboardData, ClipboardSetHTML, SwaggerRequest, NotesKeyPress,
     ShowCommandPalette, GetCurrentProject, GetCurrentGroupName, GetFileMetaMarkdown, AskAI, AskAIImage,
@@ -452,6 +451,10 @@ app.innerHTML = `
                 <div id="notes-title-group">
                     <button id="notes-title" type="button" aria-haspopup="menu">Notes</button>
                     <button id="notes-current-file" type="button" aria-haspopup="menu" title="Recent files" hidden></button>
+                    <span id="notes-file-index-status" role="status" aria-live="polite" hidden>
+                        <span id="notes-file-index-spinner" class="notes-ai-lazy-spinner notes-file-index-spinner" aria-hidden="true" hidden></span>
+                        <span id="notes-file-index-warning" aria-hidden="true" hidden>&#xf071;</span>
+                    </span>
                 </div>
                 <div id="notes-list-filter-wrap">
                     <input id="notes-list-filter" type="text" placeholder="Filter files..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
@@ -7927,14 +7930,78 @@ async function restoreJupyterBlockState(blockId) {
     }
 }
 
+let fileListRefreshSequence = 0;
+let requestedFileContext = null;
+let fileListRefreshInFlight = 0;
+let fileIndexRefreshPending = false;
+let fileIndexRefreshQueued = false;
+let fileIndexRoots = new Map();
+
+function normalizeFileIndexRoot(path) {
+    return String(path || '').replaceAll('\\', '/').replace(/\/+$/, '');
+}
+
+function indexedFileList(context, roots) {
+    const files = [];
+    for (const [field, prefix, recursive] of [
+        ['globalNotes', '$GLOBAL', false], ['userNotes', '$NOTES', false], ['projectRoot', '$PROJECT', true],
+    ]) {
+        const snapshot = roots.get(normalizeFileIndexRoot(context[field]));
+        if (!snapshot) continue;
+        for (const path of snapshot.files || []) {
+            if (recursive || !/[\\/]/.test(path)) files.push(`${prefix}/${path}`);
+        }
+    }
+    return files;
+}
+
+function indexedFileStatus(roots) {
+    const snapshots = Array.from(roots.values());
+    const busy = snapshots.some((root) => root.state === 'scanning' || root.state === 'refreshing');
+    const error = snapshots.map((root) => root.error || '').filter(Boolean).join('\n');
+    const truncated = snapshots.some((root) => root.truncated);
+    return { state: busy ? 'refreshing' : error ? 'error' : truncated ? 'truncated' : 'ready', error, truncated };
+}
+
+function renderFileIndexStatus(snapshot) {
+    const status = document.getElementById('notes-file-index-status');
+    const spinner = document.getElementById('notes-file-index-spinner');
+    const warning = document.getElementById('notes-file-index-warning');
+    const busy = snapshot.state === 'scanning' || snapshot.state === 'refreshing';
+    const problem = Boolean(snapshot.error || snapshot.truncated);
+    spinner.hidden = !busy;
+    warning.hidden = busy || !problem;
+    status.hidden = !busy && !problem;
+    const label = busy ? 'Refreshing files'
+        : snapshot.error || (snapshot.truncated ? 'File list truncated at the filesystem entry limit' : '');
+    status.title = label;
+    status.setAttribute('aria-label', label);
+    elements.list.setAttribute('aria-busy', busy ? 'true' : 'false');
+}
+
+function queueFileIndexRefresh() {
+    fileIndexRefreshPending = true;
+    if (fileIndexRefreshQueued || fileListRefreshInFlight > 0) return;
+    fileIndexRefreshQueued = true;
+    queueMicrotask(() => {
+        fileIndexRefreshQueued = false;
+        if (!fileIndexRefreshPending || fileListRefreshInFlight > 0 || !requestedFileContext) return;
+        fileIndexRefreshPending = false;
+        void refreshFiles({ context: requestedFileContext, skipHistoryRestore: true });
+    });
+}
+
 async function refreshFiles(options = {}) {
+    const sequence = ++fileListRefreshSequence;
+    fileListRefreshInFlight++;
     try {
         const skipHistoryRestore = Boolean(options?.skipHistoryRestore);
         const previousWorkspaceKey = String(state.currentWorkspaceKey || '');
-        const files = await ListFiles();
-        state.files = Array.isArray(files) ? files : [];
-        state.currentProjectRoot = await GetCurrentProject();
-        const workspaceName = await GetCurrentGroupName();
+        const context = options.context || await GetNotesContext();
+        if (sequence !== fileListRefreshSequence) return;
+        requestedFileContext = context;
+        state.currentProjectRoot = context.projectRoot || '';
+        const workspaceName = context.groupName || '';
         const workspaceKey = `${String(state.currentProjectRoot || '')}::${String(workspaceName || '')}`;
         const workspaceChanged = previousWorkspaceKey !== '' && previousWorkspaceKey !== workspaceKey;
         const workspaceScopedRefresh = previousWorkspaceKey === '' || workspaceChanged;
@@ -7951,17 +8018,36 @@ async function refreshFiles(options = {}) {
             void refreshAIModelPicker();
         }
 
+        const snapshot = await GetNotesFilesSnapshot(context, Boolean(options.refresh));
+        if (sequence !== fileListRefreshSequence) return;
+        renderFileIndexStatus(snapshot);
+        fileIndexRoots = new Map((snapshot.roots || []).map((root) => [normalizeFileIndexRoot(root.root), root]));
+        state.files = Array.isArray(snapshot.files) ? snapshot.files : [];
+        state.filteredFiles = null;
+        renderFileList();
         await loadProjectCache({
             skipHistoryRestore: skipHistoryRestore || !workspaceScopedRefresh,
+            isCurrent: () => sequence === fileListRefreshSequence,
         });
+        if (sequence !== fileListRefreshSequence) return;
         await applyFileFilter();
 
+        if (sequence !== fileListRefreshSequence) return;
         if (workspaceChanged) {
             scrollActiveFileListItemIntoView();
         }
     } catch (err) {
+        if (sequence !== fileListRefreshSequence) return;
+        if (String(err).includes('context canceled')) {
+            renderFileIndexStatus({ state: 'ready' });
+            return;
+        }
+        renderFileIndexStatus({ state: 'error', error: String(err) });
         notifyTerminal('Failed to load file list', 'error');
         console.error(err);
+    } finally {
+        fileListRefreshInFlight--;
+        if (fileIndexRefreshPending && fileListRefreshInFlight === 0) queueFileIndexRefresh();
     }
 }
 
@@ -7988,6 +8074,7 @@ async function loadProjectCache(options = {}) {
     try {
         const skipHistoryRestore = Boolean(options?.skipHistoryRestore);
         const cache = await GetProjectCache();
+        if (options.isCurrent && !options.isCurrent()) return;
         const collapsed = cache?.FileListCollapsed?.[state.currentProjectRoot] || [];
         state.expandedFolders = {};
         for (const key of collapsed) {
@@ -7997,6 +8084,7 @@ async function loadProjectCache(options = {}) {
             return;
         }
         const historyPosition = await NotesHistoryCurrentPosition();
+        if (options.isCurrent && !options.isCurrent()) return;
         const historyDoc = historyPosition?.file || '';
         const hasHistoryDoc = historyDoc && state.files.includes(historyDoc);
         if (hasHistoryDoc && historyDoc !== state.lastRestoredDocument) {
@@ -8065,6 +8153,7 @@ function getFilteredFiles() {
 }
 
 async function applyFileFilter() {
+    const sequence = fileListRefreshSequence;
     const query = state.fileFilterQuery.trim();
     if (!query) {
         state.filteredFiles = null;
@@ -8076,12 +8165,14 @@ async function applyFileFilter() {
         // query was malformed or matched nothing, so show the empty (no-match)
         // state rather than falling back to the unfiltered list.
         const result = await FilterStrings(query, state.files);
+        if (sequence !== fileListRefreshSequence || query !== state.fileFilterQuery.trim()) return;
         if (result && result.Error) {
             state.filteredFiles = [];
         } else {
             state.filteredFiles = Array.isArray(result?.List) ? result.List : [];
         }
     } catch {
+        if (sequence !== fileListRefreshSequence) return;
         state.filteredFiles = null;
     }
     renderFileList();
@@ -8464,7 +8555,7 @@ function findFolderNodeByPath(nodes, path) {
     return null;
 }
 
-function openFileParentFolderContextMenu(file, x, y) {
+async function openFileParentFolderContextMenu(file, x, y) {
     const { category, relativePath } = splitCategoryPath(file);
     if (!category) {
         return;
@@ -8476,6 +8567,28 @@ function openFileParentFolderContextMenu(file, x, y) {
     const folderNode = folderPath ? findFolderNodeByPath(categoryNodes, folderPath) : null;
     const folderKey = folderPath ? `${category}${PRIMARY_PATH_SEPARATOR}${folderPath}` : category;
     const folderName = folderNode?.name || `${category} folders`;
+    const fileItems = [];
+    try {
+        const resolvedPath = await ResolveFilePath(file);
+        if (resolvedPath) {
+            const fileUrl = `file://${String(resolvedPath).replaceAll('\\', '/')}`;
+            const label = getPathFileName(file);
+            const actions = await GetHyperlinkMenuActions(fileUrl, label);
+            for (const action of actions || []) {
+                fileItems.push({
+                    title: String(action.title || ''),
+                    icon: Number(action.icon) || 0,
+                    onSelect: () => {
+                        RunHyperlinkMenuAction(fileUrl, label, String(action.action || '')).catch((err) => {
+                            notifyTerminal(`Failed to execute file action: ${err}`, 'error');
+                        });
+                    },
+                });
+            }
+        }
+    } catch (err) {
+        notifyTerminal(`Failed to load file actions: ${err}`, 'error');
+    }
 
     openFolderTreeContextMenu(
         category,
@@ -8484,6 +8597,7 @@ function openFileParentFolderContextMenu(file, x, y) {
         y,
         folderName,
         folderKey,
+        fileItems,
     );
 }
 
@@ -8568,10 +8682,14 @@ async function pasteAsNewFile(folderPath) {
     });
 }
 
-function openFolderTreeContextMenu(category, nodes, x, y, title = 'Folder actions', folderPath = category) {
-    const folderKeys = collectFolderKeys(category, nodes);
+function openFolderTreeContextMenu(category, nodes, x, y, title = 'Folder actions', folderPath = category, fileItems = []) {
+    let folderKeys = collectFolderKeys(category, nodes);
+    if (folderKeys.length === 0) {
+        folderKeys = collectFolderKeys(category, getCategoryTreeNodes(category));
+    }
     const { location, pathPrefix } = getFolderCreateTarget(folderPath);
-    const menuItems = [];
+    const menuItems = [...fileItems];
+    if (menuItems.length > 0) menuItems.push({ title: '-' });
 
     if (folderKeys.length > 0) {
         menuItems.push(
@@ -13429,10 +13547,39 @@ EventsOn("notesCreateAndOpen", params => {
     createAndOpenFile(params.filename, params.contents);
 });
 
-EventsOn("notesUpdate", () => {
-    CancelNotesListFiles().catch(() => {}).finally(() => {
-        refreshFiles();
+EventsOn("notesContextChanged", (context) => {
+    if (!context || typeof context !== 'object') return;
+    if (requestedFileContext && ['projectRoot', 'globalNotes', 'userNotes', 'groupName']
+        .every((field) => context[field] === requestedFileContext[field])) return;
+    void refreshFiles({ context });
+});
+
+EventsOn('notesFileIndexChanged', (event) => {
+    if (!event?.root || !requestedFileContext) return;
+    const root = normalizeFileIndexRoot(event.root);
+    if (!['projectRoot', 'globalNotes', 'userNotes'].some((field) =>
+        normalizeFileIndexRoot(requestedFileContext[field]) === root)) return;
+    const snapshot = fileIndexRoots.get(root);
+    if (snapshot && event.revision <= snapshot.revision) return;
+    if (fileListRefreshInFlight > 0 || !snapshot || !event.state || event.baseVersion !== snapshot.version
+        || event.version < snapshot.version || event.version > snapshot.version + 1) {
+        queueFileIndexRefresh();
+        return;
+    }
+    const files = new Set(snapshot.files || []);
+    for (const path of event.removed || []) files.delete(path);
+    for (const path of event.added || []) files.add(path);
+    fileIndexRoots.set(root, {
+        root: event.root, files: Array.from(files).sort(), version: event.version,
+        revision: event.revision, state: event.state, stale: event.stale,
+        truncated: event.truncated, error: event.error,
     });
+    renderFileIndexStatus(indexedFileStatus(fileIndexRoots));
+    if (event.version !== snapshot.version) {
+        fileListRefreshSequence++;
+        state.files = indexedFileList(requestedFileContext, fileIndexRoots);
+        void applyFileFilter();
+    }
 });
 
 EventsOn("notesFileChanged", async () => {
@@ -16009,7 +16156,7 @@ if (elements.list) {
         if (fileItem) {
             event.preventDefault();
             event.stopPropagation();
-            openFileParentFolderContextMenu(fileItem.dataset.file, event.clientX, event.clientY);
+            void openFileParentFolderContextMenu(fileItem.dataset.file, event.clientX, event.clientY);
             return;
         }
 
@@ -16309,7 +16456,7 @@ hydrateFindFieldHistory(elements.findInput);
 hydrateFindFieldHistory(elements.replaceInput);
 hydrateFindFieldHistory(elements.findFilesInput);
 
-// Load initial notes list on startup; later notesUpdate events will refresh it.
+// Initial scan is followed by context-change events, not terminal focus scans.
 refreshFiles();
 
 if (typeof ResizeObserver !== 'undefined' && elements.swaggerRunWrap) {

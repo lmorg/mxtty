@@ -17,6 +17,7 @@ import (
 	"github.com/lmorg/ttyphoon/debug"
 	"github.com/lmorg/ttyphoon/types"
 	"github.com/lmorg/ttyphoon/utils/markdownutil"
+	"github.com/lmorg/ttyphoon/utils/notes"
 )
 
 type PatchFile struct {
@@ -214,5 +215,9 @@ func writeFileAtomic(filename string, data []byte, perm os.FileMode) error {
 		return err
 	}
 
-	return os.Rename(tmpName, filename)
+	if err := os.Rename(tmpName, filename); err != nil {
+		return err
+	}
+	notes.NotifyFileChanges(filename)
+	return nil
 }

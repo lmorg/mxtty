@@ -14,6 +14,7 @@ import (
 	"github.com/lmorg/ttyphoon/debug"
 	"github.com/lmorg/ttyphoon/types"
 	"github.com/lmorg/ttyphoon/utils/markdownutil"
+	"github.com/lmorg/ttyphoon/utils/notes"
 	"golang.org/x/tools/txtar"
 )
 
@@ -121,6 +122,9 @@ func (t *Write) writeFiles(_ context.Context, input string) (string, error) {
 			t.agent.Renderer().DisplayNotification(types.NOTIFY_ERROR, err.Error())
 			result += fmt.Sprintf("ERROR '%s': %s\n", filename, err)
 			// continue // don't need to "continue" here
+		}
+		if err == nil {
+			notes.NotifyFileChanges(filename)
 		}
 
 		result += fmt.Sprintf("INFO '%s': file written successfully\n", filename)

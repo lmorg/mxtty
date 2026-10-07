@@ -95,6 +95,10 @@ export function GetLanguageDescriptions(arg1:string):Promise<Array<string>>;
 
 export function GetNotesColumnWidths(arg1:string,arg2:string,arg3:Array<string>,arg4:boolean):Promise<Array<number>>;
 
+export function GetNotesContext():Promise<notes.FileContext>;
+
+export function GetNotesFilesSnapshot(arg1:notes.FileContext,arg2:boolean):Promise<main.NotesFilesSnapshot>;
+
 export function GetNotesFindFieldValues(arg1:string):Promise<Array<string>>;
 
 export function GetNotesLanguageReservedWords(arg1:string):Promise<Array<string>>;
@@ -122,6 +126,8 @@ export function ListAIPromptLogs():Promise<Array<sessiondb.PromptLogMeta>>;
 export function ListAIStreamBlocks(arg1:number,arg2:number):Promise<Array<sessiondb.StreamBlockMeta>>;
 
 export function ListFiles():Promise<Array<string>>;
+
+export function ListFilesForContext(arg1:notes.FileContext):Promise<Array<string>>;
 
 export function Log(arg1:string):Promise<void>;
 
@@ -292,6 +298,8 @@ export function ShowTooltip(arg1:string):Promise<void>;
 export function StopNote(arg1:string):Promise<void>;
 
 export function SwaggerRequest(arg1:swagger.RequestT):Promise<swagger.ResponseT>;
+
+export function SyncNotesContext(arg1:notes.FileContext):Promise<void>;
 
 export function TerminalCopyImageDataURL(arg1:string):Promise<void>;
 

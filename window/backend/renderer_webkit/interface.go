@@ -9,6 +9,7 @@ import (
 	"github.com/lmorg/ttyphoon/config"
 	"github.com/lmorg/ttyphoon/tmux"
 	"github.com/lmorg/ttyphoon/types"
+	"github.com/lmorg/ttyphoon/utils/notes"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -29,6 +30,11 @@ type webkitRender struct {
 	tmux            *tmux.Tmux
 	app             interface{} // Reference to WApp for accessing methods like ListFiles()
 	auxTabsMu       sync.RWMutex
+	notesContextMu  sync.Mutex
+	notesContext    notes.FileContext
+	notesResolved   notes.FileContext
+	notesPwd        string
+	notesGroup      string
 	auxTerminalTabs []types.TerminalPaneTab
 	glyphSize       *types.XY
 	windowCells     *types.XY

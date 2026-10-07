@@ -27,6 +27,7 @@ const notesTableRenderGraphMock = vi.fn(() => Promise.resolve({ svg: '<svg xmlns
 const notesTableDisposeAllMock = vi.fn(() => Promise.resolve());
 const getFileMock = vi.fn();
 const listFilesMock = vi.fn();
+const getNotesFilesSnapshotMock = vi.fn();
 const filterStringsMock = vi.fn((query, items) => {
     const tokens = String(query).toLowerCase().trim().split(/\s+/).filter(Boolean);
     const list = tokens.length === 0
@@ -172,6 +173,14 @@ vi.mock('../wailsjs/go/main/WApp', () => ({
     GetFile: getFileMock,
     GetImage: getImageMock,
     ListFiles: listFilesMock,
+    ListFilesForContext: listFilesMock,
+    GetNotesFilesSnapshot: getNotesFilesSnapshotMock,
+    GetNotesContext: vi.fn(async () => ({
+        projectRoot: await getCurrentProjectMock(),
+        groupName: await getCurrentGroupNameMock(),
+        globalNotes: '/notes/',
+        userNotes: '/notes/workspace/',
+    })),
     FilterStrings: filterStringsMock,
     SaveFile: saveFileMock,
     SaveBinaryFile: saveBinaryFileMock,
@@ -431,6 +440,10 @@ describe('notes rendering', () => {
         notesTableDisposeAllMock.mockResolvedValue();
         getFileMock.mockReset();
         listFilesMock.mockReset();
+        getNotesFilesSnapshotMock.mockReset();
+        getNotesFilesSnapshotMock.mockImplementation(async (context) => ({
+            context, files: await listFilesMock(), roots: [], state: 'ready', error: '', truncated: false,
+        }));
         saveFileMock.mockClear();
         saveBinaryFileMock.mockClear();
         deleteFileMock.mockClear();
@@ -2516,10 +2529,10 @@ describe('notes rendering', () => {
         const scrollSpy = vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(() => {});
         scrollSpy.mockClear();
 
-        const notesUpdateHandler = getEventHandler('notesUpdate');
+        const notesUpdateHandler = getEventHandler('notesContextChanged');
         expect(typeof notesUpdateHandler).toBe('function');
         getCurrentProjectMock.mockResolvedValue('/tmp/project-two');
-        notesUpdateHandler('Workspace Two');
+        notesUpdateHandler({ projectRoot: '/tmp/project-two', groupName: 'Workspace Two' });
         await flushPromises();
         await flushPromises();
 
@@ -2527,15 +2540,149 @@ describe('notes rendering', () => {
         scrollSpy.mockRestore();
     });
 
+    it('ignores old workspace scans and does not rescan unchanged contexts', async () => {
+        listFilesMock.mockResolvedValue(['$PROJECT/initial.md']);
+        await importNotesModule();
+
+        let completeOldScan;
+        listFilesMock.mockImplementationOnce(() => new Promise((resolve) => {
+            completeOldScan = resolve;
+        }));
+        const contextChanged = getEventHandler('notesContextChanged');
+        const oldContext = { projectRoot: '/old', groupName: 'Old', globalNotes: '/notes/', userNotes: '/notes/Old/' };
+        const newContext = { projectRoot: '/new', groupName: 'New', globalNotes: '/notes/', userNotes: '/notes/New/' };
+        contextChanged(oldContext);
+        await flushPromises();
+        listFilesMock.mockResolvedValueOnce(['$PROJECT/new.md']);
+        contextChanged(newContext);
+        await flushPromises();
+        await flushPromises();
+
+        completeOldScan(['$PROJECT/old.md']);
+        await flushPromises();
+        await flushPromises();
+        expect(document.querySelector('[data-file="$PROJECT/new.md"]')).not.toBeNull();
+        expect(document.querySelector('[data-file="$PROJECT/old.md"]')).toBeNull();
+        expect(document.getElementById('notes-title').innerText).toBe('New');
+
+        const scans = listFilesMock.mock.calls.length;
+        contextChanged(newContext);
+        await flushPromises();
+        expect(listFilesMock).toHaveBeenCalledTimes(scans);
+        expect(cancelNotesListFilesMock).not.toHaveBeenCalled();
+    });
+
+    it('does not replace the file list with a cancelled scan', async () => {
+        listFilesMock.mockResolvedValue(['$PROJECT/complete.md']);
+        await importNotesModule();
+        listFilesMock.mockRejectedValueOnce('context canceled');
+        getEventHandler('notesContextChanged')({ projectRoot: '/other', groupName: 'Other' });
+        await flushPromises();
+        await flushPromises();
+        expect(document.querySelector('[data-file="$PROJECT/complete.md"]')).not.toBeNull();
+    });
+
+    it('keeps cached files visible while refreshing and applies index completion without rescanning', async () => {
+        getCurrentProjectMock.mockResolvedValue('/project');
+        getNotesFilesSnapshotMock.mockResolvedValue({
+            files: ['$PROJECT/cached.md'], roots: [], state: 'refreshing', error: '', truncated: false,
+        });
+        await importNotesModule();
+
+        expect(document.querySelector('[data-file="$PROJECT/cached.md"]')).not.toBeNull();
+        expect(document.getElementById('notes-file-index-spinner').hidden).toBe(false);
+        expect(document.getElementById('notes-list').getAttribute('aria-busy')).toBe('true');
+        expect(document.getElementById('notes-file-index-status').getAttribute('aria-label')).toBe('Refreshing files');
+
+        getNotesFilesSnapshotMock.mockResolvedValue({
+            files: ['$PROJECT/fresh.md'], roots: [], state: 'ready', error: '', truncated: false,
+        });
+        const onIndexChanged = getEventHandler('notesFileIndexChanged');
+        onIndexChanged({ root: '/project', version: 2, revision: 3 });
+        onIndexChanged({ root: '/project', version: 2, revision: 3 });
+        await flushPromises();
+        await flushPromises();
+
+        expect(document.querySelector('[data-file="$PROJECT/fresh.md"]')).not.toBeNull();
+        expect(document.querySelector('[data-file="$PROJECT/cached.md"]')).toBeNull();
+        expect(document.getElementById('notes-file-index-spinner').hidden).toBe(true);
+        expect(document.getElementById('notes-list').getAttribute('aria-busy')).toBe('false');
+        expect(getNotesFilesSnapshotMock).toHaveBeenCalledTimes(2);
+        expect(getNotesFilesSnapshotMock.mock.calls.every(([, refresh]) => refresh === false)).toBe(true);
+
+        onIndexChanged({ root: '/inactive', version: 4, revision: 5 });
+        await flushPromises();
+        expect(getNotesFilesSnapshotMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('shows index truncation and scan errors without hiding cached files', async () => {
+        getCurrentProjectMock.mockResolvedValue('/project');
+        getNotesFilesSnapshotMock.mockResolvedValue({
+            files: ['$PROJECT/cached.md'], roots: [], state: 'truncated', error: '', truncated: true,
+        });
+        await importNotesModule();
+        const status = document.getElementById('notes-file-index-status');
+        expect(status.hidden).toBe(false);
+        expect(status.title).toContain('truncated');
+        expect(document.getElementById('notes-file-index-warning').hidden).toBe(false);
+
+        getNotesFilesSnapshotMock.mockResolvedValue({
+            files: ['$PROJECT/cached.md'], roots: [], state: 'error', error: 'Permission denied', truncated: false,
+        });
+        getEventHandler('notesFileIndexChanged')({ root: '/project', version: 1, revision: 4 });
+        await flushPromises();
+        await flushPromises();
+        expect(document.querySelector('[data-file="$PROJECT/cached.md"]')).not.toBeNull();
+        expect(status.title).toContain('Permission denied');
+        expect(document.getElementById('notes-file-index-spinner').hidden).toBe(true);
+    });
+
+    it('applies file index deltas and recovers a version gap without rescanning', async () => {
+        getCurrentProjectMock.mockResolvedValue('/project');
+        getNotesFilesSnapshotMock.mockResolvedValue({
+            files: ['$PROJECT/old.md'], state: 'ready',
+            roots: [{ root: '/project', files: ['old.md'], version: 1, revision: 2, state: 'ready' }],
+        });
+        await importNotesModule();
+        const changed = getEventHandler('notesFileIndexChanged');
+        const event = { root: '/project', baseVersion: 1, version: 2, revision: 3,
+            added: ['new.md'], removed: ['old.md'], state: 'ready' };
+        changed(event);
+        await flushPromises();
+        expect(document.querySelector('[data-file="$PROJECT/new.md"]')).not.toBeNull();
+        expect(document.querySelector('[data-file="$PROJECT/old.md"]')).toBeNull();
+        expect(getNotesFilesSnapshotMock).toHaveBeenCalledTimes(1);
+        changed(event);
+        await flushPromises();
+        expect(getNotesFilesSnapshotMock).toHaveBeenCalledTimes(1);
+
+        getNotesFilesSnapshotMock.mockResolvedValue({
+            files: ['$PROJECT/recovered.md'], state: 'ready',
+            roots: [{ root: '/project', files: ['recovered.md'], version: 4, revision: 5, state: 'ready' }],
+        });
+        changed({ ...event, baseVersion: 3, version: 4, revision: 5 });
+        await flushPromises();
+        await flushPromises();
+        expect(document.querySelector('[data-file="$PROJECT/recovered.md"]')).not.toBeNull();
+        expect(getNotesFilesSnapshotMock).toHaveBeenCalledTimes(2);
+        expect(getNotesFilesSnapshotMock.mock.calls[1][1]).toBe(false);
+    });
+
     it('shows a file parent folder context menu when a file is right-clicked', async () => {
         listFilesMock.mockResolvedValue([
-            '$PROJECT/docs/reference/api.json',
+            '$PROJECT/docs/reference/api spec.json',
             '$PROJECT/docs/readme.md',
+        ]);
+        resolveFilePathMock.mockResolvedValue('/tmp/project/docs/reference/api spec.json');
+        getHyperlinkMenuActionsMock.mockResolvedValue([
+            { title: 'Copy file path to clipboard', icon: 0xf0c1, action: '0' },
+            { title: 'Rename file', icon: 0xf044, action: '1' },
+            { title: 'Delete file', icon: 0xf1f8, action: '2' },
         ]);
 
         await importNotesModule();
 
-        const fileButton = document.querySelector('[data-file="$PROJECT/docs/reference/api.json"]');
+        const fileButton = document.querySelector('[data-file="$PROJECT/docs/reference/api spec.json"]');
         fileButton.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 48, clientY: 96 }));
         await flushPromises();
 
@@ -2543,8 +2690,14 @@ describe('notes rendering', () => {
 
         const menuConfig = showLocalMenuMock.mock.calls[0][0];
         expect(menuConfig.title).toBe('reference');
-        expect(menuConfig.options).toEqual(['Create new file...', 'Paste as new file...']);
-        expect(getHyperlinkMenuActionsMock).not.toHaveBeenCalled();
+        expect(menuConfig.options).toEqual([
+            'Copy file path to clipboard', 'Rename file', 'Delete file', '-',
+            'Collapse Folders', 'Expand Folders', '-', 'Create new file...', 'Paste as new file...',
+        ]);
+        expect(getHyperlinkMenuActionsMock).toHaveBeenCalledWith('file:///tmp/project/docs/reference/api spec.json', 'api spec.json');
+        menuConfig.onSelect(menuConfig.options.indexOf('Delete file'));
+        await flushPromises();
+        expect(runHyperlinkMenuActionMock).toHaveBeenCalledWith('file:///tmp/project/docs/reference/api spec.json', 'api spec.json', '2');
 
         menuConfig.onSelect(menuConfig.options.indexOf('Create new file...'));
         expect(document.getElementById('notes-modal-location').textContent).toBe('$PROJECT');
@@ -2592,7 +2745,7 @@ describe('notes rendering', () => {
         expect(showLocalMenuMock).toHaveBeenCalledTimes(1);
         const menuConfig = showLocalMenuMock.mock.calls[0][0];
         expect(menuConfig.title).toBe('reference');
-        expect(menuConfig.options).toEqual(['Create new file...', 'Paste as new file...']);
+        expect(menuConfig.options).toEqual(['Collapse Folders', 'Expand Folders', '-', 'Create new file...', 'Paste as new file...']);
         menuConfig.onSelect(menuConfig.options.indexOf('Create new file...'));
         expect(document.getElementById('notes-modal-input').value).toBe('docs/reference/');
     });

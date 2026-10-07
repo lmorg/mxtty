@@ -69,7 +69,7 @@ Each record uses: **Status**, **Context**, **Decision**, **Consequences**,
 | [0055](0055-chart-numeric-cell-normalization.md) | Normalize formatted numeric chart cells | Graphs |
 | [0056](0056-shell-tools-separate-tty-and-script-execution.md) | Separate interactive terminal commands from Bash scripts | AI tools |
 | [0057](0057-xml-structured-notes-view.md) | XML uses source-preserving structured Notes View | Notes |
-| [0058](0058-notes-file-index-scan-once-then-watch.md) | (proposed) Notes file list is a Go-owned index: scan once, then watch | Notes |
+| [0058](0058-notes-file-index-scan-once-then-watch.md) | Notes file list is a Go-owned index: scan once, then watch | Notes |
 
 ## Recurring themes
 

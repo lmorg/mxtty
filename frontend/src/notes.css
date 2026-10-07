@@ -93,10 +93,34 @@ body {
 }
 
 #notes-title-group {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 24px;
     gap: 2px;
     min-width: 0;
+}
+
+#notes-file-index-status {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+    width: 14px;
+    height: 14px;
+    margin-top: 10px;
+    color: var(--yellow);
+}
+
+#notes-file-index-warning {
+    font-family: "Font Awesome Solid", "Font Awesome", sans-serif;
+    font-size: 12px;
+}
+
+#notes-current-file {
+    grid-column: 1 / -1;
+}
+
+#notes-title {
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 #notes-title {
@@ -2210,6 +2234,21 @@ body {
     animation: notes-ai-spin 0.6s linear infinite;
     pointer-events: none;
     z-index: 1;
+}
+
+.notes-file-index-spinner {
+    position: static;
+    width: 14px;
+    height: 14px;
+    border-width: 2px;
+    transform: none;
+    animation-name: notes-ai-spin-static;
+}
+
+#notes-file-index-status[hidden],
+#notes-file-index-spinner[hidden],
+#notes-file-index-warning[hidden] {
+    display: none;
 }
 
 .notes-ai-tool-output-toggle {
