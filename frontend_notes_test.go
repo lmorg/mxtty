@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/lmorg/ttyphoon/utils/notes"
+	"golang.design/x/clipboard"
 )
 
 func TestNotesContextChangesBeforeScanAndCancelsOldScan(t *testing.T) {
@@ -105,5 +106,22 @@ func TestSaveBinaryFilePublishesWriteThroughHint(t *testing.T) {
 	}
 	if !reflect.DeepEqual(changed, []string{path}) {
 		t.Fatalf("file change hints = %v, want %s", changed, path)
+	}
+}
+
+func TestFormattedClipboardItemsIncludeRTFHTMLAndText(t *testing.T) {
+	items := formattedClipboardItems("<table></table>", `{\rtf1 table}`, "table")
+	if len(items) != 3 {
+		t.Fatalf("clipboard representations = %d, want 3", len(items))
+	}
+	wantFormats := []clipboard.Format{clipboard.Register("text/rtf"), clipboard.Register("text/html"), clipboard.FmtText}
+	wantBytes := []string{`{\rtf1 table}`, "<table></table>", "table"}
+	for position, item := range items {
+		if item.Format != wantFormats[position] || string(item.Bytes) != wantBytes[position] {
+			t.Fatalf("clipboard item %d = %+v, want format %v and %q", position, item, wantFormats[position], wantBytes[position])
+		}
+	}
+	if legacy := formattedClipboardItems("html", "", "text"); len(legacy) != 2 {
+		t.Fatalf("HTML-only compatibility representations = %d, want 2", len(legacy))
 	}
 }

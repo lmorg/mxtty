@@ -26,6 +26,10 @@ export function ClearAISessionHistory() {
   return window['go']['main']['WApp']['ClearAISessionHistory']();
 }
 
+export function ClipboardSetFormatted(arg1, arg2, arg3) {
+  return window['go']['main']['WApp']['ClipboardSetFormatted'](arg1, arg2, arg3);
+}
+
 export function ClipboardSetHTML(arg1, arg2) {
   return window['go']['main']['WApp']['ClipboardSetHTML'](arg1, arg2);
 }

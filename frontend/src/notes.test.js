@@ -292,6 +292,7 @@ vi.mock('../wailsjs/go/main/WApp', () => ({
     RunHyperlinkMenuAction: runHyperlinkMenuActionMock,
     DisplayHyperlinkMenu: displayHyperlinkMenuMock,
     ClipboardSetHTML: clipboardSetHTMLMock,
+    ClipboardSetFormatted: clipboardSetHTMLMock,
     ShowTooltip: showTooltipMock,
     CloseTooltip: closeTooltipMock,
     NotesKeyPress: notesKeyPressMock,
@@ -3558,7 +3559,7 @@ describe('notes rendering', () => {
         expect(menuConfig.options).not.toContain('Print');
     });
 
-    it('preserves table cell breaks in Markdown copy and quotes newlines in CSV copy', async () => {
+    it('preserves table cell breaks in Markdown, CSV, and Formatted copy', async () => {
         listFilesMock.mockResolvedValue(['$NOTES/guide.md']);
         getFileMock.mockResolvedValue({ contents: '# Guide', text: '', error: '' });
         await importNotesModule();
@@ -3586,16 +3587,40 @@ describe('notes rendering', () => {
         tableCell.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 100, clientY: 100 }));
         await flushPromises();
         menu = showLocalMenuMock.mock.calls.at(-1)[0];
-        expect(menu.options).toContain('Copy table (HTML)');
-        menu.onSelect(menu.options.indexOf('Copy table (HTML)'));
+        expect(menu.options).toContain('Copy table (Formatted)');
+        expect(menu.options).not.toContain('Copy table (HTML)');
+        menu.onSelect(menu.options.indexOf('Copy table (Formatted)'));
         await flushPromises();
         expect(clipboardSetHTMLMock).toHaveBeenCalledOnce();
-        const [html, plainText] = clipboardSetHTMLMock.mock.calls[0];
+        const [html, rtf, plainText] = clipboardSetHTMLMock.mock.calls[0];
         expect(html).toContain('<table>');
         expect(html).toContain('<strong>one</strong><br>two');
         expect(html).not.toContain('notes-cellref');
         expect(html).not.toContain('contenteditable');
-        expect(plainText).toBe('First,Second\n"one\ntwo","alpha\nbeta, ""gamma"""');
+        expect(plainText).toBe('First\tSecond\none\ntwo\talpha\nbeta, "gamma"\n');
+        expect(rtf).toContain('\\trowd');
+        expect(rtf).toContain('\\cellx4500\\cellx9000');
+        expect(rtf).toContain('one\\line two');
+        expect(rtf).toContain('alpha\\line beta, "gamma"');
+        expect(rtf.match(/\\row\b/g)).toHaveLength(2);
+    });
+
+    it('escapes RTF table text and encodes Unicode as signed UTF-16 units', async () => {
+        listFilesMock.mockResolvedValue(['$NOTES/guide.md']);
+        getFileMock.mockResolvedValue({ contents: '# Guide', text: '', error: '' });
+        await importNotesModule();
+        const aiOutput = document.getElementById('notes-ai-output');
+        aiOutput.innerHTML = '<table><thead><tr><th>Name</th></tr></thead><tbody><tr><td></td></tr></tbody></table>';
+        const cell = aiOutput.querySelector('td');
+        cell.textContent = '{value}\\path\tCaf' + String.fromCharCode(233) + String.fromCodePoint(0x1f600);
+        cell.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+        const menu = showLocalMenuMock.mock.calls.at(-1)[0];
+        menu.onSelect(menu.options.indexOf('Copy table (Formatted)'));
+        await flushPromises();
+        const [, rtf] = clipboardSetHTMLMock.mock.calls.at(-1);
+        expect(rtf).toContain('\\{value\\}\\\\path\\tab Caf\\u233?\\u-10179?\\u-8704?');
+        expect(rtf).toContain('\\trhdr');
+        expect(rtf).toContain('\\b Name\\b0');
     });
 
     // Images in the AI stream get the same menu as images in a rendered note,
@@ -5820,14 +5845,17 @@ describe('notes rendering', () => {
                 expect(clipboardSetTextMock).toHaveBeenLastCalledWith(markdown);
 
                 menu = await openMenu();
-                menu.onSelect(menu.options.indexOf('Copy table (HTML)'));
+                menu.onSelect(menu.options.indexOf('Copy table (Formatted)'));
                 await flushPromises();
-                const [html, plainText] = clipboardSetHTMLMock.mock.calls.at(-1);
+                const [html, rtf, plainText] = clipboardSetHTMLMock.mock.calls.at(-1);
                 const copiedTable = document.createElement('div');
                 copiedTable.innerHTML = html;
                 expect(Array.from(copiedTable.querySelectorAll('tbody tr')).map((row) =>
                     Array.from(row.querySelectorAll('td')).map((cell) => cell.textContent.trim()))).toEqual([visibleCells]);
-                expect(plainText).toBe(csv);
+                expect(plainText).toBe(`Name\tValue\n${visibleCells.join('\t')}\n`);
+                expect(rtf).toContain('Beta');
+                expect(rtf).not.toContain('Alpha');
+                expect(rtf).not.toContain('Gamma');
             };
 
             await copyFormats(document.querySelector('#notes-preview table'));

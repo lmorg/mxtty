@@ -36,6 +36,25 @@ for the modal did not need to change — only the two functions that decide what
 Both `renameCurrentLspSymbol()` and the AI session rename button now call
 `openTextPrompt(...)` instead of `window.prompt(...)`.
 
+### Folder-targeted file creation
+
+The file-list context menu reuses the same create-file modal for
+`Create new file...` and `Paste as new file...`, including storage section
+headings such as `$PROJECT` and `$NOTES`. The location selector identifies the
+storage root and the filename input is prefilled with the folder-relative path.
+Paste reads through `GetClipboardData`, captures the payload before showing
+the modal, and suggests `clipboard.md` for text or `clipboard.png` for an image.
+Confirmation writes text through `SaveFile` or base64 PNG through
+`SaveBinaryFile`; cancellation or a fresh create/rename clears the pending payload.
+
+File right-clicks combine the original Go-provided file actions, including
+rename/delete/copy, with the parent-folder Create/Paste actions. They do not
+replace the original file actions. Blank-space right-clicks use the nearest
+visible folder or section header above the pointer. Folder collapse/expand
+controls remain available, falling back to the section's folders when the
+target folder has no descendants. Existing descendant-only collapse/expand
+behaviour is preserved for folders that have child folders.
+
 ## Consequences
 
 - No new DOM/CSS: the prompt looks and behaves like every other modal in the

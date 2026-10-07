@@ -44,6 +44,24 @@ produces an arbitrary order.
 The replacement engine is wired into four surfaces: the CSV view, markdown
 preview, Jupyter view and AI output panel.
 
+`Copy table (Formatted)` copies only the current filtered rows in their display
+order. One Go clipboard write publishes an RTF table (`text/rtf`, mapped to
+`public.rtf` on macOS), HTML, and a tab-separated plain-text fallback with a
+trailing row newline, matching native WebKit copying. The separate CSV and
+Markdown copy options retain their original encodings. RTF preserves cell
+boundaries, line breaks, Unicode text, and bold headings; HTML retains the
+rendered cell markup. The former HTML-only binding remains compatible.
+
+On 2026-10-07, the user confirmed that Formatted copy pastes as an actual table
+in Slack after its plain-text fallback changed from CSV to tab-separated text.
+The compared samples contained identical cell text and the same table dimensions.
+The successful WebKit sample also pasted correctly after its Web Archive and
+WebKit custom formats were removed, so neither private format is required for
+this tested case. Keep the tab-separated fallback even when rich formats are
+available; CSV remains a separate export option. This verifies the combined
+clipboard representations, not which representation Slack chooses internally
+or universal compatibility with every Slack client.
+
 ### Requirements being captured
 
 From the request, verbatim:
@@ -291,10 +309,15 @@ Agreed Notes behaviour:
 | Heading | **Toggle sort ASC/DESC** (terminal parity) | **Clear sort** | Unified table context menu: copy, clear sorting, SQL filter, and graph actions | — |
 | Data cell | (unchanged — text selection) | — | Same unified table context menu | **Edit cell (unchanged)** |
 
-The unified menu includes "Copy", "Copy table (CSV)", and "Copy table
-(Markdown)" alongside "Clear sorting", "SQL filter…", and "Create graph…".
+The unified menu includes "Copy", "Copy table (CSV)", "Copy table (Markdown)",
+and "Copy table (Formatted)" alongside "Clear sorting", "SQL filter…", and
+"Create graph…".
 Run-mode tables retain row/column insertion and deletion actions, and rendered
 Markdown/Jupyter tables retain the word-wrap toggle.
+
+Table context-menu hover and cancellation callbacks do not recolour tables,
+rows, or columns. Clear sorting changes sort state without clearing inline
+table colours.
 
 Run mode preserves inline Markdown formatting in table cells, including
 emphasis and code spans. It renders link labels as text and does not create

@@ -21,6 +21,8 @@ export function ClearAILog():Promise<void>;
 
 export function ClearAISessionHistory():Promise<sessiondb.FrontendStateT>;
 
+export function ClipboardSetFormatted(arg1:string,arg2:string,arg3:string):Promise<void>;
+
 export function ClipboardSetHTML(arg1:string,arg2:string):Promise<void>;
 
 export function CloseNotification(arg1:number):Promise<void>;

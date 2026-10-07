@@ -2642,16 +2642,27 @@ type ClipboardData struct {
 }
 
 func (a *WApp) ClipboardSetHTML(html, plainText string) error {
-	_, err := clipboard.WriteAll(context.Background(),
-		clipboard.Item{
-			Format: clipboard.Register("text/html"),
-			Bytes:  []byte(html),
-		},
-		clipboard.Item{
-			Format: clipboard.FmtText,
-			Bytes:  []byte(plainText),
-		},
+	return a.ClipboardSetFormatted(html, "", plainText)
+}
+
+func formattedClipboardItems(html, rtf, plainText string) []clipboard.Item {
+	items := []clipboard.Item{}
+	if rtf != "" {
+		items = append(items, clipboard.Item{Format: clipboard.Register("text/rtf"), Bytes: []byte(rtf)})
+	}
+	return append(items,
+		clipboard.Item{Format: clipboard.Register("text/html"), Bytes: []byte(html)},
+		clipboard.Item{Format: clipboard.FmtText, Bytes: []byte(plainText)},
 	)
+}
+
+func (a *WApp) ClipboardSetFormatted(html, rtf, plainText string) error {
+	items := formattedClipboardItems(html, rtf, plainText)
+	options := make([]clipboard.Option, len(items))
+	for position, item := range items {
+		options[position] = item
+	}
+	_, err := clipboard.WriteAll(context.Background(), options...)
 	return err
 }
 

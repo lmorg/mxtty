@@ -7,7 +7,7 @@ import {
     GetLanguageDescriptions, GetAllLanguageDescriptions, TerminalCopyImageDataURL,
     ResolveFilePath, GetHyperlinkMenuActions, RunHyperlinkMenuAction,
     DisplayHyperlinkMenu,
-    SaveImageDialog, SaveCodeDialog, WindowPrint, GetClipboardData, ClipboardSetHTML, SwaggerRequest, NotesKeyPress,
+    SaveImageDialog, SaveCodeDialog, WindowPrint, GetClipboardData, ClipboardSetFormatted, SwaggerRequest, NotesKeyPress,
     ShowCommandPalette, GetCurrentProject, GetCurrentGroupName, GetFileMetaMarkdown, AskAI, AskAIImage,
     ShowAISkillsMenu,
     GetAISessionCache,
@@ -12828,6 +12828,10 @@ function tableDataToCsv(rows) {
     return (rows || []).map(row => (row || []).map(field => escapeCsvField(field)).join(',')).join('\n');
 }
 
+function tableDataToTabSeparatedText(rows) {
+    return (rows || []).map(row => `${(row || []).join('\t')}\n`).join('');
+}
+
 function tableDataToMarkdown(rows) {
     if (!rows || rows.length === 0) return '';
     const header = rows[0];
@@ -12836,6 +12840,41 @@ function tableDataToMarkdown(rows) {
     const separatorLine = `| ${header.map(() => '---').join(' | ')} |`;
     const bodyLines = body.map(row => `| ${row.join(' | ')} |`);
     return [headerLine, separatorLine, ...bodyLines].join('\n');
+}
+
+function escapeRtfText(value) {
+    let escaped = '';
+    const text = String(value || '').replace(/\r\n?/g, '\n');
+    for (let index = 0; index < text.length; index++) {
+        const character = text[index];
+        const code = text.charCodeAt(index);
+        if (character === '\\' || character === '{' || character === '}') {
+            escaped += `\\${character}`;
+        } else if (character === '\n') {
+            escaped += '\\line ';
+        } else if (character === '\t') {
+            escaped += '\\tab ';
+        } else if (code >= 128) {
+            escaped += `\\u${code > 32767 ? code - 65536 : code}?`;
+        } else if (code >= 32) {
+            escaped += character;
+        }
+    }
+    return escaped;
+}
+
+function tableDataToRtf(rows) {
+    const columns = rows.reduce((maximum, row) => Math.max(maximum, row.length), 0);
+    const cellWidth = Math.max(1, Math.floor(9000 / Math.max(1, columns)));
+    const boundaries = Array.from({ length: columns }, (_, column) => `\\cellx${(column + 1) * cellWidth}`).join('');
+    const body = rows.map((row, index) => {
+        const cells = Array.from({ length: columns }, (_, column) => {
+            const text = escapeRtfText(row[column] || '');
+            return `\\pard\\intbl ${index === 0 ? `\\b ${text}\\b0` : text}\\cell `;
+        }).join('');
+        return `\\trowd\\trgaph108\\trleft0${index === 0 ? '\\trhdr' : ''}${boundaries}\n${cells}\\row\n`;
+    }).join('');
+    return `{\\rtf1\\ansi\\ansicpg1252\\deff0\\uc1{\\fonttbl{\\f0\\fswiss Helvetica;}}\\f0\\fs20\n${body}\\pard\n}`;
 }
 
 function tableDataToHtml(table) {
@@ -12874,11 +12913,13 @@ function createTableCopyMenuItems(table) {
             },
         },
         {
-            title: 'Copy table (HTML)',
+            title: 'Copy table (Formatted)',
             icon: CONTEXT_ICON_COPY,
             onSelect: () => {
-                const plainText = tableDataToCsv(extractTableData(table));
-                ClipboardSetHTML(tableDataToHtml(table), plainText).catch(() => {});
+                const data = extractTableData(table);
+                ClipboardSetFormatted(tableDataToHtml(table), tableDataToRtf(data), tableDataToTabSeparatedText(data)).catch((err) => {
+                    notifyTerminal(`Failed to copy formatted table: ${err}`, 'error');
+                });
             },
         },
     ];

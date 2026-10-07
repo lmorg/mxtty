@@ -67,6 +67,22 @@ indistinguishable from "the command did nothing". It now attaches the document
 first and reports `Language server is not active for the current file` if that
 fails.
 
+### Line-aware history and rendered Find
+
+Notes navigation history persists `(filename, line)` entries. Same-document
+positions at least 20 lines apart create separate entries; nearby positions do
+not append another item. Legacy filename-only cache entries migrate to line 1.
+Monaco reports its active cursor offset, including reverse selections, and the
+textarea fallback reports selection/input events. Position capture is debounced.
+The toolbar's Previous/Next actions use the position-aware Go bindings, load
+the target file, select its Edit mode, await Monaco initialization, and restore
+the saved line through `jumpEditorToLine`. Filename-only compatibility bindings
+remain available.
+
+Rendered Find must likewise target the visible surface: CSV View and CSV Run
+search `elements.csvView`, not the hidden Markdown preview. Highlight cleanup
+includes the CSV pane, and active queries are reapplied when that pane rerenders.
+
 ## Consequences
 
 - Symbol navigation works on the visible editor, and survives the
@@ -103,6 +119,8 @@ fails.
 
 - `frontend/src/notes.js` — `jumpEditorToOffset`, `jumpEditorToLine`,
   `goToCurrentLspSymbol`, `goToWorkspaceLspSymbol`, `requestLspDefinition`
+- `utils/notes/history.go` — line-aware entries and legacy cache migration
+- `frontend.go` — position-aware Notes history bindings
 - `frontend/src/notes.test.js` — `navigates to selected document symbol from
   editor context menu`, `navigates to selected workspace symbol from editor
   context menu`, `jumps from the ToC to a heading source line in Markdown Edit
