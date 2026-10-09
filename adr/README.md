@@ -74,6 +74,7 @@ Each record uses: **Status**, **Context**, **Decision**, **Consequences**,
 | [0060](0060-notes-log-level-filters.md) | Notes log filters are independent by level | Notes |
 | [0061](0061-fontawesome-face-fallbacks.md) | Font Awesome uses separate regular and solid faces | Frontend |
 | [0062](0062-notes-git-worktree-panel.md) | Notes Git panel is scoped to the current project root | Notes |
+| [0063](0063-notes-tooltips-use-shared-overlay.md) | Notes uses the shared tooltip instead of native webview tooltips | Notes |
 
 ## Recurring themes
 

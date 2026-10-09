@@ -39,6 +39,9 @@ Git is unavailable.
 - Support file-level stage and unstage actions, but no commit action. Save dirty
   diff edits before staging or unstaging the same file. Select operations use
   argument-separated Git invocations and paths relative to the validated root.
+- Show Git path and status-code hover help through Notes' shared tooltip rather
+  than native webview tooltips. Keep tooltip behavior delegated from the Git
+  pane so dynamically rendered status rows use the same path.
 - Handle filenames as NUL-delimited Git status records, including spaces and
   rename source paths. Cap text diff inputs and reject path traversal and
   symlink escapes.
@@ -67,6 +70,7 @@ Git is unavailable.
 - `utils/git/git.go` - repository validation, status, diff, stage, and unstage
 - `frontend.go` - Wails wrappers
 - `frontend/src/notes-git-panel.js` - status panel and file actions
+- `frontend/src/shared_tooltip.js` - shared tooltip rendering and pointer tracking
 - `frontend/src/monaco_adapter.js` - shared editor hooks and diff-editor facade
 - `frontend/src/notes.js`, `frontend/src/notes.css` - tab, workspace, and editor
   integration

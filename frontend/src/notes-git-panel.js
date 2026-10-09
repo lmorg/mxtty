@@ -106,7 +106,12 @@ export function initNotesGitPanel(elements, api, options = {}) {
                 actions.appendChild(createAction('Staged', 'unstage', file.path, 'Click to unstage'));
             }
             if (file.unstaged || file.untracked) {
-                actions.appendChild(createAction('Unstaged', 'stage', file.path, 'Click to stage'));
+                const label = file.untracked ? 'Untracked' : 'Unstaged';
+                const stageButton = createAction(label, 'stage', file.path, 'Click to stage');
+                if (file.untracked) {
+                    stageButton.classList.add('notes-git-action-untracked');
+                }
+                actions.appendChild(stageButton);
             }
 
             row.append(open, code, actions);

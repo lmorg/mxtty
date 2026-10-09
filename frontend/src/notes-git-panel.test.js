@@ -40,6 +40,7 @@ function createApi(overrides = {}) {
             files: [
                 { path: 'src/main.go', code: ' M', staged: false, unstaged: true },
                 { path: 'README.md', code: 'A ', staged: true, unstaged: false },
+                { path: 'new-file.txt', code: '??', staged: false, unstaged: false, untracked: true },
             ],
         })),
         getDiff: vi.fn(() => Promise.resolve({ path: 'src/main.go', original: 'old', working: 'new' })),
@@ -88,6 +89,12 @@ describe('Notes Git panel', () => {
         expect(unstageButton.textContent).toBe('Staged');
         expect(unstageButton.dataset.tooltip).toBe('Click to unstage');
         expect(unstageButton.hasAttribute('title')).toBe(false);
+        const untrackedButton = elements.gitFileList.querySelector('[data-git-action="stage"][data-path="new-file.txt"]');
+        expect(untrackedButton.textContent).toBe('Untracked');
+        expect(untrackedButton.classList.contains('notes-git-action-stage')).toBe(true);
+        expect(untrackedButton.classList.contains('notes-git-action-untracked')).toBe(true);
+        expect(untrackedButton.dataset.tooltip).toBe('Click to stage');
+        expect(untrackedButton.getAttribute('aria-label')).toBe('Click to stage');
         stageButton.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
         expect(showTooltip).toHaveBeenCalledWith('Click to stage');
         stageButton.click();

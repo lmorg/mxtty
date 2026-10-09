@@ -1785,6 +1785,7 @@ body {
     text-overflow: ellipsis;
     white-space: nowrap;
     color: rgba(var(--fg-rgb), 0.7);
+    font-size: var(--notes-font-size-minus-1);
 }
 
 .notes-git-file-row {
@@ -1834,8 +1835,9 @@ body {
 
 .notes-git-action {
     display: inline-flex;
-    flex: 0 0 68px;
-    width: 68px;
+    flex: 0 0 72px;
+    width: 72px;
+    box-sizing: border-box;
     height: 24px;
     align-items: center;
     justify-content: center;
@@ -1845,6 +1847,7 @@ body {
     color: rgba(var(--fg-rgb), 0.7);
     padding: 2px 5px;
     font-size: var(--notes-font-size-minus-2);
+    white-space: nowrap;
     cursor: pointer;
 }
 
@@ -1865,6 +1868,30 @@ body {
     border-color: var(--red);
     background-color: rgba(var(--red-rgb), 0.3);
     color: var(--red);
+}
+
+.notes-git-action-untracked {
+    animation: notes-git-untracked-pulse 0.5s ease-in-out infinite alternate;
+}
+
+.notes-git-action-untracked:hover,
+.notes-git-action-untracked:focus-visible {
+    animation: none;
+}
+
+@keyframes notes-git-untracked-pulse {
+    from {
+        background-color: transparent;
+    }
+    to {
+        background-color: rgba(var(--red-rgb), 0.2);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .notes-git-action-untracked {
+        animation: none;
+    }
 }
 
 .notes-git-action-unstage {
