@@ -1,6 +1,6 @@
 import {
     GetWindowStyle, GetNotesMaxLogLines, GetNotesColumnWidths, SetNotesColumnWidths, GetFile,
-    GetGitStatus, GetGitDiff, StageGitFile, UnstageGitFile,
+    GetGitStatus, RefreshGitStatus, GetGitDiff, StageGitFile, UnstageGitFile,
     NotesTableSort, NotesTableClearSort, NotesTableFilter, NotesTableReconcile, NotesTableRestore, NotesTableSetGraph, NotesTableRenderGraph, NotesTableDisposeAll,
     GetNotesStructViewMaxSizeKB,
     GetNotesContext, GetNotesFilesSnapshot, SaveFile, SaveBinaryFile, DeleteFile, RenameFile,
@@ -543,9 +543,9 @@ app.innerHTML = `
                             <button id="notes-tools-tab-toc" type="button" class="tools-tab" role="tab" aria-selected="false" aria-controls="notes-tools-toc-pane" data-tab="toc" style="display: none;">ToC</button>
                             <button id="notes-tools-tab-frontmatter" type="button" class="tools-tab" role="tab" aria-selected="false" aria-controls="notes-tools-frontmatter-pane" data-tab="frontmatter" style="display: none;">Frontmatter</button>
                             <button id="notes-tools-tab-find" type="button" class="tools-tab" role="tab" aria-selected="true" aria-controls="notes-tools-find-pane" data-tab="find">Find</button>
+                            <button id="notes-tools-tab-git" type="button" class="tools-tab" role="tab" aria-selected="false" aria-controls="notes-tools-git-pane" data-tab="git" style="display: none;">Git</button>
                             <button id="notes-tools-tab-ai"  type="button" class="tools-tab" role="tab" aria-selected="false" aria-controls="notes-tools-ai-pane" data-tab="ai">AI</button>
                             <button id="notes-tools-tab-log" type="button" class="tools-tab" role="tab" aria-selected="false" aria-controls="notes-tools-log-pane" data-tab="log">Log</button>
-                            <button id="notes-tools-tab-git" type="button" class="tools-tab" role="tab" aria-selected="false" aria-controls="notes-tools-git-pane" data-tab="git" style="display: none;">Git</button>
                         </div>
                         <button id="notes-tools-minimize" type="button" class="notes-tools-minimize" title="Minimize Tools panel"></button>
                     </div>
@@ -643,10 +643,10 @@ app.innerHTML = `
                         </div>
                         <div id="notes-tools-git-pane" class="notes-tools-pane" data-tab="git" data-active="false">
                             <div class="notes-tools-pane-header">
-                                <button id="notes-tools-git-workspace" type="button" class="notes-ai-model-picker" title="Git workspace">Git workspace</button>
+                                <button id="notes-tools-git-workspace" type="button" class="notes-ai-model-picker" data-tooltip="Git workspace">Git workspace</button>
                                 <span id="notes-tools-git-branch" class="notes-git-branch"></span>
                                 <span id="notes-tools-git-ahead-behind" class="notes-git-ahead-behind"></span>
-                                <button id="notes-tools-git-refresh" type="button" class="notes-tools-clear notes-tools-icon" title="Refresh Git status" aria-label="Refresh Git status">&#xf021;</button>
+                                <button id="notes-tools-git-refresh" type="button" class="notes-tools-clear notes-tools-icon" data-tooltip="Refresh Git status" aria-label="Refresh Git status">&#xf021;</button>
                             </div>
                             <div id="notes-tools-git-files" class="notes-git-file-list" role="list"></div>
                         </div>
@@ -7028,6 +7028,45 @@ function emitCurrentFileName() {
     window.dispatchEvent(new CustomEvent('notes-current-file', {
         detail: { fileName }
     }));
+    updateGitDiffTabForCurrentFile();
+}
+
+function currentProjectRelativeGitPath() {
+    const currentFile = String(state.currentFile || '').replaceAll('\\', '/');
+    if (currentFile.startsWith('$PROJECT/')) {
+        return currentFile.slice('$PROJECT/'.length);
+    }
+    const root = String(state.currentFileProject || state.currentProjectRoot || '')
+        .replaceAll('\\', '/').replace(/\/+$/, '');
+    return root && currentFile.startsWith(`${root}/`)
+        ? currentFile.slice(root.length + 1)
+        : '';
+}
+
+function updateGitDiffTabForCurrentFile(status, projectRoot) {
+    if (!elements.tabDiff) {
+        return;
+    }
+    if (activeGitDiff) {
+        elements.tabDiff.style.display = '';
+        return;
+    }
+
+    const root = state.currentFileProject || state.currentProjectRoot || projectRoot || notesGitPanel?.getCurrentRoot() || '';
+    const normalizeRoot = (value) => String(value || '').replaceAll('\\', '/').replace(/\/+$/, '');
+    if (projectRoot && root && normalizeRoot(projectRoot) !== normalizeRoot(root)) {
+        return;
+    }
+    const relativePath = currentProjectRelativeGitPath();
+    const snapshot = status || notesGitPanel?.getCachedStatus(root);
+    const hasDiff = Boolean(relativePath && snapshot?.files?.some((file) =>
+        String(file.path || '').replaceAll('\\', '/') === relativePath));
+    elements.tabDiff.style.display = hasDiff ? '' : 'none';
+    if (!hasDiff && elements.tabDiff.getAttribute('aria-selected') === 'true') {
+        setNotesGitDiffTabActive(false);
+        elements.gitDiffWrap.dataset.active = 'false';
+        setViewMode(state.viewMode);
+    }
 }
 
 function setViewMode(mode) {
@@ -8824,7 +8863,7 @@ function openFolderTreeContextMenu(category, nodes, x, y, title = 'Folder action
  */
 function updateTabVisibility(fileType) {
     updateToolsTabVisibility(fileType);
-    elements.tabDiff.style.display = activeGitDiff ? '' : 'none';
+    updateGitDiffTabForCurrentFile();
 
     if (fileType === 'error') {
         elements.tabMeta.style.display = '';
@@ -14979,6 +15018,7 @@ async function closeNotesGitDiff() {
     const wasSelected = elements.tabDiff.getAttribute('aria-selected') === 'true';
     activeGitDiff = null;
     setNotesGitDiffTabActive(false);
+    updateGitDiffTabForCurrentFile();
     if (wasSelected) {
         setViewMode(state.viewMode);
     }
@@ -15003,12 +15043,15 @@ elements.toolsTabGit.addEventListener('click', () => {
 
 notesGitPanel = initNotesGitPanel(elements, {
     getStatus: GetGitStatus,
+    refreshStatus: RefreshGitStatus,
     getDiff: GetGitDiff,
     stageFile: StageGitFile,
     unstageFile: UnstageGitFile,
     getCurrentProject: GetCurrentProject,
     eventsOn: EventsOn,
 }, {
+    showTooltip: (text) => { void showSharedTooltip(text); },
+    hideTooltip: closeSharedTooltip,
     onOpenDiff: openNotesGitDiff,
     beforeFileAction: async ({ root, path }) => {
         if (!activeGitDiff || activeGitDiff.root !== root || activeGitDiff.file.path !== path || !state.dirty) {
@@ -15020,6 +15063,9 @@ notesGitPanel = initNotesGitPanel(elements, {
         if (!available && elements.toolsTabGit.getAttribute('aria-selected') === 'true') {
             setToolsTab('find');
         }
+    },
+    onStatusChange: (status, root) => {
+        updateGitDiffTabForCurrentFile(status, root);
     },
     showWorkspaceMenu: (root, button) => {
         const rect = button.getBoundingClientRect();
@@ -16107,11 +16153,16 @@ elements.tabMeta.addEventListener('click', () => {
 });
 
 elements.tabDiff.addEventListener('click', () => {
-    if (!activeGitDiff) {
+    if (activeGitDiff) {
+        setNotesGitDiffTabActive(true);
+        notesGitDiffAdapter?.focus();
         return;
     }
-    setNotesGitDiffTabActive(true);
-    notesGitDiffAdapter?.focus();
+    const filePath = currentProjectRelativeGitPath();
+    const projectRoot = state.currentFileProject || notesGitPanel?.getCurrentRoot();
+    if (filePath && projectRoot) {
+        void notesGitPanel?.openFileDiff(filePath, projectRoot);
+    }
 });
 
 async function openRecentFilesMenu(x, y) {

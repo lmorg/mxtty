@@ -25,6 +25,7 @@ func (a *WApp) notesFileIndexLocked() *notes.FileIndex {
 			if a.ctx != nil {
 				runtime.EventsEmit(a.ctx, "notesFileIndexChanged", event)
 			}
+			a.refreshGitStatusForFileIndex(event.Root, event)
 		})
 		a.notesIndexUnsubscribe = notes.SubscribeFileChanges(a.notesFileIndex.NotifyPaths)
 		a.notesFileIndex.EnableWatching()

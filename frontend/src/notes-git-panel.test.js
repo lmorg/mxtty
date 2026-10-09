@@ -5,14 +5,21 @@ import { initNotesGitPanel } from './notes-git-panel.js';
 function createElements() {
     const gitTab = document.createElement('button');
     gitTab.style.display = 'none';
+    const gitPane = document.createElement('div');
+    const gitWorkspace = document.createElement('button');
+    const gitBranch = document.createElement('span');
+    const gitAheadBehind = document.createElement('span');
+    const gitRefresh = document.createElement('button');
+    const gitFileList = document.createElement('div');
+    gitPane.append(gitWorkspace, gitBranch, gitAheadBehind, gitRefresh, gitFileList);
     return {
         gitTab,
-        gitPane: document.createElement('div'),
-        gitWorkspace: document.createElement('button'),
-        gitBranch: document.createElement('span'),
-        gitAheadBehind: document.createElement('span'),
-        gitRefresh: document.createElement('button'),
-        gitFileList: document.createElement('div'),
+        gitPane,
+        gitWorkspace,
+        gitBranch,
+        gitAheadBehind,
+        gitRefresh,
+        gitFileList,
     };
 }
 
@@ -48,9 +55,13 @@ describe('Notes Git panel', () => {
         const elements = createElements();
         const api = createApi();
         const showWorkspaceMenu = vi.fn();
+        const showTooltip = vi.fn();
+        const hideTooltip = vi.fn();
         const onOpenDiff = vi.fn();
         const beforeFileAction = vi.fn(() => Promise.resolve(true));
-        const panel = initNotesGitPanel(elements, api, { showWorkspaceMenu, onOpenDiff, beforeFileAction });
+        const panel = initNotesGitPanel(elements, api, {
+            showWorkspaceMenu, showTooltip, hideTooltip, onOpenDiff, beforeFileAction,
+        });
         await flushPromises();
 
         expect(elements.gitTab.style.display).toBe('');
@@ -58,11 +69,27 @@ describe('Notes Git panel', () => {
         expect(elements.gitAheadBehind.textContent).toBe('↑2 ↓1');
         expect(elements.gitFileList.textContent).toContain('src/main.go');
         expect(elements.gitFileList.textContent).toContain('README.md');
+        const statusCode = elements.gitFileList.querySelector('.notes-git-status-code');
+        statusCode.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+        expect(showTooltip).toHaveBeenCalledWith(expect.stringContaining('working tree (M) modified'));
+        statusCode.dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: document.body }));
+        expect(hideTooltip).toHaveBeenCalled();
 
         elements.gitWorkspace.click();
         expect(showWorkspaceMenu).toHaveBeenCalledWith('/work/repo', elements.gitWorkspace);
 
         const stageButton = elements.gitFileList.querySelector('[data-git-action="stage"]');
+        const unstageButton = elements.gitFileList.querySelector('[data-git-action="unstage"]');
+        expect(stageButton.classList.contains('notes-git-action-stage')).toBe(true);
+        expect(unstageButton.classList.contains('notes-git-action-unstage')).toBe(true);
+        expect(stageButton.textContent).toBe('Unstaged');
+        expect(stageButton.dataset.tooltip).toBe('Click to stage');
+        expect(stageButton.hasAttribute('title')).toBe(false);
+        expect(unstageButton.textContent).toBe('Staged');
+        expect(unstageButton.dataset.tooltip).toBe('Click to unstage');
+        expect(unstageButton.hasAttribute('title')).toBe(false);
+        stageButton.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+        expect(showTooltip).toHaveBeenCalledWith('Click to stage');
         stageButton.click();
         await flushPromises();
         expect(beforeFileAction).toHaveBeenCalledWith({
@@ -95,5 +122,29 @@ describe('Notes Git panel', () => {
 
         expect(elements.gitTab.style.display).toBe('none');
         expect(elements.gitFileList.textContent).toContain('project root is not a Git working tree');
+    });
+
+    it('rehydrates its root cache from watcher-published Git status', async () => {
+        const elements = createElements();
+        const api = createApi();
+        const eventHandlers = new Map();
+        api.eventsOn.mockImplementation((name, handler) => eventHandlers.set(name, handler));
+        const panel = initNotesGitPanel(elements, api);
+        await flushPromises();
+
+        eventHandlers.get('notesGitStatusChanged')({
+            root: '/work/repo',
+            status: {
+                root: '/work/repo',
+                branch: 'updated',
+                ahead: 0,
+                behind: 0,
+                clean: false,
+                files: [{ path: 'other.txt', code: '??', untracked: true }],
+            },
+        });
+
+        expect(elements.gitBranch.textContent).toBe('updated');
+        expect(panel.getCachedStatus('/work/repo').files[0].path).toBe('other.txt');
     });
 });

@@ -454,6 +454,10 @@ export function NotesTyposOpenDocument(arg1, arg2, arg3) {
   return window['go']['main']['WApp']['NotesTyposOpenDocument'](arg1, arg2, arg3);
 }
 
+export function RefreshGitStatus(arg1) {
+  return window['go']['main']['WApp']['RefreshGitStatus'](arg1);
+}
+
 export function RenameAISession(arg1, arg2) {
   return window['go']['main']['WApp']['RenameAISession'](arg1, arg2);
 }

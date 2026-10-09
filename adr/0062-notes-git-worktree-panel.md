@@ -16,6 +16,11 @@ Git is unavailable.
 
 - Put Git command execution and status/diff parsing in `utils/git`; expose thin
   Wails wrappers from `frontend.go`.
+- Cache Git status in Go by canonical project root. Reuse the cached snapshot on
+  reads and explicitly refresh after stage/unstage or a file-index watcher
+  completion; publish refreshed snapshots to the frontend. Keep a frontend cache
+  keyed by project root so switching Tools tabs or worktrees can rehydrate
+  immediately.
 - Enable the Tools Git tab only when the current project root is exactly a Git
   working-tree root and the host has a `git` executable. Accept both `.git`
   directories and worktree `.git` files. The workspace dropdown contains only
@@ -42,6 +47,10 @@ Git is unavailable.
 
 - The panel follows the active project context. A root change refreshes status;
   a non-Git root hides the tab.
+- The top-level Notes Diff tab is available when the active file appears in the
+  cached Git status, even when that file was opened from the Notes file list.
+  Watcher-published status updates can show or hide the tab as the file becomes
+  dirty or clean.
 - Selecting a Git file makes it the active Notes document. The normal Notes
   filename, recent list, and history apply; the diff overlays the regular editor
   while keeping its model synchronized. Leaving the diff reveals the regular

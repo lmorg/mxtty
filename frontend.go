@@ -79,6 +79,9 @@ type WApp struct {
 	notesIndexActivated   bool
 	notesIndexClosed      bool
 	notesIndexUnsubscribe func()
+	gitStatusMu           sync.Mutex
+	gitStatusCache        map[string]gitStatusCacheEntry
+	gitStatusRequest      map[string]uint64
 	lspStartErrMu         sync.Mutex
 	lspStartErrs          map[string]string
 	lspManager            *lsp.Manager
@@ -90,21 +93,28 @@ type WApp struct {
 	notesTables           *tablecore.Registry
 }
 
+type gitStatusCacheEntry struct {
+	status gitutils.Status
+	err    string
+}
+
 // NewApp creates a new App application struct
 func NewWailsApp() *WApp {
 	a := &WApp{
-		visible:       true,
-		notesKills:    map[string]func(){},
-		notesStickies: map[string]types.Notification{},
-		lspStartErrs:  map[string]string{},
-		homeDir:       xdg.Home,
-		projRoot:      notes.DirProjectRoot(""),
-		globalNotes:   notes.DirGlobal(),
-		lspManager:    lsp.NewManager(),
-		lspDocs:       lsp.NewDocumentStore(),
-		typosDocs:     lsp.NewDocumentStore(),
-		typosUnavail:  map[string]bool{},
-		notesTables:   tablecore.NewRegistry(),
+		visible:          true,
+		notesKills:       map[string]func(){},
+		notesStickies:    map[string]types.Notification{},
+		lspStartErrs:     map[string]string{},
+		homeDir:          xdg.Home,
+		projRoot:         notes.DirProjectRoot(""),
+		globalNotes:      notes.DirGlobal(),
+		lspManager:       lsp.NewManager(),
+		lspDocs:          lsp.NewDocumentStore(),
+		typosDocs:        lsp.NewDocumentStore(),
+		typosUnavail:     map[string]bool{},
+		notesTables:      tablecore.NewRegistry(),
+		gitStatusCache:   map[string]gitStatusCacheEntry{},
+		gitStatusRequest: map[string]uint64{},
 	}
 
 	engine, err := syntaxcompletion.NewDefaultEngine()
@@ -2280,7 +2290,102 @@ func (a *WApp) GetCurrentProject() string {
 }
 
 func (a *WApp) GetGitStatus(projectRoot string) (gitutils.Status, error) {
-	return gitutils.WorkspaceStatus(projectRoot)
+	key, err := gitStatusCacheKey(projectRoot)
+	if err != nil {
+		return gitutils.Status{}, err
+	}
+	a.gitStatusMu.Lock()
+	entry, ok := a.gitStatusCache[key]
+	a.gitStatusMu.Unlock()
+	if ok {
+		if entry.err != "" {
+			return gitutils.Status{}, errors.New(entry.err)
+		}
+		return cloneGitStatus(entry.status), nil
+	}
+	return a.refreshGitStatus(projectRoot)
+}
+
+func (a *WApp) RefreshGitStatus(projectRoot string) (gitutils.Status, error) {
+	return a.refreshGitStatus(projectRoot)
+}
+
+func (a *WApp) refreshGitStatus(projectRoot string) (gitutils.Status, error) {
+	key, err := gitStatusCacheKey(projectRoot)
+	if err != nil {
+		return gitutils.Status{}, err
+	}
+	a.gitStatusMu.Lock()
+	if a.gitStatusCache == nil {
+		a.gitStatusCache = map[string]gitStatusCacheEntry{}
+	}
+	if a.gitStatusRequest == nil {
+		a.gitStatusRequest = map[string]uint64{}
+	}
+	a.gitStatusRequest[key]++
+	request := a.gitStatusRequest[key]
+	a.gitStatusMu.Unlock()
+
+	status, statusErr := gitutils.WorkspaceStatus(projectRoot)
+	entry := gitStatusCacheEntry{status: cloneGitStatus(status)}
+	if statusErr != nil {
+		entry.err = statusErr.Error()
+	}
+	a.gitStatusMu.Lock()
+	if a.gitStatusRequest[key] == request {
+		if statusErr == nil {
+			a.gitStatusCache[key] = entry
+		} else {
+			delete(a.gitStatusCache, key)
+		}
+	}
+	a.gitStatusMu.Unlock()
+
+	if a.ctx != nil {
+		update := map[string]any{"root": projectRoot, "status": status}
+		if statusErr != nil {
+			update["status"] = nil
+			update["error"] = statusErr.Error()
+		}
+		runtime.EventsEmit(a.ctx, "notesGitStatusChanged", update)
+	}
+	return status, statusErr
+}
+
+func (a *WApp) refreshGitStatusForFileIndex(root string, event notes.FileIndexEvent) {
+	if event.State == "scanning" || event.State == "refreshing" {
+		return
+	}
+	contextRoot, err := gitStatusCacheKey(a.currentNotesContext().PathProjectRoot)
+	if err != nil {
+		return
+	}
+	eventRoot, err := gitStatusCacheKey(root)
+	if err != nil || eventRoot != contextRoot {
+		return
+	}
+	go func() {
+		_, _ = a.refreshGitStatus(root)
+	}()
+}
+
+func gitStatusCacheKey(root string) (string, error) {
+	if strings.TrimSpace(root) == "" {
+		return "", errors.New("Git workspace root is empty")
+	}
+	absolute, err := filepath.Abs(root)
+	if err != nil {
+		return "", err
+	}
+	if resolved, resolveErr := filepath.EvalSymlinks(absolute); resolveErr == nil {
+		absolute = resolved
+	}
+	return filepath.Clean(absolute), nil
+}
+
+func cloneGitStatus(status gitutils.Status) gitutils.Status {
+	status.Files = append([]gitutils.FileStatus(nil), status.Files...)
+	return status
 }
 
 func (a *WApp) GetGitDiff(projectRoot, filePath, originalPath string) (gitutils.Diff, error) {

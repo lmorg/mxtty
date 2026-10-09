@@ -236,6 +236,8 @@ export function NotesTyposCloseDocument(arg1:string):Promise<void>;
 
 export function NotesTyposOpenDocument(arg1:string,arg2:string,arg3:string):Promise<boolean>;
 
+export function RefreshGitStatus(arg1:string):Promise<git.Status>;
+
 export function RenameAISession(arg1:number,arg2:string):Promise<sessiondb.FrontendStateT>;
 
 export function RenameFile(arg1:string,arg2:string):Promise<void>;

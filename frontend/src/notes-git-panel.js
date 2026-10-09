@@ -7,6 +7,30 @@ function statusCode(file) {
     return String(file?.code || '??');
 }
 
+function statusTooltip(code) {
+    if (code === '??') {
+        return '??: untracked file; Git has not added this path to the index';
+    }
+    const meaning = {
+        ' ': 'no change',
+        A: 'added',
+        M: 'modified',
+        D: 'deleted',
+        R: 'renamed',
+        C: 'copied',
+        U: 'unmerged conflict',
+        T: 'file type changed',
+        '!': 'ignored',
+        '?': 'untracked',
+    };
+    const [index, worktree] = String(code || '  ').padEnd(2, ' ');
+    return `${code}: index (${index}) ${meaning[index] || 'changed'}; working tree (${worktree}) ${meaning[worktree] || 'changed'}`;
+}
+
+function rootKey(root) {
+    return String(root || '').replaceAll('\\', '/').replace(/\/+$/, '');
+}
+
 export function initNotesGitPanel(elements, api, options = {}) {
     if (!elements?.gitTab || !elements.gitPane || !elements.gitFileList) {
         return null;
@@ -15,6 +39,7 @@ export function initNotesGitPanel(elements, api, options = {}) {
     let projectRoot = '';
     let requestGeneration = 0;
     let currentStatus = null;
+    const statusCache = new Map();
 
     const setAvailable = (available) => {
         elements.gitTab.style.display = available ? '' : 'none';
@@ -35,14 +60,16 @@ export function initNotesGitPanel(elements, api, options = {}) {
 
     const renderStatus = (status) => {
         currentStatus = status;
+        statusCache.set(rootKey(projectRoot), { status });
         elements.gitWorkspace.textContent = workspaceName(status.root || projectRoot);
-        elements.gitWorkspace.title = status.root || projectRoot;
+        elements.gitWorkspace.dataset.tooltip = status.root || projectRoot;
         elements.gitBranch.textContent = status.branch || 'Detached HEAD';
         elements.gitAheadBehind.textContent = [
             status.ahead > 0 ? `↑${status.ahead}` : '',
             status.behind > 0 ? `↓${status.behind}` : '',
         ].filter(Boolean).join(' ');
         elements.gitFileList.replaceChildren();
+        options.onStatusChange?.(status, projectRoot);
 
         if (status.clean || !status.files?.length) {
             showMessage('Working tree clean');
@@ -60,21 +87,26 @@ export function initNotesGitPanel(elements, api, options = {}) {
             open.type = 'button';
             open.className = 'notes-git-file';
             open.dataset.path = file.path;
-            open.title = file.originalPath ? `${file.originalPath} → ${file.path}` : file.path;
+            open.dataset.tooltip = file.originalPath
+                ? `Open diff: ${file.originalPath} → ${file.path}`
+                : `Open diff: ${file.path}`;
+            open.setAttribute('aria-label', open.dataset.tooltip);
             open.textContent = file.path;
 
             const code = document.createElement('span');
             code.className = 'notes-git-status-code';
             code.textContent = statusCode(file);
-            code.setAttribute('aria-label', `Git status ${statusCode(file)}`);
+            code.dataset.statusCode = statusCode(file);
+            code.dataset.tooltip = statusTooltip(code.dataset.statusCode);
+            code.setAttribute('aria-label', `Git status ${code.dataset.tooltip}`);
 
             const actions = document.createElement('span');
             actions.className = 'notes-git-file-actions';
             if (file.staged) {
-                actions.appendChild(createAction('Unstage', 'unstage', file.path));
+                actions.appendChild(createAction('Staged', 'unstage', file.path, 'Click to unstage'));
             }
             if (file.unstaged || file.untracked) {
-                actions.appendChild(createAction('Stage', 'stage', file.path));
+                actions.appendChild(createAction('Unstaged', 'stage', file.path, 'Click to stage'));
             }
 
             row.append(open, code, actions);
@@ -83,7 +115,7 @@ export function initNotesGitPanel(elements, api, options = {}) {
         elements.gitFileList.appendChild(fragment);
     };
 
-    const refresh = async () => {
+    const refresh = async (force = true) => {
         const generation = ++requestGeneration;
         if (!projectRoot) {
             currentStatus = null;
@@ -93,7 +125,9 @@ export function initNotesGitPanel(elements, api, options = {}) {
 
         elements.gitRefresh.disabled = true;
         try {
-            const status = await api.getStatus(projectRoot);
+            const status = force && api.refreshStatus
+                ? await api.refreshStatus(projectRoot)
+                : await api.getStatus(projectRoot);
             if (generation !== requestGeneration) {
                 return false;
             }
@@ -105,8 +139,10 @@ export function initNotesGitPanel(elements, api, options = {}) {
                 return false;
             }
             currentStatus = null;
+            statusCache.set(rootKey(projectRoot), { error });
             showMessage(String(error?.message || error || 'Git is unavailable'), 'error');
             setAvailable(false);
+            options.onStatusChange?.(null, projectRoot);
             return false;
         } finally {
             if (generation === requestGeneration) {
@@ -123,7 +159,16 @@ export function initNotesGitPanel(elements, api, options = {}) {
         projectRoot = nextRoot;
         currentStatus = null;
         elements.gitFileList.replaceChildren();
-        return refresh();
+        const cached = statusCache.get(rootKey(projectRoot));
+        if (cached?.status) {
+            renderStatus(cached.status);
+            setAvailable(true);
+        } else if (cached?.error) {
+            currentStatus = null;
+            showMessage(String(cached.error?.message || cached.error), 'error');
+            setAvailable(false);
+        }
+        return refresh(false);
     };
 
     elements.gitWorkspace.addEventListener('click', () => {
@@ -135,6 +180,39 @@ export function initNotesGitPanel(elements, api, options = {}) {
     elements.gitRefresh.addEventListener('click', () => {
         void refresh();
     });
+
+    elements.gitPane.addEventListener('mouseover', (event) => {
+        const target = event.target.closest('[data-tooltip]');
+        if (target && elements.gitPane.contains(target)) {
+            options.showTooltip?.(target.dataset.tooltip);
+        }
+    });
+
+    elements.gitPane.addEventListener('mouseout', (event) => {
+        const target = event.target.closest('[data-tooltip]');
+        if (target && elements.gitPane.contains(target) && !target.contains(event.relatedTarget)) {
+            options.hideTooltip?.();
+        }
+    });
+
+    const openFileDiff = async (file) => {
+        if (!file) {
+            return false;
+        }
+        const root = projectRoot;
+        const generation = requestGeneration;
+        try {
+            const diff = await api.getDiff(root, file.path, file.originalPath || '');
+            if (generation !== requestGeneration || root !== projectRoot) {
+                return false;
+            }
+            await options.onOpenDiff?.({ root, file, diff });
+            return true;
+        } catch (error) {
+            showMessage(String(error?.message || error || `Could not read ${file.path}`), 'error');
+            return false;
+        }
+    };
 
     elements.gitFileList.addEventListener('click', async (event) => {
         const action = event.target.closest('[data-git-action]');
@@ -167,17 +245,9 @@ export function initNotesGitPanel(elements, api, options = {}) {
         if (!file) {
             return;
         }
-        const root = projectRoot;
-        const generation = requestGeneration;
         fileButton.disabled = true;
         try {
-            const diff = await api.getDiff(root, file.path, file.originalPath || '');
-            if (generation !== requestGeneration || root !== projectRoot) {
-                return;
-            }
-            await options.onOpenDiff?.({ root, file, diff });
-        } catch (error) {
-            showMessage(String(error?.message || error || `Could not read ${file.path}`), 'error');
+            await openFileDiff(file);
         } finally {
             fileButton.disabled = false;
         }
@@ -186,6 +256,30 @@ export function initNotesGitPanel(elements, api, options = {}) {
     if (typeof api.eventsOn === 'function') {
         api.eventsOn('notesContextChanged', (context) => {
             void setProjectRoot(context?.projectRoot || '');
+        });
+        api.eventsOn('notesGitStatusChanged', (event) => {
+            const root = rootKey(event?.root);
+            if (!root) {
+                return;
+            }
+            if (event?.error) {
+                statusCache.set(root, { error: event.error });
+                if (root === rootKey(projectRoot)) {
+                    currentStatus = null;
+                    showMessage(String(event.error), 'error');
+                    setAvailable(false);
+                    options.onStatusChange?.(null, projectRoot);
+                }
+                return;
+            }
+            if (!event?.status) {
+                return;
+            }
+            statusCache.set(root, { status: event.status });
+            if (root === rootKey(projectRoot)) {
+                renderStatus(event.status);
+                setAvailable(true);
+            }
         });
     }
 
@@ -196,16 +290,29 @@ export function initNotesGitPanel(elements, api, options = {}) {
         setProjectRoot,
         getCurrentStatus: () => currentStatus,
         getCurrentRoot: () => projectRoot,
+        getCachedStatus(root = projectRoot) {
+            return statusCache.get(rootKey(root))?.status || null;
+        },
+        getFileStatus(filePath, root = projectRoot) {
+            const status = statusCache.get(rootKey(root))?.status;
+            return status?.files?.find((file) => file.path === filePath) || null;
+        },
+        openFileDiff(filePath, root = projectRoot) {
+            const status = statusCache.get(rootKey(root))?.status;
+            const file = status?.files?.find((item) => item.path === filePath);
+            return openFileDiff(file);
+        },
     };
 }
 
-function createAction(label, action, path) {
+function createAction(label, action, path, tooltip) {
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = 'notes-git-action';
+    button.className = `notes-git-action notes-git-action-${action}`;
     button.dataset.gitAction = action;
     button.dataset.path = path;
     button.textContent = label;
-    button.title = `${label} ${path}`;
+    button.dataset.tooltip = tooltip;
+    button.setAttribute('aria-label', tooltip);
     return button;
 }

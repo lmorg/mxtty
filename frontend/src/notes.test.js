@@ -184,6 +184,7 @@ vi.mock('../wailsjs/go/main/WApp', () => ({
     ListFilesForContext: listFilesMock,
     GetNotesFilesSnapshot: getNotesFilesSnapshotMock,
     GetGitStatus: getGitStatusMock,
+    RefreshGitStatus: getGitStatusMock,
     GetGitDiff: getGitDiffMock,
     StageGitFile: stageGitFileMock,
     UnstageGitFile: unstageGitFileMock,
@@ -4782,6 +4783,16 @@ describe('notes rendering', () => {
         expect(notesCss).toContain('#notes-log-output:not([data-show-debug="true"]) .notes-log-line[data-level="debug"]');
         expect(notesCss).toContain('#notes-log-output:not([data-show-trace="true"]) .notes-log-line[data-level="trace"]');
         expect(notesCss).toContain('.notes-tools-log-toggle[data-enabled="true"]');
+        expect(notesCss).toContain('grid-template-columns: minmax(0, 1fr) 3.5em 140px;');
+        expect(notesCss).toContain('flex: 0 0 68px;');
+        const stageHoverStyle = notesCss.match(/\.notes-git-action-stage:hover,\s*\.notes-git-action-stage:focus-visible\s*\{([^}]*)\}/)?.[1] || '';
+        const unstageHoverStyle = notesCss.match(/\.notes-git-action-unstage:hover,\s*\.notes-git-action-unstage:focus-visible\s*\{([^}]*)\}/)?.[1] || '';
+        expect(stageHoverStyle).toContain('border-color: var(--red)');
+        expect(stageHoverStyle).toContain('background-color: rgba(var(--red-rgb), 0.3)');
+        expect(stageHoverStyle).toContain('color: var(--red)');
+        expect(unstageHoverStyle).toContain('border-color: var(--green)');
+        expect(unstageHoverStyle).toContain('background-color: rgba(var(--green-rgb), 0.3)');
+        expect(unstageHoverStyle).toContain('color: var(--green)');
         expect(notesCss).toContain('.notes-tools-log-button-group .notes-tools-icon');
         expect(notesCss).toContain('flex: 0 0 32px;');
         expect(notesCss).toContain('height: 32px;');
@@ -4807,6 +4818,8 @@ describe('notes rendering', () => {
         expect(getGitStatusMock).toHaveBeenCalledWith('/workspace/repo');
         expect(gitTab.style.display).toBe('');
         expect(document.getElementById('notes-tools-git-branch').textContent).toBe('main');
+        const toolTabIds = Array.from(document.querySelectorAll('#notes-tools-tabs [role="tab"]')).map((tab) => tab.id);
+        expect(toolTabIds.indexOf('notes-tools-tab-git')).toBeLessThan(toolTabIds.indexOf('notes-tools-tab-ai'));
         expect(diffTab.textContent).toBe('Diff');
         expect(diffTab.style.display).toBe('none');
     });
@@ -4838,6 +4851,32 @@ describe('notes rendering', () => {
         expect(notesHistoryAddPositionMock).toHaveBeenCalledWith('$PROJECT/src/main.go', 1);
         expect(document.getElementById('notes-current-file').textContent).toBe('main.go');
         expect(document.getElementById('notes-git-diff-wrap').dataset.active).toBe('false');
+    });
+
+    it('shows Diff for a modified file opened through the regular Notes file list', async () => {
+        getCurrentProjectMock.mockResolvedValue('/workspace/repo');
+        getGitStatusMock.mockResolvedValue({
+            root: '/workspace/repo', branch: 'main', ahead: 0, behind: 0, clean: false,
+            files: [{ path: 'src/main.go', code: ' M', unstaged: true }],
+        });
+        listFilesMock.mockResolvedValue(['$PROJECT/src/main.go']);
+        getFileMock.mockResolvedValue({ contents: 'package main\n', binary: false, error: '' });
+
+        await importNotesModule();
+        await flushPromises();
+        document.querySelector('.notes-file')?.click();
+        await flushPromises();
+        await flushPromises();
+
+        expect(document.getElementById('notes-current-file').textContent).toBe('main.go');
+        expect(document.getElementById('notes-tab-diff').style.display).toBe('');
+        expect(document.getElementById('notes-tab-diff').getAttribute('aria-selected')).toBe('false');
+
+        getEventHandler('notesGitStatusChanged')({
+            root: '/workspace/repo',
+            status: { root: '/workspace/repo', branch: 'main', ahead: 0, behind: 0, clean: true, files: [] },
+        });
+        expect(document.getElementById('notes-tab-diff').style.display).toBe('none');
     });
 
     it('keeps Find tools tab visible but disables controls in Hex and Meta modes', async () => {

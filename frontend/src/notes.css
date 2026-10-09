@@ -1788,7 +1788,8 @@ body {
 }
 
 .notes-git-file-row {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 3.5em 140px;
     align-items: center;
     gap: 6px;
     min-height: 30px;
@@ -1816,18 +1817,28 @@ body {
 }
 
 .notes-git-status-code {
-    min-width: 2.5em;
+    width: 3.5em;
     color: var(--yellow);
     font-family: monospace;
     text-align: center;
+    white-space: pre;
+    cursor: help;
 }
 
 .notes-git-file-actions {
     display: flex;
+    width: 140px;
     gap: 4px;
+    justify-content: flex-end;
 }
 
 .notes-git-action {
+    display: inline-flex;
+    flex: 0 0 68px;
+    width: 68px;
+    height: 24px;
+    align-items: center;
+    justify-content: center;
     border: 1px solid rgba(var(--fg-rgb), 0.2);
     border-radius: 3px;
     background: transparent;
@@ -1842,6 +1853,30 @@ body {
     color: var(--fg);
     border-color: var(--accent);
     outline: none;
+}
+
+.notes-git-action-stage {
+    border-color: var(--red);
+    color: var(--red);
+}
+
+.notes-git-action-stage:hover,
+.notes-git-action-stage:focus-visible {
+    border-color: var(--red);
+    background-color: rgba(var(--red-rgb), 0.3);
+    color: var(--red);
+}
+
+.notes-git-action-unstage {
+    border-color: var(--green);
+    color: var(--green);
+}
+
+.notes-git-action-unstage:hover,
+.notes-git-action-unstage:focus-visible {
+    border-color: var(--green);
+    background-color: rgba(var(--green-rgb), 0.3);
+    color: var(--green);
 }
 
 .notes-git-message {
