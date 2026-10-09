@@ -45,7 +45,7 @@ func (p *PaneT) Write(b []byte) error {
 		b = octal.Escape(b)
 	}
 
-	command := []byte(fmt.Sprintf(`send-keys %s -t %s `, flags, p.id))
+	command := fmt.Appendf(nil, `send-keys %s -t %s `, flags, p.id)
 	command = append(command, b...)
 	_, err := p.tmux.SendCommand(command)
 	return err

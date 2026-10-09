@@ -725,8 +725,8 @@ export function initTerminalPopupMenu(canvas) {
                 icon.className = 'tty-menu-row-icon';
                 icon.textContent = toIconText(item.icon);
                 icon.style.opacity = icon.textContent ? '0.9' : '0';
-                icon.style.fontFamily = '"Font Awesome Solid", "Font Awesome';
-                icon.style.fontWeight = '900';
+                icon.style.fontFamily = '"Font Awesome Regular", "Font Awesome Solid", "Font Awesome", sans-serif';
+                icon.style.fontWeight = '400';
                 row.appendChild(icon);
             }
 

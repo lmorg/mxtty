@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"time"
 
 	"github.com/lmorg/ttyphoon/types"
 )
@@ -187,9 +188,19 @@ func (tmux *Tmux) ActiveWindow() (*WindowT, error) {
 
 func (win *WindowT) ActivePane() *PaneT {
 	if win.activePane == nil {
-		panic("*WindowT.activePane is unset")
-		//return nil
+		time.Sleep(50 * time.Millisecond)
+		if win.activePane == nil {
+			for _, p := range win.panes._map {
+				win.activePane.tmux.renderer.DisplayNotification(types.NOTIFY_ERROR, "Active pane is unset")
+				_ = fnKeySelectPaneLast(p.tmux)
+			}
+			return win.activePane
+		}
 	}
+	//panic("*WindowT.activePane is unset")
+	//return nil
+	//return win.activePane
+	//}
 
 	if !win.activePane.closed {
 		return win.activePane

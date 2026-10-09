@@ -720,7 +720,8 @@ export function getSwaggerUIStyles(colors, fontSize) {
             border-radius: 3px;
             background-color: rgba(${fgRgb}, 0.05);
             color: var(--fg);
-            font-family: "Font Awesome Solid", "Font Awesome", var(--terminal-menu-font), sans-serif;
+            font-family: "Font Awesome Regular", "Font Awesome Solid", "Font Awesome", var(--terminal-menu-font), sans-serif;
+            font-weight: 400;
             font-size: 12px;
             cursor: pointer;
             padding: 0;

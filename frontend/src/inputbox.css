@@ -246,8 +246,8 @@
 }
 
 .inputbox-history-btn {
-    font-family: "Font Awesome Solid", "Font Awesome", sans-serif;
-    font-weight: 900;
+    font-family: "Font Awesome Regular", "Font Awesome Solid", "Font Awesome", sans-serif;
+    font-weight: 400;
     min-width: 31px;
     min-height: 31px;
     display: inline-flex;

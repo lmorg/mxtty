@@ -156,6 +156,9 @@ func (t *einoAgentTool) Info(context.Context) (*schema.ToolInfo, error) {
 }
 
 func (t *einoAgentTool) InvokableRun(ctx context.Context, argumentsInJSON string, _ ...einoTool.Option) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
 	toolCallBlock := OpenAITypedStreamBlock(ctx, sessiondb.StreamBlockToolCall, t.delegate.Name())
 	if toolCallBlock != nil {
 		toolCallBlock.Emit(argumentsInJSON)
@@ -217,10 +220,20 @@ func (t *einoAgentTool) InvokableRun(ctx context.Context, argumentsInJSON string
 		}
 		output, err = stringInputTool.Call(ctx, argumentsInJSON)
 	}
+	if err == nil {
+		err = ctx.Err()
+	}
 	if err != nil {
 		emitAIStreamToolBlock(ctx, sessiondb.StreamBlockToolError, err.Error())
 		recordContinuationToolObservation(ctx, t.toolObservationForInput(argumentsInJSON, structuredInput, output, err))
-		return output, err
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return output, ctxErr
+		}
+		failure := fmt.Sprintf("Tool %q failed: %s\nReview the error and retry with corrected input, or use another tool. The operation may have partially completed; check existing state before retrying.", t.delegate.Name(), err)
+		if output != "" {
+			failure += "\nPartial tool output:\n" + output
+		}
+		return failure, nil
 	}
 
 	// Interposer: compress oversized tool outputs so the main agent's context stays

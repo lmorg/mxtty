@@ -468,6 +468,7 @@ export function createAIPipelineFormatter(container, options = {}) {
         const wrapper = document.createElement('div');
         const kind = String(block?.kind || 'text');
         const parentId = String(block?.parentId || '');
+        const rawSubagent = kind === 'subagent' && !String(block?.label || '');
         let outputToggle = null;
         let outputCheckbox = null;
         let outputCaption = null;
@@ -529,6 +530,9 @@ export function createAIPipelineFormatter(container, options = {}) {
         } else {
             contentRoot = document.createElement('div');
             contentRoot.className = 'notes-ai-markdown markdown-body';
+            if (rawSubagent) {
+                contentRoot.classList.add('notes-ai-raw-text');
+            }
             wrapper.appendChild(contentRoot);
         }
         const children = document.createElement('div');
@@ -553,7 +557,8 @@ export function createAIPipelineFormatter(container, options = {}) {
             wrapper,
             children,
             parentId,
-            raw: isRawBlock(kind),
+            raw: isRawBlock(kind) || rawSubagent,
+            skipMarkdown: rawSubagent,
             outputToggle,
             outputCheckbox,
             outputCaption,
@@ -720,7 +725,7 @@ export function createAIPipelineFormatter(container, options = {}) {
                     }
                 } while (entry.needsRender);
 
-                if (entry.closed && entry.kind !== 'thinking' && processMarkdownContainer) {
+                if (entry.closed && entry.kind !== 'thinking' && !entry.skipMarkdown && processMarkdownContainer) {
                     await processMarkdownContainer(entry.root);
                 }
             } finally {

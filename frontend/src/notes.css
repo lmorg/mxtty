@@ -110,7 +110,8 @@ body {
 }
 
 #notes-file-index-warning {
-    font-family: "Font Awesome Solid", "Font Awesome", sans-serif;
+    font-family: "Font Awesome Regular", "Font Awesome Solid", "Font Awesome", sans-serif;
+    font-weight: 400;
     font-size: 12px;
 }
 
@@ -182,8 +183,8 @@ body {
     padding: 0;
     line-height: 1;
     display: none;
-    font-family: "Font Awesome Solid", "Font Awesome", sans-serif;
-    font-weight: 900;
+    font-family: "Font Awesome Regular", "Font Awesome Solid", "Font Awesome", sans-serif;
+    font-weight: 400;
     font-size: var(--notes-font-size-plus-7);
 }
 
@@ -468,8 +469,8 @@ body {
     align-items: center;
     justify-content: center;
     border-radius: 4px;
-    font-family: "Font Awesome Solid", "Font Awesome", sans-serif;
-    font-weight: 900;
+    font-family: "Font Awesome Regular", "Font Awesome Solid", "Font Awesome", sans-serif;
+    font-weight: 400;
     transition: color 0.2s, background-color 0.2s;
     flex-shrink: 0;
 }
@@ -494,8 +495,8 @@ body {
     align-items: center;
     justify-content: center;
     border-radius: 4px;
-    font-family: "Font Awesome Solid", "Font Awesome", sans-serif;
-    font-weight: 900;
+    font-family: "Font Awesome Regular", "Font Awesome Solid", "Font Awesome", sans-serif;
+    font-weight: 400;
     transition: color 0.2s, background-color 0.2s;
     flex-shrink: 0;
 }
@@ -520,8 +521,8 @@ body {
     align-items: center;
     justify-content: center;
     border-radius: 4px;
-    font-family: "Font Awesome Solid", "Font Awesome", sans-serif;
-    font-weight: 900;
+    font-family: "Font Awesome Regular", "Font Awesome Solid", "Font Awesome", sans-serif;
+    font-weight: 400;
     transition: color 0.2s, background-color 0.2s;
     flex-shrink: 0;
 }
@@ -1015,8 +1016,8 @@ body {
     align-items: center;
     justify-content: center;
     border-radius: 4px;
-    font-family: "Font Awesome Solid", "Font Awesome", sans-serif;
-    font-weight: 900;
+    font-family: "Font Awesome Regular", "Font Awesome Solid", "Font Awesome", sans-serif;
+    font-weight: 400;
     transition: color 0.2s, background-color 0.2s;
     border-width: 1px !important;
 }
@@ -1690,15 +1691,15 @@ body {
 }
 
 .notes-tools-minimize {
-    font-family: "Font Awesome Solid", "Font Awesome", sans-serif;
-    font-weight: 900;
+    font-family: "Font Awesome Regular", "Font Awesome Solid", "Font Awesome", sans-serif;
+    font-weight: 400;
 }
 
 .notes-tools-icon {
     min-width: 32px;
     padding: 4px 6px;
-    font-family: "Font Awesome Solid", "Font Awesome", sans-serif;
-    font-weight: 900;
+    font-family: "Font Awesome Regular", "Font Awesome Solid", "Font Awesome", sans-serif;
+    font-weight: 400;
     text-align: center;
     border-color: var(--bg);
 }
@@ -1822,12 +1823,33 @@ body {
 
 .notes-tools-pane-header {
     display: flex;
+    flex-wrap: wrap;
+    align-items: center;
     justify-content: flex-end;
     padding: 8px 12px;
     background: rgba(var(--selection-rgb), 0.05);
     border-bottom: 1px solid rgba(var(--fg-rgb), 0.2);
     flex-shrink: 0;
-    gap: 8px;
+    gap: 6px;
+}
+
+.notes-tools-log-button-group {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.notes-tools-log-button-group .notes-tools-icon {
+    flex: 0 0 32px;
+    width: 32px;
+    min-width: 32px;
+    height: 25px;
+    padding: 4px 0;
+}
+
+.notes-tools-log-button-group + .notes-tools-log-button-group {
+    border-left: 1px solid rgba(var(--fg-rgb), 0.25);
+    padding-left: 6px;
 }
 
 .notes-ai-model-picker {
@@ -1913,10 +1935,6 @@ body {
     }
 }
 
-#notes-tools-log-wordwrap:hover {
-    border-color: var(--accent);
-}
-
 #notes-tools-log-maximize:hover {
     border-color: var(--accent);
 }
@@ -1925,11 +1943,8 @@ body {
     border-color: var(--accent);
 }
 
-#notes-tools-log-timestamp:hover {
-    border-color: var(--accent);
-}
-
-#notes-tools-log-trace:hover {
+.notes-tools-log-toggle:hover,
+#notes-tools-log-select-all:hover {
     border-color: var(--accent);
 }
 
@@ -1955,8 +1970,8 @@ body {
     color: var(--fg);
     padding: 4px 10px;
     cursor: pointer;
-    font-family: "Font Awesome Solid", "Font Awesome", sans-serif;
-    font-weight: 900;
+    font-family: "Font Awesome Regular", "Font Awesome Solid", "Font Awesome", sans-serif;
+    font-weight: 400;
     font-size: var(--notes-font-size-minus-2);
     transition: all 0.2s ease;
     border-radius: 3px;
@@ -1981,24 +1996,16 @@ body {
     color: var(--bg);
 }
 
-#notes-tools-log-wordwrap[data-wrapped="true"] {
+.notes-tools-log-toggle[data-enabled="true"] {
     background-color: var(--accent);
     border-color: var(--accent);
     color: var(--bg);
 }
 
-#notes-tools-log-timestamp[data-enabled="true"] {
-    background-color: var(--accent);
-    border-color: var(--accent);
-    color: var(--bg);
-}
-
-#notes-tools-log-trace[data-enabled="true"] {
-    background-color: var(--accent);
-    border-color: var(--accent);
-    color: var(--bg);
-}
-
+#notes-log-output:not([data-show-error="true"]) .notes-log-line[data-level="error"],
+#notes-log-output:not([data-show-warn="true"]) .notes-log-line[data-level="warn"],
+#notes-log-output:not([data-show-info="true"]) .notes-log-line[data-level="info"],
+#notes-log-output:not([data-show-debug="true"]) .notes-log-line[data-level="debug"],
 #notes-log-output:not([data-show-trace="true"]) .notes-log-line[data-level="trace"] {
     display: none;
 }
@@ -2089,6 +2096,11 @@ body {
     margin: 0;
     font-size: inherit;
     line-height: 1.5;
+}
+
+#notes-ai-output .notes-ai-raw-text {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
 }
 
 /* Incremental streaming wrappers must not affect layout or margin collapsing. */
@@ -2210,8 +2222,8 @@ body {
     background: rgba(var(--bg-rgb), 0.9);
     color: var(--fg);
     cursor: pointer;
-    font-family: "Font Awesome Solid", "Font Awesome", sans-serif;
-    font-weight: 900;
+    font-family: "Font Awesome Regular", "Font Awesome Solid", "Font Awesome", sans-serif;
+    font-weight: 400;
     opacity: 0;
     transition: opacity 120ms ease, color 120ms ease, background-color 120ms ease;
 }
@@ -3173,8 +3185,8 @@ body {
     padding: 0;
     line-height: 1;
     display: none;
-    font-family: "Font Awesome Solid", "Font Awesome", sans-serif;
-    font-weight: 900;
+    font-family: "Font Awesome Regular", "Font Awesome Solid", "Font Awesome", sans-serif;
+    font-weight: 400;
     font-size: var(--notes-font-size-plus-7);
 }
 
@@ -3211,7 +3223,8 @@ body {
 }
 
 #notes-find-references {
-    font-family: "Font Awesome Solid", "Font Awesome", sans-serif;
+    font-family: "Font Awesome Regular", "Font Awesome Solid", "Font Awesome", sans-serif;
+    font-weight: 400;
 }
 
 .notes-find-option-btn:hover {

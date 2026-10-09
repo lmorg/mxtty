@@ -4043,7 +4043,7 @@ describe('notes rendering', () => {
         };
 
         fmt.setBlocks([
-            { blockId: 'subagent', kind: 'subagent', status: 'closed' },
+            { blockId: 'subagent', kind: 'subagent', label: 'Agent', status: 'closed' },
             { blockId: 'call', parentId: 'subagent', kind: 'tool-call', label: 'grep', status: 'closed' },
             { blockId: 'output', parentId: 'call', kind: 'tool-output', status: 'closed' },
         ], (block) => Promise.resolve(contentByBlock[block.blockId]));
@@ -4063,6 +4063,26 @@ describe('notes rendering', () => {
 
         call?.querySelector('.notes-ai-tool-output-toggle input')?.click();
         expect(output?.hidden).toBe(false);
+    });
+
+    it('renders unlabeled buffered subagent output as literal text', async () => {
+        const { createAIPipelineFormatter } = await import('./ai_pipeline_formatter.js');
+        const wrapper = document.createElement('div');
+        const markedMock = { parse: vi.fn((text) => `<p>${String(text)}</p>`) };
+        const processMarkdownContainer = vi.fn();
+        const fmt = createAIPipelineFormatter(wrapper, { marked: markedMock, processMarkdownContainer });
+
+        fmt.startJob();
+        fmt.appendBlock({ blockId: 'buffered-subagent', kind: 'subagent', delta: '**literal**\nnext line', status: 'closed' });
+        await flushPromises();
+        await flushPromises();
+
+        const block = wrapper.querySelector('[data-block-id="buffered-subagent"]');
+        expect(block?.querySelector('strong')).toBeNull();
+        expect(block?.textContent).toBe('**literal**\nnext line');
+        expect(block?.querySelector('.notes-ai-raw-text')).not.toBeNull();
+        expect(markedMock.parse).not.toHaveBeenCalled();
+        expect(processMarkdownContainer).not.toHaveBeenCalled();
     });
 
     it('pins typed code and thinking blocks to the bottom as they grow', async () => {
@@ -4698,21 +4718,59 @@ describe('notes rendering', () => {
             ['notes-tools-ai-settings', 0xf013, 'AI session management'],
             ['notes-tools-log-clear', 0xf2ed, 'Clear log'],
             ['notes-tools-log-copy', 0xf0c5, 'Copy log to clipboard'],
+            ['notes-tools-log-select-all', 0xf0fe, 'Select visible log lines'],
             ['notes-tools-log-maximize', 0xf065, 'Maximize log view'],
             ['notes-tools-log-deselect', 0xf850, 'Deselect log lines'],
+            ['notes-tools-log-error', 'e', 'Toggle error-level log lines'],
+            ['notes-tools-log-warn', 'w', 'Toggle warning-level log lines'],
+            ['notes-tools-log-info', 'i', 'Toggle info-level log lines'],
+            ['notes-tools-log-debug', 'd', 'Toggle debug-level log lines'],
+            ['notes-tools-log-trace', 't', 'Toggle trace-level log lines'],
             ['notes-tools-log-timestamp', 0xf017, 'Toggle timestamps'],
             ['notes-tools-log-wordwrap', 0x21b5, 'Toggle word wrap'],
-            ['notes-tools-log-trace', 0xf188, 'Show trace-level log lines'],
         ];
 
-        icons.forEach(([id, codePoint, label]) => {
+        icons.forEach(([id, glyph, label]) => {
             const button = document.getElementById(id);
-            expect(button.textContent).toBe(String.fromCodePoint(codePoint));
+            expect(button.textContent).toBe(typeof glyph === 'number' ? String.fromCodePoint(glyph) : glyph);
             expect(button.classList.contains('notes-tools-icon')).toBe(true);
             expect(button.getAttribute('aria-label')).toBe(label);
         });
 
-        expect(notesCss).toContain('font-family: "Font Awesome Solid", "Font Awesome", sans-serif;');
+        for (const id of [
+            'notes-tools-log-error',
+            'notes-tools-log-warn',
+            'notes-tools-log-info',
+            'notes-tools-log-debug',
+            'notes-tools-log-trace',
+            'notes-tools-log-timestamp',
+            'notes-tools-log-wordwrap',
+        ]) {
+            expect(document.getElementById(id).classList.contains('notes-tools-log-toggle')).toBe(true);
+        }
+
+        const fontAwesomeRules = notesCss.match(/[^{}]*\{[^{}]*font-family:\s*"Font Awesome (?:Regular|Solid)"[^{}]*\}/g) || [];
+        expect(fontAwesomeRules.length).toBeGreaterThan(0);
+        for (const rule of fontAwesomeRules) {
+            expect(rule).not.toMatch(/font-weight:\s*(?:bold|[6-9]00)\b/);
+        }
+
+        const groups = Array.from(document.querySelectorAll('#notes-tools-log-pane .notes-tools-log-button-group'));
+        expect(groups.map((group) => Array.from(group.querySelectorAll('button')).map((button) => button.id))).toEqual([
+            ['notes-tools-log-copy', 'notes-tools-log-select-all', 'notes-tools-log-deselect'],
+            ['notes-tools-log-error', 'notes-tools-log-warn', 'notes-tools-log-info', 'notes-tools-log-debug', 'notes-tools-log-trace'],
+            ['notes-tools-log-timestamp', 'notes-tools-log-wordwrap'],
+            ['notes-tools-log-clear', 'notes-tools-log-maximize'],
+        ]);
+
+        expect(notesCss).toContain('#notes-log-output:not([data-show-debug="true"]) .notes-log-line[data-level="debug"]');
+        expect(notesCss).toContain('#notes-log-output:not([data-show-trace="true"]) .notes-log-line[data-level="trace"]');
+        expect(notesCss).toContain('.notes-tools-log-toggle[data-enabled="true"]');
+        expect(notesCss).toContain('.notes-tools-log-button-group .notes-tools-icon');
+        expect(notesCss).toContain('flex: 0 0 32px;');
+        expect(notesCss).toContain('height: 32px;');
+        expect(notesCss).not.toContain('data-wrapped');
+        expect(notesCss).toContain('font-family: "Font Awesome Regular", "Font Awesome Solid", "Font Awesome", sans-serif;');
     });
 
     it('keeps Find tools tab visible but disables controls in Hex and Meta modes', async () => {

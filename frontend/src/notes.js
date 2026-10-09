@@ -609,13 +609,26 @@ app.innerHTML = `
                         </div>
                         <div id="notes-tools-log-pane" class="notes-tools-pane" data-tab="log" data-active="false">
                             <div class="notes-tools-pane-header">
-                                <button id="notes-tools-log-copy" type="button" class="notes-tools-clear notes-tools-icon" title="Copy log to clipboard" aria-label="Copy log to clipboard">&#xf0c5;</button>
-                                <button id="notes-tools-log-deselect" type="button" class="notes-tools-clear notes-tools-icon" title="Deselect log lines" aria-label="Deselect log lines">&#xf850;</button>
-                                <button id="notes-tools-log-trace" type="button" class="notes-tools-clear notes-tools-icon" title="Show trace-level log lines" aria-label="Show trace-level log lines">&#xf188;</button>
-                                <button id="notes-tools-log-timestamp" type="button" class="notes-tools-clear notes-tools-icon" title="Toggle timestamps" aria-label="Toggle timestamps">&#xf017;</button>
-                                <button id="notes-tools-log-wordwrap" type="button" class="notes-tools-clear notes-tools-icon" title="Toggle word wrap" aria-label="Toggle word wrap">&#x21b5;</button>
-                                <button id="notes-tools-log-clear" type="button" class="notes-tools-clear notes-tools-icon" title="Clear log" aria-label="Clear log">&#xf2ed;</button>
-                                <button id="notes-tools-log-maximize" type="button" class="notes-tools-clear notes-tools-icon" title="Maximize log view" aria-label="Maximize log view">&#xf065;</button>
+                                <div class="notes-tools-log-button-group" role="group" aria-label="Log selection">
+                                    <button id="notes-tools-log-copy" type="button" class="notes-tools-clear notes-tools-icon" title="Copy log to clipboard" aria-label="Copy log to clipboard">&#xf0c5;</button>
+                                    <button id="notes-tools-log-select-all" type="button" class="notes-tools-clear notes-tools-icon" title="Select visible log lines" aria-label="Select visible log lines">&#xf0fe;</button>
+                                    <button id="notes-tools-log-deselect" type="button" class="notes-tools-clear notes-tools-icon" title="Deselect log lines" aria-label="Deselect log lines">&#xf850;</button>
+                                </div>
+                                <div class="notes-tools-log-button-group" role="group" aria-label="Log level filters">
+                                    <button id="notes-tools-log-error" type="button" class="notes-tools-clear notes-tools-icon notes-tools-log-toggle" title="Toggle error-level log lines" aria-label="Toggle error-level log lines" aria-pressed="true">e</button>
+                                    <button id="notes-tools-log-warn" type="button" class="notes-tools-clear notes-tools-icon notes-tools-log-toggle" title="Toggle warning-level log lines" aria-label="Toggle warning-level log lines" aria-pressed="true">w</button>
+                                    <button id="notes-tools-log-info" type="button" class="notes-tools-clear notes-tools-icon notes-tools-log-toggle" title="Toggle info-level log lines" aria-label="Toggle info-level log lines" aria-pressed="true">i</button>
+                                    <button id="notes-tools-log-debug" type="button" class="notes-tools-clear notes-tools-icon notes-tools-log-toggle" title="Toggle debug-level log lines" aria-label="Toggle debug-level log lines" aria-pressed="false">d</button>
+                                    <button id="notes-tools-log-trace" type="button" class="notes-tools-clear notes-tools-icon notes-tools-log-toggle" title="Toggle trace-level log lines" aria-label="Toggle trace-level log lines" aria-pressed="false">t</button>
+                                </div>
+                                <div class="notes-tools-log-button-group" role="group" aria-label="Log display">
+                                    <button id="notes-tools-log-timestamp" type="button" class="notes-tools-clear notes-tools-icon notes-tools-log-toggle" title="Toggle timestamps" aria-label="Toggle timestamps" aria-pressed="false">&#xf017;</button>
+                                    <button id="notes-tools-log-wordwrap" type="button" class="notes-tools-clear notes-tools-icon notes-tools-log-toggle" title="Toggle word wrap" aria-label="Toggle word wrap" aria-pressed="false">&#x21b5;</button>
+                                </div>
+                                <div class="notes-tools-log-button-group" role="group" aria-label="Log actions">
+                                    <button id="notes-tools-log-clear" type="button" class="notes-tools-clear notes-tools-icon" title="Clear log" aria-label="Clear log">&#xf2ed;</button>
+                                    <button id="notes-tools-log-maximize" type="button" class="notes-tools-clear notes-tools-icon" title="Maximize log view" aria-label="Maximize log view">&#xf065;</button>
+                                </div>
                             </div>
                             <div id="notes-log-output" class="notes-log-output" style="white-space: pre; overflow-wrap: normal;"></div>
                             <button id="notes-log-scroll-bottom" type="button" class="notes-ai-scroll-bottom" data-visible="false" title="Scroll to latest log output">Latest</button>
@@ -811,9 +824,14 @@ const elements = {
     logOutput: document.getElementById('notes-log-output'),
     toolsLogMaximize: document.getElementById('notes-tools-log-maximize'),
     toolsLogTimestamp: document.getElementById('notes-tools-log-timestamp'),
+    toolsLogDebug: document.getElementById('notes-tools-log-debug'),
     toolsLogTrace: document.getElementById('notes-tools-log-trace'),
+    toolsLogError: document.getElementById('notes-tools-log-error'),
+    toolsLogWarn: document.getElementById('notes-tools-log-warn'),
+    toolsLogInfo: document.getElementById('notes-tools-log-info'),
     toolsLogWordwrap: document.getElementById('notes-tools-log-wordwrap'),
     toolsLogCopy: document.getElementById('notes-tools-log-copy'),
+    toolsLogSelectAll: document.getElementById('notes-tools-log-select-all'),
     toolsLogDeselect: document.getElementById('notes-tools-log-deselect'),
     toolsLogClear: document.getElementById('notes-tools-log-clear'),
     logScrollBottom: document.getElementById('notes-log-scroll-bottom'),
