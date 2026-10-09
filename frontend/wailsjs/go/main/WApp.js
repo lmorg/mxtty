@@ -162,6 +162,14 @@ export function GetFileMetaMarkdown(arg1) {
   return window['go']['main']['WApp']['GetFileMetaMarkdown'](arg1);
 }
 
+export function GetGitDiff(arg1, arg2, arg3) {
+  return window['go']['main']['WApp']['GetGitDiff'](arg1, arg2, arg3);
+}
+
+export function GetGitStatus(arg1) {
+  return window['go']['main']['WApp']['GetGitStatus'](arg1);
+}
+
 export function GetHyperlinkMenuActions(arg1, arg2) {
   return window['go']['main']['WApp']['GetHyperlinkMenuActions'](arg1, arg2);
 }
@@ -586,6 +594,10 @@ export function ShowTooltip(arg1) {
   return window['go']['main']['WApp']['ShowTooltip'](arg1);
 }
 
+export function StageGitFile(arg1, arg2) {
+  return window['go']['main']['WApp']['StageGitFile'](arg1, arg2);
+}
+
 export function StopNote(arg1) {
   return window['go']['main']['WApp']['StopNote'](arg1);
 }
@@ -664,6 +676,10 @@ export function TerminalSetGlyphSize(arg1, arg2) {
 
 export function TerminalTextInput(arg1) {
   return window['go']['main']['WApp']['TerminalTextInput'](arg1);
+}
+
+export function UnstageGitFile(arg1, arg2) {
+  return window['go']['main']['WApp']['UnstageGitFile'](arg1, arg2);
 }
 
 export function ViewFileInNotes() {

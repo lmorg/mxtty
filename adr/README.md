@@ -73,6 +73,7 @@ Each record uses: **Status**, **Context**, **Decision**, **Consequences**,
 | [0059](0059-notes-layout-sizing-persistence.md) | Notes layout sizing and persistence | Layout |
 | [0060](0060-notes-log-level-filters.md) | Notes log filters are independent by level | Notes |
 | [0061](0061-fontawesome-face-fallbacks.md) | Font Awesome uses separate regular and solid faces | Frontend |
+| [0062](0062-notes-git-worktree-panel.md) | Notes Git panel is scoped to the current project root | Notes |
 
 ## Recurring themes
 

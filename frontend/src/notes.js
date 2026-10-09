@@ -1,5 +1,6 @@
 import {
     GetWindowStyle, GetNotesMaxLogLines, GetNotesColumnWidths, SetNotesColumnWidths, GetFile,
+    GetGitStatus, GetGitDiff, StageGitFile, UnstageGitFile,
     NotesTableSort, NotesTableClearSort, NotesTableFilter, NotesTableReconcile, NotesTableRestore, NotesTableSetGraph, NotesTableRenderGraph, NotesTableDisposeAll,
     GetNotesStructViewMaxSizeKB,
     GetNotesContext, GetNotesFilesSnapshot, SaveFile, SaveBinaryFile, DeleteFile, RenameFile,
@@ -46,7 +47,8 @@ import { attachVimMode } from './vim-mode';
 import { attachSpellCheck } from './spellcheck';
 import { createEditorUndoManager } from './editor_undo_manager';
 import { createEditorMutationAdapter } from './editor_mutation_adapter';
-import { createMonacoAdapter } from './monaco_adapter';
+import { createMonacoAdapter, createMonacoDiffAdapter } from './monaco_adapter';
+import { initNotesGitPanel } from './notes-git-panel.js';
 import './notes.css';
 
 import { marked } from "marked";
@@ -479,6 +481,7 @@ app.innerHTML = `
                 <button id="notes-tab-image-view" type="button" class="tab" role="tab" aria-selected="false" style="display: none;">View</button>
                 <button id="notes-tab-hex" type="button" class="tab" role="tab" aria-selected="false">Hex</button>
                 <button id="notes-tab-meta" type="button" class="tab" role="tab" aria-selected="false">Meta</button>
+                <button id="notes-tab-diff" type="button" class="tab" role="tab" aria-selected="false" style="display: none;">Diff</button>
                 <div id="notes-toolbar" class="notes-toolbar">
                     <button id="notes-new" type="button" class="notes-toolbar-btn" title="New" aria-label="New note">&#xe494;</button>
                     <button id="notes-history-prev" type="button" class="notes-toolbar-btn" title="Previous document" aria-label="Previous document">&#xf359;</button>
@@ -494,6 +497,10 @@ app.innerHTML = `
                             <div id="notes-monaco-editor" aria-hidden="true"></div>
                         </div>
                     </div>
+                </div>
+                <div id="notes-git-diff-wrap" class="notes-git-diff-wrap" data-active="false" role="tabpanel">
+                    <div id="notes-git-diff-editor" class="notes-git-diff-editor"></div>
+                    <div id="notes-git-diff-message" class="notes-git-diff-message" hidden></div>
                 </div>
                 <div id="notes-hex-wrap" role="tabpanel">
                     <div id="notes-hex"></div>
@@ -538,6 +545,7 @@ app.innerHTML = `
                             <button id="notes-tools-tab-find" type="button" class="tools-tab" role="tab" aria-selected="true" aria-controls="notes-tools-find-pane" data-tab="find">Find</button>
                             <button id="notes-tools-tab-ai"  type="button" class="tools-tab" role="tab" aria-selected="false" aria-controls="notes-tools-ai-pane" data-tab="ai">AI</button>
                             <button id="notes-tools-tab-log" type="button" class="tools-tab" role="tab" aria-selected="false" aria-controls="notes-tools-log-pane" data-tab="log">Log</button>
+                            <button id="notes-tools-tab-git" type="button" class="tools-tab" role="tab" aria-selected="false" aria-controls="notes-tools-git-pane" data-tab="git" style="display: none;">Git</button>
                         </div>
                         <button id="notes-tools-minimize" type="button" class="notes-tools-minimize" title="Minimize Tools panel"></button>
                     </div>
@@ -632,6 +640,15 @@ app.innerHTML = `
                             </div>
                             <div id="notes-log-output" class="notes-log-output" style="white-space: pre; overflow-wrap: normal;"></div>
                             <button id="notes-log-scroll-bottom" type="button" class="notes-ai-scroll-bottom" data-visible="false" title="Scroll to latest log output">Latest</button>
+                        </div>
+                        <div id="notes-tools-git-pane" class="notes-tools-pane" data-tab="git" data-active="false">
+                            <div class="notes-tools-pane-header">
+                                <button id="notes-tools-git-workspace" type="button" class="notes-ai-model-picker" title="Git workspace">Git workspace</button>
+                                <span id="notes-tools-git-branch" class="notes-git-branch"></span>
+                                <span id="notes-tools-git-ahead-behind" class="notes-git-ahead-behind"></span>
+                                <button id="notes-tools-git-refresh" type="button" class="notes-tools-clear notes-tools-icon" title="Refresh Git status" aria-label="Refresh Git status">&#xf021;</button>
+                            </div>
+                            <div id="notes-tools-git-files" class="notes-git-file-list" role="list"></div>
                         </div>
                     </div>
                 </div>
@@ -732,10 +749,16 @@ const elements = {
     tabSwaggerRun: document.getElementById('notes-tab-swagger-run'),
     tabImageView: document.getElementById('notes-tab-image-view'),
     tabMeta: document.getElementById('notes-tab-meta'),
+    tabs: document.getElementById('notes-tabs'),
+    tabDiff: document.getElementById('notes-tab-diff'),
     tabCsvView: document.getElementById('notes-tab-csv-view'),
     tabCsvEdit: document.getElementById('notes-tab-csv-edit'),
     tabCsvRun: document.getElementById('notes-tab-csv-run'),
     editorWrap: document.getElementById('notes-editor-wrap'),
+    notesPanel: document.getElementById('notes-panel'),
+    gitDiffWrap: document.getElementById('notes-git-diff-wrap'),
+    gitDiffEditor: document.getElementById('notes-git-diff-editor'),
+    gitDiffMessage: document.getElementById('notes-git-diff-message'),
     hexWrap: document.getElementById('notes-hex-wrap'),
     hex: document.getElementById('notes-hex'),
     previewWrap: document.getElementById('notes-preview-wrap'),
@@ -792,6 +815,14 @@ const elements = {
     toolsTabToC: document.getElementById('notes-tools-tab-toc'),
     toolsTabFrontmatter: document.getElementById('notes-tools-tab-frontmatter'),
     toolsTabLog: document.getElementById('notes-tools-tab-log'),
+    toolsTabGit: document.getElementById('notes-tools-tab-git'),
+    gitTab: document.getElementById('notes-tools-tab-git'),
+    gitPane: document.getElementById('notes-tools-git-pane'),
+    gitWorkspace: document.getElementById('notes-tools-git-workspace'),
+    gitBranch: document.getElementById('notes-tools-git-branch'),
+    gitAheadBehind: document.getElementById('notes-tools-git-ahead-behind'),
+    gitRefresh: document.getElementById('notes-tools-git-refresh'),
+    gitFileList: document.getElementById('notes-tools-git-files'),
     toolsFindPane: document.getElementById('notes-tools-find-pane'),
     toolsAIPane: document.getElementById('notes-tools-ai-pane'),
     toolsToCPane: document.getElementById('notes-tools-toc-pane'),
@@ -1014,7 +1045,14 @@ function isMonacoActive() {
     return state.useMonacoEditor && monacoMainEditor !== null;
 }
 
+function isGitDiffActive() {
+    return Boolean(elements.notesPanel?.dataset.gitDiff === 'true' && activeGitDiff && notesGitDiffAdapter);
+}
+
 function getMainEditorValue() {
+    if (isGitDiffActive()) {
+        return notesGitDiffAdapter.getModifiedValue();
+    }
     if (isMonacoActive()) {
         return monacoMainEditor.getValue();
     }
@@ -1032,9 +1070,15 @@ function setMainEditorValue(value) {
         monacoMainEditor.setValue(text);
         suppressMonacoChange = false;
     }
+    if (isGitDiffActive()) {
+        notesGitDiffAdapter.setModifiedValue(text);
+    }
 }
 
 function getMainEditorSelectionRange() {
+    if (isGitDiffActive()) {
+        return notesGitDiffAdapter.getSelectionOffsets();
+    }
     if (isMonacoActive()) {
         return monacoMainEditor.getSelectionOffsets();
     }
@@ -1089,6 +1133,10 @@ function scheduleCurrentHistoryPosition() {
 }
 
 function setMainEditorSelectionRange(start, end) {
+    if (isGitDiffActive()) {
+        notesGitDiffAdapter.setSelectionOffsets(start, end);
+        return;
+    }
     if (isMonacoActive()) {
         monacoMainEditor.setSelectionOffsets(start, end);
         return;
@@ -1098,6 +1146,9 @@ function setMainEditorSelectionRange(start, end) {
 }
 
 function getMainEditorSelectionText() {
+    if (isGitDiffActive()) {
+        return notesGitDiffAdapter.getSelectionText();
+    }
     if (isMonacoActive()) {
         return monacoMainEditor.getSelectionText();
     }
@@ -1107,6 +1158,12 @@ function getMainEditorSelectionText() {
 }
 
 function replaceMainEditorRange(start, end, text) {
+    if (isGitDiffActive()) {
+        notesGitDiffAdapter.replaceRange(start, end, text, 'notes-git-diff-context-menu');
+        const nextCursor = Number(start) + String(text || '').length;
+        notesGitDiffAdapter.setSelectionOffsets(nextCursor, nextCursor);
+        return;
+    }
     if (isMonacoActive()) {
         monacoMainEditor.replaceRange(start, end, text, 'notes-main-editor-replace');
         const nextCursor = Number(start) + String(text || '').length;
@@ -6945,6 +7002,11 @@ function focusActiveEditorForViewMode() {
             return;
         }
 
+        if (isGitDiffActive()) {
+            notesGitDiffAdapter.focus();
+            return;
+        }
+
         if (isMonacoActive()) {
             monacoMainEditor.focus();
             return;
@@ -6969,6 +7031,9 @@ function emitCurrentFileName() {
 }
 
 function setViewMode(mode) {
+    if (activeGitDiff && elements.notesPanel.dataset.gitDiff === 'true') {
+        void closeNotesGitDiff();
+    }
     // Determine the mode based on current file type.
     if (mode === 'meta') {
         state.viewMode = 'meta';
@@ -7014,6 +7079,7 @@ function setViewMode(mode) {
     elements.tabViewer.setAttribute('aria-selected', (isViewer || isHtmlView) ? 'true' : 'false');
     elements.tabJupyter.setAttribute('aria-selected', isJupyter ? 'true' : 'false');
     elements.tabMeta.setAttribute('aria-selected', isMeta ? 'true' : 'false');
+    elements.tabDiff.setAttribute('aria-selected', 'false');
     
     const isStructuredEdit = state.currentFileType === 'json' && state.viewMode === 'swagger-edit';
     elements.editorWrap.dataset.active = (isEditor || isStructuredEdit) ? 'true' : 'false';
@@ -7022,6 +7088,7 @@ function setViewMode(mode) {
     elements.htmlViewWrap.dataset.active = isHtmlView ? 'true' : 'false';
     elements.jupyterWrap.dataset.active = isJupyter ? 'true' : 'false';
     elements.metaWrap.dataset.active = isMeta ? 'true' : 'false';
+    elements.gitDiffWrap.dataset.active = 'false';
     
     // Swagger tabs
     const isSwaggerView = state.viewMode === 'swagger-view';
@@ -7100,6 +7167,9 @@ function setEditorWrapMode(enabled) {
     elements.editorShell.dataset.wrapMode = wrapEnabled ? 'true' : 'false';
     if (isMonacoActive()) {
         monacoMainEditor.setWordWrap(wrapEnabled);
+    }
+    if (isGitDiffActive()) {
+        notesGitDiffAdapter.setWordWrap(wrapEnabled);
     }
 }
 
@@ -8754,6 +8824,7 @@ function openFolderTreeContextMenu(category, nodes, x, y, title = 'Folder action
  */
 function updateTabVisibility(fileType) {
     updateToolsTabVisibility(fileType);
+    elements.tabDiff.style.display = activeGitDiff ? '' : 'none';
 
     if (fileType === 'error') {
         elements.tabMeta.style.display = '';
@@ -9770,6 +9841,10 @@ async function loadFile(file, options = {}) {
         return;
     }
 
+    if (activeGitDiff && !await closeNotesGitDiff()) {
+        return;
+    }
+
     if (state.currentFile && state.currentFile !== file) {
         saveDocumentCache();
     }
@@ -10077,7 +10152,7 @@ async function loadFile(file, options = {}) {
 async function saveFile() {
     if (!state.currentFile) {
         setStatus('Select a note before saving', true);
-        return;
+        return false;
     }
 
     try {
@@ -10090,9 +10165,11 @@ async function saveFile() {
         }
         setDirty(false);
         maybeRefreshProjectFindAfterSave();
+        return true;
     } catch (err) {
         notifyTerminal(`Failed to save ${state.currentFile}`, 'error');
         console.error(err);
+        return false;
     }
 }
 
@@ -13610,6 +13687,9 @@ EventsOn("notesCreateAndOpen", params => {
 
 EventsOn("notesContextChanged", (context) => {
     if (!context || typeof context !== 'object') return;
+    if (activeGitDiff && context.projectRoot !== activeGitDiff.root) {
+        closeNotesGitDiff();
+    }
     if (requestedFileContext && ['projectRoot', 'globalNotes', 'userNotes', 'groupName']
         .every((field) => context[field] === requestedFileContext[field])) return;
     void refreshFiles({ context });
@@ -14765,6 +14845,196 @@ GetNotesStructViewMaxSizeKB().then((maxSizeKb) => {
     console.error('Failed to load notes structured view size limit:', err);
 });
 
+let notesGitPanel = null;
+let notesGitDiffAdapter = null;
+let activeGitDiff = null;
+
+async function ensureNotesGitDiffAdapter() {
+    if (notesGitDiffAdapter) {
+        return notesGitDiffAdapter;
+    }
+    notesGitDiffAdapter = await createMonacoDiffAdapter(elements.gitDiffEditor, {
+        ...getMonacoTypographyOptions(),
+        themeColors: latestWindowStyle?.colors || null,
+        onChange: (value) => {
+            if (activeGitDiff?.diff?.readOnly) {
+                return;
+            }
+            const text = String(value || '');
+            if (elements.editor.value !== text) {
+                elements.editor.value = text;
+                elements.editor.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        },
+        onSelectionChange: (start, end, activeOffset) => {
+            elements.editor.selectionStart = Number(start) || 0;
+            elements.editor.selectionEnd = Number(end) || Number(start) || 0;
+            if (isMonacoActive()) {
+                monacoMainEditor.setSelectionOffsets(start, end);
+            }
+            scheduleHistoryPosition(state.currentFile, activeOffset);
+        },
+        onPaste: (event) => {
+            handleEditorImagePaste(event);
+        },
+        onPrimaryPaste: () => {
+            if (state.viewMode !== 'editor' || state.currentFileType !== 'markdown') {
+                return false;
+            }
+            void pasteFromGoClipboard(elements.editor, true);
+            return true;
+        },
+        onContextMenu: (event) => {
+            openMainEditorContextMenu(event);
+        },
+        onCompletionRequest: (payload) => {
+            return handleMonacoCompletionRequest(payload);
+        },
+    });
+    return notesGitDiffAdapter;
+}
+
+async function openNotesGitDiff({ root, file, diff }) {
+    if (activeGitDiff && !await closeNotesGitDiff()) {
+        return;
+    }
+    if (state.dirty && !await saveFile()) {
+        return;
+    }
+
+    const relativePath = String(file.path || '').replaceAll('\\', '/');
+    const notesFilePath = `$PROJECT/${relativePath}`;
+    if (diff.deleted) {
+        await closeOpenLspDocument();
+        await closeCurrentTyposDocument();
+        clearVisibleLspDiagnostics();
+        state.currentFileUri = '';
+        state.currentFileProject = root;
+        state.currentFile = notesFilePath;
+        state.currentFileType = 'code';
+        elements.editorShell.dataset.fileType = 'code';
+        state.swaggerSpec = null;
+        state.swaggerRunAvailable = false;
+        setCodeEditorMode(true);
+        setMainEditorValue('');
+        refreshEditorLanguage(notesFilePath, '');
+        updateTabVisibility('code');
+        setViewMode('editor');
+        emitCurrentFileName();
+        setDirty(false);
+    } else {
+        await loadFile(notesFilePath);
+        if (state.currentFile !== notesFilePath) {
+            return;
+        }
+    }
+    await NotesHistoryAddPosition(notesFilePath, 1);
+
+    if (!state.useMonacoEditor) {
+        setToolsPanelCollapsed(false);
+        setToolsTab('git');
+        notifyTerminal('The selected file is open; side-by-side Git diff requires Monaco.', 'warn');
+        return;
+    }
+
+    activeGitDiff = { root, file, diff, notesFilePath };
+    setNotesGitDiffTabActive(true);
+    elements.gitDiffMessage.hidden = !diff.binary && !diff.readOnly;
+    elements.gitDiffEditor.hidden = diff.binary;
+
+    if (diff.binary) {
+        elements.gitDiffMessage.textContent = 'Binary file; text diff is unavailable.';
+    } else if (diff.readOnly) {
+        elements.gitDiffMessage.textContent = 'Symbolic link; diff is read-only.';
+        const editor = await ensureNotesGitDiffAdapter();
+        editor.setDiff(diff);
+        notesGitDiffAdapter = editor;
+    } else {
+        const editor = await ensureNotesGitDiffAdapter();
+        editor.setDiff(diff);
+        editor.setModifiedValue(String(diff.working || ''));
+        editor.setWordWrap(Boolean(state.markdownWrapMode));
+        editor.focus();
+    }
+
+    setToolsPanelCollapsed(false);
+    setToolsTab('git');
+    requestAnimationFrame(() => notesGitDiffAdapter?.layout());
+}
+
+async function saveActiveGitDiff() {
+    if (!activeGitDiff || activeGitDiff.diff.readOnly) {
+        return false;
+    }
+    return saveFile();
+}
+
+async function closeNotesGitDiff() {
+    if (!activeGitDiff) {
+        return true;
+    }
+    if (state.dirty && !await saveFile()) {
+        return false;
+    }
+    const wasSelected = elements.tabDiff.getAttribute('aria-selected') === 'true';
+    activeGitDiff = null;
+    setNotesGitDiffTabActive(false);
+    if (wasSelected) {
+        setViewMode(state.viewMode);
+    }
+    return true;
+}
+
+function setNotesGitDiffTabActive(active) {
+    const isActive = active === true;
+    elements.notesPanel.dataset.gitDiff = isActive ? 'true' : 'false';
+    elements.gitDiffWrap.dataset.active = isActive ? 'true' : 'false';
+    elements.tabDiff.style.display = activeGitDiff ? '' : 'none';
+    const tabs = elements.tabs.querySelectorAll('[role="tab"]');
+    for (const tab of tabs) {
+        tab.setAttribute('aria-selected', tab === elements.tabDiff && isActive ? 'true' : 'false');
+    }
+}
+
+elements.toolsTabGit.addEventListener('click', () => {
+    setToolsPanelCollapsed(false);
+    setToolsTab('git');
+});
+
+notesGitPanel = initNotesGitPanel(elements, {
+    getStatus: GetGitStatus,
+    getDiff: GetGitDiff,
+    stageFile: StageGitFile,
+    unstageFile: UnstageGitFile,
+    getCurrentProject: GetCurrentProject,
+    eventsOn: EventsOn,
+}, {
+    onOpenDiff: openNotesGitDiff,
+    beforeFileAction: async ({ root, path }) => {
+        if (!activeGitDiff || activeGitDiff.root !== root || activeGitDiff.file.path !== path || !state.dirty) {
+            return true;
+        }
+        return saveActiveGitDiff();
+    },
+    onAvailabilityChange: (available) => {
+        if (!available && elements.toolsTabGit.getAttribute('aria-selected') === 'true') {
+            setToolsTab('find');
+        }
+    },
+    showWorkspaceMenu: (root, button) => {
+        const rect = button.getBoundingClientRect();
+        showLocalMenu({
+            title: 'Git workspaces',
+            options: [root],
+            icons: [0],
+            x: rect.left,
+            y: rect.bottom,
+            showNextToMouseCursor: true,
+            onSelect: () => notesGitPanel?.setProjectRoot(root),
+        });
+    },
+});
+
 initNotesAIPanel(elements);
 initAIPromptJumpObserver();
 void refreshAIPromptJumpFromBackend();
@@ -15417,6 +15687,9 @@ if (elements.editor) {
                 suppressMonacoChange = false;
             }
         }
+        if (isGitDiffActive()) {
+            notesGitDiffAdapter.setModifiedValue(String(elements.editor.value || ''));
+        }
 
         editorInputSequence += 1;
         state.lastEditorInputAt = Date.now();
@@ -15718,7 +15991,11 @@ function openMainEditorContextMenu(e) {
                 icon: CONTEXT_ICON_CODE,
                 onSelect: () => {
                     setTimeout(() => {
-                        monacoMainEditor?.openCommandPalette?.();
+                        if (isGitDiffActive()) {
+                            notesGitDiffAdapter?.openCommandPalette?.();
+                        } else {
+                            monacoMainEditor?.openCommandPalette?.();
+                        }
                     }, 0);
                 },
         });
@@ -15827,6 +16104,14 @@ elements.tabCsvRun.addEventListener('click', () => {
 
 elements.tabMeta.addEventListener('click', () => {
     setViewMode('meta');
+});
+
+elements.tabDiff.addEventListener('click', () => {
+    if (!activeGitDiff) {
+        return;
+    }
+    setNotesGitDiffTabActive(true);
+    notesGitDiffAdapter?.focus();
 });
 
 async function openRecentFilesMenu(x, y) {
@@ -16538,7 +16823,10 @@ document.addEventListener('keydown', (event) => {
 
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
         event.preventDefault();
-        saveAndFormat();
+        if (activeGitDiff?.diff.readOnly) {
+            return;
+        }
+            saveAndFormat();
         return;
     }
 

@@ -1418,6 +1418,49 @@ body {
     min-width: 0;
 }
 
+#notes-git-diff-wrap {
+    display: none;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
+#notes-git-diff-wrap[data-active="true"] {
+    display: flex;
+}
+
+#notes-panel[data-git-diff="true"] > #notes-editor-wrap,
+#notes-panel[data-git-diff="true"] > #notes-hex-wrap,
+#notes-panel[data-git-diff="true"] > #notes-preview-wrap,
+#notes-panel[data-git-diff="true"] > #notes-html-view-wrap,
+#notes-panel[data-git-diff="true"] > #notes-jupyter-wrap,
+#notes-panel[data-git-diff="true"] > #notes-csv-view-wrap,
+#notes-panel[data-git-diff="true"] > #notes-image-view-wrap,
+#notes-panel[data-git-diff="true"] > #notes-meta-wrap,
+#notes-panel[data-git-diff="true"] > #notes-swagger-view-wrap,
+#notes-panel[data-git-diff="true"] > #notes-swagger-run-wrap {
+    display: none !important;
+}
+
+.notes-git-ahead-behind {
+    color: rgba(var(--fg-rgb), 0.7);
+    font-size: var(--notes-font-size-minus-2);
+}
+
+.notes-git-diff-editor {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+}
+
+.notes-git-diff-message {
+    margin: auto;
+    padding: 16px;
+    color: rgba(var(--fg-rgb), 0.7);
+}
+
 #notes-preview-wrap,
 #notes-jupyter-wrap,
 #notes-meta-wrap {
@@ -1723,6 +1766,91 @@ body {
 
 #notes-tools-log-pane {
     position: relative;
+}
+
+#notes-tools-git-pane {
+    position: relative;
+}
+
+.notes-git-file-list {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 4px 8px 12px;
+}
+
+.notes-git-branch {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: rgba(var(--fg-rgb), 0.7);
+}
+
+.notes-git-file-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 30px;
+    border-bottom: 1px solid rgba(var(--fg-rgb), 0.08);
+}
+
+.notes-git-file {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    background: transparent;
+    color: var(--fg);
+    padding: 5px 4px;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.notes-git-file:hover,
+.notes-git-file:focus-visible {
+    color: var(--accent);
+    outline: none;
+}
+
+.notes-git-status-code {
+    min-width: 2.5em;
+    color: var(--yellow);
+    font-family: monospace;
+    text-align: center;
+}
+
+.notes-git-file-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.notes-git-action {
+    border: 1px solid rgba(var(--fg-rgb), 0.2);
+    border-radius: 3px;
+    background: transparent;
+    color: rgba(var(--fg-rgb), 0.7);
+    padding: 2px 5px;
+    font-size: var(--notes-font-size-minus-2);
+    cursor: pointer;
+}
+
+.notes-git-action:hover,
+.notes-git-action:focus-visible {
+    color: var(--fg);
+    border-color: var(--accent);
+    outline: none;
+}
+
+.notes-git-message {
+    padding: 12px 8px;
+    color: var(--secondary-fg);
+}
+
+.notes-git-message-error {
+    color: var(--red);
 }
 
 .notes-tools-pane[data-active="false"] {

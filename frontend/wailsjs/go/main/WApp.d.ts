@@ -4,6 +4,7 @@ import {sessiondb} from '../models';
 import {main} from '../models';
 import {jupyter} from '../models';
 import {notes} from '../models';
+import {git} from '../models';
 import {types} from '../models';
 import {grep} from '../models';
 import {lsp} from '../models';
@@ -88,6 +89,10 @@ export function GetDocumentCache(arg1:string):Promise<notes.DocumentCacheT>;
 export function GetFile(arg1:string):Promise<main.GetFileReturnT>;
 
 export function GetFileMetaMarkdown(arg1:string):Promise<string>;
+
+export function GetGitDiff(arg1:string,arg2:string,arg3:string):Promise<git.Diff>;
+
+export function GetGitStatus(arg1:string):Promise<git.Status>;
 
 export function GetHyperlinkMenuActions(arg1:string,arg2:string):Promise<Array<Record<string, any>>>;
 
@@ -301,6 +306,8 @@ export function ShowCommandPalette():Promise<void>;
 
 export function ShowTooltip(arg1:string):Promise<void>;
 
+export function StageGitFile(arg1:string,arg2:string):Promise<void>;
+
 export function StopNote(arg1:string):Promise<void>;
 
 export function SwaggerRequest(arg1:swagger.RequestT):Promise<swagger.ResponseT>;
@@ -340,6 +347,8 @@ export function TerminalSetFocus(arg1:boolean):Promise<void>;
 export function TerminalSetGlyphSize(arg1:number,arg2:number):Promise<void>;
 
 export function TerminalTextInput(arg1:string):Promise<void>;
+
+export function UnstageGitFile(arg1:string,arg2:string):Promise<void>;
 
 export function ViewFileInNotes():Promise<void>;
 

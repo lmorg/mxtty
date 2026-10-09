@@ -85,6 +85,10 @@ const showAIMcpMenuMock = vi.fn(() => Promise.resolve());
 const clearAISessionHistoryMock = vi.fn(() => Promise.resolve({ activeSessionId: 1, sessions: [], history: [] }));
 const getCurrentProjectMock = vi.fn(() => Promise.resolve(''));
 const getCurrentGroupNameMock = vi.fn(() => Promise.resolve(''));
+const getGitStatusMock = vi.fn(() => Promise.resolve({ root: '', branch: '', ahead: 0, behind: 0, clean: true, files: [] }));
+const getGitDiffMock = vi.fn(() => Promise.resolve({ path: '', original: '', working: '', binary: false, deleted: false }));
+const stageGitFileMock = vi.fn(() => Promise.resolve());
+const unstageGitFileMock = vi.fn(() => Promise.resolve());
 const getFileMetaMarkdownMock = vi.fn(() => Promise.resolve([
     '# note.md',
     '',
@@ -179,6 +183,10 @@ vi.mock('../wailsjs/go/main/WApp', () => ({
     ListFiles: listFilesMock,
     ListFilesForContext: listFilesMock,
     GetNotesFilesSnapshot: getNotesFilesSnapshotMock,
+    GetGitStatus: getGitStatusMock,
+    GetGitDiff: getGitDiffMock,
+    StageGitFile: stageGitFileMock,
+    UnstageGitFile: unstageGitFileMock,
     GetNotesContext: vi.fn(async () => ({
         projectRoot: await getCurrentProjectMock(),
         groupName: await getCurrentGroupNameMock(),
@@ -472,6 +480,10 @@ describe('notes rendering', () => {
         askAIMock.mockClear();
         getCurrentProjectMock.mockReset();
         getCurrentGroupNameMock.mockReset();
+        getGitStatusMock.mockReset();
+        getGitDiffMock.mockReset();
+        stageGitFileMock.mockReset();
+        unstageGitFileMock.mockReset();
         getFileMetaMarkdownMock.mockReset();
         resolveFilePathMock.mockReset();
         resolveNotesLspLanguageMock.mockReset();
@@ -547,6 +559,10 @@ describe('notes rendering', () => {
         getFileMock.mockResolvedValue({ contents: '', text: '', error: '' });
         getCurrentProjectMock.mockResolvedValue('');
         getCurrentGroupNameMock.mockResolvedValue('');
+        getGitStatusMock.mockResolvedValue({ root: '', branch: '', ahead: 0, behind: 0, clean: true, files: [] });
+        getGitDiffMock.mockResolvedValue({ path: '', original: '', working: '', binary: false, deleted: false });
+        stageGitFileMock.mockResolvedValue();
+        unstageGitFileMock.mockResolvedValue();
         getFileMetaMarkdownMock.mockResolvedValue([
             '# note.md',
             '',
@@ -4771,6 +4787,57 @@ describe('notes rendering', () => {
         expect(notesCss).toContain('height: 32px;');
         expect(notesCss).not.toContain('data-wrapped');
         expect(notesCss).toContain('font-family: "Font Awesome Regular", "Font Awesome Solid", "Font Awesome", sans-serif;');
+    });
+
+    it('shows Git Tools only after the current project is confirmed as a Git root', async () => {
+        getCurrentProjectMock.mockResolvedValue('/workspace/repo');
+        getGitStatusMock.mockResolvedValue({
+            root: '/workspace/repo',
+            branch: 'main',
+            ahead: 0,
+            behind: 0,
+            clean: true,
+            files: [],
+        });
+
+        await importNotesModule();
+
+        const gitTab = document.getElementById('notes-tools-tab-git');
+        const diffTab = document.getElementById('notes-tab-diff');
+        expect(getGitStatusMock).toHaveBeenCalledWith('/workspace/repo');
+        expect(gitTab.style.display).toBe('');
+        expect(document.getElementById('notes-tools-git-branch').textContent).toBe('main');
+        expect(diffTab.textContent).toBe('Diff');
+        expect(diffTab.style.display).toBe('none');
+    });
+
+    it('opens Git-selected files through regular Notes history and recent-file loading', async () => {
+        getCurrentProjectMock.mockResolvedValue('/workspace/repo');
+        getGitStatusMock.mockResolvedValue({
+            root: '/workspace/repo',
+            branch: 'main',
+            ahead: 0,
+            behind: 0,
+            clean: false,
+            files: [{ path: 'src/main.go', code: ' M', unstaged: true }],
+        });
+        getGitDiffMock.mockResolvedValue({
+            path: 'src/main.go', original: 'package main\n', working: 'package main\n', binary: false, deleted: false,
+        });
+        getFileMock.mockResolvedValue({ contents: 'package main\n', binary: false, error: '' });
+        listFilesMock.mockResolvedValue(['$PROJECT/src/main.go']);
+
+        await importNotesModule();
+        await flushPromises();
+
+        document.querySelector('.notes-git-file')?.click();
+        await flushPromises();
+        await flushPromises();
+
+        expect(getFileMock).toHaveBeenCalledWith('$PROJECT/src/main.go');
+        expect(notesHistoryAddPositionMock).toHaveBeenCalledWith('$PROJECT/src/main.go', 1);
+        expect(document.getElementById('notes-current-file').textContent).toBe('main.go');
+        expect(document.getElementById('notes-git-diff-wrap').dataset.active).toBe('false');
     });
 
     it('keeps Find tools tab visible but disables controls in Hex and Meta modes', async () => {

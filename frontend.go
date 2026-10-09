@@ -32,6 +32,7 @@ import (
 	"github.com/lmorg/ttyphoon/utils/file/meta"
 	"github.com/lmorg/ttyphoon/utils/file/watcher"
 	"github.com/lmorg/ttyphoon/utils/find"
+	gitutils "github.com/lmorg/ttyphoon/utils/git"
 	globalhotkeys "github.com/lmorg/ttyphoon/utils/global_hotkeys"
 	"github.com/lmorg/ttyphoon/utils/grep"
 	"github.com/lmorg/ttyphoon/utils/jupyter"
@@ -2276,6 +2277,29 @@ func (a *WApp) NotesSpellCheck(text string) []SpellCheckSuggestionT {
 // if the user switches projects before autosave completes.
 func (a *WApp) GetCurrentProject() string {
 	return a.currentNotesContext().PathProjectRoot
+}
+
+func (a *WApp) GetGitStatus(projectRoot string) (gitutils.Status, error) {
+	return gitutils.WorkspaceStatus(projectRoot)
+}
+
+func (a *WApp) GetGitDiff(projectRoot, filePath, originalPath string) (gitutils.Diff, error) {
+	diff, err := gitutils.ReadDiff(projectRoot, filePath, originalPath)
+	if err != nil {
+		return gitutils.Diff{}, err
+	}
+	if err := notes.RecentListAdd(projectRoot, "$PROJECT/"+filepath.ToSlash(filePath)); err != nil {
+		log.Printf("cannot add Git file %q to recent Notes files: %v", filePath, err)
+	}
+	return diff, nil
+}
+
+func (a *WApp) StageGitFile(projectRoot, filePath string) error {
+	return gitutils.StageFile(projectRoot, filePath)
+}
+
+func (a *WApp) UnstageGitFile(projectRoot, filePath string) error {
+	return gitutils.UnstageFile(projectRoot, filePath)
 }
 
 func (a *WApp) NotesRecentFiles() []string {
