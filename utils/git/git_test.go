@@ -1,9 +1,13 @@
 package git
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -194,6 +198,92 @@ func TestCreateWorktreeRejectsUnsafePathsAndBranches(t *testing.T) {
 	}
 	if _, err := CreateWorktree(root, "invalid branch", "safe/path", true); err == nil {
 		t.Fatal("CreateWorktree() error = nil, want invalid branch rejection")
+	}
+}
+
+func TestDefaultWorktreePathUsesOriginOrProjectRootHash(t *testing.T) {
+	root := initGitTestRepo(t)
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	rootHash := sha256.Sum256([]byte(resolveTestPath(t, root)))
+	path, err := DefaultWorktreePath(root)
+	if err != nil {
+		t.Fatalf("DefaultWorktreePath() without origin error = %v", err)
+	}
+	want := filepath.Join(home, "Documents", "ttyphoon", ".git_worktrees", hex.EncodeToString(rootHash[:]))
+	if path != want {
+		t.Fatalf("DefaultWorktreePath() without origin = %q, want %q", path, want)
+	}
+
+	gitPath, err := exec.LookPath("git")
+	if err != nil {
+		t.Skip("git is not installed")
+	}
+	origin := "https://example.invalid/team/project.git"
+	runGitTestCommand(t, gitPath, root, "remote", "add", "origin", origin)
+	originHash := sha256.Sum256([]byte(origin))
+	path, err = DefaultWorktreePath(root)
+	if err != nil {
+		t.Fatalf("DefaultWorktreePath() with origin error = %v", err)
+	}
+	want = filepath.Join(home, "Documents", "ttyphoon", ".git_worktrees", hex.EncodeToString(originHash[:]))
+	if path != want {
+		t.Fatalf("DefaultWorktreePath() with origin = %q, want %q", path, want)
+	}
+}
+
+func TestCreateWorktreeAtAbsolutePathOutsideRepository(t *testing.T) {
+	root := initGitTestRepo(t)
+	worktreePath := filepath.Join(t.TempDir(), "external-worktree")
+	worktree, err := CreateWorktree(root, "external", worktreePath, true)
+	if err != nil {
+		t.Fatalf("CreateWorktree(absolute path) error = %v", err)
+	}
+	if worktree.Path != resolveTestPath(t, worktreePath) || worktree.Branch != "external" {
+		t.Fatalf("CreateWorktree(absolute path) = %+v, want path %q and branch external", worktree, worktreePath)
+	}
+}
+
+func TestRemoveWorktreeRemovesBranchWithoutForce(t *testing.T) {
+	root := initGitTestRepo(t)
+	gitPath, err := exec.LookPath("git")
+	if err != nil {
+		t.Skip("git is not installed")
+	}
+	worktreePath := filepath.Join(t.TempDir(), "removable-worktree")
+	runGitTestCommand(t, gitPath, root, "worktree", "add", "--quiet", "-b", "removable", worktreePath)
+	if err := RemoveWorktree(root, worktreePath); err != nil {
+		t.Fatalf("RemoveWorktree() error = %v", err)
+	}
+	if _, err := os.Stat(worktreePath); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("worktree path stat error = %v, want not-exist", err)
+	}
+	output, err := exec.Command(gitPath, "-C", root, "branch", "--list", "removable").CombinedOutput()
+	if err != nil {
+		t.Fatalf("git branch --list error = %v: %s", err, output)
+	}
+	if strings.TrimSpace(string(output)) != "" {
+		t.Fatalf("branch still exists after RemoveWorktree: %s", output)
+	}
+}
+
+func TestRemoveWorktreeRejectsDirtyWorkingTreeWithoutForce(t *testing.T) {
+	root := initGitTestRepo(t)
+	gitPath, err := exec.LookPath("git")
+	if err != nil {
+		t.Skip("git is not installed")
+	}
+	worktreePath := filepath.Join(t.TempDir(), "dirty-worktree")
+	runGitTestCommand(t, gitPath, root, "worktree", "add", "--quiet", "-b", "dirty", worktreePath)
+	if err := os.WriteFile(filepath.Join(worktreePath, "tracked file.txt"), []byte("modified\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := RemoveWorktree(root, worktreePath); err == nil {
+		t.Fatal("RemoveWorktree() error = nil, want dirty-worktree rejection")
+	}
+	if _, err := os.Stat(filepath.Join(worktreePath, "tracked file.txt")); err != nil {
+		t.Fatalf("dirty worktree should remain after rejected removal: %v", err)
 	}
 }
 

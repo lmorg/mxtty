@@ -91,8 +91,10 @@ const stageGitFileMock = vi.fn(() => Promise.resolve());
 const unstageGitFileMock = vi.fn(() => Promise.resolve());
 const listGitWorktreesMock = vi.fn(() => Promise.resolve([]));
 const listGitBranchesMock = vi.fn(() => Promise.resolve([]));
+const getDefaultGitWorktreePathMock = vi.fn(() => Promise.resolve('/home/test/Documents/ttyphoon/.git_worktrees/default-hash'));
 const createGitWorktreeMock = vi.fn(() => Promise.resolve({ path: '', branch: '' }));
-const setNotesGitWorktreeMock = vi.fn(() => Promise.resolve());
+const switchGitWorktreeMock = vi.fn(() => Promise.resolve());
+const removeGitWorktreeMock = vi.fn(() => Promise.resolve());
 const getFileMetaMarkdownMock = vi.fn(() => Promise.resolve([
     '# note.md',
     '',
@@ -194,8 +196,10 @@ vi.mock('../wailsjs/go/main/WApp', () => ({
     UnstageGitFile: unstageGitFileMock,
     ListGitWorktrees: listGitWorktreesMock,
     ListGitBranches: listGitBranchesMock,
+    GetDefaultGitWorktreePath: getDefaultGitWorktreePathMock,
     CreateGitWorktree: createGitWorktreeMock,
-    SetNotesGitWorktree: setNotesGitWorktreeMock,
+    SwitchGitWorktree: switchGitWorktreeMock,
+    RemoveGitWorktree: removeGitWorktreeMock,
     GetNotesContext: vi.fn(async () => ({
         projectRoot: await getCurrentProjectMock(),
         groupName: await getCurrentGroupNameMock(),
@@ -495,8 +499,10 @@ describe('notes rendering', () => {
         unstageGitFileMock.mockReset();
         listGitWorktreesMock.mockReset();
         listGitBranchesMock.mockReset();
+        getDefaultGitWorktreePathMock.mockReset();
         createGitWorktreeMock.mockReset();
-        setNotesGitWorktreeMock.mockReset();
+        switchGitWorktreeMock.mockReset();
+        removeGitWorktreeMock.mockReset();
         getFileMetaMarkdownMock.mockReset();
         resolveFilePathMock.mockReset();
         resolveNotesLspLanguageMock.mockReset();
@@ -578,8 +584,10 @@ describe('notes rendering', () => {
         unstageGitFileMock.mockResolvedValue();
         listGitWorktreesMock.mockResolvedValue([]);
         listGitBranchesMock.mockResolvedValue([]);
+        getDefaultGitWorktreePathMock.mockResolvedValue('/home/test/Documents/ttyphoon/.git_worktrees/default-hash');
         createGitWorktreeMock.mockResolvedValue({ path: '', branch: '' });
-        setNotesGitWorktreeMock.mockResolvedValue();
+        switchGitWorktreeMock.mockResolvedValue();
+        removeGitWorktreeMock.mockResolvedValue();
         getFileMetaMarkdownMock.mockResolvedValue([
             '# note.md',
             '',
@@ -4854,6 +4862,7 @@ describe('notes rendering', () => {
             { path: '/workspace/worktrees/alpha', branch: 'alpha' },
         ]);
         listGitBranchesMock.mockResolvedValue(['zeta', 'main', 'alpha']);
+        getDefaultGitWorktreePathMock.mockResolvedValue('/Users/test/Documents/ttyphoon/.git_worktrees/hashed-origin');
         createGitWorktreeMock.mockResolvedValue({ path: '/workspace/repo/.git_worktrees/alpha', branch: 'alpha' });
 
         await importNotesModule();
@@ -4871,7 +4880,18 @@ describe('notes rendering', () => {
         expect(menu.icons).toEqual([0xf067, 0, 0xf00c, 0, 0]);
         menu.onSelect(4);
         await flushPromises();
-        expect(setNotesGitWorktreeMock).toHaveBeenCalledWith('/workspace/worktrees/zeta');
+        let actionMenu = showLocalMenuMock.mock.calls.at(-1)?.[0];
+        expect(actionMenu.title).toBe('/workspace/worktrees/zeta');
+        expect(actionMenu.options).toEqual(['Info', 'Switch', 'Remove']);
+        expect(actionMenu.icons).toEqual([0xf129, 0xf204, 0xf2ed]);
+        actionMenu.onSelect(0);
+        expect(switchGitWorktreeMock).not.toHaveBeenCalled();
+        actionMenu.onSelect(1);
+        await flushPromises();
+        expect(switchGitWorktreeMock).toHaveBeenCalledWith('/workspace/repo', '/workspace/worktrees/zeta');
+        actionMenu.onSelect(2);
+        await flushPromises();
+        expect(removeGitWorktreeMock).toHaveBeenCalledWith('/workspace/repo', '/workspace/worktrees/zeta');
 
         worktreeButton.click();
         await flushPromises();
@@ -4889,25 +4909,32 @@ describe('notes rendering', () => {
         menu.onSelect(2);
 
         const worktreePath = document.querySelector('.notes-worktree-form input');
-        expect(worktreePath.value).toBe('.git_worktrees/alpha');
-        worktreePath.value = '.git_worktrees/custom-alpha';
+        expect(worktreePath.value).toBe('/Users/test/Documents/ttyphoon/.git_worktrees/hashed-origin');
+        worktreePath.value = '/Users/test/Documents/ttyphoon/.git_worktrees/custom-alpha';
         document.getElementById('notes-modal-create').click();
         await flushPromises();
 
         expect(createGitWorktreeMock).toHaveBeenCalledWith(
-            '/workspace/repo', 'alpha', '.git_worktrees/custom-alpha', false,
+            '/workspace/repo', 'alpha', '/Users/test/Documents/ttyphoon/.git_worktrees/custom-alpha', false,
         );
         expect(document.getElementById('notes-modal').dataset.open).toBe('false');
         expect(document.getElementById('notes-modal-card').classList.contains('notes-worktree-dialog')).toBe(false);
         expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({ level: 'info' }));
+        expect(sendIpcMock).toHaveBeenCalledWith('terminal-sticky-create', expect.objectContaining({
+            message: 'Creating worktree',
+            level: 'info',
+        }));
+        expect(sendIpcMock).toHaveBeenCalledWith('terminal-sticky-close', expect.objectContaining({ id: expect.any(String) }));
     });
 
-    it('resets the branch selection when Create branch is cancelled and reports creation errors', async () => {
+    it('resets the branch selection when Create branch is cancelled and reports worktree action errors', async () => {
         getCurrentProjectMock.mockResolvedValue('/workspace/repo');
         getGitStatusMock.mockResolvedValue({ root: '/workspace/repo', branch: 'main', ahead: 0, behind: 0, clean: true, files: [] });
         listGitWorktreesMock.mockResolvedValue([{ path: '/workspace/repo', branch: 'main' }]);
         listGitBranchesMock.mockResolvedValue(['main']);
+        getDefaultGitWorktreePathMock.mockResolvedValue('/Users/test/Documents/ttyphoon/.git_worktrees/hashed-root');
         createGitWorktreeMock.mockRejectedValue(new Error('worktree creation failed'));
+        removeGitWorktreeMock.mockRejectedValue(new Error('worktree has local changes'));
 
         await importNotesModule();
         document.getElementById('notes-tools-git-workspace').click();
@@ -4925,7 +4952,7 @@ describe('notes rendering', () => {
         await flushPromises();
         expect(document.querySelector('#notes-modal-title h3')?.textContent).toBe('Create new worktree');
         expect(document.querySelector('.notes-worktree-form .notes-graph-dropdown').textContent).toContain('Select branch');
-        expect(document.querySelector('.notes-worktree-form input').disabled).toBe(true);
+        expect(document.querySelector('.notes-worktree-form input').disabled).toBe(false);
 
         document.querySelector('.notes-worktree-form .notes-graph-dropdown').click();
         showLocalMenuMock.mock.calls.at(-1)?.[0].onSelect(0);
@@ -4933,16 +4960,67 @@ describe('notes rendering', () => {
         document.getElementById('notes-modal-input').value = 'topic/new';
         document.getElementById('notes-modal-create').click();
         await flushPromises();
-        expect(document.querySelector('.notes-worktree-form input').value).toBe('.git_worktrees/topic/new');
+        expect(document.querySelector('.notes-worktree-form input').value).toBe('/Users/test/Documents/ttyphoon/.git_worktrees/hashed-root');
         document.getElementById('notes-modal-create').click();
         await flushPromises();
         expect(createGitWorktreeMock).toHaveBeenCalledWith(
-            '/workspace/repo', 'topic/new', '.git_worktrees/topic/new', true,
+            '/workspace/repo', 'topic/new', '/Users/test/Documents/ttyphoon/.git_worktrees/hashed-root', true,
         );
         expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({
             level: 'error',
             message: 'worktree creation failed',
         }));
+
+        document.getElementById('notes-tools-git-workspace').click();
+        await flushPromises();
+        const worktreeMenu = showLocalMenuMock.mock.calls.at(-1)?.[0];
+        worktreeMenu.onSelect(2);
+        const actionMenu = showLocalMenuMock.mock.calls.at(-1)?.[0];
+        actionMenu.onSelect(2);
+        await flushPromises();
+        expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({
+            level: 'error',
+            message: 'worktree has local changes',
+        }));
+    });
+
+    it('submits Worktree on Enter, closes immediately, and waits for Git behind a sticky', async () => {
+        getCurrentProjectMock.mockResolvedValue('/workspace/repo');
+        getGitStatusMock.mockResolvedValue({ root: '/workspace/repo', branch: 'main', ahead: 0, behind: 0, clean: true, files: [] });
+        listGitWorktreesMock.mockResolvedValue([{ path: '/workspace/repo', branch: 'main' }]);
+        listGitBranchesMock.mockResolvedValue(['main']);
+        getDefaultGitWorktreePathMock.mockResolvedValue('/Users/test/Documents/ttyphoon/.git_worktrees/hashed-root');
+        let finishCreation;
+        createGitWorktreeMock.mockImplementation(() => new Promise((resolve) => { finishCreation = resolve; }));
+
+        await importNotesModule();
+        document.getElementById('notes-tools-git-workspace').click();
+        await flushPromises();
+        showLocalMenuMock.mock.calls.at(-1)?.[0].onSelect(0);
+        await flushPromises();
+        document.querySelector('.notes-worktree-form .notes-graph-dropdown').click();
+        showLocalMenuMock.mock.calls.at(-1)?.[0].onSelect(2);
+
+        const pathInput = document.querySelector('.notes-worktree-form input');
+        pathInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        await flushPromises();
+
+        expect(createGitWorktreeMock).toHaveBeenCalledWith(
+            '/workspace/repo', 'main', '/Users/test/Documents/ttyphoon/.git_worktrees/hashed-root', false,
+        );
+        expect(document.getElementById('notes-modal').dataset.open).toBe('false');
+        const stickyCallIndex = sendIpcMock.mock.calls.findIndex(([channel]) => channel === 'terminal-sticky-create');
+        expect(sendIpcMock.mock.calls[stickyCallIndex][1]).toEqual(expect.objectContaining({
+            message: 'Creating worktree',
+            level: 'info',
+        }));
+        expect(sendIpcMock.mock.invocationCallOrder[stickyCallIndex])
+            .toBeLessThan(createGitWorktreeMock.mock.invocationCallOrder[0]);
+        expect(sendIpcMock).not.toHaveBeenCalledWith('terminal-sticky-close', expect.anything());
+
+        finishCreation({ path: '/Users/test/Documents/ttyphoon/.git_worktrees/hashed-root', branch: 'main' });
+        await flushPromises();
+        expect(sendIpcMock).toHaveBeenCalledWith('terminal-sticky-close', expect.objectContaining({ id: expect.any(String) }));
     });
 
     it('opens Git-selected files through regular Notes history and recent-file loading', async () => {

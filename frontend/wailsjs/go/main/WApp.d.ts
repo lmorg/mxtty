@@ -86,6 +86,8 @@ export function GetCurrentProject():Promise<string>;
 
 export function GetCustomRegexp():Promise<Array<Record<string, string>>>;
 
+export function GetDefaultGitWorktreePath(arg1:string):Promise<string>;
+
 export function GetDocumentCache(arg1:string):Promise<notes.DocumentCacheT>;
 
 export function GetFile(arg1:string):Promise<main.GetFileReturnT>;
@@ -244,6 +246,8 @@ export function NotesTyposOpenDocument(arg1:string,arg2:string,arg3:string):Prom
 
 export function RefreshGitStatus(arg1:string):Promise<git.Status>;
 
+export function RemoveGitWorktree(arg1:string,arg2:string):Promise<void>;
+
 export function RenameAISession(arg1:number,arg2:string):Promise<sessiondb.FrontendStateT>;
 
 export function RenameFile(arg1:string,arg2:string):Promise<void>;
@@ -296,8 +300,6 @@ export function SetDocumentCache(arg1:string,arg2:notes.DocumentCacheT):Promise<
 
 export function SetNotesColumnWidths(arg1:string,arg2:string,arg3:Array<string>,arg4:boolean,arg5:Array<number>):Promise<void>;
 
-export function SetNotesGitWorktree(arg1:string):Promise<void>;
-
 export function SetNotesLayoutRatio(arg1:string,arg2:number):Promise<void>;
 
 export function SetProjectCache(arg1:notes.ProjectCacheT):Promise<void>;
@@ -321,6 +323,8 @@ export function StageGitFile(arg1:string,arg2:string):Promise<void>;
 export function StopNote(arg1:string):Promise<void>;
 
 export function SwaggerRequest(arg1:swagger.RequestT):Promise<swagger.ResponseT>;
+
+export function SwitchGitWorktree(arg1:string,arg2:string):Promise<void>;
 
 export function SyncNotesContext(arg1:notes.FileContext):Promise<void>;
 

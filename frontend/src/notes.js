@@ -1,7 +1,8 @@
 import {
     GetWindowStyle, GetNotesMaxLogLines, GetNotesColumnWidths, SetNotesColumnWidths, GetFile,
     GetGitStatus, RefreshGitStatus, GetGitDiff, StageGitFile, UnstageGitFile,
-    ListGitWorktrees, ListGitBranches, CreateGitWorktree, SetNotesGitWorktree,
+    ListGitWorktrees, ListGitBranches, GetDefaultGitWorktreePath, CreateGitWorktree,
+    SwitchGitWorktree, RemoveGitWorktree,
     NotesTableSort, NotesTableClearSort, NotesTableFilter, NotesTableReconcile, NotesTableRestore, NotesTableSetGraph, NotesTableRenderGraph, NotesTableDisposeAll,
     GetNotesStructViewMaxSizeKB,
     GetNotesContext, GetNotesFilesSnapshot, SaveFile, SaveBinaryFile, DeleteFile, RenameFile,
@@ -2377,7 +2378,7 @@ function notifyTerminal(message, level = 'info') {
 }
 
 function openStickyProgress(id, message) {
-    SendIpc('terminal-sticky-create', {
+    return SendIpc('terminal-sticky-create', {
         id: String(id),
         message,
         level: 'info',
@@ -11470,8 +11471,12 @@ function openNewFilePrompt({ location = '$NOTES', name = '', pendingFile = null 
 
 async function openCreateGitWorktreePrompt(projectRoot) {
     let branches;
+    let defaultPath;
     try {
-        branches = await ListGitBranches(projectRoot);
+        [branches, defaultPath] = await Promise.all([
+            ListGitBranches(projectRoot),
+            GetDefaultGitWorktreePath(projectRoot),
+        ]);
     } catch (error) {
         notifyTerminal(String(error?.message || error), 'error');
         return;
@@ -11509,8 +11514,13 @@ async function openCreateGitWorktreePrompt(projectRoot) {
     const pathInput = document.createElement('input');
     pathInput.type = 'text';
     pathInput.className = 'notes-graph-text';
-    pathInput.placeholder = '.git_worktrees/branch';
-    pathInput.disabled = true;
+    pathInput.value = defaultPath;
+    pathInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            void prompt.submit?.();
+        }
+    });
     pathField.field.appendChild(pathInput);
     form.appendChild(pathField.field);
 
@@ -11518,8 +11528,6 @@ async function openCreateGitWorktreePrompt(projectRoot) {
         prompt.branch = branch;
         prompt.createBranch = createBranch;
         branchButton.textContent = `${branch || 'Select branch'}`;
-        pathInput.value = branch ? `.git_worktrees/${branch}` : '';
-        pathInput.disabled = !branch;
         elements.modalCreate.disabled = !branch;
     };
 
@@ -11555,13 +11563,21 @@ async function openCreateGitWorktreePrompt(projectRoot) {
             notifyTerminal('Enter a path for the new worktree.', 'error');
             return;
         }
-        try {
-            const worktree = await CreateGitWorktree(projectRoot, prompt.branch, worktreePath, prompt.createBranch);
-            finishGitWorktreePrompt();
-            notifyTerminal(`Created worktree ${worktree.path}`, 'info');
-        } catch (error) {
-            notifyTerminal(String(error?.message || error), 'error');
-        }
+        const branch = prompt.branch;
+        const createBranch = prompt.createBranch;
+        const stickyId = `git-worktree-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        finishGitWorktreePrompt();
+
+        void (async () => {
+            await openStickyProgress(stickyId, 'Creating worktree');
+            try {
+                const worktree = await CreateGitWorktree(projectRoot, branch, worktreePath, createBranch);
+                closeStickyProgress(stickyId);
+                notifyTerminal(`Created worktree ${worktree.path}`, 'info');
+            } catch (error) {
+                closeStickyProgress(stickyId, String(error?.message || error), 'error');
+            }
+        })();
     };
 
     elements.modalCreate.disabled = true;
@@ -15256,12 +15272,45 @@ notesGitPanel = initNotesGitPanel(elements, {
             .map((worktree) => ({
                 title: worktree.path,
                 icon: String(worktree.path || '').replace(/\\/g, '/').replace(/\/$/, '') === activeRoot ? CONTEXT_ICON_TICK : 0,
-                onSelect: async () => {
-                    try {
-                        await SetNotesGitWorktree(worktree.path);
-                    } catch (error) {
-                        notifyTerminal(String(error?.message || error), 'error');
-                    }
+                onSelect: () => {
+                    const actionItems = [
+                        {
+                            title: 'Info',
+                            icon: 0xf129,
+                            onSelect: () => {}, // TODO: Add worktree info tomorrow.
+                        },
+                        {
+                            title: 'Switch',
+                            icon: 0xf204,
+                            onSelect: async () => {
+                                try {
+                                    await SwitchGitWorktree(root, worktree.path);
+                                } catch (error) {
+                                    notifyTerminal(String(error?.message || error), 'error');
+                                }
+                            },
+                        },
+                        {
+                            title: 'Remove',
+                            icon: CONTEXT_ICON_DELETE,
+                            onSelect: async () => {
+                                try {
+                                    await RemoveGitWorktree(root, worktree.path);
+                                } catch (error) {
+                                    notifyTerminal(String(error?.message || error), 'error');
+                                }
+                            },
+                        },
+                    ];
+                    showLocalMenu({
+                        title: worktree.path,
+                        options: actionItems.map((item) => item.title),
+                        icons: actionItems.map((item) => item.icon),
+                        x: rect.left,
+                        y: rect.bottom,
+                        showNextToMouseCursor: true,
+                        onSelect: (index) => actionItems[index]?.onSelect?.(),
+                    });
                 },
             })));
         showLocalMenu({

@@ -39,6 +39,7 @@ import (
 	"github.com/lmorg/ttyphoon/utils/lsp"
 	menuhyperlink "github.com/lmorg/ttyphoon/utils/menu_hyperlink"
 	"github.com/lmorg/ttyphoon/utils/notes"
+	shellutils "github.com/lmorg/ttyphoon/utils/shell"
 	"github.com/lmorg/ttyphoon/utils/spellcheck"
 	"github.com/lmorg/ttyphoon/utils/swagger"
 	"github.com/lmorg/ttyphoon/utils/syntaxcompletion"
@@ -2412,6 +2413,10 @@ func (a *WApp) ListGitBranches(projectRoot string) ([]string, error) {
 	return gitutils.ListBranches(projectRoot)
 }
 
+func (a *WApp) GetDefaultGitWorktreePath(projectRoot string) (string, error) {
+	return gitutils.DefaultWorktreePath(projectRoot)
+}
+
 func (a *WApp) CreateGitWorktree(projectRoot, branch, worktreePath string, createBranch bool) (gitutils.Worktree, error) {
 	worktree, err := gitutils.CreateWorktree(projectRoot, branch, worktreePath, createBranch)
 	if err != nil {
@@ -2421,13 +2426,12 @@ func (a *WApp) CreateGitWorktree(projectRoot, branch, worktreePath string, creat
 	return worktree, nil
 }
 
-func (a *WApp) SetNotesGitWorktree(worktreePath string) error {
+func (a *WApp) SwitchGitWorktree(projectRoot, worktreePath string) error {
 	renderer, ok := renderwebkit.CurrentRenderer()
 	if !ok {
 		return errors.New("Notes renderer is unavailable")
 	}
-	currentRoot := renderer.NotesFileContext().PathProjectRoot
-	worktrees, err := gitutils.ListWorktrees(currentRoot)
+	worktrees, err := gitutils.ListWorktrees(projectRoot)
 	if err != nil {
 		return err
 	}
@@ -2438,10 +2442,27 @@ func (a *WApp) SetNotesGitWorktree(worktreePath string) error {
 	for _, worktree := range worktrees {
 		listedPath, pathErr := canonicalGitPath(worktree.Path)
 		if pathErr == nil && listedPath == selectedPath {
-			return renderer.SetNotesProjectRoot(listedPath)
+			tile := renderer.ActiveTile()
+			if tile == nil || tile.GetTerm() == nil {
+				return errors.New("active terminal is unavailable")
+			}
+			shellutils.UpdateReadline(tile.GetTerm(), "cd "+quoteShellArgument(listedPath))
+			return nil
 		}
 	}
 	return errors.New("selected path is not a registered worktree for the current repository")
+}
+
+func (a *WApp) RemoveGitWorktree(projectRoot, worktreePath string) error {
+	if err := gitutils.RemoveWorktree(projectRoot, worktreePath); err != nil {
+		return err
+	}
+	_, err := a.refreshGitStatus(projectRoot)
+	return err
+}
+
+func quoteShellArgument(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'"
 }
 
 func canonicalGitPath(path string) (string, error) {

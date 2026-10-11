@@ -154,6 +154,10 @@ export function GetCustomRegexp() {
   return window['go']['main']['WApp']['GetCustomRegexp']();
 }
 
+export function GetDefaultGitWorktreePath(arg1) {
+  return window['go']['main']['WApp']['GetDefaultGitWorktreePath'](arg1);
+}
+
 export function GetDocumentCache(arg1) {
   return window['go']['main']['WApp']['GetDocumentCache'](arg1);
 }
@@ -470,6 +474,10 @@ export function RefreshGitStatus(arg1) {
   return window['go']['main']['WApp']['RefreshGitStatus'](arg1);
 }
 
+export function RemoveGitWorktree(arg1, arg2) {
+  return window['go']['main']['WApp']['RemoveGitWorktree'](arg1, arg2);
+}
+
 export function RenameAISession(arg1, arg2) {
   return window['go']['main']['WApp']['RenameAISession'](arg1, arg2);
 }
@@ -574,10 +582,6 @@ export function SetNotesColumnWidths(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['main']['WApp']['SetNotesColumnWidths'](arg1, arg2, arg3, arg4, arg5);
 }
 
-export function SetNotesGitWorktree(arg1) {
-  return window['go']['main']['WApp']['SetNotesGitWorktree'](arg1);
-}
-
 export function SetNotesLayoutRatio(arg1, arg2) {
   return window['go']['main']['WApp']['SetNotesLayoutRatio'](arg1, arg2);
 }
@@ -624,6 +628,10 @@ export function StopNote(arg1) {
 
 export function SwaggerRequest(arg1) {
   return window['go']['main']['WApp']['SwaggerRequest'](arg1);
+}
+
+export function SwitchGitWorktree(arg1, arg2) {
+  return window['go']['main']['WApp']['SwitchGitWorktree'](arg1, arg2);
 }
 
 export function SyncNotesContext(arg1) {

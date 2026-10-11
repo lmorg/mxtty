@@ -3,6 +3,8 @@ package git
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -105,6 +107,25 @@ func ListBranches(root string) ([]string, error) {
 	return branches, nil
 }
 
+func DefaultWorktreePath(root string) (string, error) {
+	gitPath, repoRoot, err := checkedRepository(root)
+	if err != nil {
+		return "", err
+	}
+	hashSource := repoRoot
+	if output, err := runGit(gitPath, repoRoot, "config", "--get", "remote.origin.url"); err == nil {
+		if origin := strings.TrimSpace(string(output)); origin != "" {
+			hashSource = origin
+		}
+	}
+	hash := sha256.Sum256([]byte(hashSource))
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, "Documents", "ttyphoon", ".git_worktrees", hex.EncodeToString(hash[:])), nil
+}
+
 func CreateWorktree(root, branch, worktreePath string, createBranch bool) (Worktree, error) {
 	gitPath, repoRoot, err := checkedRepository(root)
 	if err != nil {
@@ -117,15 +138,39 @@ func CreateWorktree(root, branch, worktreePath string, createBranch bool) (Workt
 	if _, err := runGit(gitPath, repoRoot, "check-ref-format", "refs/heads/"+branch); err != nil {
 		return Worktree{}, fmt.Errorf("invalid branch name %q", branch)
 	}
-	relPath, err := validateRelativePath(worktreePath)
-	if err != nil {
-		return Worktree{}, err
+	target := worktreePath
+	if !filepath.IsAbs(target) {
+		relPath, pathErr := validateRelativePath(target)
+		if pathErr != nil {
+			return Worktree{}, pathErr
+		}
+		target = filepath.Join(repoRoot, relPath)
 	}
-	if strings.EqualFold(relPath, ".git") || strings.HasPrefix(strings.ToLower(relPath), ".git"+string(filepath.Separator)) {
-		return Worktree{}, errors.New("worktree path cannot be inside .git")
+	target = filepath.Clean(target)
+	if filepath.IsAbs(target) {
+		target, err = resolveExistingPathPrefix(target)
+		if err != nil {
+			return Worktree{}, err
+		}
 	}
-	target := filepath.Join(repoRoot, relPath)
-	if err := ensureWorktreeParent(repoRoot, filepath.Dir(relPath)); err != nil {
+	relPath, relErr := filepath.Rel(repoRoot, target)
+	if relErr != nil {
+		return Worktree{}, relErr
+	}
+	insideRepository := relPath != ".." && !strings.HasPrefix(relPath, ".."+string(filepath.Separator)) && !filepath.IsAbs(relPath)
+	if relPath == "." {
+		return Worktree{}, errors.New("worktree path cannot be the current repository root")
+	}
+	if insideRepository {
+		relPath, err = validateRelativePath(relPath)
+		if err != nil {
+			return Worktree{}, err
+		}
+		if strings.EqualFold(relPath, ".git") || strings.HasPrefix(strings.ToLower(relPath), ".git"+string(filepath.Separator)) {
+			return Worktree{}, errors.New("worktree path cannot be inside .git")
+		}
+	}
+	if err := ensureWorktreeParent(filepath.Dir(target)); err != nil {
 		return Worktree{}, err
 	}
 	if _, err := os.Lstat(target); err == nil {
@@ -133,8 +178,10 @@ func CreateWorktree(root, branch, worktreePath string, createBranch bool) (Workt
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return Worktree{}, err
 	}
-	if err := excludeWorktreePath(gitPath, repoRoot, relPath); err != nil {
-		return Worktree{}, err
+	if insideRepository {
+		if err := excludeWorktreePath(gitPath, repoRoot, relPath); err != nil {
+			return Worktree{}, err
+		}
 	}
 
 	args := []string{"worktree", "add"}
@@ -147,6 +194,42 @@ func CreateWorktree(root, branch, worktreePath string, createBranch bool) (Workt
 		return Worktree{}, err
 	}
 	return Worktree{Path: target, Branch: branch}, nil
+}
+
+func RemoveWorktree(root, worktreePath string) error {
+	gitPath, repoRoot, err := checkedRepository(root)
+	if err != nil {
+		return err
+	}
+	target, err := resolveExistingPathPrefix(worktreePath)
+	if err != nil {
+		return err
+	}
+	worktrees, err := ListWorktrees(repoRoot)
+	if err != nil {
+		return err
+	}
+	var selected *Worktree
+	for index := range worktrees {
+		listedPath, pathErr := resolveExistingPathPrefix(worktrees[index].Path)
+		if pathErr == nil && samePath(listedPath, target) {
+			selected = &worktrees[index]
+			break
+		}
+	}
+	if selected == nil {
+		return errors.New("selected path is not a registered worktree for the current repository")
+	}
+	if _, err := runGit(gitPath, repoRoot, "worktree", "remove", "--", target); err != nil {
+		return err
+	}
+	if selected.Branch == "" || selected.Branch == "(detached HEAD)" {
+		return nil
+	}
+	if _, err := runGit(gitPath, repoRoot, "branch", "-d", "--", selected.Branch); err != nil {
+		return fmt.Errorf("worktree removed, but branch %q could not be deleted: %w", selected.Branch, err)
+	}
+	return nil
 }
 
 func excludeWorktreePath(gitPath, repoRoot, relativePath string) error {
@@ -180,9 +263,15 @@ func escapeGitExcludePattern(path string) string {
 	return strings.NewReplacer("\\", "\\\\", "*", "\\*", "?", "\\?", "[", "\\[").Replace(path)
 }
 
-func ensureWorktreeParent(repoRoot, relativeParent string) error {
-	current := repoRoot
-	if relativeParent == "." {
+func ensureWorktreeParent(parent string) error {
+	parent = filepath.Clean(parent)
+	volume := filepath.VolumeName(parent)
+	current := volume + string(filepath.Separator)
+	if volume == "" {
+		current = string(filepath.Separator)
+	}
+	relativeParent := strings.TrimPrefix(parent, current)
+	if relativeParent == "" || relativeParent == "." {
 		return nil
 	}
 	for _, segment := range strings.Split(relativeParent, string(filepath.Separator)) {
@@ -202,6 +291,36 @@ func ensureWorktreeParent(repoRoot, relativeParent string) error {
 		}
 	}
 	return nil
+}
+
+func resolveExistingPathPrefix(path string) (string, error) {
+	path, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+	path = filepath.Clean(path)
+	var missing []string
+	for {
+		if _, err := os.Lstat(path); err == nil {
+			break
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return "", err
+		}
+		parent := filepath.Dir(path)
+		if parent == path {
+			return "", fmt.Errorf("cannot resolve worktree destination %q", path)
+		}
+		missing = append(missing, filepath.Base(path))
+		path = parent
+	}
+	path, err = filepath.EvalSymlinks(path)
+	if err != nil {
+		return "", err
+	}
+	for index := len(missing) - 1; index >= 0; index-- {
+		path = filepath.Join(path, missing[index])
+	}
+	return filepath.Clean(path), nil
 }
 
 func WorkspaceStatus(root string) (Status, error) {
