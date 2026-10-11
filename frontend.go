@@ -127,17 +127,14 @@ func NewWailsApp() *WApp {
 	return a
 }
 
-func (a *WApp) notifyLspStartError(languageID string, argv []string, err error) {
+func (a *WApp) notifyLspStartError(languageID string, err error) {
 	if err == nil {
 		return
 	}
 
 	log.Println(err)
 
-	message := err.Error() //fmt.Sprintf("LSP (%s) failed to start: %v", languageID, err)
-	/*if len(argv) > 0 {
-		message += ": " + strings.Join(argv, " ")
-	}*/
+	message := err.Error()
 
 	key := fmt.Sprintf("%s|%s", a.GetCurrentProject(), languageID)
 	a.lspStartErrMu.Lock()
@@ -1417,7 +1414,7 @@ func (a *WApp) notesLspServerFor(absPath, languageID string) *lsp.ServerProcess 
 
 	sp, err := a.lspManager.GetOrStart(a.ctx, a.GetCurrentProject(), selectedLanguageID, argv, initOptions)
 	if err != nil {
-		a.notifyLspStartError(selectedLanguageID, argv, err)
+		a.notifyLspStartError(selectedLanguageID, err)
 		return nil
 	}
 
@@ -1450,7 +1447,7 @@ func (a *WApp) notesLspServerFor(absPath, languageID string) *lsp.ServerProcess 
 	}
 
 	if err := sp.EnsureInitialized(a.ctx, a.GetCurrentProject()); err != nil {
-		a.notifyLspStartError(selectedLanguageID, argv, err)
+		a.notifyLspStartError(selectedLanguageID, err)
 		return nil
 	}
 
@@ -2405,6 +2402,58 @@ func (a *WApp) StageGitFile(projectRoot, filePath string) error {
 
 func (a *WApp) UnstageGitFile(projectRoot, filePath string) error {
 	return gitutils.UnstageFile(projectRoot, filePath)
+}
+
+func (a *WApp) ListGitWorktrees(projectRoot string) ([]gitutils.Worktree, error) {
+	return gitutils.ListWorktrees(projectRoot)
+}
+
+func (a *WApp) ListGitBranches(projectRoot string) ([]string, error) {
+	return gitutils.ListBranches(projectRoot)
+}
+
+func (a *WApp) CreateGitWorktree(projectRoot, branch, worktreePath string, createBranch bool) (gitutils.Worktree, error) {
+	worktree, err := gitutils.CreateWorktree(projectRoot, branch, worktreePath, createBranch)
+	if err != nil {
+		return gitutils.Worktree{}, err
+	}
+	_, _ = a.refreshGitStatus(projectRoot)
+	return worktree, nil
+}
+
+func (a *WApp) SetNotesGitWorktree(worktreePath string) error {
+	renderer, ok := renderwebkit.CurrentRenderer()
+	if !ok {
+		return errors.New("Notes renderer is unavailable")
+	}
+	currentRoot := renderer.NotesFileContext().PathProjectRoot
+	worktrees, err := gitutils.ListWorktrees(currentRoot)
+	if err != nil {
+		return err
+	}
+	selectedPath, err := canonicalGitPath(worktreePath)
+	if err != nil {
+		return err
+	}
+	for _, worktree := range worktrees {
+		listedPath, pathErr := canonicalGitPath(worktree.Path)
+		if pathErr == nil && listedPath == selectedPath {
+			return renderer.SetNotesProjectRoot(listedPath)
+		}
+	}
+	return errors.New("selected path is not a registered worktree for the current repository")
+}
+
+func canonicalGitPath(path string) (string, error) {
+	absolute, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+	resolved, err := filepath.EvalSymlinks(absolute)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Clean(resolved), nil
 }
 
 func (a *WApp) NotesRecentFiles() []string {

@@ -23,8 +23,18 @@ Git is unavailable.
   immediately.
 - Enable the Tools Git tab only when the current project root is exactly a Git
   working-tree root and the host has a `git` executable. Accept both `.git`
-  directories and worktree `.git` files. The workspace dropdown contains only
-  the current project root/worktree; do not enumerate other repositories.
+  directories and worktree `.git` files. The Worktree menu lists all worktrees
+  registered with the current repository, sorted by path, and marks the active
+  worktree. Selecting one switches Notes' project context while preserving the
+  active terminal pane and its other Notes context roots.
+- Provide a worktree creation modal with a branch picker listing local branches
+  alphabetically and an option to create a branch. Default the destination to
+  `.git_worktrees/<branch>`. Validate branch names and relative paths in Go,
+  reject paths outside the project or through symlinked parents, and create the
+  worktree with argument-separated Git commands. Add its destination to the
+  repository-local `info/exclude` so a nested worktree does not appear as an
+  untracked path in its parent. Surface Git errors through the terminal
+  notification widget.
 - Render branch state, ahead/behind counts, and changed paths in the Git pane.
   Selecting a path opens a side-by-side Monaco diff comparing `HEAD` with the
   working tree in a dedicated top-level Notes `Diff` tab. The modified side is
@@ -61,14 +71,17 @@ Git is unavailable.
   active. Cmd/Ctrl+S keeps the normal format-and-save behavior.
 - If Monaco is disabled, opening a Git file still loads it into Notes and
   updates history/recents, but the side-by-side diff is unavailable.
-- Git operations are currently read, stage, and unstage only. Commit, branch
-  management, multi-repository discovery, and persistent workspace lists are
-  out of scope.
+- Git operations include read, stage, unstage, worktree listing, local branch
+  listing, worktree creation, and switching Notes to a registered worktree.
+  Commit, branch deletion/renaming, multi-repository discovery, and persistent
+  workspace lists are out of scope.
 
 ## Reference
 
-- `utils/git/git.go` - repository validation, status, diff, stage, and unstage
+- `utils/git/git.go` - repository validation, status, diff, stage/unstage, and
+  worktree/branch operations
 - `frontend.go` - Wails wrappers
+- `window/backend/renderer_webkit/notes.go` - Notes project-context worktree switch
 - `frontend/src/notes-git-panel.js` - status panel and file actions
 - `frontend/src/shared_tooltip.js` - shared tooltip rendering and pointer tracking
 - `frontend/src/monaco_adapter.js` - shared editor hooks and diff-editor facade

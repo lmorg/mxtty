@@ -241,8 +241,12 @@ const (
 )
 
 func (el *ElementContentEditable) reply(s string) {
+	Reply(el.tile.GetTerm(), s)
+}
+
+func Reply(term types.Term, s string) {
 	reply := fmt.Sprintf("%sreply;content-editable;%s%s", seqApc, s, seqST)
-	el.tile.GetTerm().Reply([]byte(reply))
+	term.Reply([]byte(reply))
 }
 
 func (el *ElementContentEditable) visualEditor() {

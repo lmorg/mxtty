@@ -47,6 +47,163 @@ type Diff struct {
 	ReadOnly bool   `json:"readOnly"`
 }
 
+type Worktree struct {
+	Path   string `json:"path"`
+	Branch string `json:"branch"`
+}
+
+func ListWorktrees(root string) ([]Worktree, error) {
+	gitPath, repoRoot, err := checkedRepository(root)
+	if err != nil {
+		return nil, err
+	}
+	output, err := runGit(gitPath, repoRoot, "worktree", "list", "--porcelain", "-z")
+	if err != nil {
+		return nil, err
+	}
+
+	worktrees := make([]Worktree, 0)
+	var current Worktree
+	flush := func() {
+		if current.Path != "" {
+			worktrees = append(worktrees, current)
+			current = Worktree{}
+		}
+	}
+	for _, record := range bytes.Split(output, []byte{0}) {
+		line := string(record)
+		switch {
+		case line == "":
+			flush()
+		case strings.HasPrefix(line, "worktree "):
+			flush()
+			current.Path = strings.TrimPrefix(line, "worktree ")
+		case strings.HasPrefix(line, "branch "):
+			current.Branch = strings.TrimPrefix(line, "branch refs/heads/")
+		case line == "detached":
+			current.Branch = "(detached HEAD)"
+		}
+	}
+	flush()
+	sort.Slice(worktrees, func(i, j int) bool {
+		return strings.ToLower(worktrees[i].Path) < strings.ToLower(worktrees[j].Path)
+	})
+	return worktrees, nil
+}
+
+func ListBranches(root string) ([]string, error) {
+	gitPath, repoRoot, err := checkedRepository(root)
+	if err != nil {
+		return nil, err
+	}
+	output, err := runGit(gitPath, repoRoot, "for-each-ref", "--format=%(refname:short)", "refs/heads")
+	if err != nil {
+		return nil, err
+	}
+	branches := strings.Fields(string(output))
+	sort.Strings(branches)
+	return branches, nil
+}
+
+func CreateWorktree(root, branch, worktreePath string, createBranch bool) (Worktree, error) {
+	gitPath, repoRoot, err := checkedRepository(root)
+	if err != nil {
+		return Worktree{}, err
+	}
+	branch = strings.TrimSpace(branch)
+	if branch == "" {
+		return Worktree{}, errors.New("branch name is empty")
+	}
+	if _, err := runGit(gitPath, repoRoot, "check-ref-format", "refs/heads/"+branch); err != nil {
+		return Worktree{}, fmt.Errorf("invalid branch name %q", branch)
+	}
+	relPath, err := validateRelativePath(worktreePath)
+	if err != nil {
+		return Worktree{}, err
+	}
+	if strings.EqualFold(relPath, ".git") || strings.HasPrefix(strings.ToLower(relPath), ".git"+string(filepath.Separator)) {
+		return Worktree{}, errors.New("worktree path cannot be inside .git")
+	}
+	target := filepath.Join(repoRoot, relPath)
+	if err := ensureWorktreeParent(repoRoot, filepath.Dir(relPath)); err != nil {
+		return Worktree{}, err
+	}
+	if _, err := os.Lstat(target); err == nil {
+		return Worktree{}, fmt.Errorf("worktree path %q already exists", relPath)
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return Worktree{}, err
+	}
+	if err := excludeWorktreePath(gitPath, repoRoot, relPath); err != nil {
+		return Worktree{}, err
+	}
+
+	args := []string{"worktree", "add"}
+	if createBranch {
+		args = append(args, "-b", branch, target)
+	} else {
+		args = append(args, target, branch)
+	}
+	if _, err := runGit(gitPath, repoRoot, args...); err != nil {
+		return Worktree{}, err
+	}
+	return Worktree{Path: target, Branch: branch}, nil
+}
+
+func excludeWorktreePath(gitPath, repoRoot, relativePath string) error {
+	output, err := runGit(gitPath, repoRoot, "rev-parse", "--git-common-dir")
+	if err != nil {
+		return err
+	}
+	commonDir := strings.TrimRight(string(output), "\r\n")
+	if !filepath.IsAbs(commonDir) {
+		commonDir = filepath.Join(repoRoot, commonDir)
+	}
+	excludePath := filepath.Join(commonDir, "info", "exclude")
+	existing, err := os.ReadFile(excludePath)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	rule := "/" + escapeGitExcludePattern(filepath.ToSlash(relativePath)) + "/"
+	for _, line := range strings.Split(string(existing), "\n") {
+		if strings.TrimSuffix(line, "\r") == rule {
+			return nil
+		}
+	}
+	if len(existing) > 0 && existing[len(existing)-1] != '\n' {
+		existing = append(existing, '\n')
+	}
+	existing = append(existing, []byte(rule+"\n")...)
+	return os.WriteFile(excludePath, existing, 0600)
+}
+
+func escapeGitExcludePattern(path string) string {
+	return strings.NewReplacer("\\", "\\\\", "*", "\\*", "?", "\\?", "[", "\\[").Replace(path)
+}
+
+func ensureWorktreeParent(repoRoot, relativeParent string) error {
+	current := repoRoot
+	if relativeParent == "." {
+		return nil
+	}
+	for _, segment := range strings.Split(relativeParent, string(filepath.Separator)) {
+		current = filepath.Join(current, segment)
+		info, err := os.Lstat(current)
+		if errors.Is(err, os.ErrNotExist) {
+			if err := os.Mkdir(current, 0700); err != nil {
+				return err
+			}
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+			return fmt.Errorf("worktree parent %q must be a real directory", current)
+		}
+	}
+	return nil
+}
+
 func WorkspaceStatus(root string) (Status, error) {
 	gitPath, repoRoot, err := checkedRepository(root)
 	if err != nil {

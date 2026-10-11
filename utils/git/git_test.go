@@ -122,6 +122,81 @@ func TestWorkspaceStatusAcceptsWorktreeRoot(t *testing.T) {
 	}
 }
 
+func TestListBranchesAndWorktreesFromEitherRootAndCreateWorktrees(t *testing.T) {
+	root := initGitTestRepo(t)
+	gitPath, err := exec.LookPath("git")
+	if err != nil {
+		t.Skip("git is not installed")
+	}
+	linkedRoot := filepath.Join(t.TempDir(), " linked worktree")
+	runGitTestCommand(t, gitPath, root, "worktree", "add", "--quiet", "-b", "zeta", linkedRoot)
+	runGitTestCommand(t, gitPath, root, "branch", "alpha")
+
+	for _, queryRoot := range []string{root, linkedRoot} {
+		branches, err := ListBranches(queryRoot)
+		if err != nil {
+			t.Fatalf("ListBranches(%q) error = %v", queryRoot, err)
+		}
+		if len(branches) != 3 || branches[0] != "alpha" || branches[1] != "main" || branches[2] != "zeta" {
+			t.Fatalf("ListBranches(%q) = %v, want sorted local branches", queryRoot, branches)
+		}
+		worktrees, err := ListWorktrees(queryRoot)
+		if err != nil {
+			t.Fatalf("ListWorktrees(%q) error = %v", queryRoot, err)
+		}
+		if len(worktrees) != 2 {
+			t.Fatalf("ListWorktrees(%q) = %+v, want both worktrees", queryRoot, worktrees)
+		}
+		if !containsWorktreePath(worktrees, resolveTestPath(t, linkedRoot)) {
+			t.Fatalf("ListWorktrees(%q) = %+v, missing exact whitespace-containing path %q", queryRoot, worktrees, linkedRoot)
+		}
+	}
+
+	createdPath := filepath.Join(resolveTestPath(t, root), ".git_worktrees", "alpha")
+	worktree, err := CreateWorktree(root, "alpha", filepath.Join(".git_worktrees", "alpha"), false)
+	if err != nil {
+		t.Fatalf("CreateWorktree(existing branch) error = %v", err)
+	}
+	if worktree.Path != createdPath || worktree.Branch != "alpha" {
+		t.Fatalf("CreateWorktree(existing branch) = %+v", worktree)
+	}
+	status, err := WorkspaceStatus(root)
+	if err != nil {
+		t.Fatalf("WorkspaceStatus() after nested worktree creation error = %v", err)
+	}
+	if !status.Clean {
+		t.Fatalf("WorkspaceStatus() after nested worktree creation = %+v, want clean parent", status)
+	}
+
+	newBranchPath := filepath.Join(".git_worktrees", "feature", "new")
+	worktree, err = CreateWorktree(linkedRoot, "feature/new", newBranchPath, true)
+	if err != nil {
+		t.Fatalf("CreateWorktree(new branch from linked root) error = %v", err)
+	}
+	if worktree.Branch != "feature/new" {
+		t.Fatalf("CreateWorktree(new branch) = %+v", worktree)
+	}
+}
+
+func containsWorktreePath(worktrees []Worktree, path string) bool {
+	for _, worktree := range worktrees {
+		if worktree.Path == path {
+			return true
+		}
+	}
+	return false
+}
+
+func TestCreateWorktreeRejectsUnsafePathsAndBranches(t *testing.T) {
+	root := initGitTestRepo(t)
+	if _, err := CreateWorktree(root, "main", "../outside", false); err == nil {
+		t.Fatal("CreateWorktree() error = nil, want path traversal rejection")
+	}
+	if _, err := CreateWorktree(root, "invalid branch", "safe/path", true); err == nil {
+		t.Fatal("CreateWorktree() error = nil, want invalid branch rejection")
+	}
+}
+
 func TestStageFileRejectsPathsOutsideWorkspace(t *testing.T) {
 	root := initGitTestRepo(t)
 	if err := StageFile(root, "../outside.txt"); err == nil {

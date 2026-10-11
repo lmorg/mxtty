@@ -66,6 +66,7 @@ describe('Notes Git panel', () => {
         await flushPromises();
 
         expect(elements.gitTab.style.display).toBe('');
+        expect(elements.gitWorkspace.textContent).toBe('Worktree');
         expect(elements.gitBranch.textContent).toBe('main');
         expect(elements.gitAheadBehind.textContent).toBe('↑2 ↓1');
         expect(elements.gitFileList.textContent).toContain('src/main.go');

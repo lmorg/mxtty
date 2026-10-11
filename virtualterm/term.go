@@ -72,6 +72,7 @@ type Term struct {
 
 	// state
 	_vtMode          _stateVtMode
+	_termState       atomic.Int32
 	_insertOrReplace _stateIrmT
 	_isFocused       bool
 	_activeElement   types.Element
@@ -181,6 +182,7 @@ func NewRowBlockMeta(term *Term) *types.BlockMeta {
 }
 
 func (term *Term) reset(size *types.XY) {
+	term._termState.Store(int32(types.TermStateUnknown))
 	term.size = size
 	term._synchronizedUpdateDeadline = time.Time{}
 	term.resizePty()
@@ -243,6 +245,10 @@ func (term *Term) makeCells(length int32) []*types.Cell {
 
 func (term *Term) GetSize() *types.XY {
 	return term.size
+}
+
+func (term *Term) State() types.TermStateT {
+	return types.TermStateT(term._termState.Load())
 }
 
 func (term *Term) currentCell() *types.Cell {

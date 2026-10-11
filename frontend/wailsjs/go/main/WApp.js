@@ -58,6 +58,10 @@ export function CreateAISession() {
   return window['go']['main']['WApp']['CreateAISession']();
 }
 
+export function CreateGitWorktree(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['WApp']['CreateGitWorktree'](arg1, arg2, arg3, arg4);
+}
+
 export function DeleteAIHistoryEntry(arg1) {
   return window['go']['main']['WApp']['DeleteAIHistoryEntry'](arg1);
 }
@@ -256,6 +260,14 @@ export function ListFiles() {
 
 export function ListFilesForContext(arg1) {
   return window['go']['main']['WApp']['ListFilesForContext'](arg1);
+}
+
+export function ListGitBranches(arg1) {
+  return window['go']['main']['WApp']['ListGitBranches'](arg1);
+}
+
+export function ListGitWorktrees(arg1) {
+  return window['go']['main']['WApp']['ListGitWorktrees'](arg1);
 }
 
 export function Log(arg1) {
@@ -560,6 +572,10 @@ export function SetDocumentCache(arg1, arg2) {
 
 export function SetNotesColumnWidths(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['main']['WApp']['SetNotesColumnWidths'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function SetNotesGitWorktree(arg1) {
+  return window['go']['main']['WApp']['SetNotesGitWorktree'](arg1);
 }
 
 export function SetNotesLayoutRatio(arg1, arg2) {

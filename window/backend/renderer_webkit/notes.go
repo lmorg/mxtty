@@ -1,6 +1,8 @@
 package rendererwebkit
 
 import (
+	"errors"
+
 	"github.com/lmorg/ttyphoon/types"
 	"github.com/lmorg/ttyphoon/utils/notes"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -44,6 +46,29 @@ func (wr *webkitRender) NotesFileContext() notes.FileContext {
 		}
 	}
 	return roots
+}
+
+func (wr *webkitRender) SetNotesProjectRoot(root string) error {
+	if wr == nil {
+		return errors.New("Notes renderer is unavailable")
+	}
+	wr.notesContextMu.Lock()
+	if wr.notesResolved.PathProjectRoot == "" {
+		wr.notesContextMu.Unlock()
+		return errors.New("Notes project context is unavailable")
+	}
+	wr.notesResolved.PathProjectRoot = root
+	wr.notesContext = wr.notesResolved
+	roots := wr.notesContext
+	wr.notesContextMu.Unlock()
+
+	if app, ok := wr.app.(interface{ SyncNotesContext(notes.FileContext) }); ok {
+		app.SyncNotesContext(roots)
+	}
+	if wr.wapp != nil {
+		runtime.EventsEmit(wr.wapp, "notesContextChanged", roots)
+	}
+	return nil
 }
 
 func (wr *webkitRender) NotesWorkspaceContexts() []notes.FileContext {

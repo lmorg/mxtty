@@ -1,6 +1,7 @@
 import {
     GetWindowStyle, GetNotesMaxLogLines, GetNotesColumnWidths, SetNotesColumnWidths, GetFile,
     GetGitStatus, RefreshGitStatus, GetGitDiff, StageGitFile, UnstageGitFile,
+    ListGitWorktrees, ListGitBranches, CreateGitWorktree, SetNotesGitWorktree,
     NotesTableSort, NotesTableClearSort, NotesTableFilter, NotesTableReconcile, NotesTableRestore, NotesTableSetGraph, NotesTableRenderGraph, NotesTableDisposeAll,
     GetNotesStructViewMaxSizeKB,
     GetNotesContext, GetNotesFilesSnapshot, SaveFile, SaveBinaryFile, DeleteFile, RenameFile,
@@ -642,11 +643,15 @@ app.innerHTML = `
                             <button id="notes-log-scroll-bottom" type="button" class="notes-ai-scroll-bottom" data-visible="false" title="Scroll to latest log output">Latest</button>
                         </div>
                         <div id="notes-tools-git-pane" class="notes-tools-pane" data-tab="git" data-active="false">
-                            <div class="notes-tools-pane-header">
-                                <button id="notes-tools-git-workspace" type="button" class="notes-ai-model-picker" data-tooltip="Git workspace">Git workspace</button>
-                                <span id="notes-tools-git-branch" class="notes-git-branch"></span>
-                                <span id="notes-tools-git-ahead-behind" class="notes-git-ahead-behind"></span>
+                            <div class="notes-tools-pane-header notes-git-header">
+                                <div class="notes-git-summary">
+                                    <span id="notes-tools-git-branch" class="notes-git-branch"></span>
+                                    <span id="notes-tools-git-ahead-behind" class="notes-git-ahead-behind"></span>
+                                </div>
+                                <div class="notes-git-actions">
+                                <button id="notes-tools-git-workspace" type="button" class="notes-ai-model-picker" aria-label="Worktree" data-tooltip="Git worktrees">Worktree</button>
                                 <button id="notes-tools-git-refresh" type="button" class="notes-tools-clear notes-tools-icon" data-tooltip="Refresh Git status" aria-label="Refresh Git status">&#xf021;</button>
+                                </div>
                             </div>
                             <div id="notes-tools-git-files" class="notes-git-file-list" role="list"></div>
                         </div>
@@ -888,6 +893,8 @@ const state = {
     textPromptHandler: null,
     graphPromptHandler: null,
     graphPromptSubmit: null,
+    gitWorktreePrompt: null,
+    gitBranchPromptHandler: null,
     deletingFile: null,
     deleteConfirmAction: null,
     findMatches: [],
@@ -11461,6 +11468,156 @@ function openNewFilePrompt({ location = '$NOTES', name = '', pendingFile = null 
     }, 0);
 }
 
+async function openCreateGitWorktreePrompt(projectRoot) {
+    let branches;
+    try {
+        branches = await ListGitBranches(projectRoot);
+    } catch (error) {
+        notifyTerminal(String(error?.message || error), 'error');
+        return;
+    }
+
+    state.renamingFile = null;
+    state.pendingNewFile = null;
+    state.textPromptHandler = null;
+    const prompt = { branch: '', createBranch: false };
+    state.gitWorktreePrompt = prompt;
+    elements.modal.dataset.open = 'true';
+    elements.modal.setAttribute('aria-hidden', 'false');
+    elements.modal.querySelector('#notes-modal-card').classList.add('notes-worktree-dialog');
+    elements.modalLocationRow.style.display = 'none';
+    elements.modalBody.style.display = 'flex';
+    elements.modalBody.replaceChildren();
+    elements.modalInput.value = '';
+    setNotesModalTitle('Create new worktree', true);
+    elements.modalCreate.textContent = 'Create';
+
+    const form = document.createElement('div');
+    form.className = 'notes-worktree-form';
+    elements.modalBody.appendChild(form);
+
+    const branchField = notesGraphField('Branch');
+    const branchButton = document.createElement('button');
+    branchButton.type = 'button';
+    branchButton.className = 'notes-graph-dropdown';
+    prompt.branchButton = branchButton;
+    branchButton.textContent = 'Select branch';
+    branchField.field.appendChild(branchButton);
+    form.appendChild(branchField.field);
+
+    const pathField = notesGraphField('Path');
+    const pathInput = document.createElement('input');
+    pathInput.type = 'text';
+    pathInput.className = 'notes-graph-text';
+    pathInput.placeholder = '.git_worktrees/branch';
+    pathInput.disabled = true;
+    pathField.field.appendChild(pathInput);
+    form.appendChild(pathField.field);
+
+    const updateBranch = (branch, createBranch) => {
+        prompt.branch = branch;
+        prompt.createBranch = createBranch;
+        branchButton.textContent = `${branch || 'Select branch'}`;
+        pathInput.value = branch ? `.git_worktrees/${branch}` : '';
+        pathInput.disabled = !branch;
+        elements.modalCreate.disabled = !branch;
+    };
+
+    branchButton.addEventListener('click', () => {
+        const menuItems = [{
+            title: 'Create new branch',
+            icon: CONTEXT_ICON_ADD,
+            onSelect: async () => {
+                const branch = await openGitBranchPrompt();
+                if (!branch) {
+                    updateBranch('', false);
+                    return;
+                }
+                updateBranch(branch, true);
+            },
+        }, { title: '-', icon: 0 }];
+        menuItems.push(...[...branches].sort((left, right) => left.localeCompare(right)).map((branch) => ({
+            title: branch,
+            icon: prompt.branch === branch && !prompt.createBranch ? CONTEXT_ICON_TICK : 0,
+            onSelect: () => updateBranch(branch, false),
+        })));
+        const rect = branchButton.getBoundingClientRect();
+        showNotesLocalMenu(menuItems, rect.left, rect.bottom, 'Branch');
+    });
+
+    prompt.submit = async () => {
+        if (!prompt.branch) {
+            notifyTerminal('Select a branch for the new worktree.', 'error');
+            return;
+        }
+        const worktreePath = pathInput.value.trim();
+        if (!worktreePath) {
+            notifyTerminal('Enter a path for the new worktree.', 'error');
+            return;
+        }
+        try {
+            const worktree = await CreateGitWorktree(projectRoot, prompt.branch, worktreePath, prompt.createBranch);
+            finishGitWorktreePrompt();
+            notifyTerminal(`Created worktree ${worktree.path}`, 'info');
+        } catch (error) {
+            notifyTerminal(String(error?.message || error), 'error');
+        }
+    };
+
+    elements.modalCreate.disabled = true;
+    setTimeout(() => branchButton.focus(), 0);
+}
+
+function finishGitWorktreePrompt() {
+    if (!state.gitWorktreePrompt) {
+        return;
+    }
+    state.gitWorktreePrompt = null;
+    elements.modal.querySelector('#notes-modal-card').classList.remove('notes-worktree-dialog');
+    elements.modalBody.replaceChildren();
+    elements.modalBody.style.display = 'none';
+    elements.modalLocationRow.style.display = '';
+    elements.modalLocation.style.display = '';
+    elements.modalInput.placeholder = 'example-note';
+    elements.modal.dataset.open = 'false';
+    elements.modal.setAttribute('aria-hidden', 'true');
+    elements.modalCreate.disabled = false;
+    elements.modalCreate.textContent = 'Create';
+    setNotesModalTitle('New note name');
+}
+
+function openGitBranchPrompt() {
+    return new Promise((resolve) => {
+        state.gitBranchPromptHandler = resolve;
+        elements.modalBody.style.display = 'none';
+        elements.modalLocationRow.style.display = '';
+        elements.modalLocation.style.display = 'none';
+        elements.modalInput.value = '';
+        elements.modalInput.placeholder = 'branch-name';
+        setNotesModalTitle('Create branch', true);
+        elements.modalCreate.textContent = 'Create';
+        elements.modalCreate.disabled = false;
+        setTimeout(() => elements.modalInput.focus(), 0);
+    });
+}
+
+function finishGitBranchPrompt(value) {
+    if (!state.gitBranchPromptHandler) {
+        return;
+    }
+    const handler = state.gitBranchPromptHandler;
+    state.gitBranchPromptHandler = null;
+    elements.modalBody.style.display = 'flex';
+    elements.modalLocationRow.style.display = 'none';
+    elements.modalLocation.style.display = 'none';
+    elements.modalInput.value = '';
+    elements.modalInput.placeholder = 'example-note';
+    setNotesModalTitle('Create new worktree', true);
+    elements.modalCreate.textContent = 'Create';
+    handler(value);
+    setTimeout(() => state.gitWorktreePrompt?.branchButton?.focus(), 0);
+}
+
 async function openRenamePrompt(file) {
     const source = String(file || '').trim();
     state.renamingFile = file;
@@ -11498,6 +11655,14 @@ function closeNewFilePrompt() {
     }
     if (state.textPromptHandler) {
         finishTextPrompt(null);
+        return;
+    }
+    if (state.gitBranchPromptHandler) {
+        finishGitBranchPrompt(null);
+        return;
+    }
+    if (state.gitWorktreePrompt) {
+        finishGitWorktreePrompt();
         return;
     }
     state.pendingNewFile = null;
@@ -13609,6 +13774,14 @@ async function createNewFile() {
         finishTextPrompt((elements.modalInput.value || '').trim());
         return;
     }
+    if (state.gitBranchPromptHandler) {
+        finishGitBranchPrompt((elements.modalInput.value || '').trim());
+        return;
+    }
+    if (state.gitWorktreePrompt) {
+        void state.gitWorktreePrompt.submit?.();
+        return;
+    }
 
     // Handle rename operation
     if (state.renamingFile) {
@@ -15067,16 +15240,38 @@ notesGitPanel = initNotesGitPanel(elements, {
     onStatusChange: (status, root) => {
         updateGitDiffTabForCurrentFile(status, root);
     },
-    showWorkspaceMenu: (root, button) => {
+    showWorkspaceMenu: async (root, button) => {
+        let worktrees;
+        try {
+            worktrees = await ListGitWorktrees(root);
+        } catch (error) {
+            notifyTerminal(String(error?.message || error), 'error');
+            return;
+        }
         const rect = button.getBoundingClientRect();
+        const activeRoot = String(notesGitPanel?.getCurrentRoot() || root).replace(/\\/g, '/').replace(/\/$/, '');
+        const items = [{ title: 'New worktree', icon: CONTEXT_ICON_ADD, onSelect: () => void openCreateGitWorktreePrompt(root) }, { title: '-', icon: 0 }];
+        items.push(...[...worktrees]
+            .sort((left, right) => left.path.localeCompare(right.path))
+            .map((worktree) => ({
+                title: worktree.path,
+                icon: String(worktree.path || '').replace(/\\/g, '/').replace(/\/$/, '') === activeRoot ? CONTEXT_ICON_TICK : 0,
+                onSelect: async () => {
+                    try {
+                        await SetNotesGitWorktree(worktree.path);
+                    } catch (error) {
+                        notifyTerminal(String(error?.message || error), 'error');
+                    }
+                },
+            })));
         showLocalMenu({
-            title: 'Git workspaces',
-            options: [root],
-            icons: [0],
+            title: 'Worktrees',
+            options: items.map((item) => item.title),
+            icons: items.map((item) => item.icon),
             x: rect.left,
             y: rect.bottom,
             showNextToMouseCursor: true,
-            onSelect: () => notesGitPanel?.setProjectRoot(root),
+            onSelect: (index) => items[index]?.onSelect?.(),
         });
     },
 });

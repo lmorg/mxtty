@@ -1050,6 +1050,56 @@ body {
     background-color: rgba(var(--green-rgb), 0.2) !important;
 }
 
+.notes-worktree-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+}
+
+#notes-modal-card.notes-worktree-dialog {
+    height: auto;
+}
+
+#notes-modal-card.notes-worktree-dialog #notes-modal-body {
+    flex: none;
+    width: 100%;
+    max-height: none;
+    overflow: visible;
+}
+
+.notes-worktree-form .notes-graph-field {
+    flex-direction: row;
+    align-items: center;
+    width: 100%;
+    gap: 12px;
+}
+
+.notes-worktree-form {
+    width: 100%;
+}
+
+.notes-worktree-form .notes-graph-field-label {
+    flex: 0 0 140px;
+}
+
+.notes-worktree-form .notes-graph-dropdown,
+.notes-worktree-form .notes-graph-text {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+    box-sizing: border-box;
+    margin: 0;
+}
+
+.notes-worktree-form .notes-graph-dropdown {
+    white-space: nowrap;
+}
+
+.notes-worktree-form .notes-graph-text:disabled {
+    opacity: 0.55;
+}
+
 #notes-modal-actions {
     display: flex;
     gap: 10px;
@@ -1772,6 +1822,27 @@ body {
     position: relative;
 }
 
+.notes-git-header {
+    flex-wrap: nowrap;
+    justify-content: space-between;
+}
+
+.notes-git-summary,
+.notes-git-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.notes-git-summary {
+    flex: 1;
+}
+
+.notes-git-actions {
+    flex: 0 0 auto;
+}
+
 .notes-git-file-list {
     flex: 1;
     min-height: 0;
@@ -1881,10 +1952,12 @@ body {
 
 @keyframes notes-git-untracked-pulse {
     from {
-        background-color: transparent;
+        /*background-color: transparent;*/
+        box-shadow: 0px 0px 10px rgba(var(--red-rgb), 0);
     }
     to {
-        background-color: rgba(var(--red-rgb), 0.2);
+        /*background-color: rgba(var(--red-rgb), 0.2);*/
+        box-shadow: 0px 0px 10px rgba(var(--red-rgb), 0.75);
     }
 }
 

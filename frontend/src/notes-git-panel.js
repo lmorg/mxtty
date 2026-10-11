@@ -1,8 +1,3 @@
-function workspaceName(root) {
-    const parts = String(root || '').replace(/[\\/]+$/, '').split(/[\\/]/);
-    return parts.at(-1) || String(root || 'Git workspace');
-}
-
 function statusCode(file) {
     return String(file?.code || '??');
 }
@@ -61,7 +56,7 @@ export function initNotesGitPanel(elements, api, options = {}) {
     const renderStatus = (status) => {
         currentStatus = status;
         statusCache.set(rootKey(projectRoot), { status });
-        elements.gitWorkspace.textContent = workspaceName(status.root || projectRoot);
+        elements.gitWorkspace.textContent = 'Worktree';
         elements.gitWorkspace.dataset.tooltip = status.root || projectRoot;
         elements.gitBranch.textContent = status.branch || 'Detached HEAD';
         elements.gitAheadBehind.textContent = [

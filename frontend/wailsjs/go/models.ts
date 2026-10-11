@@ -86,6 +86,20 @@ export namespace git {
 		    return a;
 		}
 	}
+	export class Worktree {
+	    path: string;
+	    branch: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Worktree(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.branch = source["branch"];
+	    }
+	}
 
 }
 

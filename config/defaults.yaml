@@ -131,6 +131,7 @@ Notes:
     ".git": true
     ".terraform": true
     "node_modules": true
+    ".git_worktrees": true
 
   Languages:
     yaml:
