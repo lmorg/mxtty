@@ -1,5 +1,19 @@
 export namespace git {
 	
+	export class BrowserLink {
+	    provider: string;
+	    url: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new BrowserLink(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.provider = source["provider"];
+	        this.url = source["url"];
+	    }
+	}
 	export class Diff {
 	    path: string;
 	    original: string;
@@ -26,6 +40,7 @@ export namespace git {
 	    path: string;
 	    originalPath?: string;
 	    code: string;
+	    compareOnly?: boolean;
 	    staged: boolean;
 	    unstaged: boolean;
 	    untracked: boolean;
@@ -40,6 +55,7 @@ export namespace git {
 	        this.path = source["path"];
 	        this.originalPath = source["originalPath"];
 	        this.code = source["code"];
+	        this.compareOnly = source["compareOnly"];
 	        this.staged = source["staged"];
 	        this.unstaged = source["unstaged"];
 	        this.untracked = source["untracked"];

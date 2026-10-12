@@ -86,6 +86,7 @@ const clearAISessionHistoryMock = vi.fn(() => Promise.resolve({ activeSessionId:
 const getCurrentProjectMock = vi.fn(() => Promise.resolve(''));
 const getCurrentGroupNameMock = vi.fn(() => Promise.resolve(''));
 const getGitStatusMock = vi.fn(() => Promise.resolve({ root: '', branch: '', ahead: 0, behind: 0, clean: true, files: [] }));
+const getGitBrowserLinkMock = vi.fn(() => Promise.resolve({ provider: 'github', url: 'https://github.com/org/repo/tree/main' }));
 const getGitDiffMock = vi.fn(() => Promise.resolve({ path: '', original: '', working: '', binary: false, deleted: false }));
 const stageGitFileMock = vi.fn(() => Promise.resolve());
 const unstageGitFileMock = vi.fn(() => Promise.resolve());
@@ -174,6 +175,7 @@ const addNotesFindFieldValueMock = vi.fn(() => Promise.resolve([]));
 const eventsOnMock = vi.fn();
 const clipboardSetTextMock = vi.fn(() => Promise.resolve());
 const clipboardSetHTMLMock = vi.fn(() => Promise.resolve());
+const browserOpenURLMock = vi.fn();
 const showLocalMenuMock = vi.fn();
 
 vi.mock('../wailsjs/go/main/WApp', () => ({
@@ -191,8 +193,12 @@ vi.mock('../wailsjs/go/main/WApp', () => ({
     ListFilesForContext: listFilesMock,
     GetNotesFilesSnapshot: getNotesFilesSnapshotMock,
     GetGitStatus: getGitStatusMock,
+    GetGitBrowserLink: getGitBrowserLinkMock,
+    GetGitBranchDiffFiles: vi.fn(() => Promise.resolve([])),
     RefreshGitStatus: getGitStatusMock,
+    SetGitStatusWatch: vi.fn(() => Promise.resolve()),
     GetGitDiff: getGitDiffMock,
+    GetGitDiffAgainstBranch: vi.fn(() => Promise.resolve({ path: '', original: '', working: '', binary: false, deleted: false })),
     StageGitFile: stageGitFileMock,
     UnstageGitFile: unstageGitFileMock,
     ListGitWorktrees: listGitWorktreesMock,
@@ -330,6 +336,7 @@ vi.mock('../wailsjs/runtime/runtime', () => ({
     EventsOn: eventsOnMock,
     EventsOff: vi.fn(),
     ClipboardSetText: clipboardSetTextMock,
+    BrowserOpenURL: browserOpenURLMock,
 }));
 
 vi.mock('./popup_menu', () => ({
@@ -498,6 +505,8 @@ describe('notes rendering', () => {
         getCurrentProjectMock.mockReset();
         getCurrentGroupNameMock.mockReset();
         getGitStatusMock.mockReset();
+        getGitBrowserLinkMock.mockReset();
+        getGitBrowserLinkMock.mockResolvedValue({ provider: 'github', url: 'https://github.com/org/repo/tree/main' });
         getGitDiffMock.mockReset();
         stageGitFileMock.mockReset();
         unstageGitFileMock.mockReset();
@@ -572,6 +581,7 @@ describe('notes rendering', () => {
         displayHyperlinkMenuMock.mockReset();
         eventsOnMock.mockReset();
         clipboardSetTextMock.mockClear();
+        browserOpenURLMock.mockReset();
             clipboardSetHTMLMock.mockClear();
         showLocalMenuMock.mockReset();
 
@@ -4828,6 +4838,8 @@ describe('notes rendering', () => {
         expect(notesCss).toContain('height: 32px;');
         expect(notesCss).not.toContain('data-wrapped');
         expect(notesCss).toContain('font-family: "Font Awesome Regular", "Font Awesome Solid", "Font Awesome", sans-serif;');
+        expect(notesCss).toContain('.notes-git-remote');
+        expect(notesCss).toContain('font-family: "Font Awesome Brands", sans-serif;');
     });
 
     it('shows Git Tools only after the current project is confirmed as a Git root', async () => {
@@ -4851,12 +4863,43 @@ describe('notes rendering', () => {
         expect(document.querySelector('.notes-git-summary #notes-tools-git-branch')).not.toBeNull();
         expect(document.querySelector('.notes-git-actions #notes-tools-git-workspace')).not.toBeNull();
         expect(Array.from(document.querySelector('.notes-git-actions').children).map((element) => element.id)).toEqual([
-            'notes-tools-git-workspace', 'notes-tools-git-refresh',
+            'notes-tools-git-workspace', 'notes-tools-git-remote', 'notes-tools-git-refresh',
         ]);
+        await flushPromises();
+        const gitRemote = document.getElementById('notes-tools-git-remote');
+        expect(gitRemote.hidden).toBe(false);
+        gitRemote.click();
+        expect(browserOpenURLMock).toHaveBeenCalledWith('https://github.com/org/repo/tree/main');
         const toolTabIds = Array.from(document.querySelectorAll('#notes-tools-tabs [role="tab"]')).map((tab) => tab.id);
         expect(toolTabIds.indexOf('notes-tools-tab-git')).toBeLessThan(toolTabIds.indexOf('notes-tools-tab-ai'));
         expect(diffTab.textContent).toBe('Diff');
         expect(diffTab.style.display).toBe('none');
+    });
+
+    it('offers HEAD first and alphabetized branches excluding the checked-out branch', async () => {
+        getCurrentProjectMock.mockResolvedValue('/workspace/repo');
+        getGitStatusMock.mockResolvedValue({ root: '/workspace/repo', branch: 'main', ahead: 0, behind: 0, clean: true, files: [] });
+        listGitBranchesMock.mockResolvedValue(['zeta', 'main', 'alpha']);
+
+        await importNotesModule();
+        const compareButton = document.getElementById('notes-tools-git-compare');
+        expect(compareButton.textContent).toBe('HEAD');
+        compareButton.click();
+        await flushPromises();
+
+        let menu = showLocalMenuMock.mock.calls.at(-1)?.[0];
+        expect(menu.options).toEqual(['HEAD (main)', '-', 'alpha', 'zeta']);
+        menu.onSelect(3);
+        await flushPromises();
+        expect(compareButton.textContent).toBe('zeta');
+
+        compareButton.click();
+        await flushPromises();
+        menu = showLocalMenuMock.mock.calls.at(-1)?.[0];
+        expect(menu.options).toEqual(['HEAD (main)', '-', 'alpha', 'zeta']);
+        menu.onSelect(0);
+        await flushPromises();
+        expect(compareButton.textContent).toBe('HEAD');
     });
 
     it('lists worktrees and creates a worktree from the existing branch picker', async () => {

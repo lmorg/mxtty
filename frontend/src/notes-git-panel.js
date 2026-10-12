@@ -26,15 +26,32 @@ function rootKey(root) {
     return String(root || '').replaceAll('\\', '/').replace(/\/+$/, '');
 }
 
+const gitRemoteIcons = {
+    github: [0xf09b, 'GitHub'],
+    azuredevops: [0xf3ca, 'Azure DevOps'],
+    gitlab: [0xf296, 'GitLab'],
+    bitbucket: [0xf171, 'Bitbucket'],
+};
+
 export function initNotesGitPanel(elements, api, options = {}) {
-    if (!elements?.gitTab || !elements.gitPane || !elements.gitFileList) {
+    if (!elements?.gitTab || !elements?.gitPane || !elements?.gitFileList || !elements?.gitRemote || !elements?.gitCompare) {
         return null;
     }
 
     let projectRoot = '';
     let requestGeneration = 0;
     let currentStatus = null;
+    let compareBranch = '';
+    let watchActive = false;
+    let remoteRequest = 0;
     const statusCache = new Map();
+
+    const syncStatusWatch = () => {
+        if (typeof api.setStatusWatch !== 'function') {
+            return;
+        }
+        Promise.resolve(api.setStatusWatch(projectRoot, watchActive && Boolean(currentStatus))).catch(() => {});
+    };
 
     const setAvailable = (available) => {
         elements.gitTab.style.display = available ? '' : 'none';
@@ -53,9 +70,46 @@ export function initNotesGitPanel(elements, api, options = {}) {
         elements.gitFileList.appendChild(item);
     };
 
-    const renderStatus = (status) => {
+    const hideRemoteLink = () => {
+        elements.gitRemote.hidden = true;
+        delete elements.gitRemote.dataset.url;
+    };
+
+    const updateRemoteLink = async (status, root) => {
+        const request = ++remoteRequest;
+        if (!status || typeof api.getBrowserLink !== 'function' || typeof api.openRemote !== 'function') {
+            hideRemoteLink();
+            return;
+        }
+        try {
+            const link = await api.getBrowserLink(root, status.branch || '');
+            if (request !== remoteRequest || root !== projectRoot) {
+                return;
+            }
+            const remote = gitRemoteIcons[link?.provider];
+            if (!remote || !link?.url) {
+                hideRemoteLink();
+                return;
+            }
+            const [glyph, name] = remote;
+            elements.gitRemote.textContent = String.fromCodePoint(glyph);
+            elements.gitRemote.dataset.url = link.url;
+            elements.gitRemote.dataset.tooltip = `Open ${name} repository`;
+            elements.gitRemote.setAttribute('aria-label', `Open ${name} repository`);
+            elements.gitRemote.hidden = false;
+        } catch {
+            if (request === remoteRequest) {
+                hideRemoteLink();
+            }
+        }
+    };
+
+    const renderStatus = (status, cachedStatus = status) => {
         currentStatus = status;
-        statusCache.set(rootKey(projectRoot), { status });
+        syncStatusWatch();
+        void updateRemoteLink(status, projectRoot);
+        elements.gitCompare.textContent = compareBranch || 'HEAD';
+        statusCache.set(rootKey(projectRoot), { status: cachedStatus });
         elements.gitWorkspace.textContent = 'Worktrees';
         elements.gitWorkspace.dataset.tooltip = status.root || projectRoot;
         elements.gitBranch.textContent = status.branch || 'Detached HEAD';
@@ -90,9 +144,11 @@ export function initNotesGitPanel(elements, api, options = {}) {
 
             const code = document.createElement('span');
             code.className = 'notes-git-status-code';
-            code.textContent = statusCode(file);
+            code.textContent = file.compareOnly ? '≠' : statusCode(file);
             code.dataset.statusCode = statusCode(file);
-            code.dataset.tooltip = statusTooltip(code.dataset.statusCode);
+            code.dataset.tooltip = file.compareOnly
+                ? `Differs from ${compareBranch}`
+                : statusTooltip(code.dataset.statusCode);
             code.setAttribute('aria-label', `Git status ${code.dataset.tooltip}`);
 
             const actions = document.createElement('span');
@@ -131,7 +187,29 @@ export function initNotesGitPanel(elements, api, options = {}) {
             if (generation !== requestGeneration) {
                 return false;
             }
-            renderStatus(status);
+            let displayStatus = status;
+            if (compareBranch) {
+                const branch = compareBranch;
+                let files;
+                try {
+                    if (typeof api.getBranchDiffFiles !== 'function') {
+                        throw new Error('Branch comparison is unavailable');
+                    }
+                    files = await api.getBranchDiffFiles(projectRoot, branch);
+                } catch (error) {
+                    if (generation !== requestGeneration || branch !== compareBranch) {
+                        return false;
+                    }
+                    showMessage(`Could not compare with ${branch}: ${error?.message || error}`, 'error');
+                    setAvailable(true);
+                    return false;
+                }
+                if (generation !== requestGeneration || branch !== compareBranch) {
+                    return false;
+                }
+                displayStatus = { ...status, files, clean: files.length === 0 };
+            }
+            renderStatus(displayStatus, status);
             setAvailable(true);
             return true;
         } catch (error) {
@@ -139,6 +217,7 @@ export function initNotesGitPanel(elements, api, options = {}) {
                 return false;
             }
             currentStatus = null;
+            void updateRemoteLink(null, projectRoot);
             statusCache.set(rootKey(projectRoot), { error });
             showMessage(String(error?.message || error || 'Git is unavailable'), 'error');
             setAvailable(false);
@@ -157,7 +236,11 @@ export function initNotesGitPanel(elements, api, options = {}) {
             return true;
         }
         projectRoot = nextRoot;
+        compareBranch = '';
+        elements.gitCompare.textContent = 'HEAD';
         currentStatus = null;
+        syncStatusWatch();
+        void updateRemoteLink(null, nextRoot);
         elements.gitFileList.replaceChildren();
         const cached = statusCache.get(rootKey(projectRoot));
         if (cached?.status) {
@@ -177,8 +260,37 @@ export function initNotesGitPanel(elements, api, options = {}) {
         }
     });
 
+    const setCompareBranch = async (branch) => {
+        const nextBranch = String(branch || '').trim();
+        if (nextBranch === compareBranch) {
+            return true;
+        }
+        compareBranch = nextBranch;
+        elements.gitCompare.textContent = compareBranch || 'HEAD';
+        return refresh(true);
+    };
+
+    elements.gitCompare.addEventListener('click', () => {
+        if (currentStatus) {
+            options.showCompareMenu?.(
+                currentStatus.root || projectRoot,
+                currentStatus.branch || '',
+                compareBranch,
+                elements.gitCompare,
+                setCompareBranch,
+            );
+        }
+    });
+
     elements.gitRefresh.addEventListener('click', () => {
         void refresh();
+    });
+
+    elements.gitRemote.addEventListener('click', () => {
+        const url = elements.gitRemote.dataset.url;
+        if (url) {
+            void api.openRemote(url);
+        }
     });
 
     elements.gitPane.addEventListener('mouseover', (event) => {
@@ -202,7 +314,9 @@ export function initNotesGitPanel(elements, api, options = {}) {
         const root = projectRoot;
         const generation = requestGeneration;
         try {
-            const diff = await api.getDiff(root, file.path, file.originalPath || '');
+            const diff = compareBranch
+                ? await api.getDiffAgainstBranch(root, file.path, '', compareBranch)
+                : await api.getDiff(root, file.path, file.originalPath || '');
             if (generation !== requestGeneration || root !== projectRoot) {
                 return false;
             }
@@ -266,6 +380,7 @@ export function initNotesGitPanel(elements, api, options = {}) {
                 statusCache.set(root, { error: event.error });
                 if (root === rootKey(projectRoot)) {
                     currentStatus = null;
+                    void updateRemoteLink(null, projectRoot);
                     showMessage(String(event.error), 'error');
                     setAvailable(false);
                     options.onStatusChange?.(null, projectRoot);
@@ -277,8 +392,12 @@ export function initNotesGitPanel(elements, api, options = {}) {
             }
             statusCache.set(root, { status: event.status });
             if (root === rootKey(projectRoot)) {
-                renderStatus(event.status);
-                setAvailable(true);
+                if (compareBranch) {
+                    void refresh(false);
+                } else {
+                    renderStatus(event.status);
+                    setAvailable(true);
+                }
             }
         });
     }
@@ -288,6 +407,12 @@ export function initNotesGitPanel(elements, api, options = {}) {
     return {
         refresh,
         setProjectRoot,
+        setCompareBranch,
+        getCompareBranch: () => compareBranch,
+        setWatchActive(active) {
+            watchActive = active === true;
+            syncStatusWatch();
+        },
         getCurrentStatus: () => currentStatus,
         getCurrentRoot: () => projectRoot,
         getCachedStatus(root = projectRoot) {

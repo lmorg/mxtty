@@ -18,6 +18,10 @@ type Change struct {
 	Poll   bool
 }
 
+type Options struct {
+	WatchFileWrites bool
+}
+
 type nativeWatcher interface {
 	Changes() <-chan Change
 	Errors() <-chan error
@@ -25,12 +29,16 @@ type nativeWatcher interface {
 }
 
 func Run(ctx context.Context, root string, ignored func(string) bool, notify func(Change), ready func(error)) {
+	RunWithOptions(ctx, root, ignored, Options{}, notify, ready)
+}
+
+func RunWithOptions(ctx context.Context, root string, ignored func(string) bool, options Options, notify func(Change), ready func(error)) {
 	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
 		ready(errors.New("directory indexing supports only macOS and Linux"))
 		<-ctx.Done()
 		return
 	}
-	watcher, err := startNative(ctx, root, ignored)
+	watcher, err := startNative(ctx, root, ignored, options.WatchFileWrites)
 	ready(err)
 	if err != nil {
 		poll(ctx, root, notify)

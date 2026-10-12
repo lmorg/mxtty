@@ -50,7 +50,7 @@ func addDirectories(ctx context.Context, watcher *fsnotify.Watcher, path string,
 	})
 }
 
-func startNative(parent context.Context, root string, ignored func(string) bool) (nativeWatcher, error) {
+func startNative(parent context.Context, root string, ignored func(string) bool, watchFileWrites bool) (nativeWatcher, error) {
 	native, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, err
@@ -90,7 +90,7 @@ func startNative(parent context.Context, root string, ignored func(string) bool)
 				if !ok {
 					return
 				}
-				if !event.Has(fsnotify.Create) && !event.Has(fsnotify.Remove) && !event.Has(fsnotify.Rename) {
+				if !event.Has(fsnotify.Create) && !event.Has(fsnotify.Remove) && !event.Has(fsnotify.Rename) && !(watchFileWrites && event.Has(fsnotify.Write)) {
 					continue
 				}
 				path := filepath.Clean(event.Name)

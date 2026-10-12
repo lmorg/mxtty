@@ -104,6 +104,136 @@ func TestWorkspaceStatusAndStageLifecycle(t *testing.T) {
 	}
 }
 
+func TestMetadataDirectoriesIncludeLinkedWorktreeCommonDirectory(t *testing.T) {
+	root := initGitTestRepo(t)
+	worktree := filepath.Join(t.TempDir(), "linked-worktree")
+	gitPath, err := exec.LookPath("git")
+	if err != nil {
+		t.Skip("git is not installed")
+	}
+	runGitTestCommand(t, gitPath, root, "worktree", "add", "--quiet", "--detach", worktree, "HEAD")
+
+	directories, err := MetadataDirectories(worktree)
+	if err != nil {
+		t.Fatalf("MetadataDirectories() error = %v", err)
+	}
+	if len(directories) != 2 {
+		t.Fatalf("MetadataDirectories() = %v, want per-worktree and common directories", directories)
+	}
+	for _, directory := range directories {
+		if directory == filepath.Join(worktree, ".git") {
+			t.Fatalf("MetadataDirectories() returned the .git file path: %v", directories)
+		}
+		if _, err := os.Stat(directory); err != nil {
+			t.Fatalf("metadata directory %q is not accessible: %v", directory, err)
+		}
+	}
+}
+
+func TestBrowserLinkForRemote(t *testing.T) {
+	tests := []struct {
+		name     string
+		remote   string
+		branch   string
+		provider string
+		url      string
+	}{
+		{"GitHub HTTPS", "https://github.com/org/repo.git", "feature/view", "github", "https://github.com/org/repo/tree/feature/view"},
+		{"GitHub SSH", "git@github.com:org/repo.git", "main", "github", "https://github.com/org/repo/tree/main"},
+		{"GitLab nested group", "git@gitlab.com:org/group/repo.git", "feature/view", "gitlab", "https://gitlab.com/org/group/repo/-/tree/feature/view"},
+		{"Bitbucket", "git@bitbucket.org:org/repo.git", "main", "bitbucket", "https://bitbucket.org/org/repo/src/main/"},
+		{"Azure HTTPS", "https://dev.azure.com/org/project/_git/repo", "feature/view", "azuredevops", "https://dev.azure.com/org/project/_git/repo?version=GBfeature%2Fview"},
+		{"Azure SSH", "git@ssh.dev.azure.com:v3/org/project/repo", "main", "azuredevops", "https://dev.azure.com/org/project/_git/repo?version=GBmain"},
+		{"Azure legacy host", "https://org.visualstudio.com/project/_git/repo", "main", "azuredevops", "https://dev.azure.com/org/project/_git/repo?version=GBmain"},
+		{"unsupported host", "git@example.com:org/repo.git", "main", "", ""},
+		{"local path", "../repo", "main", "", ""},
+		{"detached head", "https://github.com/org/repo.git", "HEAD", "", ""},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			link := browserLinkForRemote(test.remote, test.branch)
+			if link.Provider != test.provider || link.URL != test.url {
+				t.Fatalf("browserLinkForRemote(%q, %q) = %+v, want provider %q and URL %q", test.remote, test.branch, link, test.provider, test.url)
+			}
+		})
+	}
+}
+
+func TestRemoteBrowserLinkReadsOriginFromRepository(t *testing.T) {
+	root := initGitTestRepo(t)
+	gitPath, err := exec.LookPath("git")
+	if err != nil {
+		t.Skip("git is not installed")
+	}
+	link, err := RemoteBrowserLink(root, "main")
+	if err != nil || link.URL != "" {
+		t.Fatalf("RemoteBrowserLink() without origin = %+v, %v; want no link", link, err)
+	}
+	runGitTestCommand(t, gitPath, root, "remote", "add", "origin", "git@github.com:org/repo.git")
+
+	link, err = RemoteBrowserLink(root, "feature/ui")
+	if err != nil {
+		t.Fatalf("RemoteBrowserLink() error = %v", err)
+	}
+	if link.Provider != "github" || link.URL != "https://github.com/org/repo/tree/feature/ui" {
+		t.Fatalf("RemoteBrowserLink() = %+v, want GitHub feature branch URL", link)
+	}
+}
+
+func TestBranchDiffFilesAndReadDiffDoNotSwitchBranches(t *testing.T) {
+	root := initGitTestRepo(t)
+	gitPath, err := exec.LookPath("git")
+	if err != nil {
+		t.Skip("git is not installed")
+	}
+	branchCommand := exec.Command(gitPath, "-C", root, "branch", "--show-current")
+	branchOutput, err := branchCommand.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	currentBranch := strings.TrimSpace(string(branchOutput))
+	runGitTestCommand(t, gitPath, root, "checkout", "--quiet", "-b", "compare-base")
+	if err := os.WriteFile(filepath.Join(root, "tracked file.txt"), []byte("compare contents\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "branch-only.txt"), []byte("branch file\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	runGitTestCommand(t, gitPath, root, "add", "--", "tracked file.txt", "branch-only.txt")
+	runGitTestCommand(t, gitPath, root, "commit", "--quiet", "-m", "comparison base")
+	runGitTestCommand(t, gitPath, root, "checkout", "--quiet", currentBranch)
+	if err := os.WriteFile(filepath.Join(root, "untracked.txt"), []byte("local file\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	files, err := BranchDiffFiles(root, "compare-base")
+	if err != nil {
+		t.Fatalf("BranchDiffFiles() error = %v", err)
+	}
+	if len(files) != 3 {
+		t.Fatalf("BranchDiffFiles() = %+v, want tracked, branch-only, and untracked paths", files)
+	}
+	for _, file := range files {
+		if !file.CompareOnly {
+			t.Errorf("file %q CompareOnly = false", file.Path)
+		}
+	}
+	diff, err := ReadDiff(root, "tracked file.txt", "", "compare-base")
+	if err != nil {
+		t.Fatalf("ReadDiff(comparison branch) error = %v", err)
+	}
+	if diff.Original != "compare contents\n" || diff.Working != "head contents\n" {
+		t.Fatalf("ReadDiff(comparison branch) = %+v, want comparison base and current working contents", diff)
+	}
+	status, err := WorkspaceStatus(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status.Branch != currentBranch {
+		t.Fatalf("WorkspaceStatus().Branch = %q, want unchanged branch %q", status.Branch, currentBranch)
+	}
+}
+
 func TestWorkspaceStatusAcceptsWorktreeRoot(t *testing.T) {
 	root := initGitTestRepo(t)
 	gitPath, err := exec.LookPath("git")

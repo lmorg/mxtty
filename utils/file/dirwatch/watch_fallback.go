@@ -7,6 +7,6 @@ import (
 	"errors"
 )
 
-func startNative(context.Context, string, func(string) bool) (nativeWatcher, error) {
+func startNative(context.Context, string, func(string) bool, bool) (nativeWatcher, error) {
 	return nil, errors.New("native directory watching requires Linux or macOS with cgo")
 }

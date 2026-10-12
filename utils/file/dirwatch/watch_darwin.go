@@ -22,7 +22,7 @@ type darwinWatcher struct {
 	once    sync.Once
 }
 
-func startNative(ctx context.Context, root string, ignored func(string) bool) (nativeWatcher, error) {
+func startNative(ctx context.Context, root string, ignored func(string) bool, watchFileWrites bool) (nativeWatcher, error) {
 	ancestor, err := existingAncestor(root)
 	if err != nil {
 		return nil, err
@@ -75,7 +75,11 @@ func startNative(ctx context.Context, root string, ignored func(string) bool) (n
 						relative = "."
 					}
 					path = filepath.Join(root, relative)
-					if !rescan && (ignored(path) || event.Flags&(fsevents.ItemCreated|fsevents.ItemRemoved|fsevents.ItemRenamed) == 0) {
+					changeFlags := fsevents.ItemCreated | fsevents.ItemRemoved | fsevents.ItemRenamed
+					if watchFileWrites {
+						changeFlags |= fsevents.ItemModified
+					}
+					if !rescan && (ignored(path) || event.Flags&changeFlags == 0) {
 						continue
 					}
 					select {

@@ -1,6 +1,7 @@
 import {
     GetWindowStyle, GetNotesMaxLogLines, GetNotesColumnWidths, SetNotesColumnWidths, GetFile,
-    GetGitStatus, RefreshGitStatus, GetGitDiff, StageGitFile, UnstageGitFile,
+    GetGitStatus, GetGitBrowserLink, GetGitBranchDiffFiles, GetGitDiff, GetGitDiffAgainstBranch,
+    RefreshGitStatus, SetGitStatusWatch, StageGitFile, UnstageGitFile,
     ListGitWorktrees, ListGitBranches, GetDefaultGitWorktreePath, CreateGitWorktree,
     SwitchGitWorktree, RemoveGitWorktree, ShowGitWorktreeInfo,
     NotesTableSort, NotesTableClearSort, NotesTableFilter, NotesTableReconcile, NotesTableRestore, NotesTableSetGraph, NotesTableRenderGraph, NotesTableDisposeAll,
@@ -37,7 +38,7 @@ import {
     FilterStrings,
     ResolveAIUserQuestion,
 } from '../wailsjs/go/main/WApp';
-import { EventsOn, EventsOff, ClipboardSetText } from '../wailsjs/runtime/runtime';
+import { EventsOn, EventsOff, ClipboardSetText, BrowserOpenURL } from '../wailsjs/runtime/runtime';
 
 import {
     showLocalMenu,
@@ -649,9 +650,11 @@ app.innerHTML = `
                                 <div class="notes-git-summary">
                                     <span id="notes-tools-git-branch" class="notes-git-branch"></span>
                                     <span id="notes-tools-git-ahead-behind" class="notes-git-ahead-behind"></span>
+                                    <button id="notes-tools-git-compare" type="button" class="notes-tools-clear notes-git-compare" aria-label="Choose comparison branch" data-tooltip="Choose comparison branch">HEAD</button>
                                 </div>
                                 <div class="notes-git-actions">
                                 <button id="notes-tools-git-workspace" type="button" class="notes-ai-model-picker" aria-label="Worktrees" data-tooltip="Git worktrees">Worktrees</button>
+                                <button id="notes-tools-git-remote" type="button" class="notes-tools-clear notes-tools-icon notes-git-remote" aria-label="Open remote repository" data-tooltip="Open remote repository" hidden></button>
                                 <button id="notes-tools-git-refresh" type="button" class="notes-tools-clear notes-tools-icon" data-tooltip="Refresh Git status" aria-label="Refresh Git status">&#xf021;</button>
                                 </div>
                             </div>
@@ -826,8 +829,10 @@ const elements = {
     gitTab: document.getElementById('notes-tools-tab-git'),
     gitPane: document.getElementById('notes-tools-git-pane'),
     gitWorkspace: document.getElementById('notes-tools-git-workspace'),
+    gitRemote: document.getElementById('notes-tools-git-remote'),
     gitBranch: document.getElementById('notes-tools-git-branch'),
     gitAheadBehind: document.getElementById('notes-tools-git-ahead-behind'),
+    gitCompare: document.getElementById('notes-tools-git-compare'),
     gitRefresh: document.getElementById('notes-tools-git-refresh'),
     gitFileList: document.getElementById('notes-tools-git-files'),
     toolsFindPane: document.getElementById('notes-tools-find-pane'),
@@ -14097,6 +14102,7 @@ EventsOn("noteComplete", (data) => {
 function setToolsPanelCollapsed(collapsed) {
     const isCollapsed = collapsed === true;
     elements.toolsPanel.dataset.collapsed = isCollapsed ? 'true' : 'false';
+    notesGitPanel?.setWatchActive(!isCollapsed && elements.toolsTabGit?.getAttribute('aria-selected') === 'true');
     window.dispatchEvent(new CustomEvent('ttyphoon-notes-layout'));
     if (elements.toolsRestore) {
         elements.toolsRestore.style.display = isCollapsed ? 'inline-flex' : 'none';
@@ -14142,6 +14148,8 @@ function setToolsTab(tabName) {
         const isActive = pane.dataset.tab === nextTab;
         pane.dataset.active = isActive ? 'true' : 'false';
     }
+
+    notesGitPanel?.setWatchActive(nextTab === 'git' && elements.toolsPanel?.dataset.collapsed !== 'true');
 
     if (nextTab === 'ai' && state.aiStickToBottom) {
         // Switching to AI can reveal previously hidden content; scroll after layout.
@@ -15241,8 +15249,13 @@ elements.toolsTabGit.addEventListener('click', () => {
 
 notesGitPanel = initNotesGitPanel(elements, {
     getStatus: GetGitStatus,
+    getBrowserLink: GetGitBrowserLink,
+    getBranchDiffFiles: GetGitBranchDiffFiles,
+    openRemote: BrowserOpenURL,
     refreshStatus: RefreshGitStatus,
+    setStatusWatch: SetGitStatusWatch,
     getDiff: GetGitDiff,
+    getDiffAgainstBranch: GetGitDiffAgainstBranch,
     stageFile: StageGitFile,
     unstageFile: UnstageGitFile,
     getCurrentProject: GetCurrentProject,
@@ -15332,6 +15345,38 @@ notesGitPanel = initNotesGitPanel(elements, {
             })));
         showLocalMenu({
             title: 'Worktrees',
+            options: items.map((item) => item.title),
+            icons: items.map((item) => item.icon),
+            x: rect.left,
+            y: rect.bottom,
+            showNextToMouseCursor: true,
+            onSelect: (index) => items[index]?.onSelect?.(),
+        });
+    },
+    showCompareMenu: async (root, currentBranch, selectedBranch, button, selectBranch) => {
+        let branches;
+        try {
+            branches = await ListGitBranches(root);
+        } catch (error) {
+            notifyTerminal(String(error?.message || error), 'error');
+            return;
+        }
+        const rect = button.getBoundingClientRect();
+        const items = [
+            {
+                title: `HEAD (${currentBranch || 'Detached HEAD'})`,
+                icon: selectedBranch === '' ? CONTEXT_ICON_TICK : 0,
+                onSelect: () => void selectBranch(''),
+            },
+            { title: '-', icon: 0 },
+            ...branches.filter((branch) => branch !== currentBranch).sort((left, right) => left.localeCompare(right)).map((branch) => ({
+                title: branch,
+                icon: branch === selectedBranch ? CONTEXT_ICON_TICK : 0,
+                onSelect: () => void selectBranch(branch),
+            })),
+        ];
+        showLocalMenu({
+            title: 'Compare against',
             options: items.map((item) => item.title),
             icons: items.map((item) => item.icon),
             x: rect.left,

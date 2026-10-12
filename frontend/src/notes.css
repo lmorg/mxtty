@@ -1819,6 +1819,11 @@ body {
     border-color: var(--bg);
 }
 
+.notes-git-remote {
+    font-family: "Font Awesome Brands", sans-serif;
+    font-weight: 400;
+}
+
 .notes-tools-minimize:hover,
 .notes-tools-clear:hover {
     border-color: var(--accent);
@@ -1863,6 +1868,17 @@ body {
 
 .notes-git-actions {
     flex: 0 0 auto;
+}
+
+.notes-git-compare {
+    flex: 0 1 auto;
+    min-width: 32px;
+    max-width: 180px;
+    overflow: hidden;
+    padding: 4px 8px;
+    border-color: var(--bg);
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .notes-git-file-list {

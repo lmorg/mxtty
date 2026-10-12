@@ -21,6 +21,12 @@ Git is unavailable.
   completion; publish refreshed snapshots to the frontend. Keep a frontend cache
   keyed by project root so switching Tools tabs or worktrees can rehydrate
   immediately.
+- While the Git Tools tab is selected, watch the per-worktree Git metadata
+  directory and the shared Git common directory resolved by `git rev-parse`.
+  Debounce metadata changes before refreshing status; stop both watches when the
+  Git tab is deselected. Watch metadata writes as well as entry creation/removal,
+  but exclude object, hook, and reflog trees. Ordinary working-tree file changes
+  continue to refresh status through the Notes file-index watcher.
 - Enable the Tools Git tab only when the current project root is exactly a Git
   working-tree root and the host has a `git` executable. Accept both `.git`
   directories and worktree `.git` files. The Worktree menu lists all worktrees
@@ -43,6 +49,15 @@ Git is unavailable.
 - Removing a worktree removes only its working directory/registration and never
   deletes its branch. Do not force removal; let Git reject dirty worktrees.
 - Render branch state, ahead/behind counts, and changed paths in the Git pane.
+  A left-side comparison selector defaults to `HEAD`; local branches are listed
+  alphabetically with the checked-out branch omitted. Selecting another branch
+  changes only the diff base, never the checked-out branch. In that mode the
+  file list contains paths differing from the selected branch plus untracked
+  working-tree files, and each file diff uses that branch as its original side.
+  Show a provider-brand button before Refresh only for GitHub, Azure DevOps,
+  GitLab, or Bitbucket origins. Resolve HTTPS browser URLs in Go using the
+  origin and current branch; open them through the system browser. Hide the
+  button when origin is missing, unsupported, or the worktree is detached.
   Selecting a path opens a side-by-side Monaco diff comparing `HEAD` with the
   working tree in a dedicated top-level Notes `Diff` tab. The modified side is
   editable for regular text files; binary and symbolic-link diffs are read-only.
@@ -67,6 +82,12 @@ Git is unavailable.
 
 - The panel follows the active project context. A root change refreshes status;
   a non-Git root hides the tab.
+- Branch comparison is view-only: `HEAD` remains the default status view, while
+  selecting a local branch changes the file list and diff base without checking
+  out or mutating any branch.
+- Git metadata status refreshes are watched only while the Git tab is selected.
+  Linked worktrees watch their external per-worktree and common Git directories;
+  ordinary file edits are covered by the active project file-index watch.
 - The top-level Notes Diff tab is available when the active file appears in the
   cached Git status, even when that file was opened from the Notes file list.
   Watcher-published status updates can show or hide the tab as the file becomes

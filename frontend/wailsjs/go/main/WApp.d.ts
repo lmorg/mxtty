@@ -94,7 +94,13 @@ export function GetFile(arg1:string):Promise<main.GetFileReturnT>;
 
 export function GetFileMetaMarkdown(arg1:string):Promise<string>;
 
+export function GetGitBranchDiffFiles(arg1:string,arg2:string):Promise<Array<git.FileStatus>>;
+
+export function GetGitBrowserLink(arg1:string,arg2:string):Promise<git.BrowserLink>;
+
 export function GetGitDiff(arg1:string,arg2:string,arg3:string):Promise<git.Diff>;
+
+export function GetGitDiffAgainstBranch(arg1:string,arg2:string,arg3:string,arg4:string):Promise<git.Diff>;
 
 export function GetGitStatus(arg1:string):Promise<git.Status>;
 
@@ -297,6 +303,8 @@ export function SetActiveAISession(arg1:number):Promise<sessiondb.FrontendStateT
 export function SetCurrentAIModelSelection(arg1:string):Promise<void>;
 
 export function SetDocumentCache(arg1:string,arg2:notes.DocumentCacheT):Promise<void>;
+
+export function SetGitStatusWatch(arg1:string,arg2:boolean):Promise<void>;
 
 export function SetNotesColumnWidths(arg1:string,arg2:string,arg3:Array<string>,arg4:boolean,arg5:Array<number>):Promise<void>;
 

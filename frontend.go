@@ -29,6 +29,7 @@ import (
 	"github.com/lmorg/ttyphoon/config"
 	"github.com/lmorg/ttyphoon/hotkeys"
 	"github.com/lmorg/ttyphoon/types"
+	"github.com/lmorg/ttyphoon/utils/file/dirwatch"
 	"github.com/lmorg/ttyphoon/utils/file/meta"
 	"github.com/lmorg/ttyphoon/utils/file/watcher"
 	"github.com/lmorg/ttyphoon/utils/find"
@@ -83,6 +84,10 @@ type WApp struct {
 	gitStatusMu           sync.Mutex
 	gitStatusCache        map[string]gitStatusCacheEntry
 	gitStatusRequest      map[string]uint64
+	gitWatchMu            sync.Mutex
+	gitWatchCancel        context.CancelFunc
+	gitWatchRoot          string
+	gitWatchRequest       uint64
 	lspStartErrMu         sync.Mutex
 	lspStartErrs          map[string]string
 	lspManager            *lsp.Manager
@@ -2304,8 +2309,156 @@ func (a *WApp) GetGitStatus(projectRoot string) (gitutils.Status, error) {
 	return a.refreshGitStatus(projectRoot)
 }
 
+func (a *WApp) GetGitBranchDiffFiles(projectRoot, branch string) ([]gitutils.FileStatus, error) {
+	return gitutils.BranchDiffFiles(projectRoot, branch)
+}
+
+func (a *WApp) GetGitBrowserLink(projectRoot, branch string) (gitutils.BrowserLink, error) {
+	return gitutils.RemoteBrowserLink(projectRoot, branch)
+}
+
 func (a *WApp) RefreshGitStatus(projectRoot string) (gitutils.Status, error) {
 	return a.refreshGitStatus(projectRoot)
+}
+
+func (a *WApp) SetGitStatusWatch(projectRoot string, enabled bool) error {
+	a.gitWatchMu.Lock()
+	a.gitWatchRequest++
+	request := a.gitWatchRequest
+	if !enabled {
+		a.stopGitStatusWatchLocked()
+		a.gitWatchMu.Unlock()
+		return nil
+	}
+	a.gitWatchMu.Unlock()
+
+	key, err := gitStatusCacheKey(projectRoot)
+	if err != nil {
+		a.gitWatchMu.Lock()
+		if request == a.gitWatchRequest {
+			a.stopGitStatusWatchLocked()
+		}
+		a.gitWatchMu.Unlock()
+		return err
+	}
+	directories, err := gitutils.MetadataDirectories(projectRoot)
+	if err != nil {
+		a.gitWatchMu.Lock()
+		if request == a.gitWatchRequest {
+			a.stopGitStatusWatchLocked()
+		}
+		a.gitWatchMu.Unlock()
+		return err
+	}
+
+	a.gitWatchMu.Lock()
+	if request != a.gitWatchRequest {
+		a.gitWatchMu.Unlock()
+		return nil
+	}
+	if a.gitWatchRoot == key && a.gitWatchCancel != nil {
+		a.gitWatchMu.Unlock()
+		return nil
+	}
+	if a.gitWatchCancel != nil {
+		a.gitWatchCancel()
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	a.gitWatchCancel = cancel
+	a.gitWatchRoot = key
+	a.gitWatchMu.Unlock()
+
+	go a.watchGitStatus(ctx, key, directories)
+	return nil
+}
+
+func (a *WApp) stopGitStatusWatch() {
+	a.gitWatchMu.Lock()
+	a.gitWatchRequest++
+	a.stopGitStatusWatchLocked()
+	a.gitWatchMu.Unlock()
+}
+
+func (a *WApp) stopGitStatusWatchLocked() {
+	if a.gitWatchCancel != nil {
+		a.gitWatchCancel()
+	}
+	a.gitWatchCancel = nil
+	a.gitWatchRoot = ""
+}
+
+func (a *WApp) watchGitStatus(ctx context.Context, root string, directories []string) {
+	changes := make(chan struct{}, 1)
+	ready := make(chan error, len(directories))
+	var watchers sync.WaitGroup
+	for _, directory := range directories {
+		directory := directory
+		watchers.Add(1)
+		go func() {
+			defer watchers.Done()
+			dirwatch.RunWithOptions(ctx, directory, func(path string) bool {
+				return ignoredGitMetadataPath(directory, path)
+			}, dirwatch.Options{WatchFileWrites: true}, func(dirwatch.Change) {
+				select {
+				case changes <- struct{}{}:
+				default:
+				}
+			}, func(err error) {
+				ready <- err
+			})
+		}()
+	}
+	defer watchers.Wait()
+	for range directories {
+		select {
+		case err := <-ready:
+			if err != nil && ctx.Err() == nil {
+				log.Printf("Git metadata watch setup for %q: %v", root, err)
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
+
+	_, _ = a.refreshGitStatus(root)
+	var timer *time.Timer
+	var timerChannel <-chan time.Time
+	defer func() {
+		if timer != nil {
+			timer.Stop()
+		}
+	}()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-changes:
+			if timer == nil {
+				timer = time.NewTimer(250 * time.Millisecond)
+			} else {
+				if !timer.Stop() {
+					select {
+					case <-timer.C:
+					default:
+					}
+				}
+				timer.Reset(250 * time.Millisecond)
+			}
+			timerChannel = timer.C
+		case <-timerChannel:
+			timerChannel = nil
+			_, _ = a.refreshGitStatus(root)
+		}
+	}
+}
+
+func ignoredGitMetadataPath(root, path string) bool {
+	relative, err := filepath.Rel(root, path)
+	if err != nil {
+		return false
+	}
+	first := strings.SplitN(relative, string(filepath.Separator), 2)[0]
+	return first == "objects" || first == "hooks" || first == "logs"
 }
 
 func (a *WApp) refreshGitStatus(projectRoot string) (gitutils.Status, error) {
@@ -2388,6 +2541,17 @@ func cloneGitStatus(status gitutils.Status) gitutils.Status {
 
 func (a *WApp) GetGitDiff(projectRoot, filePath, originalPath string) (gitutils.Diff, error) {
 	diff, err := gitutils.ReadDiff(projectRoot, filePath, originalPath)
+	if err != nil {
+		return gitutils.Diff{}, err
+	}
+	if err := notes.RecentListAdd(projectRoot, "$PROJECT/"+filepath.ToSlash(filePath)); err != nil {
+		log.Printf("cannot add Git file %q to recent Notes files: %v", filePath, err)
+	}
+	return diff, nil
+}
+
+func (a *WApp) GetGitDiffAgainstBranch(projectRoot, filePath, originalPath, branch string) (gitutils.Diff, error) {
+	diff, err := gitutils.ReadDiff(projectRoot, filePath, originalPath, branch)
 	if err != nil {
 		return gitutils.Diff{}, err
 	}
@@ -3532,6 +3696,7 @@ func (a *WApp) startup(ctx context.Context) {
 }
 
 func (a *WApp) shutdown(ctx context.Context) {
+	a.stopGitStatusWatch()
 	a.notesListMu.Lock()
 	a.notesIndexClosed = true
 	if a.notesListCancel != nil {

@@ -170,8 +170,20 @@ export function GetFileMetaMarkdown(arg1) {
   return window['go']['main']['WApp']['GetFileMetaMarkdown'](arg1);
 }
 
+export function GetGitBranchDiffFiles(arg1, arg2) {
+  return window['go']['main']['WApp']['GetGitBranchDiffFiles'](arg1, arg2);
+}
+
+export function GetGitBrowserLink(arg1, arg2) {
+  return window['go']['main']['WApp']['GetGitBrowserLink'](arg1, arg2);
+}
+
 export function GetGitDiff(arg1, arg2, arg3) {
   return window['go']['main']['WApp']['GetGitDiff'](arg1, arg2, arg3);
+}
+
+export function GetGitDiffAgainstBranch(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['WApp']['GetGitDiffAgainstBranch'](arg1, arg2, arg3, arg4);
 }
 
 export function GetGitStatus(arg1) {
@@ -576,6 +588,10 @@ export function SetCurrentAIModelSelection(arg1) {
 
 export function SetDocumentCache(arg1, arg2) {
   return window['go']['main']['WApp']['SetDocumentCache'](arg1, arg2);
+}
+
+export function SetGitStatusWatch(arg1, arg2) {
+  return window['go']['main']['WApp']['SetGitStatusWatch'](arg1, arg2);
 }
 
 export function SetNotesColumnWidths(arg1, arg2, arg3, arg4, arg5) {

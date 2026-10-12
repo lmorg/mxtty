@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -25,6 +26,7 @@ type FileStatus struct {
 	Path         string `json:"path"`
 	OriginalPath string `json:"originalPath,omitempty"`
 	Code         string `json:"code"`
+	CompareOnly  bool   `json:"compareOnly,omitempty"`
 	Staged       bool   `json:"staged"`
 	Unstaged     bool   `json:"unstaged"`
 	Untracked    bool   `json:"untracked"`
@@ -52,6 +54,11 @@ type Diff struct {
 type Worktree struct {
 	Path   string `json:"path"`
 	Branch string `json:"branch"`
+}
+
+type BrowserLink struct {
+	Provider string `json:"provider"`
+	URL      string `json:"url"`
 }
 
 func ListWorktrees(root string) ([]Worktree, error) {
@@ -337,6 +344,217 @@ func WorkspaceStatus(root string) (Status, error) {
 	return status, nil
 }
 
+func BranchDiffFiles(root, branch string) ([]FileStatus, error) {
+	gitPath, repoRoot, err := checkedRepository(root)
+	if err != nil {
+		return nil, err
+	}
+	branchRef, err := checkedLocalBranch(gitPath, repoRoot, branch)
+	if err != nil {
+		return nil, err
+	}
+	output, err := runGit(gitPath, repoRoot, "diff", "--name-only", "-z", "--no-renames", branchRef, "--")
+	if err != nil {
+		return nil, err
+	}
+	status, err := WorkspaceStatus(repoRoot)
+	if err != nil {
+		return nil, err
+	}
+	workingFiles := make(map[string]FileStatus, len(status.Files))
+	for _, file := range status.Files {
+		workingFiles[file.Path] = file
+	}
+
+	files := make([]FileStatus, 0)
+	seen := make(map[string]struct{})
+	for _, rawPath := range bytes.Split(output, []byte{0}) {
+		if len(rawPath) == 0 {
+			continue
+		}
+		path := filepath.ToSlash(string(rawPath))
+		if _, ok := seen[path]; ok {
+			continue
+		}
+		file, ok := workingFiles[path]
+		if !ok {
+			file = FileStatus{Path: path, Code: " M"}
+		}
+		file.CompareOnly = true
+		files = append(files, file)
+		seen[path] = struct{}{}
+	}
+	for _, file := range status.Files {
+		if !file.Untracked {
+			continue
+		}
+		if _, ok := seen[file.Path]; ok {
+			continue
+		}
+		file.CompareOnly = true
+		files = append(files, file)
+	}
+	sort.Slice(files, func(i, j int) bool { return files[i].Path < files[j].Path })
+	return files, nil
+}
+
+func checkedLocalBranch(gitPath, repoRoot, branch string) (string, error) {
+	branch = strings.TrimSpace(branch)
+	if branch == "" {
+		return "", errors.New("comparison branch is empty")
+	}
+	ref := "refs/heads/" + branch
+	if _, err := runGit(gitPath, repoRoot, "check-ref-format", ref); err != nil {
+		return "", fmt.Errorf("invalid comparison branch %q", branch)
+	}
+	if _, err := runGit(gitPath, repoRoot, "rev-parse", "--verify", "--quiet", ref+"^{commit}"); err != nil {
+		return "", fmt.Errorf("comparison branch %q does not exist", branch)
+	}
+	return ref, nil
+}
+
+func MetadataDirectories(root string) ([]string, error) {
+	gitPath, repoRoot, err := checkedRepository(root)
+	if err != nil {
+		return nil, err
+	}
+	output, err := runGit(gitPath, repoRoot, "rev-parse", "--git-dir", "--git-common-dir")
+	if err != nil {
+		return nil, err
+	}
+
+	directories := make([]string, 0, 2)
+	seen := make(map[string]struct{}, 2)
+	for _, directory := range strings.Split(strings.TrimRight(string(output), "\r\n"), "\n") {
+		directory = strings.TrimSuffix(directory, "\r")
+		if directory == "" {
+			continue
+		}
+		if !filepath.IsAbs(directory) {
+			directory = filepath.Join(repoRoot, directory)
+		}
+		directory, err = filepath.Abs(directory)
+		if err != nil {
+			return nil, err
+		}
+		directory = filepath.Clean(directory)
+		if resolved, resolveErr := filepath.EvalSymlinks(directory); resolveErr == nil {
+			directory = filepath.Clean(resolved)
+		}
+		if _, ok := seen[directory]; ok {
+			continue
+		}
+		seen[directory] = struct{}{}
+		directories = append(directories, directory)
+	}
+	return directories, nil
+}
+
+func RemoteBrowserLink(root, branch string) (BrowserLink, error) {
+	gitPath, repoRoot, err := checkedRepository(root)
+	if err != nil {
+		return BrowserLink{}, err
+	}
+	if strings.TrimSpace(branch) == "" || branch == "HEAD" {
+		return BrowserLink{}, nil
+	}
+	output, err := runGit(gitPath, repoRoot, "remote", "get-url", "origin")
+	if err != nil {
+		return BrowserLink{}, nil
+	}
+	return browserLinkForRemote(strings.TrimSpace(string(output)), branch), nil
+}
+
+func browserLinkForRemote(remote, branch string) BrowserLink {
+	if strings.TrimSpace(branch) == "" || branch == "HEAD" {
+		return BrowserLink{}
+	}
+	host, remotePath := parseRemoteAddress(remote)
+	if host == "" {
+		return BrowserLink{}
+	}
+	parts := strings.Split(strings.Trim(remotePath, "/"), "/")
+	if len(parts) == 0 || parts[len(parts)-1] == "" {
+		return BrowserLink{}
+	}
+	parts[len(parts)-1] = strings.TrimSuffix(parts[len(parts)-1], ".git")
+	for _, part := range parts {
+		if part == "" || part == "." || part == ".." {
+			return BrowserLink{}
+		}
+	}
+
+	branchPath := escapeURLPath(strings.Split(branch, "/"))
+	path := escapeURLPath(parts)
+	switch host {
+	case "github.com":
+		if len(parts) == 2 {
+			return BrowserLink{Provider: "github", URL: "https://github.com/" + path + "/tree/" + branchPath}
+		}
+	case "gitlab.com":
+		if len(parts) >= 2 {
+			return BrowserLink{Provider: "gitlab", URL: "https://gitlab.com/" + path + "/-/tree/" + branchPath}
+		}
+	case "bitbucket.org":
+		if len(parts) == 2 {
+			return BrowserLink{Provider: "bitbucket", URL: "https://bitbucket.org/" + path + "/src/" + branchPath + "/"}
+		}
+	case "dev.azure.com":
+		if len(parts) == 4 && parts[2] == "_git" {
+			return azureBrowserLink(parts[0], parts[1], parts[3], branch)
+		}
+	case "ssh.dev.azure.com", "vs-ssh.visualstudio.com":
+		if len(parts) == 4 && parts[0] == "v3" {
+			return azureBrowserLink(parts[1], parts[2], parts[3], branch)
+		}
+	default:
+		if strings.HasSuffix(host, ".visualstudio.com") {
+			organization := strings.TrimSuffix(host, ".visualstudio.com")
+			if len(parts) == 3 && parts[1] == "_git" {
+				return azureBrowserLink(organization, parts[0], parts[2], branch)
+			}
+			if len(parts) == 4 && parts[0] == "v3" {
+				return azureBrowserLink(parts[1], parts[2], parts[3], branch)
+			}
+		}
+	}
+	return BrowserLink{}
+}
+
+func parseRemoteAddress(remote string) (host, remotePath string) {
+	if strings.Contains(remote, "://") {
+		parsed, err := url.Parse(remote)
+		if err != nil {
+			return "", ""
+		}
+		return strings.ToLower(parsed.Hostname()), parsed.Path
+	}
+
+	address := remote
+	if at := strings.LastIndex(address, "@"); at >= 0 {
+		address = address[at+1:]
+	}
+	colon := strings.Index(address, ":")
+	if colon < 0 || strings.Contains(address[:colon], "/") {
+		return "", ""
+	}
+	return strings.ToLower(address[:colon]), address[colon+1:]
+}
+
+func azureBrowserLink(organization, project, repository, branch string) BrowserLink {
+	path := escapeURLPath([]string{organization, project, "_git", repository})
+	query := url.Values{"version": {"GB" + branch}}.Encode()
+	return BrowserLink{Provider: "azuredevops", URL: "https://dev.azure.com/" + path + "?" + query}
+}
+
+func escapeURLPath(parts []string) string {
+	escaped := make([]string, len(parts))
+	for index, part := range parts {
+		escaped[index] = url.PathEscape(part)
+	}
+	return strings.Join(escaped, "/")
+}
+
 func ReadDiff(root, filePath string, originalPaths ...string) (Diff, error) {
 	gitPath, repoRoot, err := checkedRepository(root)
 	if err != nil {
@@ -355,8 +573,15 @@ func ReadDiff(root, filePath string, originalPaths ...string) (Diff, error) {
 			return Diff{}, err
 		}
 	}
-	heading := "HEAD:" + filepath.ToSlash(headPath)
-	if _, err := runGit(gitPath, repoRoot, "rev-parse", "--verify", "HEAD"); err == nil {
+	baseRef := "HEAD"
+	if len(originalPaths) > 1 && strings.TrimSpace(originalPaths[1]) != "" {
+		baseRef, err = checkedLocalBranch(gitPath, repoRoot, originalPaths[1])
+		if err != nil {
+			return Diff{}, err
+		}
+	}
+	heading := baseRef + ":" + filepath.ToSlash(headPath)
+	if _, err := runGit(gitPath, repoRoot, "rev-parse", "--verify", baseRef); err == nil {
 		original, showErr := runGit(gitPath, repoRoot, "show", heading)
 		if showErr == nil {
 			if len(original) > maxDiffBytes {
