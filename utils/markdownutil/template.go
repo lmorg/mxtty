@@ -12,6 +12,7 @@ func TemplateFuncMap() template.FuncMap {
 	return template.FuncMap{
 		"escapeMarkdown":    EscapeMarkdownText,
 		"markdownCodeBlock": MarkdownCodeBlock,
+		"markdownTableCode": MarkdownTableCode,
 		"add":               Add,
 	}
 }
@@ -72,4 +73,26 @@ func MarkdownCodeBlock(value string, language ...string) string {
 
 func Add(value, amount int) int {
 	return value + amount
+}
+
+// Table rows must stay on one line, so newlines become &#10; and Markdown syntax is entity-encoded.
+var markdownTableCodeEscaper = strings.NewReplacer(
+	"&", "&amp;",
+	"<", "&lt;",
+	">", "&gt;",
+	"|", "&#124;",
+	"\\", "&#92;",
+	"`", "&#96;",
+	"*", "&#42;",
+	"_", "&#95;",
+	"~", "&#126;",
+	"[", "&#91;",
+	"]", "&#93;",
+	"$", "&#36;",
+	"\r", "",
+	"\n", "&#10;",
+)
+
+func MarkdownTableCode(value string) string {
+	return "<pre><code>" + markdownTableCodeEscaper.Replace(value) + "</code></pre>"
 }

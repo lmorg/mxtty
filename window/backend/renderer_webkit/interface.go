@@ -395,8 +395,11 @@ func (wr *webkitRender) GetWindowContext() context.Context {
 	return wr.wapp
 }
 
-func (wr *webkitRender) DisplayMarkdownModel(markdownContent string) {
-	runtime.EventsEmit(wr.wapp, "showMarkdownModal", markdownContent)
+func (wr *webkitRender) DisplayMarkdownModel(id, markdownContent string) {
+	runtime.EventsEmit(wr.wapp, "showMarkdownModal", map[string]string{
+		"id":       id,
+		"markdown": markdownContent,
+	})
 }
 
 func (wr *webkitRender) ShowTooltip(text string) {

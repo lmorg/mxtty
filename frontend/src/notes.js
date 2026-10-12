@@ -2,7 +2,7 @@ import {
     GetWindowStyle, GetNotesMaxLogLines, GetNotesColumnWidths, SetNotesColumnWidths, GetFile,
     GetGitStatus, RefreshGitStatus, GetGitDiff, StageGitFile, UnstageGitFile,
     ListGitWorktrees, ListGitBranches, GetDefaultGitWorktreePath, CreateGitWorktree,
-    SwitchGitWorktree, RemoveGitWorktree,
+    SwitchGitWorktree, RemoveGitWorktree, ShowGitWorktreeInfo,
     NotesTableSort, NotesTableClearSort, NotesTableFilter, NotesTableReconcile, NotesTableRestore, NotesTableSetGraph, NotesTableRenderGraph, NotesTableDisposeAll,
     GetNotesStructViewMaxSizeKB,
     GetNotesContext, GetNotesFilesSnapshot, SaveFile, SaveBinaryFile, DeleteFile, RenameFile,
@@ -51,6 +51,7 @@ import { createEditorUndoManager } from './editor_undo_manager';
 import { createEditorMutationAdapter } from './editor_mutation_adapter';
 import { createMonacoAdapter, createMonacoDiffAdapter } from './monaco_adapter';
 import { initNotesGitPanel } from './notes-git-panel.js';
+import { initMarkdownModal } from './markdown-modal';
 import './notes.css';
 
 import { marked } from "marked";
@@ -3843,12 +3844,12 @@ function collectTableColumnWidths(table) {
     });
 }
 
-async function setupTableColumnResizing(container, wrapped, filename = state.currentFile) {
+async function setupTableColumnResizing(container, wrapped, filename = state.currentFile, viewNameOverride = '') {
     if (!container || filename === null) {
         return;
     }
 
-    const viewName = container === elements.preview
+    const viewName = viewNameOverride || (container === elements.preview
         ? 'view'
         : container === elements.jupyter
             ? 'run'
@@ -3856,7 +3857,7 @@ async function setupTableColumnResizing(container, wrapped, filename = state.cur
                 ? 'csv'
                 : container === elements.aiOutput
                     ? 'ai-panel'
-                    : String(state.viewMode || 'view');
+                    : String(state.viewMode || 'view'));
 
     const tables = Array.from(container.querySelectorAll('table'));
     for (const table of tables) {
@@ -15285,7 +15286,13 @@ notesGitPanel = initNotesGitPanel(elements, {
                         {
                             title: 'Info',
                             icon: 0xf129,
-                            onSelect: () => {}, // TODO: Add worktree info tomorrow.
+                            onSelect: async () => {
+                                try {
+                                    await ShowGitWorktreeInfo(root, worktree.path);
+                                } catch (error) {
+                                    notifyTerminal(String(error?.message || error), 'error');
+                                }
+                            },
                         },
                         {
                             title: 'Switch',
@@ -16314,6 +16321,19 @@ initRenderedNotesContextMenu(elements.swaggerRunWrap, 'swagger-run');
 initRenderedNotesContextMenu(lspHoverTooltipEl, 'viewer');
 initRenderedNotesContextMenu(lspTooltipEl, 'viewer');
 initAIOutputContextMenu(elements.aiOutput);
+
+// The caller's modal ID keys saved table state, as a file path does for documents.
+initMarkdownModal({
+    onTablesRendered: (container, { id, wrapped }) => {
+        void setupTableColumnResizing(container, wrapped, id, 'markdown-modal');
+        setupNotesTableQueries(container, 'markdown-modal', id);
+    },
+    tableMenuItems: (table) => [
+        createClearTableSortMenuItem(table),
+        createTableFilterMenuItem(table),
+        createTableGraphMenuItem(table),
+    ],
+});
 
 elements.csvView.addEventListener('contextmenu', (e) => {
     e.preventDefault();

@@ -2461,6 +2461,19 @@ func (a *WApp) RemoveGitWorktree(projectRoot, worktreePath string) error {
 	return err
 }
 
+func (a *WApp) ShowGitWorktreeInfo(projectRoot, worktreePath string) error {
+	renderer, ok := renderwebkit.CurrentRenderer()
+	if !ok {
+		return errors.New("Notes renderer is unavailable")
+	}
+	markdown, err := gitutils.RenderWorktreeInfo(projectRoot, worktreePath)
+	if err != nil {
+		return err
+	}
+	renderer.DisplayMarkdownModel("git-info:"+worktreePath, markdown)
+	return nil
+}
+
 func quoteShellArgument(value string) string {
 	return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'"
 }

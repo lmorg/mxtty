@@ -6,7 +6,6 @@ import { drawGauge } from './gauge';
 import { drawBlockChrome } from './block_chrome';
 import { initTerminalPopupMenu } from './popup_menu';
 import { initInputBox } from './inputbox';
-import { initMarkdownModal } from './markdown-modal';
 import { showFullscreenImageOverlay } from './fullscreen-image-overlay';
 import { bindSharedTooltipEvents, bindSharedTooltipMouseTracking, closeSharedTooltip } from './shared_tooltip';
 import { DARKEN_BACKGROUND_OVERLAY } from './style-utils';
@@ -1344,7 +1343,6 @@ GetWindowStyle().then((result) => {
 });
 
 initInputBox(canvas);
-initMarkdownModal();
 
 // ------------------------------------------------------------------
 // Notification overlay

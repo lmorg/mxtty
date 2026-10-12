@@ -41,8 +41,10 @@ The JS implementation also has behavioural quirks the SQL engine does not:
 columns sort nonsensically; and sorting by "number" on a text column silently
 produces an arbitrary order.
 
-The replacement engine is wired into four surfaces: the CSV view, markdown
-preview, Jupyter view and AI output panel.
+The replacement engine is wired into five surfaces: the CSV view, markdown
+preview, Jupyter view, AI output panel and the markdown modal. Notes owns the
+markdown modal; its tables persist state under the stable ID the Go caller
+supplies with the modal content (for example `git-info:<worktree path>`).
 
 `Copy table (Formatted)` copies only the current filtered rows in their display
 order. One Go clipboard write publishes an RTF table (`text/rtf`, mapped to

@@ -614,6 +614,10 @@ export function ShowCommandPalette() {
   return window['go']['main']['WApp']['ShowCommandPalette']();
 }
 
+export function ShowGitWorktreeInfo(arg1, arg2) {
+  return window['go']['main']['WApp']['ShowGitWorktreeInfo'](arg1, arg2);
+}
+
 export function ShowTooltip(arg1) {
   return window['go']['main']['WApp']['ShowTooltip'](arg1);
 }

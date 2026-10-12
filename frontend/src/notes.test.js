@@ -95,6 +95,7 @@ const getDefaultGitWorktreePathMock = vi.fn(() => Promise.resolve('/home/test/Do
 const createGitWorktreeMock = vi.fn(() => Promise.resolve({ path: '', branch: '' }));
 const switchGitWorktreeMock = vi.fn(() => Promise.resolve());
 const removeGitWorktreeMock = vi.fn(() => Promise.resolve());
+const showGitWorktreeInfoMock = vi.fn(() => Promise.resolve());
 const getFileMetaMarkdownMock = vi.fn(() => Promise.resolve([
     '# note.md',
     '',
@@ -200,6 +201,7 @@ vi.mock('../wailsjs/go/main/WApp', () => ({
     CreateGitWorktree: createGitWorktreeMock,
     SwitchGitWorktree: switchGitWorktreeMock,
     RemoveGitWorktree: removeGitWorktreeMock,
+    ShowGitWorktreeInfo: showGitWorktreeInfoMock,
     GetNotesContext: vi.fn(async () => ({
         projectRoot: await getCurrentProjectMock(),
         groupName: await getCurrentGroupNameMock(),
@@ -340,6 +342,8 @@ vi.mock('./markdown-utils.js', () => ({
     enableFullscreenImages: vi.fn(),
     notesAssetURL: vi.fn((path) => `/__asset?path=${encodeURIComponent(path)}`),
     applySyntaxHighlighting: vi.fn(),
+    renderMermaidDiagrams: vi.fn(),
+    processWailsImages: vi.fn(),
     processLinks: vi.fn(),
     autoHyperlink: vi.fn(),
 }));
@@ -503,6 +507,7 @@ describe('notes rendering', () => {
         createGitWorktreeMock.mockReset();
         switchGitWorktreeMock.mockReset();
         removeGitWorktreeMock.mockReset();
+        showGitWorktreeInfoMock.mockReset();
         getFileMetaMarkdownMock.mockReset();
         resolveFilePathMock.mockReset();
         resolveNotesLspLanguageMock.mockReset();
@@ -588,6 +593,7 @@ describe('notes rendering', () => {
         createGitWorktreeMock.mockResolvedValue({ path: '', branch: '' });
         switchGitWorktreeMock.mockResolvedValue();
         removeGitWorktreeMock.mockResolvedValue();
+        showGitWorktreeInfoMock.mockResolvedValue();
         getFileMetaMarkdownMock.mockResolvedValue([
             '# note.md',
             '',
@@ -4888,6 +4894,8 @@ describe('notes rendering', () => {
         expect(actionMenu.options).toEqual(['Info', 'Switch', 'Remove']);
         expect(actionMenu.icons).toEqual([0xf129, 0xf204, 0xf2ed]);
         actionMenu.onSelect(0);
+        await flushPromises();
+        expect(showGitWorktreeInfoMock).toHaveBeenCalledWith('/workspace/repo', '/workspace/worktrees/zeta');
         expect(switchGitWorktreeMock).not.toHaveBeenCalled();
         actionMenu.onSelect(1);
         await flushPromises();
@@ -6676,6 +6684,32 @@ describe('notes rendering', () => {
 
             const surfaces = notesTableReconcileMock.mock.calls.map(([surface]) => surface);
             expect(new Set(surfaces).size).toBeGreaterThan(1);
+        });
+
+        it('applies the Notes table tools to markdown modal tables using the caller ID', async () => {
+            await importNotesModule();
+            getNotesColumnWidthsMock.mockClear();
+
+            getEventHandler('showMarkdownModal')({
+                id: 'git-info:/repo/worktree',
+                markdown: '| Name | Count |\n| --- | --- |\n| beta | 2 |\n| alpha | 10 |',
+            });
+            await flushPromises();
+            await flushPromises();
+
+            const table = document.querySelector('#markdown-modal-body table');
+            expect(table.querySelector('.notes-table-col-resize-handle')).not.toBeNull();
+            expect(getNotesColumnWidthsMock).toHaveBeenCalledWith(
+                'git-info:/repo/worktree', 'markdown-modal', ['Name', 'Count'], true,
+            );
+            expect(notesTableReconcileMock).toHaveBeenCalledWith('markdown-modal', 'git-info:/repo/worktree', [0]);
+
+            notesTableSortMock.mockClear();
+            table.querySelector('thead th').click();
+            await flushPromises();
+            expect(notesTableSortMock).toHaveBeenCalledWith(expect.objectContaining({
+                key: { surface: 'markdown-modal', document: 'git-info:/repo/worktree', index: 0 },
+            }), 1);
         });
     });
 

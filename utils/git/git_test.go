@@ -268,6 +268,31 @@ func TestRemoveWorktreePreservesBranch(t *testing.T) {
 	}
 }
 
+func TestRenderWorktreeInfoKeepsMultilineDiffInOneTableRow(t *testing.T) {
+	root := initGitTestRepo(t)
+	if err := os.WriteFile(filepath.Join(root, "tracked file.txt"), []byte("head contents\nnew | <line>\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	markdown, err := RenderWorktreeInfo(root, root)
+	if err != nil {
+		t.Fatalf("RenderWorktreeInfo() error = %v", err)
+	}
+	if !strings.Contains(markdown, "| tracked file\\.txt | <pre><code>diff --git") {
+		t.Fatalf("RenderWorktreeInfo() missing diff table row:\n%s", markdown)
+	}
+	if !strings.Contains(markdown, "&#10;+new &#124; &lt;line&gt;</code></pre> |") {
+		t.Fatalf("RenderWorktreeInfo() did not encode multiline diff:\n%s", markdown)
+	}
+	for _, line := range strings.Split(markdown, "\n") {
+		if strings.HasPrefix(line, "| tracked file\\.txt |") && !strings.HasSuffix(line, "</code></pre> |") {
+			t.Fatalf("diff row was split across lines: %q", line)
+		}
+	}
+	if !strings.Contains(markdown, "git version") {
+		t.Fatalf("RenderWorktreeInfo() missing Git version:\n%s", markdown)
+	}
+}
+
 func TestRemoveWorktreeRejectsDirtyWorkingTreeWithoutForce(t *testing.T) {
 	root := initGitTestRepo(t)
 	gitPath, err := exec.LookPath("git")

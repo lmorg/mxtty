@@ -65,7 +65,7 @@ func (directoryTestRenderer) DisplayMenu(string, []string, types.MenuCallbackT, 
 }
 func (directoryTestRenderer) NewContextMenu() types.ContextMenu           { return nil }
 func (directoryTestRenderer) AddToContextMenu(...types.MenuItem)          {}
-func (directoryTestRenderer) DisplayMarkdownModel(string)                 {}
+func (directoryTestRenderer) DisplayMarkdownModel(string, string)         {}
 func (directoryTestRenderer) ShowTooltip(string)                          {}
 func (directoryTestRenderer) CloseTooltip()                               {}
 func (directoryTestRenderer) ResizeWindow(*types.XY)                      {}

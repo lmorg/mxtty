@@ -101,7 +101,8 @@ type Renderer interface {
 	DisplayMenu(title string, items []string, highlight MenuCallbackT, ok MenuCallbackT, cancel MenuCallbackT)
 	NewContextMenu() ContextMenu
 	AddToContextMenu(...MenuItem)
-	DisplayMarkdownModel(string)
+	// id identifies the modal's content so its table preferences can be restored.
+	DisplayMarkdownModel(id, markdown string)
 	ShowTooltip(text string)
 	CloseTooltip()
 	ResizeWindow(*XY)

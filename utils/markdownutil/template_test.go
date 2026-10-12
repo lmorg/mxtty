@@ -23,6 +23,14 @@ func TestMarkdownCodeBlockUsesFenceLongerThanInput(t *testing.T) {
 	}
 }
 
+func TestMarkdownTableCodeKeepsMultilineValueInOneCell(t *testing.T) {
+	got := MarkdownTableCode("+a | <b>\r\n-`c`")
+	want := "<pre><code>+a &#124; &lt;b&gt;&#10;-&#96;c&#96;</code></pre>"
+	if got != want {
+		t.Fatalf("MarkdownTableCode() = %q, want %q", got, want)
+	}
+}
+
 func TestTemplateFuncMap(t *testing.T) {
 	tmpl, err := template.New("description").Funcs(TemplateFuncMap()).Parse("{{ escapeMarkdown . }}\n{{ markdownCodeBlock . }}")
 	if err != nil {
