@@ -14,6 +14,30 @@ export namespace git {
 	        this.url = source["url"];
 	    }
 	}
+	export class Commit {
+	    hash: string;
+	    fullHash: string;
+	    subject: string;
+	    message: string;
+	    date: string;
+	    author: string;
+	    graph: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new Commit(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.hash = source["hash"];
+	        this.fullHash = source["fullHash"];
+	        this.subject = source["subject"];
+	        this.message = source["message"];
+	        this.date = source["date"];
+	        this.author = source["author"];
+	        this.graph = source["graph"];
+	    }
+	}
 	export class Diff {
 	    path: string;
 	    original: string;

@@ -282,6 +282,10 @@ export function ListGitBranches(arg1) {
   return window['go']['main']['WApp']['ListGitBranches'](arg1);
 }
 
+export function ListGitCommits(arg1, arg2) {
+  return window['go']['main']['WApp']['ListGitCommits'](arg1, arg2);
+}
+
 export function ListGitWorktrees(arg1) {
   return window['go']['main']['WApp']['ListGitWorktrees'](arg1);
 }

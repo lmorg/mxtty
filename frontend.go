@@ -2317,6 +2317,10 @@ func (a *WApp) GetGitBrowserLink(projectRoot, branch string) (gitutils.BrowserLi
 	return gitutils.RemoteBrowserLink(projectRoot, branch)
 }
 
+func (a *WApp) ListGitCommits(projectRoot string, limit int) ([]gitutils.Commit, error) {
+	return gitutils.ListCommits(projectRoot, limit)
+}
+
 func (a *WApp) RefreshGitStatus(projectRoot string) (gitutils.Status, error) {
 	return a.refreshGitStatus(projectRoot)
 }

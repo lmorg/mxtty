@@ -1189,6 +1189,22 @@ body {
     padding-right: 5px;
 }
 
+#notes-commits-list {
+    overflow: auto;
+    flex: 1;
+    min-height: 0;
+    font-family: var(--font-family);
+    font-size: var(--notes-font-size);
+    line-height: 1.25;
+    padding-right: 5px;
+}
+
+#notes-list[hidden],
+#notes-commits-list[hidden],
+#notes-list-filter-wrap[hidden] {
+    display: none;
+}
+
 .notes-category-header {
     display: flex;
     align-items: center;
@@ -1886,6 +1902,95 @@ body {
     min-height: 0;
     overflow: auto;
     padding: 4px 8px 12px;
+}
+
+.notes-git-commits-toggle[aria-pressed="true"] {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: rgba(var(--selection-rgb), 0.22);
+}
+
+.notes-find-files-item.notes-git-commit {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    padding: 0;
+    gap: 0;
+    min-height: 72px;
+    border-bottom: 0;
+    cursor: pointer;
+    overflow: hidden;
+    isolation: isolate;
+}
+
+.notes-git-commit-graph {
+    grid-area: 1 / 1;
+    justify-self: start;
+    width: var(--git-graph-width);
+    height: 100%;
+    min-height: 72px;
+    color: var(--yellow);
+    fill: currentColor;
+    pointer-events: all;
+    -webkit-mask-image: linear-gradient(to right, black var(--git-overlap-start, 100%), rgba(0, 0, 0, 0.7) var(--git-overlap-start, 100%));
+    mask-image: linear-gradient(to right, black var(--git-overlap-start, 100%), rgba(0, 0, 0, 0.7) var(--git-overlap-start, 100%));
+}
+
+.notes-git-commit:has(.notes-git-commit-content:hover) .notes-git-commit-graph {
+    opacity: 0.2;
+    -webkit-mask-image: none;
+    mask-image: none;
+}
+
+.notes-git-commit-graph:hover + .notes-git-commit-content {
+    opacity: 0.2;
+}
+
+.notes-git-commit-content {
+    grid-area: 1 / 1;
+    justify-self: end;
+    width: max-content;
+    width: max(70%, calc(100% - var(--git-graph-width) - 8px));
+    position: relative;
+    z-index: 1;
+    min-width: 0;
+    padding: 6px 8px 6px 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    overflow-wrap: anywhere;
+}
+
+.notes-git-commit-hash {
+    color: var(--accent);
+    font-size: var(--notes-font-size);
+}
+
+.notes-git-commit-filtered .notes-git-commit-graph {
+    display: none;
+}
+
+.notes-git-commit-filtered .notes-git-commit-content {
+    width: 100%;
+    justify-self: stretch;
+    padding-left: 8px;
+}
+
+.notes-git-commit-subject {
+    color: var(--fg);
+    font-family: "Lato", var(--font-family), sans-serif;
+    letter-spacing: 1px;
+    word-spacing: 2px;
+    font-size: var(--notes-font-size-minus-2);
+}
+
+.notes-git-commit-meta {
+    color: rgba(var(--fg-rgb), 0.5);
+    font-size: var(--notes-font-size-minus-2);
+}
+
+.notes-git-commits-more {
+    margin: 8px;
 }
 
 .notes-git-branch {

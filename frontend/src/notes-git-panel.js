@@ -42,6 +42,15 @@ export function initNotesGitPanel(elements, api, options = {}) {
     let requestGeneration = 0;
     let currentStatus = null;
     let compareBranch = '';
+    let compareLabel = '';
+    let commitsActive = false;
+    let historyRequest = 0;
+    let historyLimit = 100;
+    let historyLayoutObserver = null;
+    let historyFilter = '';
+    let historySnapshot = null;
+    let historySnapshotLimit = 0;
+    let historyLoad = null;
     let watchActive = false;
     let remoteRequest = 0;
     const statusCache = new Map();
@@ -56,18 +65,19 @@ export function initNotesGitPanel(elements, api, options = {}) {
     const setAvailable = (available) => {
         elements.gitTab.style.display = available ? '' : 'none';
         if (!available) {
+            historyRequest++;
             elements.gitPane.dataset.active = 'false';
             elements.gitTab.setAttribute('aria-selected', 'false');
         }
         options.onAvailabilityChange?.(available);
     };
 
-    const showMessage = (message, kind = 'info') => {
-        elements.gitFileList.replaceChildren();
+    const showMessage = (message, kind = 'info', target = elements.gitFileList) => {
+        target.replaceChildren();
         const item = document.createElement('div');
         item.className = `notes-git-message notes-git-message-${kind}`;
         item.textContent = message;
-        elements.gitFileList.appendChild(item);
+        target.appendChild(item);
     };
 
     const hideRemoteLink = () => {
@@ -108,7 +118,7 @@ export function initNotesGitPanel(elements, api, options = {}) {
         currentStatus = status;
         syncStatusWatch();
         void updateRemoteLink(status, projectRoot);
-        elements.gitCompare.textContent = compareBranch || 'HEAD';
+        elements.gitCompare.textContent = compareLabel || compareBranch || 'HEAD';
         statusCache.set(rootKey(projectRoot), { status: cachedStatus });
         elements.gitWorkspace.textContent = 'Worktrees';
         elements.gitWorkspace.dataset.tooltip = status.root || projectRoot;
@@ -117,8 +127,12 @@ export function initNotesGitPanel(elements, api, options = {}) {
             status.ahead > 0 ? `↑${status.ahead}` : '',
             status.behind > 0 ? `↓${status.behind}` : '',
         ].filter(Boolean).join(' ');
-        elements.gitFileList.replaceChildren();
         options.onStatusChange?.(status, projectRoot);
+
+        if (commitsActive) {
+            void renderCommits(true);
+        }
+        elements.gitFileList.replaceChildren();
 
         if (status.clean || !status.files?.length) {
             showMessage('Working tree clean');
@@ -170,6 +184,157 @@ export function initNotesGitPanel(elements, api, options = {}) {
         }
         elements.gitFileList.appendChild(fragment);
     };
+
+    const loadCommits = (root, limit, force) => {
+        if (!force && historySnapshot && historySnapshotLimit >= limit) {
+            return Promise.resolve(historySnapshot.slice(0, limit));
+        }
+        if (!force && historyLoad?.root === root && historyLoad.limit >= limit) {
+            return historyLoad.promise.then((commits) => commits.slice(0, limit));
+        }
+        const load = { root, limit };
+        load.promise = api.listCommits(root, limit).then((commits) => {
+            if (historyLoad === load && root === projectRoot) {
+                historySnapshot = commits;
+                historySnapshotLimit = limit;
+            }
+            return commits;
+        }).finally(() => {
+            if (historyLoad === load) historyLoad = null;
+        });
+        historyLoad = load;
+        return load.promise;
+    };
+
+    const renderCommits = async (force = false) => {
+        const request = ++historyRequest;
+        const root = projectRoot;
+        try {
+            const query = historyFilter.trim();
+            const limit = query ? 10000 : historyLimit;
+            const commits = await loadCommits(root, limit, force);
+            if (request !== historyRequest || !commitsActive || root !== projectRoot) {
+                return;
+            }
+            historyLayoutObserver?.disconnect();
+            historyLayoutObserver = null;
+            if (!commits.length) {
+                showMessage('No commits', 'info', elements.gitCommitList);
+                return;
+            }
+            const searchText = (commit) => `${commit.fullHash || commit.hash}\n${commit.message || commit.subject}`;
+            let matches = null;
+            if (query) {
+                const result = await api.filterStrings(query, commits.map(searchText));
+                if (request !== historyRequest || !commitsActive || root !== projectRoot) return;
+                matches = new Set(result?.Error ? [] : result?.List || []);
+                if (!matches.size) {
+                    showMessage('No matching commits', 'info', elements.gitCommitList);
+                    return;
+                }
+            }
+            const width = Math.max(2, ...commits.flatMap((commit) => commit.graph.map((line) => line.length))) * 8;
+            const fragment = document.createDocumentFragment();
+            const historyRows = [];
+            for (const [commitIndex, commit] of commits.entries()) {
+                if (matches && !matches.has(searchText(commit))) continue;
+                const row = document.createElement('div');
+                row.className = 'notes-find-files-item notes-git-commit';
+                row.classList.toggle('notes-git-commit-filtered', Boolean(query));
+                row.setAttribute('role', 'listitem');
+                row.tabIndex = 0;
+                row.setAttribute('aria-label', `Compare against commit ${commit.hash}: ${commit.subject}`);
+                const selectCommit = () => {
+                    void setCompareBranch(commit.fullHash || commit.hash, commit.hash);
+                };
+                row.addEventListener('click', selectCommit);
+                row.addEventListener('contextmenu', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    options.showCommitMenu?.({
+                        root, commit, x: event.clientX, y: event.clientY, compare: selectCommit,
+                    });
+                });
+                row.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        selectCommit();
+                    }
+                });
+                row.style.setProperty('--git-graph-width', `${width}px`);
+                row.appendChild(commitGraph(commit.graph, width, commits[commitIndex - 1]?.graph.at(-1), commits[commitIndex + 1]?.graph[0]));
+                const content = document.createElement('div');
+                content.className = 'notes-git-commit-content';
+                for (const [className, text] of [
+                    ['notes-git-commit-hash', commit.hash],
+                    ['notes-git-commit-subject', commit.subject],
+                    ['notes-git-commit-meta', commit.date],
+                    ['notes-git-commit-meta', `(${commit.author})`],
+                ]) {
+                    const line = document.createElement('div');
+                    line.className = className;
+                    line.textContent = text;
+                    content.appendChild(line);
+                }
+                row.appendChild(content);
+                fragment.appendChild(row);
+                historyRows.push(row);
+            }
+            if (!query && commits.length === historyLimit && historyLimit < 10000) {
+                const more = document.createElement('button');
+                more.type = 'button';
+                more.className = 'notes-tools-clear notes-git-commits-more';
+                more.textContent = 'Load more';
+                more.addEventListener('click', () => {
+                    historyLimit += 100;
+                    void renderCommits();
+                });
+                fragment.appendChild(more);
+            }
+            elements.gitCommitList.replaceChildren(fragment);
+            const updateOverlap = (row) => {
+                const graph = row.querySelector('.notes-git-commit-graph');
+                const content = row.querySelector('.notes-git-commit-content');
+                const bounds = graph.getBoundingClientRect();
+                if (bounds.width > 0) {
+                    row.style.setProperty('--git-overlap-start', `${Math.max(0, content.getBoundingClientRect().left - bounds.left)}px`);
+                }
+            };
+            for (const row of historyRows) updateOverlap(row);
+            if (!query && typeof ResizeObserver === 'function') {
+                historyLayoutObserver = new ResizeObserver((entries) => {
+                    for (const entry of entries) updateOverlap(entry.target);
+                });
+                for (const row of historyRows) historyLayoutObserver.observe(row);
+            }
+        } catch (error) {
+            if (request === historyRequest && commitsActive && root === projectRoot) {
+                showMessage(String(error?.message || error), 'error', elements.gitCommitList);
+            }
+        }
+    };
+
+    const setCommitsActive = (active) => {
+        const next = active === true;
+        if (next === commitsActive) {
+            return;
+        }
+        commitsActive = next;
+        historyLayoutObserver?.disconnect();
+        historyLayoutObserver = null;
+        historyRequest++;
+        historyLimit = 100;
+        elements.gitCommits?.setAttribute('aria-pressed', String(commitsActive));
+        options.onCommitsChange?.(commitsActive);
+        if (commitsActive) {
+            historyFilter = options.getCommitFilter?.() ?? historyFilter;
+            void renderCommits(true);
+        } else if (currentStatus) {
+            renderStatus(currentStatus, statusCache.get(rootKey(projectRoot))?.status || currentStatus);
+        }
+    };
+
+    elements.gitCommits?.addEventListener('click', () => setCommitsActive(!commitsActive));
 
     const refresh = async (force = true) => {
         const generation = ++requestGeneration;
@@ -236,7 +401,18 @@ export function initNotesGitPanel(elements, api, options = {}) {
             return true;
         }
         projectRoot = nextRoot;
+        historySnapshot = null;
+        historySnapshotLimit = 0;
+        historyLoad = null;
+        historyLayoutObserver?.disconnect();
+        historyLayoutObserver = null;
+        commitsActive = false;
+        historyRequest++;
+        historyLimit = 100;
+        elements.gitCommits?.setAttribute('aria-pressed', 'false');
+        options.onCommitsChange?.(false);
         compareBranch = '';
+        compareLabel = '';
         elements.gitCompare.textContent = 'HEAD';
         currentStatus = null;
         syncStatusWatch();
@@ -260,13 +436,14 @@ export function initNotesGitPanel(elements, api, options = {}) {
         }
     });
 
-    const setCompareBranch = async (branch) => {
+    const setCompareBranch = async (branch, label = branch) => {
         const nextBranch = String(branch || '').trim();
         if (nextBranch === compareBranch) {
             return true;
         }
         compareBranch = nextBranch;
-        elements.gitCompare.textContent = compareBranch || 'HEAD';
+        compareLabel = String(label || '').trim();
+        elements.gitCompare.textContent = compareLabel || compareBranch || 'HEAD';
         return refresh(true);
     };
 
@@ -408,6 +585,12 @@ export function initNotesGitPanel(elements, api, options = {}) {
         refresh,
         setProjectRoot,
         setCompareBranch,
+        setCommitsActive,
+        isCommitsActive: () => commitsActive,
+        setCommitFilter(query) {
+            historyFilter = String(query || '');
+            if (commitsActive) return renderCommits();
+        },
         getCompareBranch: () => compareBranch,
         setWatchActive(active) {
             watchActive = active === true;
@@ -428,6 +611,95 @@ export function initNotesGitPanel(elements, api, options = {}) {
             return openFileDiff(file);
         },
     };
+}
+
+function graphConnections(upper, lower) {
+    if (!upper || !lower) {
+        return [];
+    }
+    const connections = [];
+    const isLane = (character) => Boolean(character && '|*/\\.'.includes(character));
+    for (const [column, character] of [...upper].entries()) {
+        if (character !== '/' && character !== '\\') {
+            continue;
+        }
+        const direction = character === '\\' ? 1 : -1;
+        const opposite = character === '\\' ? '/' : '\\';
+        const continuing = [column + direction, column + 2 * direction]
+            .find((position) => position >= 0 && lower[position] === character);
+        const target = lower[column] === opposite
+            ? column
+            : continuing ?? [column + direction, column + 2 * direction, column]
+                .find((position) => position >= 0 && isLane(lower[position]));
+        if (target !== undefined) {
+            connections.push({ from: column, to: target });
+        }
+    }
+    for (const [column, character] of [...upper].entries()) {
+        if (!character || !'|*.'.includes(character)) {
+            continue;
+        }
+        const direct = Boolean(lower[column] && '|*.'.includes(lower[column]));
+        if (direct) {
+            connections.push({ from: column, to: column });
+        }
+        if (!direct || character === '*' || character === '.') {
+            if (lower[column + 1] === '\\' && !connections.some((edge) => edge.to === column + 1)) {
+                connections.push({ from: column, to: column + 1 });
+            }
+        }
+        if (lower[column - 1] === '/' && !connections.some((edge) => edge.to === column - 1)) {
+            connections.push({ from: column, to: column - 1 });
+        }
+    }
+    return connections;
+}
+
+function commitGraph(lines, width, previousLine, nextLine) {
+    const namespace = 'http://www.w3.org/2000/svg';
+    const graph = document.createElementNS(namespace, 'svg');
+    graph.classList.add('notes-git-commit-graph');
+    graph.setAttribute('viewBox', `0 0 ${width} 72`);
+    graph.setAttribute('preserveAspectRatio', 'none');
+    graph.setAttribute('aria-hidden', 'true');
+    const step = 72 / Math.max(1, lines.length);
+    const paths = [];
+    const laneX = (column) => column * 8 + 4;
+    for (const edge of graphConnections(previousLine, lines[0])) {
+        const boundary = (laneX(edge.from) + laneX(edge.to)) / 2;
+        paths.push(`M ${boundary} 0 L ${laneX(edge.to)} ${step / 2}`);
+    }
+    for (const [rowIndex, line] of lines.entries()) {
+        const middle = (rowIndex + 0.5) * step;
+        const following = lines[rowIndex + 1] ?? nextLine;
+        for (const edge of graphConnections(line, following)) {
+            const destinationX = rowIndex + 1 < lines.length
+                ? laneX(edge.to)
+                : (laneX(edge.from) + laneX(edge.to)) / 2;
+            const destinationY = rowIndex + 1 < lines.length ? middle + step : 72;
+            paths.push(`M ${laneX(edge.from)} ${middle} L ${destinationX} ${destinationY}`);
+        }
+        for (const [column, character] of [...line].entries()) {
+            if (character === '*') {
+                const node = document.createElementNS(namespace, 'circle');
+                node.setAttribute('cx', String(laneX(column)));
+                node.setAttribute('cy', String(middle));
+                node.setAttribute('r', '3');
+                graph.appendChild(node);
+            }
+            if ((character === '-' || character === '_') && line[column - 1] && line[column + 1]) {
+                paths.push(`M ${laneX(column - 1)} ${middle} H ${laneX(column + 1)}`);
+            }
+        }
+    }
+    const path = document.createElementNS(namespace, 'path');
+    path.setAttribute('d', paths.join(' '));
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke', 'currentColor');
+    path.setAttribute('stroke-width', '1');
+    path.setAttribute('vector-effect', 'non-scaling-stroke');
+    graph.prepend(path);
+    return graph;
 }
 
 function createAction(label, action, path, tooltip) {

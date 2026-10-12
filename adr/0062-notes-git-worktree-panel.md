@@ -27,6 +27,9 @@ Git is unavailable.
   Git tab is deselected. Watch metadata writes as well as entry creation/removal,
   but exclude object, hook, and reflog trees. Ordinary working-tree file changes
   continue to refresh status through the Notes file-index watcher.
+- Run panel status reads with `git --no-optional-locks status` so Git does not
+  persist optional index refreshes and retrigger its own metadata watcher.
+  Stage/unstage and worktree mutations retain their normal locking behavior.
 - Enable the Tools Git tab only when the current project root is exactly a Git
   working-tree root and the host has a `git` executable. Accept both `.git`
   directories and worktree `.git` files. The Worktree menu lists all worktrees
@@ -44,16 +47,69 @@ Git is unavailable.
   untracked.
 - Start creation from Notes asynchronously. Close the modal immediately, create
   a sticky `Creating worktree` terminal notification before invoking Git, and
-  close that notification when the Git operation completes. Report failures as
+  invoke the Worktrees menu's Switch action after successful creation, using the
+  returned canonical path. Both dialog and commit-menu creation use this shared
+  flow; close the notification after switching completes. Report failures as
   terminal error notifications.
 - Removing a worktree removes only its working directory/registration and never
   deletes its branch. Do not force removal; let Git reject dirty worktrees.
 - Render branch state, ahead/behind counts, and changed paths in the Git pane.
+  The `Commits` toggle is the first right-aligned Git toolbar item, before
+  Worktrees. It replaces the left sidebar file tree
+  with topologically ordered history, while Tools continues to show Git status.
+  Keep the shared file/grep filter visible during history mode. Use the same
+  `FilterStrings` query language against full commit hashes and complete messages,
+  including message bodies, while still displaying short hashes and subjects.
+  A non-empty history filter hides the graph and uses the full sidebar width for
+  commit text. Clearing it restores the unfiltered graph and text positioning.
+  Search a cached window of up to 10,000 commits; repeated queries reuse it,
+  with request guards rejecting stale filter results. Restore file/grep filtering
+  on history exit; keep the file tree mounted and updated in the background.
+  History includes only commits reachable from the checked-out worktree's HEAD,
+  including merged ancestry, not unrelated branches, remote refs, or tags.
+  Detached HEAD uses its own ancestry; an unborn branch shows no commits.
+  Go reads Git's graph layout and
+  NUL-delimited short hash, first-line subject, author date/time, and author name;
+  display the parenthesized author on a separate line below the date/time.
+  the frontend draws the graph with the project tree's one-pixel lines in theme
+  yellow. Only the portion behind the text is masked to 0.7 alpha; hovering text
+  dims its graph to 0.2 opacity, while hovering exposed graph dims its text by
+  the same factor. A row resize observer keeps the overlap mask aligned and is
+  disconnected when history is replaced, hidden, or its project changes. The renderer
+  connects lanes using adjacent graph lines rather than fixed slash offsets.
+  Adjacent commit SVGs share boundary coordinates, so expanding/collapsing lanes
+  remain continuous even when commit text makes rows different heights. Merge
+  dots connect to subsequent lanes instead of being drawn as horizontal dashes.
+  Opposite-direction slashes in the same column retain that lane. Leftward
+  collapse connectors are kept even where a vertical continuation also exists;
+  tests verify lane coverage, not just matching endpoints between commit rows.
+  Same-direction diagonal continuations take precedence over adjacent vertical
+  rails. Route diagonals first so crossing rails cannot create a second, false
+  input to a slash that already continues from another slash.
+  The graph is anchored to the left while commit text is anchored to the right. Wide graphs
+  may overlap text; text is painted above the graph and retains up to 70% of the
+  list width (or its natural width, if smaller), using more space when available.
+  Commit rows use the grep-result hover style. Commit subjects use the Markdown paragraph
+  font (Lato) at the Notes minus-two
+  font size. Load 100 commits initially, with explicit
+  Load more batches up to 10,000. Turning the toggle off restores files. Workspace
+  changes reset the toggle, including workspaces sharing the same project root.
   A left-side comparison selector defaults to `HEAD`; local branches are listed
   alphabetically with the checked-out branch omitted. Selecting another branch
   changes only the diff base, never the checked-out branch. In that mode the
   file list contains paths differing from the selected branch plus untracked
   working-tree files, and each file diff uses that branch as its original side.
+  Clicking a history commit (or pressing Enter/Space on its row) selects that
+  commit through the same comparison handler as the branch menu. The selector
+  shows its short hash; comparison APIs use its validated full commit ID.
+  This refreshes the file list and diff base without checking out the commit.
+  Right-clicking a history row opens a menu titled with its short hash: Copy
+  commit hash, separator, Compare commit, Create worktree. Copy uses the full
+  hash; Compare uses icon `0xe13a` and invokes the left-click handler. Create worktree targets the
+  commit in detached mode at the default worktree directory plus its short hash,
+  while Git still receives the full hash. Detached worktree menu labels use
+  Git's short abbreviation of their HEAD instead of `detached HEAD`,
+  reusing the dialog's shared notification-and-creation handler and Wails binding.
   Show a provider-brand button before Refresh only for GitHub, Azure DevOps,
   GitLab, or Bitbucket origins. Resolve HTTPS browser URLs in Go using the
   origin and current branch; open them through the system browser. Hide the

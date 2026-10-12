@@ -150,6 +150,8 @@ export function ListFilesForContext(arg1:notes.FileContext):Promise<Array<string
 
 export function ListGitBranches(arg1:string):Promise<Array<string>>;
 
+export function ListGitCommits(arg1:string,arg2:number):Promise<Array<git.Commit>>;
+
 export function ListGitWorktrees(arg1:string):Promise<Array<git.Worktree>>;
 
 export function Log(arg1:string):Promise<void>;

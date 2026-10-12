@@ -1,6 +1,7 @@
 package git
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func initGitTestRepo(t *testing.T) string {
@@ -35,6 +37,145 @@ func runGitTestCommand(t *testing.T, gitPath, root string, args ...string) {
 	cmd := exec.Command(gitPath, commandArgs...)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git %v: %v: %s", args, err, output)
+	}
+}
+
+func TestListCommitsIncludesMetadataAndGraph(t *testing.T) {
+	root := initGitTestRepo(t)
+	gitPath, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	runGitTestCommand(t, gitPath, root, "commit", "--amend", "--quiet", "-m", "initial", "-m", "Body-only search phrase")
+	commits, err := ListCommits(root, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(commits) != 1 || commits[0].Subject != "initial" || commits[0].Author != "Test User" {
+		t.Fatalf("ListCommits() = %+v", commits)
+	}
+	if len(commits[0].Hash) < 7 || len(commits[0].Date) != 19 || !strings.Contains(commits[0].Graph[0], "*") {
+		t.Fatalf("commit metadata/graph = %+v", commits[0])
+	}
+	fullHash, err := exec.Command(gitPath, "-C", root, "rev-parse", "HEAD").Output()
+	if err != nil || commits[0].FullHash != strings.TrimSpace(string(fullHash)) {
+		t.Fatalf("full commit hash = %q, %v", commits[0].FullHash, err)
+	}
+	if commits[0].Message != "initial\n\nBody-only search phrase" {
+		t.Fatalf("commit message = %q", commits[0].Message)
+	}
+	if _, err := ListCommits(root, 0); err == nil {
+		t.Fatal("ListCommits accepted an invalid limit")
+	}
+}
+
+func TestListCommitsPreservesMergeGraphAndLimit(t *testing.T) {
+	root := initGitTestRepo(t)
+	gitPath, err := exec.LookPath("git")
+	if err != nil {
+		t.Skip("git is not installed")
+	}
+	output, err := exec.Command(gitPath, "-C", root, "branch", "--show-current").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	branch := strings.TrimSpace(string(output))
+	runGitTestCommand(t, gitPath, root, "checkout", "--quiet", "-b", "feature")
+	runGitTestCommand(t, gitPath, root, "commit", "--quiet", "--allow-empty", "-m", "Feature commit")
+	runGitTestCommand(t, gitPath, root, "checkout", "--quiet", branch)
+	runGitTestCommand(t, gitPath, root, "commit", "--quiet", "--allow-empty", "-m", "Main commit")
+	runGitTestCommand(t, gitPath, root, "merge", "--quiet", "--no-ff", "feature", "-m", "Merge feature")
+	commits, err := ListCommits(root, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(commits) != 4 || commits[0].Subject != "Merge feature" {
+		t.Fatalf("merge history = %+v", commits)
+	}
+	var graph strings.Builder
+	for _, commit := range commits {
+		graph.WriteString(strings.Join(commit.Graph, "\n"))
+	}
+	if !strings.Contains(graph.String(), "\\") || !strings.Contains(graph.String(), "/") {
+		t.Fatalf("merge connectors missing from graph: %q", graph.String())
+	}
+	limited, err := ListCommits(root, 2)
+	if err != nil || len(limited) != 2 {
+		t.Fatalf("limited history = %+v, %v", limited, err)
+	}
+}
+
+func TestListCommitsScopesHistoryToHead(t *testing.T) {
+	root := initGitTestRepo(t)
+	gitPath, err := exec.LookPath("git")
+	if err != nil {
+		t.Skip("git is not installed")
+	}
+	output, err := exec.Command(gitPath, "-C", root, "branch", "--show-current").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	branch := strings.TrimSpace(string(output))
+	runGitTestCommand(t, gitPath, root, "checkout", "--quiet", "-b", "unmerged")
+	runGitTestCommand(t, gitPath, root, "commit", "--quiet", "--allow-empty", "-m", "Unmerged commit")
+	runGitTestCommand(t, gitPath, root, "tag", "unmerged-tag")
+	runGitTestCommand(t, gitPath, root, "update-ref", "refs/remotes/origin/unmerged", "HEAD")
+	runGitTestCommand(t, gitPath, root, "checkout", "--quiet", branch)
+
+	commits, err := ListCommits(root, 100)
+	if err != nil || len(commits) != 1 || commits[0].Subject != "initial" {
+		t.Fatalf("current branch history = %+v, %v; want only initial commit", commits, err)
+	}
+	runGitTestCommand(t, gitPath, root, "checkout", "--quiet", "--detach", "unmerged")
+	commits, err = ListCommits(root, 100)
+	if err != nil || len(commits) != 2 || commits[0].Subject != "Unmerged commit" {
+		t.Fatalf("detached HEAD history = %+v, %v; want detached commit's ancestry", commits, err)
+	}
+	runGitTestCommand(t, gitPath, root, "checkout", "--quiet", "--orphan", "unborn")
+	commits, err = ListCommits(root, 100)
+	if err != nil || len(commits) != 0 {
+		t.Fatalf("unborn branch history = %+v, %v; want no commits", commits, err)
+	}
+}
+
+func TestWorkspaceStatusDoesNotRewriteIndex(t *testing.T) {
+	root := initGitTestRepo(t)
+	t.Setenv("GIT_OPTIONAL_LOCKS", "1")
+	indexPath := filepath.Join(root, ".git", "index")
+	before, err := os.ReadFile(indexPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	beforeInfo, err := os.Stat(indexPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	trackedPath := filepath.Join(root, "tracked file.txt")
+	stale := time.Now().Add(-time.Hour)
+	if err := os.Chtimes(trackedPath, stale, stale); err != nil {
+		t.Fatal(err)
+	}
+	status, err := WorkspaceStatus(root)
+	if err != nil || !status.Clean {
+		t.Fatalf("timestamp-only status = %+v, %v; want clean", status, err)
+	}
+	if err := os.WriteFile(trackedPath, []byte("changed contents\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	status, err = WorkspaceStatus(root)
+	if err != nil || status.Clean || !filesForPath(status.Files, "tracked file.txt").Unstaged {
+		t.Fatalf("changed-content status = %+v, %v; want an unstaged change", status, err)
+	}
+	after, err := os.ReadFile(indexPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	afterInfo, err := os.Stat(indexPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(before, after) || !beforeInfo.ModTime().Equal(afterInfo.ModTime()) {
+		t.Fatal("status refreshed the index on disk; this can retrigger the metadata watch")
 	}
 }
 
@@ -234,6 +375,52 @@ func TestBranchDiffFilesAndReadDiffDoNotSwitchBranches(t *testing.T) {
 	}
 }
 
+func TestCommitComparisonUsesCommitWithoutChangingHead(t *testing.T) {
+	root := initGitTestRepo(t)
+	gitPath, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	original, err := exec.Command(gitPath, "-C", root, "rev-parse", "HEAD").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	commit := strings.TrimSpace(string(original))
+	if err := os.WriteFile(filepath.Join(root, "tracked file.txt"), []byte("later contents\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	runGitTestCommand(t, gitPath, root, "add", "--", "tracked file.txt")
+	runGitTestCommand(t, gitPath, root, "commit", "--quiet", "-m", "later")
+	head, err := exec.Command(gitPath, "-C", root, "rev-parse", "HEAD").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, target := range []string{commit, commit[:7]} {
+		files, err := BranchDiffFiles(root, target)
+		if err != nil || len(files) != 1 {
+			t.Fatalf("commit comparison files = %+v, %v", files, err)
+		}
+		diff, err := ReadDiff(root, "tracked file.txt", "", target)
+		if err != nil || diff.Original != "head contents\n" || diff.Working != "later contents\n" {
+			t.Fatalf("commit diff = %+v, %v", diff, err)
+		}
+	}
+	after, err := exec.Command(gitPath, "-C", root, "rev-parse", "HEAD").Output()
+	if err != nil || string(after) != string(head) {
+		t.Fatalf("HEAD changed after comparison: %s, %v", after, err)
+	}
+	runGitTestCommand(t, gitPath, root, "branch", commit[:8], "HEAD")
+	files, err := BranchDiffFiles(root, commit[:8])
+	if err != nil || len(files) != 0 {
+		t.Fatalf("hex-named branch precedence = %+v, %v", files, err)
+	}
+	for _, target := range []string{"HEAD~1", "--all", "0000000"} {
+		if _, err := BranchDiffFiles(root, target); err == nil {
+			t.Fatalf("accepted invalid comparison target %q", target)
+		}
+	}
+}
+
 func TestWorkspaceStatusAcceptsWorktreeRoot(t *testing.T) {
 	root := initGitTestRepo(t)
 	gitPath, err := exec.LookPath("git")
@@ -319,6 +506,70 @@ func containsWorktreePath(worktrees []Worktree, path string) bool {
 		}
 	}
 	return false
+}
+
+func TestCreateWorktreeAtCommitCreatesDetachedHistory(t *testing.T) {
+	root := initGitTestRepo(t)
+	gitPath, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	output, err := exec.Command(gitPath, "-C", root, "rev-parse", "HEAD").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	hash := strings.TrimSpace(string(output))
+	shortOutput, err := exec.Command(gitPath, "-C", root, "rev-parse", "--short", hash).Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	shortHash := strings.TrimSpace(string(shortOutput))
+	runGitTestCommand(t, gitPath, root, "commit", "--quiet", "--allow-empty", "-m", "later")
+	target := filepath.Join(t.TempDir(), shortHash)
+	worktree, err := CreateWorktree(root, hash, target, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if worktree.Branch != shortHash {
+		t.Fatalf("worktree = %+v", worktree)
+	}
+	for _, listingRoot := range []string{root, target} {
+		listed, err := ListWorktrees(listingRoot)
+		if err != nil {
+			t.Fatal(err)
+		}
+		found := false
+		for _, entry := range listed {
+			if entry.Path == worktree.Path {
+				found = true
+				if entry.Branch != shortHash {
+					t.Fatalf("detached menu label = %q, want %q", entry.Branch, shortHash)
+				}
+			}
+		}
+		if !found {
+			t.Fatal("detached worktree missing from listing")
+		}
+	}
+	actual, err := exec.Command(gitPath, "-C", target, "rev-parse", "HEAD").Output()
+	if err != nil || strings.TrimSpace(string(actual)) != hash {
+		t.Fatalf("worktree HEAD = %s, %v", actual, err)
+	}
+	if err := exec.Command(gitPath, "-C", target, "symbolic-ref", "--quiet", "HEAD").Run(); err == nil {
+		t.Fatal("commit worktree is not detached")
+	}
+	if _, err := CreateWorktree(root, strings.Repeat("0", 40), filepath.Join(t.TempDir(), "invalid"), false); err == nil {
+		t.Fatal("accepted a nonexistent commit")
+	}
+	runGitTestCommand(t, gitPath, root, "branch", "abcdef1")
+	hexTarget := filepath.Join(t.TempDir(), "hex-branch")
+	if _, err := CreateWorktree(root, "abcdef1", hexTarget, false); err != nil {
+		t.Fatal(err)
+	}
+	branch, err := exec.Command(gitPath, "-C", hexTarget, "symbolic-ref", "--short", "HEAD").Output()
+	if err != nil || strings.TrimSpace(string(branch)) != "abcdef1" {
+		t.Fatalf("hex branch worktree = %s, %v", branch, err)
+	}
 }
 
 func TestCreateWorktreeRejectsUnsafePathsAndBranches(t *testing.T) {

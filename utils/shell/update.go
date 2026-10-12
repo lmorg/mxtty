@@ -15,6 +15,8 @@ func UpdateReadline(term types.Term, s string) {
 		if term.State() == types.TermStatePromptStart || term.State() == types.TermStatePromptEnd {
 			log.Print("[trace] UpdateReadline: " + s)
 			element_content_editable.Reply(term, s)
+			//time.Sleep(250 * time.Millisecond)
+			term.Reply([]byte{'\n'})
 		} else {
 			log.Print("[error] Cannot update command line prompt because terminal doesn't appear to be ready to accept input")
 		}

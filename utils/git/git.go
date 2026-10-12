@@ -21,6 +21,7 @@ import (
 const maxDiffBytes = 4 << 20
 
 var aheadBehindPattern = regexp.MustCompile(`\[ahead ([0-9]+)(?:, behind ([0-9]+))?\]|\[behind ([0-9]+)(?:, ahead ([0-9]+))?\]`)
+var commitHashPattern = regexp.MustCompile(`^[0-9a-fA-F]{7,64}$`)
 
 type FileStatus struct {
 	Path         string `json:"path"`
@@ -61,6 +62,59 @@ type BrowserLink struct {
 	URL      string `json:"url"`
 }
 
+type Commit struct {
+	Hash     string   `json:"hash"`
+	FullHash string   `json:"fullHash"`
+	Subject  string   `json:"subject"`
+	Message  string   `json:"message"`
+	Date     string   `json:"date"`
+	Author   string   `json:"author"`
+	Graph    []string `json:"graph"`
+}
+
+func ListCommits(root string, limit int) ([]Commit, error) {
+	gitPath, repoRoot, err := checkedRepository(root)
+	if err != nil {
+		return nil, err
+	}
+	if limit < 1 || limit > 10000 {
+		return nil, errors.New("commit history limit must be between 1 and 10000")
+	}
+	head, err := runGit(gitPath, repoRoot, "rev-parse", "--verify", "HEAD")
+	if err != nil {
+		return []Commit{}, nil
+	}
+	headRef := strings.TrimSpace(string(head))
+	args := []string{"log", "--graph", "--topo-order", "--no-color", "--max-count=" + strconv.Itoa(limit), "--date=format:%Y-%m-%d %H:%M:%S", "--format=%x00%h%x00%s%x00%ad%x00%an%x00%H%x00", headRef, "--"}
+	output, err := runGit(gitPath, repoRoot, args...)
+	if err != nil {
+		return nil, err
+	}
+	commits := make([]Commit, 0)
+	for _, line := range strings.Split(strings.TrimRight(string(output), "\n"), "\n") {
+		fields := strings.Split(line, "\x00")
+		if len(fields) == 7 {
+			commits = append(commits, Commit{Hash: fields[1], FullHash: fields[5], Subject: fields[2], Date: fields[3], Author: fields[4], Graph: []string{fields[0]}})
+		} else if len(commits) > 0 && strings.TrimSpace(line) != "" {
+			last := &commits[len(commits)-1]
+			last.Graph = append(last.Graph, line)
+		}
+	}
+	messageOutput, err := runGit(gitPath, repoRoot, "log", "--topo-order", "--no-color", "--max-count="+strconv.Itoa(limit), "--format=%H%x00%B%x00", headRef, "--")
+	if err != nil {
+		return nil, err
+	}
+	messageFields := strings.Split(string(messageOutput), "\x00")
+	messages := make(map[string]string, len(commits))
+	for index := 0; index+1 < len(messageFields); index += 2 {
+		messages[strings.TrimSpace(messageFields[index])] = strings.TrimRight(messageFields[index+1], "\r\n")
+	}
+	for index := range commits {
+		commits[index].Message = messages[commits[index].FullHash]
+	}
+	return commits, nil
+}
+
 func ListWorktrees(root string) ([]Worktree, error) {
 	gitPath, repoRoot, err := checkedRepository(root)
 	if err != nil {
@@ -73,10 +127,12 @@ func ListWorktrees(root string) ([]Worktree, error) {
 
 	worktrees := make([]Worktree, 0)
 	var current Worktree
+	var head string
 	flush := func() {
 		if current.Path != "" {
 			worktrees = append(worktrees, current)
 			current = Worktree{}
+			head = ""
 		}
 	}
 	for _, record := range bytes.Split(output, []byte{0}) {
@@ -89,8 +145,14 @@ func ListWorktrees(root string) ([]Worktree, error) {
 			current.Path = strings.TrimPrefix(line, "worktree ")
 		case strings.HasPrefix(line, "branch "):
 			current.Branch = strings.TrimPrefix(line, "branch refs/heads/")
+		case strings.HasPrefix(line, "HEAD "):
+			head = strings.TrimPrefix(line, "HEAD ")
 		case line == "detached":
-			current.Branch = "(detached HEAD)"
+			shortHash, err := runGit(gitPath, repoRoot, "rev-parse", "--short", head)
+			if err != nil {
+				return nil, err
+			}
+			current.Branch = strings.TrimSpace(string(shortHash))
 		}
 	}
 	flush()
@@ -142,7 +204,25 @@ func CreateWorktree(root, branch, worktreePath string, createBranch bool) (Workt
 	if branch == "" {
 		return Worktree{}, errors.New("branch name is empty")
 	}
-	if _, err := runGit(gitPath, repoRoot, "check-ref-format", "refs/heads/"+branch); err != nil {
+	detached := !createBranch && commitHashPattern.MatchString(branch)
+	var detachedLabel string
+	if detached {
+		if _, err := runGit(gitPath, repoRoot, "rev-parse", "--verify", "--quiet", "refs/heads/"+branch+"^{commit}"); err == nil {
+			detached = false
+		}
+	}
+	if detached {
+		output, err := runGit(gitPath, repoRoot, "rev-parse", "--verify", "--quiet", branch+"^{commit}")
+		if err != nil {
+			return Worktree{}, fmt.Errorf("worktree commit %q does not exist or is ambiguous", branch)
+		}
+		branch = strings.TrimSpace(string(output))
+		shortHash, err := runGit(gitPath, repoRoot, "rev-parse", "--short", branch)
+		if err != nil {
+			return Worktree{}, err
+		}
+		detachedLabel = strings.TrimSpace(string(shortHash))
+	} else if _, err := runGit(gitPath, repoRoot, "check-ref-format", "refs/heads/"+branch); err != nil {
 		return Worktree{}, fmt.Errorf("invalid branch name %q", branch)
 	}
 	target := worktreePath
@@ -192,13 +272,18 @@ func CreateWorktree(root, branch, worktreePath string, createBranch bool) (Workt
 	}
 
 	args := []string{"worktree", "add"}
-	if createBranch {
+	if detached {
+		args = append(args, "--detach", target, branch)
+	} else if createBranch {
 		args = append(args, "-b", branch, target)
 	} else {
 		args = append(args, target, branch)
 	}
 	if _, err := runGit(gitPath, repoRoot, args...); err != nil {
 		return Worktree{}, err
+	}
+	if detached {
+		return Worktree{Path: target, Branch: detachedLabel}, nil
 	}
 	return Worktree{Path: target, Branch: branch}, nil
 }
@@ -330,7 +415,7 @@ func WorkspaceStatus(root string) (Status, error) {
 		return Status{}, err
 	}
 
-	output, err := runGit(gitPath, repoRoot, "status", "--porcelain=v1", "-z", "--branch", "--untracked-files=all")
+	output, err := runGit(gitPath, repoRoot, "--no-optional-locks", "status", "--porcelain=v1", "-z", "--branch", "--untracked-files=all")
 	if err != nil {
 		return Status{}, err
 	}
@@ -349,7 +434,7 @@ func BranchDiffFiles(root, branch string) ([]FileStatus, error) {
 	if err != nil {
 		return nil, err
 	}
-	branchRef, err := checkedLocalBranch(gitPath, repoRoot, branch)
+	branchRef, err := checkedComparisonRef(gitPath, repoRoot, branch)
 	if err != nil {
 		return nil, err
 	}
@@ -411,6 +496,22 @@ func checkedLocalBranch(gitPath, repoRoot, branch string) (string, error) {
 		return "", fmt.Errorf("comparison branch %q does not exist", branch)
 	}
 	return ref, nil
+}
+
+func checkedComparisonRef(gitPath, repoRoot, target string) (string, error) {
+	target = strings.TrimSpace(target)
+	ref, branchErr := checkedLocalBranch(gitPath, repoRoot, target)
+	if branchErr == nil {
+		return ref, nil
+	}
+	if !commitHashPattern.MatchString(target) {
+		return "", branchErr
+	}
+	output, err := runGit(gitPath, repoRoot, "rev-parse", "--verify", "--quiet", target+"^{commit}")
+	if err != nil {
+		return "", fmt.Errorf("comparison commit %q does not exist or is ambiguous", target)
+	}
+	return strings.TrimSpace(string(output)), nil
 }
 
 func MetadataDirectories(root string) ([]string, error) {
@@ -575,7 +676,7 @@ func ReadDiff(root, filePath string, originalPaths ...string) (Diff, error) {
 	}
 	baseRef := "HEAD"
 	if len(originalPaths) > 1 && strings.TrimSpace(originalPaths[1]) != "" {
-		baseRef, err = checkedLocalBranch(gitPath, repoRoot, originalPaths[1])
+		baseRef, err = checkedComparisonRef(gitPath, repoRoot, originalPaths[1])
 		if err != nil {
 			return Diff{}, err
 		}

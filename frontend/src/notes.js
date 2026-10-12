@@ -2,7 +2,7 @@ import {
     GetWindowStyle, GetNotesMaxLogLines, GetNotesColumnWidths, SetNotesColumnWidths, GetFile,
     GetGitStatus, GetGitBrowserLink, GetGitBranchDiffFiles, GetGitDiff, GetGitDiffAgainstBranch,
     RefreshGitStatus, SetGitStatusWatch, StageGitFile, UnstageGitFile,
-    ListGitWorktrees, ListGitBranches, GetDefaultGitWorktreePath, CreateGitWorktree,
+    ListGitWorktrees, ListGitBranches, ListGitCommits, GetDefaultGitWorktreePath, CreateGitWorktree,
     SwitchGitWorktree, RemoveGitWorktree, ShowGitWorktreeInfo,
     NotesTableSort, NotesTableClearSort, NotesTableFilter, NotesTableReconcile, NotesTableRestore, NotesTableSetGraph, NotesTableRenderGraph, NotesTableDisposeAll,
     GetNotesStructViewMaxSizeKB,
@@ -469,6 +469,7 @@ app.innerHTML = `
                 </div>
             </div>
             <div id="notes-list" role="list"></div>
+            <div id="notes-commits-list" role="list" aria-label="Commit history" hidden></div>
         </aside>
         <div id="notes-splitter"></div>
         <main id="notes-main">
@@ -653,6 +654,7 @@ app.innerHTML = `
                                     <button id="notes-tools-git-compare" type="button" class="notes-tools-clear notes-git-compare" aria-label="Choose comparison branch" data-tooltip="Choose comparison branch">HEAD</button>
                                 </div>
                                 <div class="notes-git-actions">
+                                <button id="notes-tools-git-commits" type="button" class="notes-tools-clear notes-git-commits-toggle" aria-pressed="false">Commits</button>
                                 <button id="notes-tools-git-workspace" type="button" class="notes-ai-model-picker" aria-label="Worktrees" data-tooltip="Git worktrees">Worktrees</button>
                                 <button id="notes-tools-git-remote" type="button" class="notes-tools-clear notes-tools-icon notes-git-remote" aria-label="Open remote repository" data-tooltip="Open remote repository" hidden></button>
                                 <button id="notes-tools-git-refresh" type="button" class="notes-tools-clear notes-tools-icon" data-tooltip="Refresh Git status" aria-label="Refresh Git status">&#xf021;</button>
@@ -737,6 +739,7 @@ const elements = {
     title: document.getElementById('notes-title'),
     currentFileTitle: document.getElementById('notes-current-file'),
     list: document.getElementById('notes-list'),
+    gitCommitList: document.getElementById('notes-commits-list'),
     listFilter: document.getElementById('notes-list-filter'),
     listFilterClear: document.getElementById('notes-list-filter-clear'),
     editor: document.getElementById('notes-editor'),
@@ -833,6 +836,7 @@ const elements = {
     gitBranch: document.getElementById('notes-tools-git-branch'),
     gitAheadBehind: document.getElementById('notes-tools-git-ahead-behind'),
     gitCompare: document.getElementById('notes-tools-git-compare'),
+    gitCommits: document.getElementById('notes-tools-git-commits'),
     gitRefresh: document.getElementById('notes-tools-git-refresh'),
     gitFileList: document.getElementById('notes-tools-git-files'),
     toolsFindPane: document.getElementById('notes-tools-find-pane'),
@@ -8149,6 +8153,10 @@ async function refreshFiles(options = {}) {
         const workspaceChanged = previousWorkspaceKey !== '' && previousWorkspaceKey !== workspaceKey;
         const workspaceScopedRefresh = previousWorkspaceKey === '' || workspaceChanged;
 
+        if (workspaceChanged) {
+            notesGitPanel?.setCommitsActive(false);
+        }
+
         state.currentWorkspaceName = String(workspaceName || '');
         state.currentWorkspaceKey = workspaceKey;
         elements.title.innerText = workspaceName;
@@ -8298,6 +8306,11 @@ function getFilteredFiles() {
 async function applyFileFilter() {
     const sequence = fileListRefreshSequence;
     const query = state.fileFilterQuery.trim();
+    if (notesGitPanel?.isCommitsActive()) {
+        updateListFilterClearButtonVisibility();
+        await notesGitPanel.setCommitFilter(query);
+        return;
+    }
     if (!query) {
         state.filteredFiles = null;
         renderFileList();
@@ -11580,22 +11593,29 @@ async function openCreateGitWorktreePrompt(projectRoot) {
         }
         const branch = prompt.branch;
         const createBranch = prompt.createBranch;
-        const stickyId = `git-worktree-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         finishGitWorktreePrompt();
-
-        void (async () => {
-            await openStickyProgress(stickyId, 'Creating worktree');
-            try {
-                await CreateGitWorktree(projectRoot, branch, worktreePath, createBranch);
-                closeStickyProgress(stickyId);
-            } catch (error) {
-                closeStickyProgress(stickyId, String(error?.message || error), 'error');
-            }
-        })();
+        void createNotesGitWorktree(projectRoot, branch, worktreePath, createBranch);
     };
 
     elements.modalCreate.disabled = true;
     setTimeout(() => branchButton.focus(), 0);
+}
+
+async function createNotesGitWorktree(projectRoot, branch, worktreePath, createBranch) {
+    const stickyId = `git-worktree-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    await openStickyProgress(stickyId, 'Creating worktree');
+    try {
+        const worktree = await CreateGitWorktree(projectRoot, branch, worktreePath, createBranch);
+        await switchNotesGitWorktree(projectRoot, worktree.path || worktreePath);
+        closeStickyProgress(stickyId);
+    } catch (error) {
+        closeStickyProgress(stickyId, String(error?.message || error), 'error');
+    }
+}
+
+async function switchNotesGitWorktree(projectRoot, worktreePath) {
+    window.dispatchEvent(new CustomEvent('ttyphoon-focus-terminal'));
+    await SwitchGitWorktree(projectRoot, worktreePath);
 }
 
 function finishGitWorktreePrompt() {
@@ -15251,6 +15271,8 @@ notesGitPanel = initNotesGitPanel(elements, {
     getStatus: GetGitStatus,
     getBrowserLink: GetGitBrowserLink,
     getBranchDiffFiles: GetGitBranchDiffFiles,
+    listCommits: ListGitCommits,
+    filterStrings: FilterStrings,
     openRemote: BrowserOpenURL,
     refreshStatus: RefreshGitStatus,
     setStatusWatch: SetGitStatusWatch,
@@ -15264,6 +15286,38 @@ notesGitPanel = initNotesGitPanel(elements, {
     showTooltip: (text) => { void showSharedTooltip(text); },
     hideTooltip: closeSharedTooltip,
     onOpenDiff: openNotesGitDiff,
+    showCommitMenu: ({ root, commit, x, y, compare }) => {
+        const fullHash = commit.fullHash || commit.hash;
+        const items = [
+            { title: 'Copy commit hash', icon: CONTEXT_ICON_COPY, onSelect: () => ClipboardSetText(fullHash) },
+            { title: '-', icon: 0 },
+            { title: 'Compare commit', icon: 0xe13a, onSelect: compare },
+            {
+                title: 'Create worktree', icon: CONTEXT_ICON_ADD,
+                onSelect: async () => {
+                    try {
+                        const defaultPath = await GetDefaultGitWorktreePath(root);
+                        const worktreePath = `${String(defaultPath).replace(/[\\/]+$/, '')}/${commit.hash}`;
+                        await createNotesGitWorktree(root, fullHash, worktreePath, false);
+                    } catch (error) {
+                        notifyTerminal(String(error?.message || error), 'error');
+                    }
+                },
+            },
+        ];
+        showNotesLocalMenu(items, x, y, commit.hash);
+    },
+    getCommitFilter: () => state.fileFilterQuery,
+    onCommitsChange: (active) => {
+        const wasActive = !elements.gitCommitList.hidden;
+        elements.list.hidden = active;
+        elements.gitCommitList.hidden = !active;
+        elements.listFilter.placeholder = active ? 'Filter commits...' : 'Filter files...';
+        if (!active && wasActive) {
+            if (isProjectFindListModeActive()) scheduleProjectFindSearch();
+            else void applyFileFilter();
+        }
+    },
     beforeFileAction: async ({ root, path }) => {
         if (!activeGitDiff || activeGitDiff.root !== root || activeGitDiff.file.path !== path || !state.dirty) {
             return true;
@@ -15312,8 +15366,7 @@ notesGitPanel = initNotesGitPanel(elements, {
                             icon: 0xf204,
                             onSelect: async () => {
                                 try {
-                                    window.dispatchEvent(new CustomEvent('ttyphoon-focus-terminal'));
-                                    await SwitchGitWorktree(root, worktree.path);
+                                    await switchNotesGitWorktree(root, worktree.path);
                                 } catch (error) {
                                     notifyTerminal(String(error?.message || error), 'error');
                                 }
@@ -16801,6 +16854,10 @@ if (elements.replaceAll) {
 if (elements.listFilter) {
     elements.listFilter.addEventListener('input', (event) => {
         state.fileFilterQuery = event.target.value || '';
+        if (notesGitPanel?.isCommitsActive()) {
+            void applyFileFilter();
+            return;
+        }
         if (isProjectFindListModeActive()) {
             scheduleProjectFindSearch();
             return;
@@ -16813,6 +16870,10 @@ if (elements.listFilter) {
             event.preventDefault();
             elements.listFilter.value = '';
             state.fileFilterQuery = '';
+            if (notesGitPanel?.isCommitsActive()) {
+                void applyFileFilter();
+                return;
+            }
             if (isProjectFindListModeActive()) {
                 scheduleProjectFindSearch();
                 return;
@@ -16823,7 +16884,9 @@ if (elements.listFilter) {
 
         if (event.key === 'ArrowDown') {
             event.preventDefault();
-            const items = Array.from(elements.list.querySelectorAll('.notes-file'));
+            const items = notesGitPanel?.isCommitsActive()
+                ? Array.from(elements.gitCommitList.querySelectorAll('.notes-git-commit'))
+                : Array.from(elements.list.querySelectorAll('.notes-file'));
             if (items.length > 0) {
                 items[0].focus();
             }
@@ -16945,6 +17008,11 @@ if (elements.listFilterClear && elements.listFilter) {
     elements.listFilterClear.addEventListener('click', () => {
         elements.listFilter.value = '';
         state.fileFilterQuery = '';
+        if (notesGitPanel?.isCommitsActive()) {
+            void applyFileFilter();
+            elements.listFilter.focus();
+            return;
+        }
         if (isProjectFindListModeActive()) {
             scheduleProjectFindSearch();
             return;

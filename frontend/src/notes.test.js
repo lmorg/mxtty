@@ -92,6 +92,7 @@ const stageGitFileMock = vi.fn(() => Promise.resolve());
 const unstageGitFileMock = vi.fn(() => Promise.resolve());
 const listGitWorktreesMock = vi.fn(() => Promise.resolve([]));
 const listGitBranchesMock = vi.fn(() => Promise.resolve([]));
+const listGitCommitsMock = vi.fn(() => Promise.resolve([]));
 const getDefaultGitWorktreePathMock = vi.fn(() => Promise.resolve('/home/test/Documents/ttyphoon/.git_worktrees/default-hash'));
 const createGitWorktreeMock = vi.fn(() => Promise.resolve({ path: '', branch: '' }));
 const switchGitWorktreeMock = vi.fn(() => Promise.resolve());
@@ -203,6 +204,7 @@ vi.mock('../wailsjs/go/main/WApp', () => ({
     UnstageGitFile: unstageGitFileMock,
     ListGitWorktrees: listGitWorktreesMock,
     ListGitBranches: listGitBranchesMock,
+    ListGitCommits: listGitCommitsMock,
     GetDefaultGitWorktreePath: getDefaultGitWorktreePathMock,
     CreateGitWorktree: createGitWorktreeMock,
     SwitchGitWorktree: switchGitWorktreeMock,
@@ -512,6 +514,8 @@ describe('notes rendering', () => {
         unstageGitFileMock.mockReset();
         listGitWorktreesMock.mockReset();
         listGitBranchesMock.mockReset();
+        listGitCommitsMock.mockReset();
+        listGitCommitsMock.mockResolvedValue([]);
         getDefaultGitWorktreePathMock.mockReset();
         createGitWorktreeMock.mockReset();
         switchGitWorktreeMock.mockReset();
@@ -4863,7 +4867,7 @@ describe('notes rendering', () => {
         expect(document.querySelector('.notes-git-summary #notes-tools-git-branch')).not.toBeNull();
         expect(document.querySelector('.notes-git-actions #notes-tools-git-workspace')).not.toBeNull();
         expect(Array.from(document.querySelector('.notes-git-actions').children).map((element) => element.id)).toEqual([
-            'notes-tools-git-workspace', 'notes-tools-git-remote', 'notes-tools-git-refresh',
+            'notes-tools-git-commits', 'notes-tools-git-workspace', 'notes-tools-git-remote', 'notes-tools-git-refresh',
         ]);
         await flushPromises();
         const gitRemote = document.getElementById('notes-tools-git-remote');
@@ -4900,6 +4904,94 @@ describe('notes rendering', () => {
         menu.onSelect(0);
         await flushPromises();
         expect(compareButton.textContent).toBe('HEAD');
+    });
+
+    it('dims overlapping graph regions and dims the opposite layer on hover', () => {
+        const graphStyle = notesCss.match(/\.notes-git-commit-graph\s*\{([^}]*)\}/)?.[1] || '';
+        expect(graphStyle).toContain('color: var(--yellow);');
+        expect(graphStyle).toContain('rgba(0, 0, 0, 0.7)');
+        expect(graphStyle).toContain('--git-overlap-start');
+        const hoverStyle = notesCss.match(/\.notes-git-commit:has\(\.notes-git-commit-content:hover\)\s+\.notes-git-commit-graph\s*\{([^}]*)\}/)?.[1] || '';
+        expect(hoverStyle).toContain('opacity: 0.2;');
+        expect(hoverStyle).toContain('mask-image: none;');
+        const textHoverStyle = notesCss.match(/\.notes-git-commit-graph:hover\s*\+\s*\.notes-git-commit-content\s*\{([^}]*)\}/)?.[1] || '';
+        expect(textHoverStyle).toContain('opacity: 0.2;');
+    });
+
+    it('keeps the shared sidebar filter for full commit hashes and messages', async () => {
+        getCurrentProjectMock.mockResolvedValue('/workspace/repo');
+        getGitStatusMock.mockResolvedValue({ root: '/workspace/repo', branch: 'main', ahead: 0, behind: 0, clean: true, files: [] });
+        listFilesMock.mockResolvedValue(['$PROJECT/rollout.txt', '$PROJECT/other.txt']);
+        listGitCommitsMock.mockResolvedValue([
+            { hash: 'aaaaaaa', fullHash: 'a'.repeat(34) + 'ef0123', subject: 'First merge', message: 'First merge\n\nRollout ticket', date: '', author: '', graph: ['*'] },
+            { hash: 'bbbbbbb', fullHash: 'b'.repeat(40), subject: 'Second commit', message: 'Second commit', date: '', author: '', graph: ['*'] },
+        ]);
+        await importNotesModule();
+        const input = document.getElementById('notes-list-filter');
+        const toggle = document.getElementById('notes-tools-git-commits');
+        const history = document.getElementById('notes-commits-list');
+        toggle.click();
+        await flushPromises();
+        expect(document.getElementById('notes-list-filter-wrap').hidden).toBe(false);
+        expect(input.placeholder).toBe('Filter commits...');
+        input.value = 'ef0123';
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        await flushPromises();
+        expect(history.querySelectorAll('.notes-git-commit')).toHaveLength(1);
+        expect(history.textContent).toContain('First merge');
+        expect(history.textContent).not.toContain('Second commit');
+        expect(document.getElementById('notes-list-filter-clear').dataset.visible).toBe('true');
+        input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        await flushPromises();
+        expect(history.querySelectorAll('.notes-git-commit')).toHaveLength(2);
+        input.value = 'rollout';
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        await flushPromises();
+        expect(history.querySelectorAll('.notes-git-commit')).toHaveLength(1);
+        document.getElementById('notes-list-filter-clear').click();
+        await flushPromises();
+        expect(input.value).toBe('');
+        expect(history.querySelectorAll('.notes-git-commit')).toHaveLength(2);
+        input.value = 'rollout';
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        await flushPromises();
+        toggle.click();
+        await flushPromises();
+        expect(input.placeholder).toBe('Filter files...');
+        expect(document.getElementById('notes-list').textContent).toContain('rollout.txt');
+        expect(document.getElementById('notes-list').textContent).not.toContain('other.txt');
+    });
+
+    it('resets Commits on a workspace change even when the project root stays the same', async () => {
+        const subjectStyle = notesCss.match(/\.notes-git-commit-subject\s*\{([^}]*)\}/)?.[1] || '';
+        expect(subjectStyle).toContain('font-family: "Lato", var(--font-family), sans-serif;');
+        expect(subjectStyle).toContain('font-size: var(--notes-font-size-minus-2);');
+        const contentStyle = notesCss.match(/\.notes-git-commit-content\s*\{([^}]*)\}/)?.[1] || '';
+        expect(contentStyle).toContain('justify-self: end;');
+        expect(contentStyle).toContain('width: max-content;');
+        expect(contentStyle).toContain('max-width: max(70%, calc(100% - var(--git-graph-width) - 8px));');
+        expect(contentStyle).toContain('z-index: 1;');
+        getCurrentProjectMock.mockResolvedValue('/workspace/repo');
+        getCurrentGroupNameMock.mockResolvedValue('First workspace');
+        getGitStatusMock.mockResolvedValue({ root: '/workspace/repo', branch: 'main', ahead: 0, behind: 0, clean: true, files: [] });
+        await importNotesModule();
+        const toggle = document.getElementById('notes-tools-git-commits');
+        toggle.click();
+        await flushPromises();
+        expect(toggle.getAttribute('aria-pressed')).toBe('true');
+        const history = document.getElementById('notes-commits-list');
+        expect(history.closest('#notes-sidebar')).not.toBeNull();
+        expect(history.hidden).toBe(false);
+        expect(history.textContent).toBe('No commits');
+        expect(document.getElementById('notes-list').hidden).toBe(true);
+        expect(document.getElementById('notes-list-filter-wrap').hidden).toBe(false);
+        expect(document.getElementById('notes-tools-git-files').textContent).toBe('Working tree clean');
+        getEventHandler('notesContextChanged')({ projectRoot: '/workspace/repo', groupName: 'Second workspace', globalNotes: '/notes/', userNotes: '/notes/Second/' });
+        await flushPromises();
+        expect(toggle.getAttribute('aria-pressed')).toBe('false');
+        expect(history.hidden).toBe(true);
+        expect(document.getElementById('notes-list').hidden).toBe(false);
+        expect(document.getElementById('notes-list-filter-wrap').hidden).toBe(false);
     });
 
     it('lists worktrees and creates a worktree from the existing branch picker', async () => {
@@ -5039,6 +5131,7 @@ describe('notes rendering', () => {
             level: 'error',
             message: 'worktree creation failed',
         }));
+        expect(switchGitWorktreeMock).not.toHaveBeenCalled();
 
         document.getElementById('notes-tools-git-workspace').click();
         await flushPromises();
@@ -5053,6 +5146,55 @@ describe('notes rendering', () => {
         }));
     });
 
+    it('offers commit copy, compare, and hash-path worktree creation through the shared handler', async () => {
+        const fullHash = 'abcdef1' + '0'.repeat(33);
+        getCurrentProjectMock.mockResolvedValue('/workspace/repo');
+        getGitStatusMock.mockResolvedValue({ root: '/workspace/repo', branch: 'main', ahead: 0, behind: 0, clean: true, files: [] });
+        listGitCommitsMock.mockResolvedValue([{ hash: 'abcdef1', fullHash, subject: 'Base commit', message: 'Base commit', date: '', author: '', graph: ['*'] }]);
+        getDefaultGitWorktreePathMock.mockResolvedValue('/Users/test/.git_worktrees/default/');
+        let finishCreation;
+        createGitWorktreeMock.mockImplementation(() => new Promise((resolve) => { finishCreation = resolve; }));
+        await importNotesModule();
+        document.getElementById('notes-tools-git-commits').click();
+        await flushPromises();
+        const openMenu = async () => {
+            document.querySelector('.notes-git-commit').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 50, clientY: 80 }));
+            await flushPromises();
+            return showLocalMenuMock.mock.calls.at(-1)?.[0];
+        };
+        let menu = await openMenu();
+        expect(menu.title).toBe('abcdef1');
+        expect(menu.options).toEqual(['Copy commit hash', '-', 'Compare commit', 'Create worktree']);
+        expect(menu.icons[2]).toBe(0xe13a);
+        menu.onSelect(0);
+        await flushPromises();
+        expect(clipboardSetTextMock).toHaveBeenCalledWith(fullHash);
+        menu.onSelect(2);
+        await flushPromises();
+        expect(document.getElementById('notes-tools-git-compare').textContent).toBe('abcdef1');
+        menu = await openMenu();
+        menu.onSelect(3);
+        await flushPromises();
+        expect(createGitWorktreeMock).toHaveBeenCalledWith('/workspace/repo', fullHash, '/Users/test/.git_worktrees/default/abcdef1', false);
+        const stickyIndex = sendIpcMock.mock.calls.findIndex(([channel]) => channel === 'terminal-sticky-create');
+        expect(sendIpcMock.mock.calls[stickyIndex][1]).toEqual(expect.objectContaining({ message: 'Creating worktree' }));
+        expect(sendIpcMock.mock.invocationCallOrder[stickyIndex]).toBeLessThan(createGitWorktreeMock.mock.invocationCallOrder[0]);
+        expect(sendIpcMock).not.toHaveBeenCalledWith('terminal-sticky-close', expect.anything());
+        expect(switchGitWorktreeMock).not.toHaveBeenCalled();
+        finishCreation({ path: '/Users/test/.git_worktrees/default/abcdef1', branch: 'abcdef1' });
+        await flushPromises();
+        expect(switchGitWorktreeMock).toHaveBeenCalledWith('/workspace/repo', '/Users/test/.git_worktrees/default/abcdef1');
+        expect(sendIpcMock).toHaveBeenCalledWith('terminal-sticky-close', expect.objectContaining({ id: expect.any(String) }));
+        listGitWorktreesMock.mockResolvedValue([
+            { path: '/workspace/repo', branch: 'main' },
+            { path: '/Users/test/.git_worktrees/default/abcdef1', branch: 'abcdef1' },
+        ]);
+        document.getElementById('notes-tools-git-workspace').click();
+        await flushPromises();
+        expect(showLocalMenuMock.mock.calls.at(-1)?.[0].options).toContain('abcdef1');
+        expect(showLocalMenuMock.mock.calls.at(-1)?.[0].options).not.toContain('(detached HEAD)');
+    });
+
     it('submits Worktree on Enter, closes immediately, and waits for Git behind a sticky', async () => {
         getCurrentProjectMock.mockResolvedValue('/workspace/repo');
         getGitStatusMock.mockResolvedValue({ root: '/workspace/repo', branch: 'main', ahead: 0, behind: 0, clean: true, files: [] });
@@ -5061,6 +5203,8 @@ describe('notes rendering', () => {
         getDefaultGitWorktreePathMock.mockResolvedValue('/Users/test/Documents/ttyphoon/.git_worktrees/hashed-root');
         let finishCreation;
         createGitWorktreeMock.mockImplementation(() => new Promise((resolve) => { finishCreation = resolve; }));
+        let finishSwitch;
+        switchGitWorktreeMock.mockImplementation(() => new Promise((resolve) => { finishSwitch = resolve; }));
 
         await importNotesModule();
         document.getElementById('notes-tools-git-workspace').click();
@@ -5087,7 +5231,12 @@ describe('notes rendering', () => {
             .toBeLessThan(createGitWorktreeMock.mock.invocationCallOrder[0]);
         expect(sendIpcMock).not.toHaveBeenCalledWith('terminal-sticky-close', expect.anything());
 
-        finishCreation({ path: '/Users/test/Documents/ttyphoon/.git_worktrees/hashed-root', branch: 'main' });
+        expect(switchGitWorktreeMock).not.toHaveBeenCalled();
+        finishCreation({ path: '/Users/test/Documents/ttyphoon/.git_worktrees/hashed-root/main', branch: 'main' });
+        await flushPromises();
+        expect(switchGitWorktreeMock).toHaveBeenCalledWith('/workspace/repo', '/Users/test/Documents/ttyphoon/.git_worktrees/hashed-root/main');
+        expect(sendIpcMock).not.toHaveBeenCalledWith('terminal-sticky-close', expect.anything());
+        finishSwitch();
         await flushPromises();
         expect(sendIpcMock).toHaveBeenCalledWith('terminal-sticky-close', expect.objectContaining({ id: expect.any(String) }));
     });
