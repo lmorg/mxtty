@@ -209,25 +209,19 @@ func RemoveWorktree(root, worktreePath string) error {
 	if err != nil {
 		return err
 	}
-	var selected *Worktree
-	for index := range worktrees {
-		listedPath, pathErr := resolveExistingPathPrefix(worktrees[index].Path)
+	registered := false
+	for _, worktree := range worktrees {
+		listedPath, pathErr := resolveExistingPathPrefix(worktree.Path)
 		if pathErr == nil && samePath(listedPath, target) {
-			selected = &worktrees[index]
+			registered = true
 			break
 		}
 	}
-	if selected == nil {
+	if !registered {
 		return errors.New("selected path is not a registered worktree for the current repository")
 	}
 	if _, err := runGit(gitPath, repoRoot, "worktree", "remove", "--", target); err != nil {
 		return err
-	}
-	if selected.Branch == "" || selected.Branch == "(detached HEAD)" {
-		return nil
-	}
-	if _, err := runGit(gitPath, repoRoot, "branch", "-d", "--", selected.Branch); err != nil {
-		return fmt.Errorf("worktree removed, but branch %q could not be deleted: %w", selected.Branch, err)
 	}
 	return nil
 }

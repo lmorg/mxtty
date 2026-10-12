@@ -4868,20 +4868,23 @@ describe('notes rendering', () => {
         await importNotesModule();
 
         const worktreeButton = document.getElementById('notes-tools-git-workspace');
-        expect(worktreeButton.textContent).toBe('Worktree');
+        expect(worktreeButton.textContent).toBe('Worktrees');
         worktreeButton.click();
         await flushPromises();
 
         let menu = showLocalMenuMock.mock.calls.at(-1)?.[0];
         expect(menu.title).toBe('Worktrees');
         expect(menu.options).toEqual([
-            'New worktree', '-', '/workspace/repo', '/workspace/worktrees/alpha', '/workspace/worktrees/zeta',
+            'New worktree', '-', 'alpha', 'main', 'zeta',
         ]);
-        expect(menu.icons).toEqual([0xf067, 0, 0xf00c, 0, 0]);
+        expect(menu.icons).toEqual([0xf067, 0, 0, 0xf00c, 0]);
         menu.onSelect(4);
         await flushPromises();
+        const focusEvents = [];
+        const focusHandler = (event) => focusEvents.push(event.type);
+        window.addEventListener('ttyphoon-focus-terminal', focusHandler);
         let actionMenu = showLocalMenuMock.mock.calls.at(-1)?.[0];
-        expect(actionMenu.title).toBe('/workspace/worktrees/zeta');
+        expect(actionMenu.title).toBe('zeta');
         expect(actionMenu.options).toEqual(['Info', 'Switch', 'Remove']);
         expect(actionMenu.icons).toEqual([0xf129, 0xf204, 0xf2ed]);
         actionMenu.onSelect(0);
@@ -4889,9 +4892,15 @@ describe('notes rendering', () => {
         actionMenu.onSelect(1);
         await flushPromises();
         expect(switchGitWorktreeMock).toHaveBeenCalledWith('/workspace/repo', '/workspace/worktrees/zeta');
+        expect(focusEvents).toContain('ttyphoon-focus-terminal');
+        window.removeEventListener('ttyphoon-focus-terminal', focusHandler);
         actionMenu.onSelect(2);
         await flushPromises();
         expect(removeGitWorktreeMock).toHaveBeenCalledWith('/workspace/repo', '/workspace/worktrees/zeta');
+        expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({
+            level: 'info',
+            message: 'Worktree removed: zeta',
+        }));
 
         worktreeButton.click();
         await flushPromises();
@@ -4908,8 +4917,14 @@ describe('notes rendering', () => {
         expect(menu.icons[0]).toBe(0xf067);
         menu.onSelect(2);
 
-        const worktreePath = document.querySelector('.notes-worktree-form input');
-        expect(worktreePath.value).toBe('/Users/test/Documents/ttyphoon/.git_worktrees/hashed-origin');
+        const worktreePath = document.querySelector('.notes-worktree-path-input');
+        expect(worktreePath.tagName).toBe('TEXTAREA');
+        expect(worktreePath.rows).toBe(2);
+        expect(worktreePath.wrap).toBe('soft');
+        expect(worktreePath.value).toBe('/Users/test/Documents/ttyphoon/.git_worktrees/hashed-origin/alpha');
+        worktreePath.value = '/Users/test/Documents/ttyphoon/\n.git_worktrees/alpha';
+        worktreePath.dispatchEvent(new Event('input', { bubbles: true }));
+        expect(worktreePath.value).toBe('/Users/test/Documents/ttyphoon/ .git_worktrees/alpha');
         worktreePath.value = '/Users/test/Documents/ttyphoon/.git_worktrees/custom-alpha';
         document.getElementById('notes-modal-create').click();
         await flushPromises();
@@ -4919,7 +4934,9 @@ describe('notes rendering', () => {
         );
         expect(document.getElementById('notes-modal').dataset.open).toBe('false');
         expect(document.getElementById('notes-modal-card').classList.contains('notes-worktree-dialog')).toBe(false);
-        expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({ level: 'info' }));
+        expect(sendIpcMock).not.toHaveBeenCalledWith('terminal-notify', expect.objectContaining({
+            message: expect.stringContaining('Created worktree'),
+        }));
         expect(sendIpcMock).toHaveBeenCalledWith('terminal-sticky-create', expect.objectContaining({
             message: 'Creating worktree',
             level: 'info',
@@ -4952,7 +4969,8 @@ describe('notes rendering', () => {
         await flushPromises();
         expect(document.querySelector('#notes-modal-title h3')?.textContent).toBe('Create new worktree');
         expect(document.querySelector('.notes-worktree-form .notes-graph-dropdown').textContent).toContain('Select branch');
-        expect(document.querySelector('.notes-worktree-form input').disabled).toBe(false);
+        expect(document.querySelector('.notes-worktree-path-input').disabled).toBe(true);
+        expect(document.querySelector('.notes-worktree-path-input').value).toBe('');
 
         document.querySelector('.notes-worktree-form .notes-graph-dropdown').click();
         showLocalMenuMock.mock.calls.at(-1)?.[0].onSelect(0);
@@ -4960,11 +4978,11 @@ describe('notes rendering', () => {
         document.getElementById('notes-modal-input').value = 'topic/new';
         document.getElementById('notes-modal-create').click();
         await flushPromises();
-        expect(document.querySelector('.notes-worktree-form input').value).toBe('/Users/test/Documents/ttyphoon/.git_worktrees/hashed-root');
+        expect(document.querySelector('.notes-worktree-path-input').value).toBe('/Users/test/Documents/ttyphoon/.git_worktrees/hashed-root/topic/new');
         document.getElementById('notes-modal-create').click();
         await flushPromises();
         expect(createGitWorktreeMock).toHaveBeenCalledWith(
-            '/workspace/repo', 'topic/new', '/Users/test/Documents/ttyphoon/.git_worktrees/hashed-root', true,
+            '/workspace/repo', 'topic/new', '/Users/test/Documents/ttyphoon/.git_worktrees/hashed-root/topic/new', true,
         );
         expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({
             level: 'error',
@@ -5001,12 +5019,12 @@ describe('notes rendering', () => {
         document.querySelector('.notes-worktree-form .notes-graph-dropdown').click();
         showLocalMenuMock.mock.calls.at(-1)?.[0].onSelect(2);
 
-        const pathInput = document.querySelector('.notes-worktree-form input');
+        const pathInput = document.querySelector('.notes-worktree-path-input');
         pathInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
         await flushPromises();
 
         expect(createGitWorktreeMock).toHaveBeenCalledWith(
-            '/workspace/repo', 'main', '/Users/test/Documents/ttyphoon/.git_worktrees/hashed-root', false,
+            '/workspace/repo', 'main', '/Users/test/Documents/ttyphoon/.git_worktrees/hashed-root/main', false,
         );
         expect(document.getElementById('notes-modal').dataset.open).toBe('false');
         const stickyCallIndex = sendIpcMock.mock.calls.findIndex(([channel]) => channel === 'terminal-sticky-create');

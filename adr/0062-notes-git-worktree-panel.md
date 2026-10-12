@@ -29,16 +29,19 @@ Git is unavailable.
   active terminal pane and its other Notes context roots.
 - Provide a worktree creation modal with a branch picker listing local branches
   alphabetically and an option to create a branch. Default the destination to
-  `$HOME/Documents/ttyphoon/.git_worktrees/<sha256>`, hashing the remote origin
-  URL or, when no origin is configured, the canonical project root. Accept
-  relative paths within the project and absolute destinations; validate branch
-  names, reject symlinked destination parents, and invoke Git with
-  argument-separated commands. Add an in-repository destination to the shared
-  repository `info/exclude` so a nested worktree does not appear untracked.
+  `$HOME/Documents/ttyphoon/.git_worktrees/<sha256>/<branch>`, hashing the
+  remote origin URL or, when no origin is configured, the canonical project
+  root. Accept relative paths within the project and absolute destinations;
+  validate branch names, reject symlinked destination parents, and invoke Git
+  with argument-separated commands. Add an in-repository destination to the
+  shared repository `info/exclude` so a nested worktree does not appear
+  untracked.
 - Start creation from Notes asynchronously. Close the modal immediately, create
   a sticky `Creating worktree` terminal notification before invoking Git, and
   close that notification when the Git operation completes. Report failures as
   terminal error notifications.
+- Removing a worktree removes only its working directory/registration and never
+  deletes its branch. Do not force removal; let Git reject dirty worktrees.
 - Render branch state, ahead/behind counts, and changed paths in the Git pane.
   Selecting a path opens a side-by-side Monaco diff comparing `HEAD` with the
   working tree in a dedicated top-level Notes `Diff` tab. The modified side is

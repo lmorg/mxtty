@@ -56,7 +56,7 @@ export function initNotesGitPanel(elements, api, options = {}) {
     const renderStatus = (status) => {
         currentStatus = status;
         statusCache.set(rootKey(projectRoot), { status });
-        elements.gitWorkspace.textContent = 'Worktree';
+        elements.gitWorkspace.textContent = 'Worktrees';
         elements.gitWorkspace.dataset.tooltip = status.root || projectRoot;
         elements.gitBranch.textContent = status.branch || 'Detached HEAD';
         elements.gitAheadBehind.textContent = [

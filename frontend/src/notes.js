@@ -650,7 +650,7 @@ app.innerHTML = `
                                     <span id="notes-tools-git-ahead-behind" class="notes-git-ahead-behind"></span>
                                 </div>
                                 <div class="notes-git-actions">
-                                <button id="notes-tools-git-workspace" type="button" class="notes-ai-model-picker" aria-label="Worktree" data-tooltip="Git worktrees">Worktree</button>
+                                <button id="notes-tools-git-workspace" type="button" class="notes-ai-model-picker" aria-label="Worktrees" data-tooltip="Git worktrees">Worktrees</button>
                                 <button id="notes-tools-git-refresh" type="button" class="notes-tools-clear notes-tools-icon" data-tooltip="Refresh Git status" aria-label="Refresh Git status">&#xf021;</button>
                                 </div>
                             </div>
@@ -11511,10 +11511,14 @@ async function openCreateGitWorktreePrompt(projectRoot) {
     form.appendChild(branchField.field);
 
     const pathField = notesGraphField('Path');
-    const pathInput = document.createElement('input');
-    pathInput.type = 'text';
-    pathInput.className = 'notes-graph-text';
-    pathInput.value = defaultPath;
+    const pathInput = document.createElement('textarea');
+    pathInput.className = 'notes-worktree-path-input';
+    pathInput.rows = 2;
+    pathInput.wrap = 'soft';
+    pathInput.disabled = true;
+    pathInput.addEventListener('input', () => {
+        pathInput.value = pathInput.value.replace(/[\r\n]+/g, ' ');
+    });
     pathInput.addEventListener('keydown', (event) => {
         if (event.key === 'Enter') {
             event.preventDefault();
@@ -11528,6 +11532,11 @@ async function openCreateGitWorktreePrompt(projectRoot) {
         prompt.branch = branch;
         prompt.createBranch = createBranch;
         branchButton.textContent = `${branch || 'Select branch'}`;
+        const pathSeparator = defaultPath.includes('\\') ? '\\' : '/';
+        pathInput.value = branch
+            ? `${defaultPath.replace(/[\\/]+$/, '')}${pathSeparator}${branch.split('/').join(pathSeparator)}`
+            : '';
+        pathInput.disabled = !branch;
         elements.modalCreate.disabled = !branch;
     };
 
@@ -11571,9 +11580,8 @@ async function openCreateGitWorktreePrompt(projectRoot) {
         void (async () => {
             await openStickyProgress(stickyId, 'Creating worktree');
             try {
-                const worktree = await CreateGitWorktree(projectRoot, branch, worktreePath, createBranch);
+                await CreateGitWorktree(projectRoot, branch, worktreePath, createBranch);
                 closeStickyProgress(stickyId);
-                notifyTerminal(`Created worktree ${worktree.path}`, 'info');
             } catch (error) {
                 closeStickyProgress(stickyId, String(error?.message || error), 'error');
             }
@@ -15268,9 +15276,9 @@ notesGitPanel = initNotesGitPanel(elements, {
         const activeRoot = String(notesGitPanel?.getCurrentRoot() || root).replace(/\\/g, '/').replace(/\/$/, '');
         const items = [{ title: 'New worktree', icon: CONTEXT_ICON_ADD, onSelect: () => void openCreateGitWorktreePrompt(root) }, { title: '-', icon: 0 }];
         items.push(...[...worktrees]
-            .sort((left, right) => left.path.localeCompare(right.path))
+            .sort((left, right) => left.branch.localeCompare(right.branch))
             .map((worktree) => ({
-                title: worktree.path,
+                title: worktree.branch || '(detached HEAD)',
                 icon: String(worktree.path || '').replace(/\\/g, '/').replace(/\/$/, '') === activeRoot ? CONTEXT_ICON_TICK : 0,
                 onSelect: () => {
                     const actionItems = [
@@ -15284,6 +15292,7 @@ notesGitPanel = initNotesGitPanel(elements, {
                             icon: 0xf204,
                             onSelect: async () => {
                                 try {
+                                    window.dispatchEvent(new CustomEvent('ttyphoon-focus-terminal'));
                                     await SwitchGitWorktree(root, worktree.path);
                                 } catch (error) {
                                     notifyTerminal(String(error?.message || error), 'error');
@@ -15296,6 +15305,7 @@ notesGitPanel = initNotesGitPanel(elements, {
                             onSelect: async () => {
                                 try {
                                     await RemoveGitWorktree(root, worktree.path);
+                                    notifyTerminal(`Worktree removed: ${worktree.branch || worktree.path}`, 'info');
                                 } catch (error) {
                                     notifyTerminal(String(error?.message || error), 'error');
                                 }
@@ -15303,7 +15313,7 @@ notesGitPanel = initNotesGitPanel(elements, {
                         },
                     ];
                     showLocalMenu({
-                        title: worktree.path,
+                        title: worktree.branch || '(detached HEAD)',
                         options: actionItems.map((item) => item.title),
                         icons: actionItems.map((item) => item.icon),
                         x: rect.left,

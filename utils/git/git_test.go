@@ -245,7 +245,7 @@ func TestCreateWorktreeAtAbsolutePathOutsideRepository(t *testing.T) {
 	}
 }
 
-func TestRemoveWorktreeRemovesBranchWithoutForce(t *testing.T) {
+func TestRemoveWorktreePreservesBranch(t *testing.T) {
 	root := initGitTestRepo(t)
 	gitPath, err := exec.LookPath("git")
 	if err != nil {
@@ -263,8 +263,8 @@ func TestRemoveWorktreeRemovesBranchWithoutForce(t *testing.T) {
 	if err != nil {
 		t.Fatalf("git branch --list error = %v: %s", err, output)
 	}
-	if strings.TrimSpace(string(output)) != "" {
-		t.Fatalf("branch still exists after RemoveWorktree: %s", output)
+	if strings.TrimSpace(string(output)) != "removable" {
+		t.Fatalf("branch list after RemoveWorktree = %q, want retained branch removable", output)
 	}
 }
 
