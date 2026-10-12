@@ -2581,6 +2581,22 @@ func (a *WApp) ListGitBranches(projectRoot string) ([]string, error) {
 	return gitutils.ListBranches(projectRoot)
 }
 
+func (a *WApp) CheckoutGitBranch(projectRoot, branch string, create bool) error {
+	if err := gitutils.CheckoutBranch(projectRoot, branch, create); err != nil {
+		return err
+	}
+	_, _ = a.refreshGitStatus(projectRoot)
+	return nil
+}
+
+func (a *WApp) FetchGitBranch(projectRoot, branch string) (map[string]string, error) {
+	output, err := gitutils.FetchBranch(projectRoot, branch)
+	if err == nil {
+		_, _ = a.refreshGitStatus(projectRoot)
+	}
+	return output, err
+}
+
 func (a *WApp) GetDefaultGitWorktreePath(projectRoot string) (string, error) {
 	return gitutils.DefaultWorktreePath(projectRoot)
 }

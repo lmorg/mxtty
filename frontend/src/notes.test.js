@@ -92,6 +92,8 @@ const stageGitFileMock = vi.fn(() => Promise.resolve());
 const unstageGitFileMock = vi.fn(() => Promise.resolve());
 const listGitWorktreesMock = vi.fn(() => Promise.resolve([]));
 const listGitBranchesMock = vi.fn(() => Promise.resolve([]));
+const checkoutGitBranchMock = vi.fn(() => Promise.resolve());
+const fetchGitBranchMock = vi.fn(() => Promise.resolve({ stdout: '', stderr: '', error: '' }));
 const listGitCommitsMock = vi.fn(() => Promise.resolve([]));
 const getDefaultGitWorktreePathMock = vi.fn(() => Promise.resolve('/home/test/Documents/ttyphoon/.git_worktrees/default-hash'));
 const createGitWorktreeMock = vi.fn(() => Promise.resolve({ path: '', branch: '' }));
@@ -204,6 +206,8 @@ vi.mock('../wailsjs/go/main/WApp', () => ({
     UnstageGitFile: unstageGitFileMock,
     ListGitWorktrees: listGitWorktreesMock,
     ListGitBranches: listGitBranchesMock,
+    CheckoutGitBranch: checkoutGitBranchMock,
+    FetchGitBranch: fetchGitBranchMock,
     ListGitCommits: listGitCommitsMock,
     GetDefaultGitWorktreePath: getDefaultGitWorktreePathMock,
     CreateGitWorktree: createGitWorktreeMock,
@@ -514,6 +518,10 @@ describe('notes rendering', () => {
         unstageGitFileMock.mockReset();
         listGitWorktreesMock.mockReset();
         listGitBranchesMock.mockReset();
+        checkoutGitBranchMock.mockReset();
+        checkoutGitBranchMock.mockResolvedValue();
+        fetchGitBranchMock.mockReset();
+        fetchGitBranchMock.mockResolvedValue({ stdout: '', stderr: '', error: '' });
         listGitCommitsMock.mockReset();
         listGitCommitsMock.mockResolvedValue([]);
         getDefaultGitWorktreePathMock.mockReset();
@@ -4867,7 +4875,7 @@ describe('notes rendering', () => {
         expect(document.querySelector('.notes-git-summary #notes-tools-git-branch')).not.toBeNull();
         expect(document.querySelector('.notes-git-actions #notes-tools-git-workspace')).not.toBeNull();
         expect(Array.from(document.querySelector('.notes-git-actions').children).map((element) => element.id)).toEqual([
-            'notes-tools-git-commits', 'notes-tools-git-workspace', 'notes-tools-git-remote', 'notes-tools-git-refresh',
+            'notes-tools-git-commits', 'notes-tools-git-branches', 'notes-tools-git-workspace', 'notes-tools-git-remote', 'notes-tools-git-refresh',
         ]);
         await flushPromises();
         const gitRemote = document.getElementById('notes-tools-git-remote');
@@ -4878,6 +4886,58 @@ describe('notes rendering', () => {
         expect(toolTabIds.indexOf('notes-tools-tab-git')).toBeLessThan(toolTabIds.indexOf('notes-tools-tab-ai'));
         expect(diffTab.textContent).toBe('Diff');
         expect(diffTab.style.display).toBe('none');
+    });
+
+    it('offers branch creation, checkout, fetch, copy, and worktree actions', async () => {
+        getCurrentProjectMock.mockResolvedValue('/workspace/repo');
+        getGitStatusMock.mockResolvedValue({ root: '/workspace/repo', branch: 'main', ahead: 0, behind: 0, clean: true, files: [] });
+        listGitBranchesMock.mockResolvedValue(['zeta', 'main', 'alpha']);
+        getDefaultGitWorktreePathMock.mockResolvedValue('/Users/test/.git_worktrees/default/');
+        createGitWorktreeMock.mockResolvedValue({ path: '/Users/test/.git_worktrees/default/alpha', branch: 'alpha' });
+        fetchGitBranchMock.mockResolvedValue({ stdout: 'Fetched objects', stderr: 'Fetch warning', error: '' });
+        await importNotesModule();
+        document.getElementById('notes-tools-git-branches').click();
+        await flushPromises();
+        let menu = showLocalMenuMock.mock.calls.at(-1)?.[0];
+        expect(menu.options).toEqual(['Create new branch', '-', 'alpha', 'main', 'zeta']);
+        menu.onSelect(2);
+        menu = showLocalMenuMock.mock.calls.at(-1)?.[0];
+        expect(menu.title).toBe('alpha');
+        expect(menu.options).toEqual(['Copy branch name', '-', 'Checkout', 'Fetch latest', 'Create new worktree']);
+        expect(menu.icons).toEqual([0xf0c5, 0, 0xf126, 0xf019, 0xf067]);
+        menu.onSelect(0);
+        await flushPromises();
+        expect(clipboardSetTextMock).toHaveBeenCalledWith('alpha');
+        menu.onSelect(2);
+        await flushPromises();
+        expect(checkoutGitBranchMock).toHaveBeenCalledWith('/workspace/repo', 'alpha', false);
+        expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({ message: 'Switched to alpha', level: 'info' }));
+        checkoutGitBranchMock.mockRejectedValueOnce(new Error('local changes would be overwritten'));
+        menu.onSelect(2);
+        await flushPromises();
+        expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({ message: 'local changes would be overwritten', level: 'error' }));
+        const checkouts = checkoutGitBranchMock.mock.calls.length;
+        menu.onSelect(3);
+        await flushPromises();
+        expect(fetchGitBranchMock).toHaveBeenCalledWith('/workspace/repo', 'alpha');
+        expect(checkoutGitBranchMock).toHaveBeenCalledTimes(checkouts);
+        expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({ message: 'Fetched objects', level: 'info' }));
+        expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({ message: 'Fetch warning', level: 'error' }));
+        menu.onSelect(4);
+        await flushPromises();
+        expect(createGitWorktreeMock).toHaveBeenCalledWith('/workspace/repo', 'alpha', '/Users/test/.git_worktrees/default/alpha', false);
+        expect(switchGitWorktreeMock).toHaveBeenCalledWith('/workspace/repo', '/Users/test/.git_worktrees/default/alpha');
+        document.getElementById('notes-tools-git-branches').click();
+        await flushPromises();
+        showLocalMenuMock.mock.calls.at(-1)?.[0].onSelect(0);
+        await flushPromises();
+        expect(document.getElementById('notes-modal').dataset.open).toBe('true');
+        document.getElementById('notes-modal-input').value = 'topic/new';
+        document.getElementById('notes-modal-create').click();
+        await flushPromises();
+        expect(checkoutGitBranchMock).toHaveBeenCalledWith('/workspace/repo', 'topic/new', true);
+        expect(document.getElementById('notes-modal').dataset.open).toBe('false');
+        expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({ message: 'Switched to topic/new', level: 'info' }));
     });
 
     it('offers HEAD first and alphabetized branches excluding the checked-out branch', async () => {

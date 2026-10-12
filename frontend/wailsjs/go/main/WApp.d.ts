@@ -18,6 +18,8 @@ export function AskAIImage(arg1:string,arg2:string):Promise<void>;
 
 export function CancelNotesListFiles():Promise<void>;
 
+export function CheckoutGitBranch(arg1:string,arg2:string,arg3:boolean):Promise<void>;
+
 export function ClearAILog():Promise<void>;
 
 export function ClearAISessionHistory():Promise<sessiondb.FrontendStateT>;
@@ -47,6 +49,8 @@ export function DeleteAISession(arg1:number):Promise<sessiondb.FrontendStateT>;
 export function DeleteFile(arg1:string):Promise<void>;
 
 export function DisplayHyperlinkMenu(arg1:string,arg2:string):Promise<void>;
+
+export function FetchGitBranch(arg1:string,arg2:string):Promise<Record<string, string>>;
 
 export function FilterStrings(arg1:string,arg2:Array<string>):Promise<main.FilterResultsT>;
 

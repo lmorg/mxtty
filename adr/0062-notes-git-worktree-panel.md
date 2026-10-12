@@ -36,6 +36,15 @@ Git is unavailable.
   registered with the current repository, sorted by path, and marks the active
   worktree. Selecting one switches Notes' project context while preserving the
   active terminal pane and its other Notes context roots.
+- Place a `Branches` button after `Commits`. Its menu starts with Create new
+  branch and a separator, followed by sorted local branches. Creation uses the
+  shared text prompt and creates/checks out the branch. A branch submenu offers
+  copy name, checkout, Fetch latest, and Create new worktree. Checkout reports
+  `Switched to <branch>` on success and Git errors on failure without forcing.
+  Fetch targets the configured upstream (or same-named branch on origin), never
+  checks out or pulls, and reports stdout as info and stderr as error. Worktree
+  creation uses the default directory plus branch name and the shared creation/
+  switch flow. Git commands remain in Go behind thin Wails bindings.
 - Provide a worktree creation modal with a branch picker listing local branches
   alphabetically and an option to create a branch. Default the destination to
   `$HOME/Documents/ttyphoon/.git_worktrees/<sha256>/<branch>`, hashing the

@@ -18,6 +18,10 @@ export function CancelNotesListFiles() {
   return window['go']['main']['WApp']['CancelNotesListFiles']();
 }
 
+export function CheckoutGitBranch(arg1, arg2, arg3) {
+  return window['go']['main']['WApp']['CheckoutGitBranch'](arg1, arg2, arg3);
+}
+
 export function ClearAILog() {
   return window['go']['main']['WApp']['ClearAILog']();
 }
@@ -76,6 +80,10 @@ export function DeleteFile(arg1) {
 
 export function DisplayHyperlinkMenu(arg1, arg2) {
   return window['go']['main']['WApp']['DisplayHyperlinkMenu'](arg1, arg2);
+}
+
+export function FetchGitBranch(arg1, arg2) {
+  return window['go']['main']['WApp']['FetchGitBranch'](arg1, arg2);
 }
 
 export function FilterStrings(arg1, arg2) {

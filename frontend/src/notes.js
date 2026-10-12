@@ -3,6 +3,7 @@ import {
     GetGitStatus, GetGitBrowserLink, GetGitBranchDiffFiles, GetGitDiff, GetGitDiffAgainstBranch,
     RefreshGitStatus, SetGitStatusWatch, StageGitFile, UnstageGitFile,
     ListGitWorktrees, ListGitBranches, ListGitCommits, GetDefaultGitWorktreePath, CreateGitWorktree,
+    CheckoutGitBranch, FetchGitBranch,
     SwitchGitWorktree, RemoveGitWorktree, ShowGitWorktreeInfo,
     NotesTableSort, NotesTableClearSort, NotesTableFilter, NotesTableReconcile, NotesTableRestore, NotesTableSetGraph, NotesTableRenderGraph, NotesTableDisposeAll,
     GetNotesStructViewMaxSizeKB,
@@ -655,6 +656,7 @@ app.innerHTML = `
                                 </div>
                                 <div class="notes-git-actions">
                                 <button id="notes-tools-git-commits" type="button" class="notes-tools-clear notes-git-commits-toggle" aria-pressed="false">Commits</button>
+                                <button id="notes-tools-git-branches" type="button" class="notes-tools-clear" aria-haspopup="menu">Branches</button>
                                 <button id="notes-tools-git-workspace" type="button" class="notes-ai-model-picker" aria-label="Worktrees" data-tooltip="Git worktrees">Worktrees</button>
                                 <button id="notes-tools-git-remote" type="button" class="notes-tools-clear notes-tools-icon notes-git-remote" aria-label="Open remote repository" data-tooltip="Open remote repository" hidden></button>
                                 <button id="notes-tools-git-refresh" type="button" class="notes-tools-clear notes-tools-icon" data-tooltip="Refresh Git status" aria-label="Refresh Git status">&#xf021;</button>
@@ -837,6 +839,7 @@ const elements = {
     gitAheadBehind: document.getElementById('notes-tools-git-ahead-behind'),
     gitCompare: document.getElementById('notes-tools-git-compare'),
     gitCommits: document.getElementById('notes-tools-git-commits'),
+    gitBranches: document.getElementById('notes-tools-git-branches'),
     gitRefresh: document.getElementById('notes-tools-git-refresh'),
     gitFileList: document.getElementById('notes-tools-git-files'),
     toolsFindPane: document.getElementById('notes-tools-find-pane'),
@@ -15261,6 +15264,71 @@ function setNotesGitDiffTabActive(active) {
         tab.setAttribute('aria-selected', tab === elements.tabDiff && isActive ? 'true' : 'false');
     }
 }
+
+async function checkoutNotesGitBranch(root, branch, create = false) {
+    try {
+        await CheckoutGitBranch(root, branch, create);
+        notifyTerminal(`Switched to ${branch}`, 'info');
+    } catch (error) {
+        notifyTerminal(String(error?.message || error), 'error');
+    }
+}
+
+elements.gitBranches.addEventListener('click', async () => {
+    const root = notesGitPanel?.getCurrentRoot();
+    if (!root) return;
+    try {
+        const branches = await ListGitBranches(root);
+        const rect = elements.gitBranches.getBoundingClientRect();
+        const items = [
+            {
+                title: 'Create new branch', icon: CONTEXT_ICON_ADD,
+                onSelect: async () => {
+                    const branch = await openTextPrompt({ title: 'Create new branch', confirmLabel: 'Create', placeholder: 'branch-name' });
+                    if (branch?.trim()) await checkoutNotesGitBranch(root, branch.trim(), true);
+                },
+            },
+            { title: '-', icon: 0 },
+            ...[...branches].sort((left, right) => left.localeCompare(right)).map((branch) => ({
+                title: branch,
+                icon: branch === notesGitPanel?.getCurrentStatus()?.branch ? CONTEXT_ICON_TICK : 0,
+                onSelect: () => showNotesLocalMenu([
+                    { title: 'Copy branch name', icon: CONTEXT_ICON_COPY, onSelect: () => { void ClipboardSetText(branch).catch((error) => notifyTerminal(String(error), 'error')); } },
+                    { title: '-', icon: 0 },
+                    { title: 'Checkout', icon: 0xf126, onSelect: () => checkoutNotesGitBranch(root, branch) },
+                    {
+                        title: 'Fetch latest', icon: 0xf019,
+                        onSelect: async () => {
+                            try {
+                                const output = await FetchGitBranch(root, branch);
+                                if (output.stdout) notifyTerminal(output.stdout, 'info');
+                                if (output.stderr) notifyTerminal(output.stderr, 'error');
+                                if (output.error && !output.stderr) notifyTerminal(output.error, 'error');
+                                if (!output.stdout && !output.stderr && !output.error) notifyTerminal(`Fetch completed for ${branch}`, 'info');
+                            } catch (error) {
+                                notifyTerminal(String(error?.message || error), 'error');
+                            }
+                        },
+                    },
+                    {
+                        title: 'Create new worktree', icon: CONTEXT_ICON_ADD,
+                        onSelect: async () => {
+                            try {
+                                const base = await GetDefaultGitWorktreePath(root);
+                                await createNotesGitWorktree(root, branch, `${String(base).replace(/[\\/]+$/, '')}/${branch}`, false);
+                            } catch (error) {
+                                notifyTerminal(String(error?.message || error), 'error');
+                            }
+                        },
+                    },
+                ], rect.left, rect.bottom, branch),
+            })),
+        ];
+        showNotesLocalMenu(items, rect.left, rect.bottom, 'Branches');
+    } catch (error) {
+        notifyTerminal(String(error?.message || error), 'error');
+    }
+});
 
 elements.toolsTabGit.addEventListener('click', () => {
     setToolsPanelCollapsed(false);

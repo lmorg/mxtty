@@ -176,6 +176,66 @@ func ListBranches(root string) ([]string, error) {
 	return branches, nil
 }
 
+func CheckoutBranch(root, branch string, create bool) error {
+	gitPath, repoRoot, err := checkedRepository(root)
+	if err != nil {
+		return err
+	}
+	if _, err := runGit(gitPath, repoRoot, "check-ref-format", "--branch", branch); err != nil {
+		return fmt.Errorf("invalid branch name %q", branch)
+	}
+	if !create {
+		if _, err := checkedLocalBranch(gitPath, repoRoot, branch); err != nil {
+			return err
+		}
+	}
+	args := []string{"checkout", "--no-guess"}
+	if create {
+		args = append(args, "-b")
+	}
+	args = append(args, branch, "--")
+	_, err = runGit(gitPath, repoRoot, args...)
+	return err
+}
+
+func FetchBranch(root, branch string) (map[string]string, error) {
+	gitPath, repoRoot, err := checkedRepository(root)
+	if err != nil {
+		return nil, err
+	}
+	ref, err := checkedLocalBranch(gitPath, repoRoot, branch)
+	if err != nil {
+		return nil, err
+	}
+	upstream, err := runGit(gitPath, repoRoot, "for-each-ref", "--format=%(upstream:remotename)%00%(upstream:remoteref)", ref)
+	if err != nil {
+		return nil, err
+	}
+	fields := strings.Split(strings.TrimRight(string(upstream), "\r\n"), "\x00")
+	remote, remoteRef := "origin", ref
+	if len(fields) == 2 && fields[0] != "" && fields[1] != "" {
+		remote, remoteRef = fields[0], fields[1]
+	}
+	destination := "refs/remotes/" + remote + "/" + strings.TrimPrefix(remoteRef, "refs/heads/")
+	if remote == "." {
+		destination = remoteRef
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, gitPath, "-C", repoRoot, "fetch", "--", remote, remoteRef+":"+destination)
+	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	runErr := cmd.Run()
+	result := map[string]string{"stdout": strings.TrimSpace(stdout.String()), "stderr": strings.TrimSpace(stderr.String()), "error": ""}
+	if ctx.Err() != nil {
+		result["error"] = "git fetch timed out"
+	} else if runErr != nil {
+		result["error"] = runErr.Error()
+	}
+	return result, nil
+}
+
 func DefaultWorktreePath(root string) (string, error) {
 	gitPath, repoRoot, err := checkedRepository(root)
 	if err != nil {

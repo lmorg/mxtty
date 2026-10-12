@@ -40,6 +40,92 @@ func runGitTestCommand(t *testing.T, gitPath, root string, args ...string) {
 	}
 }
 
+func TestBranchCheckoutAndFetch(t *testing.T) {
+	root := initGitTestRepo(t)
+	gitPath, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := CheckoutBranch(root, "topic/new", true); err != nil {
+		t.Fatal(err)
+	}
+	status, err := WorkspaceStatus(root)
+	if err != nil || status.Branch != "topic/new" {
+		t.Fatalf("created branch = %+v, %v", status, err)
+	}
+	remote := initGitTestRepo(t)
+	runGitTestCommand(t, gitPath, remote, "checkout", "--quiet", "-b", "topic/new")
+	runGitTestCommand(t, gitPath, remote, "commit", "--quiet", "--allow-empty", "-m", "remote update")
+	runGitTestCommand(t, gitPath, root, "remote", "add", "origin", remote)
+	head, err := exec.Command(gitPath, "-C", root, "rev-parse", "HEAD").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := FetchBranch(root, "topic/new")
+	if err != nil || result["error"] != "" {
+		t.Fatalf("fetch = %v, %v", result, err)
+	}
+	after, err := exec.Command(gitPath, "-C", root, "rev-parse", "HEAD").Output()
+	if err != nil || string(head) != string(after) {
+		t.Fatalf("fetch changed HEAD: %s, %v", after, err)
+	}
+	remoteHead, err := exec.Command(gitPath, "-C", remote, "rev-parse", "HEAD").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	fetched, err := exec.Command(gitPath, "-C", root, "rev-parse", "refs/remotes/origin/topic/new").Output()
+	if err != nil || string(fetched) != string(remoteHead) {
+		t.Fatalf("fetched tip = %s, %v", fetched, err)
+	}
+	runGitTestCommand(t, gitPath, remote, "checkout", "--quiet", "-b", "remote/topic")
+	runGitTestCommand(t, gitPath, remote, "commit", "--quiet", "--allow-empty", "-m", "upstream update")
+	runGitTestCommand(t, gitPath, root, "config", "branch.topic/new.remote", "origin")
+	runGitTestCommand(t, gitPath, root, "config", "branch.topic/new.merge", "refs/heads/remote/topic")
+	result, err = FetchBranch(root, "topic/new")
+	if err != nil || result["error"] != "" {
+		t.Fatalf("upstream fetch = %v, %v", result, err)
+	}
+	remoteHead, err = exec.Command(gitPath, "-C", remote, "rev-parse", "HEAD").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	fetched, err = exec.Command(gitPath, "-C", root, "rev-parse", "refs/remotes/origin/remote/topic").Output()
+	if err != nil || string(fetched) != string(remoteHead) {
+		t.Fatalf("upstream tip = %s, %v", fetched, err)
+	}
+	if err := CheckoutBranch(root, "other", true); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "tracked file.txt"), []byte("other branch\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	runGitTestCommand(t, gitPath, root, "add", "tracked file.txt")
+	runGitTestCommand(t, gitPath, root, "commit", "--quiet", "-m", "other content")
+	if err := CheckoutBranch(root, "topic/new", false); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "tracked file.txt"), []byte("unsaved edits\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := CheckoutBranch(root, "other", false); err == nil {
+		t.Fatal("checkout overwrote dirty content")
+	}
+	status, err = WorkspaceStatus(root)
+	if err != nil || status.Branch != "topic/new" {
+		t.Fatalf("failed checkout changed branch: %+v, %v", status, err)
+	}
+	runGitTestCommand(t, gitPath, root, "config", "branch.topic/new.merge", "refs/heads/missing")
+	result, err = FetchBranch(root, "topic/new")
+	if err != nil || result["error"] == "" || result["stderr"] == "" {
+		t.Fatalf("fetch failure output = %v, %v", result, err)
+	}
+	for _, invalid := range []string{"invalid branch", "--detach", "HEAD~1"} {
+		if err := CheckoutBranch(root, invalid, false); err == nil {
+			t.Fatalf("accepted %q", invalid)
+		}
+	}
+}
+
 func TestListCommitsIncludesMetadataAndGraph(t *testing.T) {
 	root := initGitTestRepo(t)
 	gitPath, err := exec.LookPath("git")
