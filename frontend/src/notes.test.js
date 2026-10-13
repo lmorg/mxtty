@@ -92,8 +92,16 @@ const stageGitFileMock = vi.fn(() => Promise.resolve());
 const unstageGitFileMock = vi.fn(() => Promise.resolve());
 const listGitWorktreesMock = vi.fn(() => Promise.resolve([]));
 const listGitBranchesMock = vi.fn(() => Promise.resolve([]));
+const listGitTagsMock = vi.fn(() => Promise.resolve([]));
 const checkoutGitBranchMock = vi.fn(() => Promise.resolve());
+const deleteGitBranchMock = vi.fn(() => Promise.resolve());
 const fetchGitBranchMock = vi.fn(() => Promise.resolve({ stdout: '', stderr: '', error: '' }));
+const createGitTagMock = vi.fn(() => Promise.resolve());
+const deleteGitTagMock = vi.fn(() => Promise.resolve());
+const checkoutGitTagMock = vi.fn(() => Promise.resolve());
+const pullGitTagsMock = vi.fn(() => Promise.resolve({ stdout: '', stderr: '', error: '' }));
+const pushGitTagMock = vi.fn(() => Promise.resolve({ stdout: '', stderr: '', error: '' }));
+const createGitTagWorktreeMock = vi.fn(() => Promise.resolve({ path: '', branch: '' }));
 const listGitCommitsMock = vi.fn(() => Promise.resolve([]));
 const getDefaultGitWorktreePathMock = vi.fn(() => Promise.resolve('/home/test/Documents/ttyphoon/.git_worktrees/default-hash'));
 const createGitWorktreeMock = vi.fn(() => Promise.resolve({ path: '', branch: '' }));
@@ -206,8 +214,16 @@ vi.mock('../wailsjs/go/main/WApp', () => ({
     UnstageGitFile: unstageGitFileMock,
     ListGitWorktrees: listGitWorktreesMock,
     ListGitBranches: listGitBranchesMock,
+    ListGitTags: listGitTagsMock,
     CheckoutGitBranch: checkoutGitBranchMock,
+    DeleteGitBranch: deleteGitBranchMock,
     FetchGitBranch: fetchGitBranchMock,
+    CreateGitTag: createGitTagMock,
+    DeleteGitTag: deleteGitTagMock,
+    CheckoutGitTag: checkoutGitTagMock,
+    PullGitTags: pullGitTagsMock,
+    PushGitTag: pushGitTagMock,
+    CreateGitTagWorktree: createGitTagWorktreeMock,
     ListGitCommits: listGitCommitsMock,
     GetDefaultGitWorktreePath: getDefaultGitWorktreePathMock,
     CreateGitWorktree: createGitWorktreeMock,
@@ -518,10 +534,26 @@ describe('notes rendering', () => {
         unstageGitFileMock.mockReset();
         listGitWorktreesMock.mockReset();
         listGitBranchesMock.mockReset();
+        listGitTagsMock.mockReset();
+        listGitTagsMock.mockResolvedValue([]);
         checkoutGitBranchMock.mockReset();
         checkoutGitBranchMock.mockResolvedValue();
+        deleteGitBranchMock.mockReset();
+        deleteGitBranchMock.mockResolvedValue();
         fetchGitBranchMock.mockReset();
         fetchGitBranchMock.mockResolvedValue({ stdout: '', stderr: '', error: '' });
+        createGitTagMock.mockReset();
+        createGitTagMock.mockResolvedValue();
+        deleteGitTagMock.mockReset();
+        deleteGitTagMock.mockResolvedValue();
+        checkoutGitTagMock.mockReset();
+        checkoutGitTagMock.mockResolvedValue();
+        pullGitTagsMock.mockReset();
+        pullGitTagsMock.mockResolvedValue({ stdout: '', stderr: '', error: '' });
+        pushGitTagMock.mockReset();
+        pushGitTagMock.mockResolvedValue({ stdout: '', stderr: '', error: '' });
+        createGitTagWorktreeMock.mockReset();
+        createGitTagWorktreeMock.mockResolvedValue({ path: '', branch: '' });
         listGitCommitsMock.mockReset();
         listGitCommitsMock.mockResolvedValue([]);
         getDefaultGitWorktreePathMock.mockReset();
@@ -4846,6 +4878,8 @@ describe('notes rendering', () => {
         expect(unstageHoverStyle).toContain('background-color: rgba(var(--green-rgb), 0.3)');
         expect(unstageHoverStyle).toContain('color: var(--green)');
         expect(notesCss).toContain('.notes-tools-log-button-group .notes-tools-icon');
+        expect(notesCss).toContain('border-left: 1px solid rgba(var(--fg-rgb), 0.25);');
+        expect(notesCss).toContain('.notes-git-toolbar-separator');
         expect(notesCss).toContain('flex: 0 0 32px;');
         expect(notesCss).toContain('height: 32px;');
         expect(notesCss).not.toContain('data-wrapped');
@@ -4874,9 +4908,27 @@ describe('notes rendering', () => {
         expect(document.getElementById('notes-tools-git-branch').textContent).toBe('main');
         expect(document.querySelector('.notes-git-summary #notes-tools-git-branch')).not.toBeNull();
         expect(document.querySelector('.notes-git-actions #notes-tools-git-workspace')).not.toBeNull();
-        expect(Array.from(document.querySelector('.notes-git-actions').children).map((element) => element.id)).toEqual([
-            'notes-tools-git-commits', 'notes-tools-git-branches', 'notes-tools-git-workspace', 'notes-tools-git-remote', 'notes-tools-git-refresh',
+        const gitToolbarItems = Array.from(document.querySelector('.notes-git-actions').children);
+        expect(gitToolbarItems.map((element) => element.id || 'separator')).toEqual([
+            'notes-tools-git-commits', 'separator', 'notes-tools-git-tags', 'notes-tools-git-branches', 'notes-tools-git-workspace', 'separator', 'notes-tools-git-remote', 'notes-tools-git-refresh',
         ]);
+        expect(gitToolbarItems[1].getAttribute('aria-hidden')).toBe('true');
+        expect(gitToolbarItems[5].getAttribute('aria-hidden')).toBe('true');
+        expect(gitToolbarItems[1].className).toBe(gitToolbarItems[5].className);
+        for (const [id, glyph, label] of [
+            ['notes-tools-git-commits', 0xf386, 'View commit log'],
+            ['notes-tools-git-tags', 0xf02c, 'manage tags'],
+            ['notes-tools-git-branches', 0xf126, 'Manage branches'],
+            ['notes-tools-git-workspace', 0xf802, 'Worktrees'],
+        ]) {
+            const button = document.getElementById(id);
+            expect(button.textContent).toBe(String.fromCodePoint(glyph));
+            expect(button.classList.contains('notes-tools-icon')).toBe(true);
+            expect(button.getAttribute('aria-label')).toBe(label);
+        }
+        expect(document.getElementById('notes-tools-git-commits').dataset.tooltip).toBe('View commit log');
+        expect(document.getElementById('notes-tools-git-tags').dataset.tooltip).toBe('manage tags');
+        expect(document.getElementById('notes-tools-git-branches').dataset.tooltip).toBe('Manage branches');
         await flushPromises();
         const gitRemote = document.getElementById('notes-tools-git-remote');
         expect(gitRemote.hidden).toBe(false);
@@ -4888,7 +4940,7 @@ describe('notes rendering', () => {
         expect(diffTab.style.display).toBe('none');
     });
 
-    it('offers branch creation, checkout, fetch, copy, and worktree actions', async () => {
+    it('offers branch creation, checkout, fetch, copy, worktree, and delete actions', async () => {
         getCurrentProjectMock.mockResolvedValue('/workspace/repo');
         getGitStatusMock.mockResolvedValue({ root: '/workspace/repo', branch: 'main', ahead: 0, behind: 0, clean: true, files: [] });
         listGitBranchesMock.mockResolvedValue(['zeta', 'main', 'alpha']);
@@ -4903,8 +4955,8 @@ describe('notes rendering', () => {
         menu.onSelect(2);
         menu = showLocalMenuMock.mock.calls.at(-1)?.[0];
         expect(menu.title).toBe('alpha');
-        expect(menu.options).toEqual(['Copy branch name', '-', 'Checkout', 'Fetch latest', 'Create new worktree']);
-        expect(menu.icons).toEqual([0xf0c5, 0, 0xf126, 0xf019, 0xf067]);
+        expect(menu.options).toEqual(['Copy branch name', '-', 'Checkout', 'Fetch latest', 'Create new worktree', '-', 'Delete branch']);
+        expect(menu.icons).toEqual([0xf0c5, 0, 0xf126, 0xf019, 0xf067, 0, 0xf2ed]);
         menu.onSelect(0);
         await flushPromises();
         expect(clipboardSetTextMock).toHaveBeenCalledWith('alpha');
@@ -4923,10 +4975,26 @@ describe('notes rendering', () => {
         expect(checkoutGitBranchMock).toHaveBeenCalledTimes(checkouts);
         expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({ message: 'Fetched objects', level: 'info' }));
         expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({ message: 'Fetch warning', level: 'error' }));
+        expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({ message: 'Fetch completed for alpha', level: 'info' }));
+        const previousCalls = sendIpcMock.mock.calls.length;
+        fetchGitBranchMock.mockResolvedValueOnce({ stdout: '', stderr: 'Fetch failed', error: 'exit status 1' });
+        menu.onSelect(3);
+        await flushPromises();
+        const failureCalls = sendIpcMock.mock.calls.slice(previousCalls);
+        expect(failureCalls.some(([channel, payload]) => channel === 'terminal-notify' && payload.message === 'Fetch completed for alpha')).toBe(false);
+        expect(failureCalls.some(([channel, payload]) => channel === 'terminal-notify' && payload.message === 'Fetch failed' && payload.level === 'error')).toBe(true);
         menu.onSelect(4);
         await flushPromises();
         expect(createGitWorktreeMock).toHaveBeenCalledWith('/workspace/repo', 'alpha', '/Users/test/.git_worktrees/default/alpha', false);
         expect(switchGitWorktreeMock).toHaveBeenCalledWith('/workspace/repo', '/Users/test/.git_worktrees/default/alpha');
+        menu.onSelect(6);
+        await flushPromises();
+        expect(deleteGitBranchMock).toHaveBeenCalledWith('/workspace/repo', 'alpha');
+        expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({ message: 'Deleted branch alpha', level: 'info' }));
+        deleteGitBranchMock.mockRejectedValueOnce(new Error('branch is checked out'));
+        menu.onSelect(6);
+        await flushPromises();
+        expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({ message: 'branch is checked out', level: 'error' }));
         document.getElementById('notes-tools-git-branches').click();
         await flushPromises();
         showLocalMenuMock.mock.calls.at(-1)?.[0].onSelect(0);
@@ -4938,6 +5006,67 @@ describe('notes rendering', () => {
         expect(checkoutGitBranchMock).toHaveBeenCalledWith('/workspace/repo', 'topic/new', true);
         expect(document.getElementById('notes-modal').dataset.open).toBe('false');
         expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({ message: 'Switched to topic/new', level: 'info' }));
+    });
+
+    it('manages tags, transfers them, and creates a tag worktree', async () => {
+        getCurrentProjectMock.mockResolvedValue('/workspace/repo');
+        getGitStatusMock.mockResolvedValue({ root: '/workspace/repo', branch: 'main', ahead: 0, behind: 0, clean: true, files: [] });
+        listGitTagsMock.mockResolvedValue(['v10.3.4', 'v5.9.9', 'release']);
+        getDefaultGitWorktreePathMock.mockResolvedValue('/Users/test/.git_worktrees/default/');
+        createGitTagWorktreeMock.mockResolvedValue({ path: '/Users/test/.git_worktrees/default/v10.3.4', branch: 'tag: v10.3.4' });
+        pullGitTagsMock.mockResolvedValue({ stdout: 'Fetched tags', stderr: '', error: '' });
+        pushGitTagMock.mockResolvedValue({ stdout: 'Pushed tag', stderr: '', error: '' });
+        await importNotesModule();
+
+        document.getElementById('notes-tools-git-tags').click();
+        await flushPromises();
+        let menu = showLocalMenuMock.mock.calls.at(-1)?.[0];
+        expect(listGitTagsMock).toHaveBeenCalledWith('/workspace/repo');
+        expect(menu.title).toBe('Tags');
+        expect(menu.options).toEqual(['Create new tag', '-', 'Pull tags', '-', 'v10.3.4', 'v5.9.9', 'release']);
+        expect(menu.icons).toEqual([0xf067, 0, 0xf019, 0, 0, 0, 0]);
+
+        menu.onSelect(2);
+        await flushPromises();
+        expect(pullGitTagsMock).toHaveBeenCalledWith('/workspace/repo');
+        expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({ message: 'Fetched tags', level: 'info' }));
+        expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({ message: 'Tags pulled', level: 'info' }));
+
+        menu.onSelect(4);
+        menu = showLocalMenuMock.mock.calls.at(-1)?.[0];
+        expect(menu.title).toBe('v10.3.4');
+        expect(menu.options).toEqual(['Copy tag name', 'Push tag', '-', 'Checkout', 'Create new worktree', '-', 'Delete tag']);
+        expect(menu.icons).toEqual([0xf0c5, 0xf093, 0, 0xf126, 0xf067, 0, 0xf2ed]);
+        menu.onSelect(0);
+        await flushPromises();
+        expect(clipboardSetTextMock).toHaveBeenCalledWith('v10.3.4');
+        menu.onSelect(1);
+        await flushPromises();
+        expect(pushGitTagMock).toHaveBeenCalledWith('/workspace/repo', 'v10.3.4');
+        expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({ message: 'Pushed tag', level: 'info' }));
+        expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({ message: 'Pushed tag v10.3.4', level: 'info' }));
+        menu.onSelect(3);
+        await flushPromises();
+        expect(checkoutGitTagMock).toHaveBeenCalledWith('/workspace/repo', 'v10.3.4');
+        menu.onSelect(4);
+        await flushPromises();
+        expect(createGitTagWorktreeMock).toHaveBeenCalledWith('/workspace/repo', 'v10.3.4', '/Users/test/.git_worktrees/default/v10.3.4');
+        expect(switchGitWorktreeMock).toHaveBeenCalledWith('/workspace/repo', '/Users/test/.git_worktrees/default/v10.3.4');
+        menu.onSelect(6);
+        await flushPromises();
+        expect(deleteGitTagMock).toHaveBeenCalledWith('/workspace/repo', 'v10.3.4');
+
+        document.getElementById('notes-tools-git-tags').click();
+        await flushPromises();
+        menu = showLocalMenuMock.mock.calls.at(-1)?.[0];
+        expect(menu.options[0]).toBe('Create new tag');
+        menu.onSelect(0);
+        await flushPromises();
+        expect(document.getElementById('notes-modal-title')?.textContent).toBe('Create new tag');
+        document.getElementById('notes-modal-input').value = 'v11.0.0';
+        document.getElementById('notes-modal-create').click();
+        await flushPromises();
+        expect(createGitTagMock).toHaveBeenCalledWith('/workspace/repo', 'v11.0.0');
     });
 
     it('offers HEAD first and alphabetized branches excluding the checked-out branch', async () => {
@@ -5069,7 +5198,7 @@ describe('notes rendering', () => {
         await importNotesModule();
 
         const worktreeButton = document.getElementById('notes-tools-git-workspace');
-        expect(worktreeButton.textContent).toBe('Worktrees');
+        expect(worktreeButton.textContent).toBe(String.fromCodePoint(0xf802));
         worktreeButton.click();
         await flushPromises();
 

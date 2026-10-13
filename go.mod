@@ -47,6 +47,7 @@ require (
 	golang.design/x/clipboard v0.9.0
 	golang.design/x/hotkey v0.6.1
 	golang.org/x/image v0.45.0
+	golang.org/x/mod v0.39.0
 	golang.org/x/oauth2 v0.36.0
 	golang.org/x/sys v0.47.0
 	golang.org/x/tools v0.49.0

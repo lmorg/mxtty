@@ -120,7 +120,7 @@ export function initNotesGitPanel(elements, api, options = {}) {
         void updateRemoteLink(status, projectRoot);
         elements.gitCompare.textContent = compareLabel || compareBranch || 'HEAD';
         statusCache.set(rootKey(projectRoot), { status: cachedStatus });
-        elements.gitWorkspace.textContent = 'Worktrees';
+        elements.gitWorkspace.textContent = String.fromCodePoint(0xf802);
         elements.gitWorkspace.dataset.tooltip = status.root || projectRoot;
         elements.gitBranch.textContent = status.branch || 'Detached HEAD';
         elements.gitAheadBehind.textContent = [

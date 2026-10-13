@@ -42,9 +42,25 @@ Git is unavailable.
   copy name, checkout, Fetch latest, and Create new worktree. Checkout reports
   `Switched to <branch>` on success and Git errors on failure without forcing.
   Fetch targets the configured upstream (or same-named branch on origin), never
-  checks out or pulls, and reports stdout as info and stderr as error. Worktree
+  checks out or pulls, and reports stdout as info and stderr as error. Successful
+  fetches also report `Fetch completed for <branch>`, regardless of output;
+  failed fetches never emit that success notification. Fetch inherits the app
+  environment with non-empty `SSH_AUTH_SOCK` and `SSH_AGENT_PID` overlaid from
+  the active tile's terminal snapshot; no other terminal variables are copied.
+  Missing agent values retain app defaults, and Git prompting stays disabled.
+  Worktree
   creation uses the default directory plus branch name and the shared creation/
   switch flow. Git commands remain in Go behind thin Wails bindings.
+- Place a `Tags` button after `Commits`, with icon `0xf02c` and tooltip
+  `manage tags`. Offer tag creation, pull-tags, and local tags ordered by
+  descending semantic version. A tag submenu provides copy, push-only-that-tag,
+  detached checkout, a detached worktree at the default directory plus tag
+  name, and local deletion. Pull/push use the active tile's SSH-agent variables
+  just like branch fetch; Git operations remain behind Wails bindings.
+- Git toolbar controls use Font Awesome icons: Commits `0xf386` with tooltip
+  `View commit log`, Branches `0xf126` with tooltip `Manage branches`, and
+  Worktrees `0xf802` retaining its existing tooltip. Keep accessible labels and
+  the Commits toggle's pressed state independent of the visible glyph.
 - Provide a worktree creation modal with a branch picker listing local branches
   alphabetically and an option to create a branch. Default the destination to
   `$HOME/Documents/ttyphoon/.git_worktrees/<sha256>/<branch>`, hashing the

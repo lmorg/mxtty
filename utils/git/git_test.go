@@ -40,6 +40,86 @@ func runGitTestCommand(t *testing.T, gitPath, root string, args ...string) {
 	}
 }
 
+func TestFetchEnvironmentUsesOnlyNonEmptyAgentVariables(t *testing.T) {
+	t.Setenv("SSH_AUTH_SOCK", "/app/agent.sock")
+	t.Setenv("SSH_AGENT_PID", "11")
+	t.Setenv("GIT_TERMINAL_PROMPT", "1")
+	appPath := os.Getenv("PATH")
+	for _, test := range []struct {
+		name   string
+		vars   map[string]string
+		socket string
+		pid    string
+	}{
+		{"tile agent", map[string]string{"SSH_AUTH_SOCK": "/tile/agent.sock", "SSH_AGENT_PID": "22", "PATH": "/wrong", "GIT_SSH_COMMAND": "wrong"}, "/tile/agent.sock", "22"},
+		{"socket only", map[string]string{"SSH_AUTH_SOCK": "/tile/agent.sock"}, "/tile/agent.sock", "11"},
+		{"unset values", map[string]string{"SSH_AUTH_SOCK": "", "SSH_AGENT_PID": ""}, "/app/agent.sock", "11"},
+		{"no tile", nil, "/app/agent.sock", "11"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			values := make(map[string]string)
+			counts := make(map[string]int)
+			for _, entry := range fetchEnvironment(test.vars) {
+				name, value, _ := strings.Cut(entry, "=")
+				values[name] = value
+				counts[name]++
+			}
+			if values["SSH_AUTH_SOCK"] != test.socket || values["SSH_AGENT_PID"] != test.pid {
+				t.Fatal("SSH agent environment does not match the selected source")
+			}
+			if values["PATH"] != appPath || values["GIT_SSH_COMMAND"] != os.Getenv("GIT_SSH_COMMAND") {
+				t.Fatal("non-agent variables were overridden")
+			}
+			if values["GIT_TERMINAL_PROMPT"] != "0" {
+				t.Fatal("interactive Git prompting was enabled")
+			}
+			for _, name := range []string{"SSH_AUTH_SOCK", "SSH_AGENT_PID", "GIT_TERMINAL_PROMPT"} {
+				if counts[name] != 1 {
+					t.Fatalf("duplicate environment key %q", name)
+				}
+			}
+		})
+	}
+}
+
+func TestFetchBranchPassesAgentEnvironmentToTransport(t *testing.T) {
+	if os.PathSeparator == '\\' {
+		t.Skip("transport fixture uses a POSIX wrapper")
+	}
+	root := initGitTestRepo(t)
+	remote := initGitTestRepo(t)
+	gitPath, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	runGitTestCommand(t, gitPath, root, "checkout", "--quiet", "-b", "agent-test")
+	runGitTestCommand(t, gitPath, remote, "checkout", "--quiet", "-b", "agent-test")
+	runGitTestCommand(t, gitPath, root, "remote", "add", "origin", remote)
+	directory := t.TempDir()
+	capture := filepath.Join(directory, "agent-environment")
+	wrapper := filepath.Join(directory, "upload-pack")
+	t.Setenv("FETCH_TEST_CAPTURE", capture)
+	t.Setenv("FETCH_TEST_GIT", gitPath)
+	t.Setenv("SSH_AUTH_SOCK", "/app/agent.sock")
+	t.Setenv("SSH_AGENT_PID", "11")
+	script := "#!/bin/sh\nprintf '%s\\n%s\\n' \"$SSH_AUTH_SOCK\" \"$SSH_AGENT_PID\" > \"$FETCH_TEST_CAPTURE\"\nexec \"$FETCH_TEST_GIT\" upload-pack \"$@\"\n"
+	if err := os.WriteFile(wrapper, []byte(script), 0700); err != nil {
+		t.Fatal(err)
+	}
+	runGitTestCommand(t, gitPath, root, "config", "remote.origin.uploadpack", wrapper)
+	result, err := FetchBranch(root, "agent-test", map[string]string{"SSH_AUTH_SOCK": "/tile/agent.sock", "SSH_AGENT_PID": "22"})
+	if err != nil || result["error"] != "" {
+		t.Fatalf("fetch = %v, %v", result, err)
+	}
+	actual, err := os.ReadFile(capture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(actual) != "/tile/agent.sock\n22\n" {
+		t.Fatalf("transport agent environment = %q", actual)
+	}
+}
+
 func TestBranchCheckoutAndFetch(t *testing.T) {
 	root := initGitTestRepo(t)
 	gitPath, err := exec.LookPath("git")
@@ -123,6 +203,159 @@ func TestBranchCheckoutAndFetch(t *testing.T) {
 		if err := CheckoutBranch(root, invalid, false); err == nil {
 			t.Fatalf("accepted %q", invalid)
 		}
+	}
+}
+
+func TestTagListCheckoutWorktreeAndDelete(t *testing.T) {
+	root := initGitTestRepo(t)
+	for _, tag := range []string{"v5.9.9", "v1.0.0", "v10.3.4-rc.1", "v10.3.4", "release"} {
+		if err := CreateTag(root, tag); err != nil {
+			t.Fatalf("CreateTag(%q) = %v", tag, err)
+		}
+	}
+	tags, err := ListTags(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"v10.3.4", "v10.3.4-rc.1", "v5.9.9", "v1.0.0", "release"}
+	if strings.Join(tags, ",") != strings.Join(want, ",") {
+		t.Fatalf("ListTags() = %v, want %v", tags, want)
+	}
+	if err := CheckoutTag(root, "v5.9.9"); err != nil {
+		t.Fatalf("CheckoutTag() = %v", err)
+	}
+	status, err := WorkspaceStatus(root)
+	if err != nil || status.Branch != "(detached HEAD)" {
+		t.Fatalf("tag checkout status = %+v, %v", status, err)
+	}
+	worktreePath := filepath.Join(t.TempDir(), "v5.9.9")
+	worktree, err := CreateTagWorktree(root, "v5.9.9", worktreePath)
+	if err != nil || worktree.Branch != "tag: v5.9.9" {
+		t.Fatalf("CreateTagWorktree() = %+v, %v", worktree, err)
+	}
+	worktrees, err := ListWorktrees(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	foundTagWorktree := false
+	canonicalWorktreePath, err := filepath.EvalSymlinks(worktreePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range worktrees {
+		listedPath, pathErr := filepath.EvalSymlinks(item.Path)
+		if pathErr == nil && listedPath == canonicalWorktreePath && strings.HasPrefix(item.Branch, "tag: ") {
+			foundTagWorktree = true
+		}
+	}
+	if !foundTagWorktree {
+		t.Fatalf("tag worktree is not labeled as a tag: %+v", worktrees)
+	}
+	if err := DeleteTag(root, "v10.3.4-rc.1"); err != nil {
+		t.Fatalf("DeleteTag() = %v", err)
+	}
+	if err := DeleteTag(root, "missing"); err == nil {
+		t.Fatal("DeleteTag accepted a missing tag")
+	}
+	if err := CreateTag(root, "invalid tag"); err == nil {
+		t.Fatal("CreateTag accepted an invalid name")
+	}
+}
+
+func TestPullAndPushTagsPassAgentEnvironmentToTransport(t *testing.T) {
+	root := initGitTestRepo(t)
+	gitPath, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	remote := filepath.Join(t.TempDir(), "remote.git")
+	if err := os.Mkdir(remote, 0700); err != nil {
+		t.Fatal(err)
+	}
+	runGitTestCommand(t, gitPath, remote, "init", "--quiet", "--bare")
+	runGitTestCommand(t, gitPath, root, "remote", "add", "origin", remote)
+	if err := CreateTag(root, "v1.2.3"); err != nil {
+		t.Fatal(err)
+	}
+	runGitTestCommand(t, gitPath, root, "push", "origin", "refs/tags/v1.2.3")
+	if err := DeleteTag(root, "v1.2.3"); err != nil {
+		t.Fatal(err)
+	}
+	directory := t.TempDir()
+	capture := filepath.Join(directory, "agent-environment")
+	t.Setenv("FETCH_TEST_CAPTURE", capture)
+	t.Setenv("FETCH_TEST_GIT", gitPath)
+	t.Setenv("SSH_AUTH_SOCK", "/app/agent.sock")
+	t.Setenv("SSH_AGENT_PID", "11")
+	script := "#!/bin/sh\nprintf '%s\\n%s\\n' \"$SSH_AUTH_SOCK\" \"$SSH_AGENT_PID\" > \"$FETCH_TEST_CAPTURE\"\nexec \"$FETCH_TEST_GIT\" $FETCH_TEST_SERVICE \"$@\"\n"
+	wrapper := filepath.Join(directory, "git-transport")
+	if err := os.WriteFile(wrapper, []byte(script), 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("FETCH_TEST_SERVICE", "upload-pack")
+	runGitTestCommand(t, gitPath, root, "config", "remote.origin.uploadpack", wrapper)
+	agent := map[string]string{"SSH_AUTH_SOCK": "/tile/agent.sock", "SSH_AGENT_PID": "22"}
+	result, err := PullTags(root, agent)
+	if err != nil || result["error"] != "" {
+		t.Fatalf("PullTags() = %v, %v", result, err)
+	}
+	actual, err := os.ReadFile(capture)
+	if err != nil || string(actual) != "/tile/agent.sock\n22\n" {
+		t.Fatalf("pull transport environment = %q, %v", actual, err)
+	}
+	if tags, err := ListTags(root); err != nil || len(tags) != 1 || tags[0] != "v1.2.3" {
+		t.Fatalf("tags after PullTags() = %v, %v", tags, err)
+	}
+	runGitTestCommand(t, gitPath, remote, "tag", "--delete", "v1.2.3")
+	t.Setenv("FETCH_TEST_SERVICE", "receive-pack")
+	runGitTestCommand(t, gitPath, root, "config", "remote.origin.receivepack", wrapper)
+	result, err = PushTag(root, "v1.2.3", agent)
+	if err != nil || result["error"] != "" {
+		t.Fatalf("PushTag() = %v, %v", result, err)
+	}
+	actual, err = os.ReadFile(capture)
+	if err != nil || string(actual) != "/tile/agent.sock\n22\n" {
+		t.Fatalf("push transport environment = %q, %v", actual, err)
+	}
+	if _, err := exec.Command(gitPath, "--git-dir", remote, "rev-parse", "--verify", "refs/tags/v1.2.3").Output(); err != nil {
+		t.Fatalf("remote tag missing after PushTag(): %v", err)
+	}
+}
+
+func TestDeleteBranchRemovesOnlySafeLocalBranches(t *testing.T) {
+	root := initGitTestRepo(t)
+	gitPath, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	output, err := exec.Command(gitPath, "-C", root, "branch", "--show-current").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	current := strings.TrimSpace(string(output))
+	if err := CheckoutBranch(root, "topic/delete-me", true); err != nil {
+		t.Fatal(err)
+	}
+	if err := CheckoutBranch(root, current, false); err != nil {
+		t.Fatal(err)
+	}
+	if err := DeleteBranch(root, current); err == nil {
+		t.Fatalf("deleted checked-out branch %q", current)
+	}
+	if err := DeleteBranch(root, "topic/delete-me"); err != nil {
+		t.Fatalf("DeleteBranch() = %v", err)
+	}
+	branches, err := ListBranches(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, branch := range branches {
+		if branch == "topic/delete-me" {
+			t.Fatal("deleted branch is still listed")
+		}
+	}
+	if err := DeleteBranch(root, "--force"); err == nil {
+		t.Fatal("DeleteBranch accepted an invalid branch name")
 	}
 }
 

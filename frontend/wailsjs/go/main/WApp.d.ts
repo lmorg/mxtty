@@ -20,6 +20,8 @@ export function CancelNotesListFiles():Promise<void>;
 
 export function CheckoutGitBranch(arg1:string,arg2:string,arg3:boolean):Promise<void>;
 
+export function CheckoutGitTag(arg1:string,arg2:string):Promise<void>;
+
 export function ClearAILog():Promise<void>;
 
 export function ClearAISessionHistory():Promise<sessiondb.FrontendStateT>;
@@ -40,6 +42,10 @@ export function ComposeNoteLocationPath(arg1:string,arg2:string):Promise<string>
 
 export function CreateAISession():Promise<sessiondb.FrontendStateT>;
 
+export function CreateGitTag(arg1:string,arg2:string):Promise<void>;
+
+export function CreateGitTagWorktree(arg1:string,arg2:string,arg3:string):Promise<git.Worktree>;
+
 export function CreateGitWorktree(arg1:string,arg2:string,arg3:string,arg4:boolean):Promise<git.Worktree>;
 
 export function DeleteAIHistoryEntry(arg1:number):Promise<sessiondb.FrontendStateT>;
@@ -47,6 +53,10 @@ export function DeleteAIHistoryEntry(arg1:number):Promise<sessiondb.FrontendStat
 export function DeleteAISession(arg1:number):Promise<sessiondb.FrontendStateT>;
 
 export function DeleteFile(arg1:string):Promise<void>;
+
+export function DeleteGitBranch(arg1:string,arg2:string):Promise<void>;
+
+export function DeleteGitTag(arg1:string,arg2:string):Promise<void>;
 
 export function DisplayHyperlinkMenu(arg1:string,arg2:string):Promise<void>;
 
@@ -156,6 +166,8 @@ export function ListGitBranches(arg1:string):Promise<Array<string>>;
 
 export function ListGitCommits(arg1:string,arg2:number):Promise<Array<git.Commit>>;
 
+export function ListGitTags(arg1:string):Promise<Array<string>>;
+
 export function ListGitWorktrees(arg1:string):Promise<Array<git.Worktree>>;
 
 export function Log(arg1:string):Promise<void>;
@@ -255,6 +267,10 @@ export function NotesTyposChangeDocument(arg1:string,arg2:string):Promise<void>;
 export function NotesTyposCloseDocument(arg1:string):Promise<void>;
 
 export function NotesTyposOpenDocument(arg1:string,arg2:string,arg3:string):Promise<boolean>;
+
+export function PullGitTags(arg1:string):Promise<Record<string, string>>;
+
+export function PushGitTag(arg1:string,arg2:string):Promise<Record<string, string>>;
 
 export function RefreshGitStatus(arg1:string):Promise<git.Status>;
 

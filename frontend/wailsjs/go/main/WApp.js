@@ -22,6 +22,10 @@ export function CheckoutGitBranch(arg1, arg2, arg3) {
   return window['go']['main']['WApp']['CheckoutGitBranch'](arg1, arg2, arg3);
 }
 
+export function CheckoutGitTag(arg1, arg2) {
+  return window['go']['main']['WApp']['CheckoutGitTag'](arg1, arg2);
+}
+
 export function ClearAILog() {
   return window['go']['main']['WApp']['ClearAILog']();
 }
@@ -62,6 +66,14 @@ export function CreateAISession() {
   return window['go']['main']['WApp']['CreateAISession']();
 }
 
+export function CreateGitTag(arg1, arg2) {
+  return window['go']['main']['WApp']['CreateGitTag'](arg1, arg2);
+}
+
+export function CreateGitTagWorktree(arg1, arg2, arg3) {
+  return window['go']['main']['WApp']['CreateGitTagWorktree'](arg1, arg2, arg3);
+}
+
 export function CreateGitWorktree(arg1, arg2, arg3, arg4) {
   return window['go']['main']['WApp']['CreateGitWorktree'](arg1, arg2, arg3, arg4);
 }
@@ -76,6 +88,14 @@ export function DeleteAISession(arg1) {
 
 export function DeleteFile(arg1) {
   return window['go']['main']['WApp']['DeleteFile'](arg1);
+}
+
+export function DeleteGitBranch(arg1, arg2) {
+  return window['go']['main']['WApp']['DeleteGitBranch'](arg1, arg2);
+}
+
+export function DeleteGitTag(arg1, arg2) {
+  return window['go']['main']['WApp']['DeleteGitTag'](arg1, arg2);
 }
 
 export function DisplayHyperlinkMenu(arg1, arg2) {
@@ -294,6 +314,10 @@ export function ListGitCommits(arg1, arg2) {
   return window['go']['main']['WApp']['ListGitCommits'](arg1, arg2);
 }
 
+export function ListGitTags(arg1) {
+  return window['go']['main']['WApp']['ListGitTags'](arg1);
+}
+
 export function ListGitWorktrees(arg1) {
   return window['go']['main']['WApp']['ListGitWorktrees'](arg1);
 }
@@ -492,6 +516,14 @@ export function NotesTyposCloseDocument(arg1) {
 
 export function NotesTyposOpenDocument(arg1, arg2, arg3) {
   return window['go']['main']['WApp']['NotesTyposOpenDocument'](arg1, arg2, arg3);
+}
+
+export function PullGitTags(arg1) {
+  return window['go']['main']['WApp']['PullGitTags'](arg1);
+}
+
+export function PushGitTag(arg1, arg2) {
+  return window['go']['main']['WApp']['PushGitTag'](arg1, arg2);
 }
 
 export function RefreshGitStatus(arg1) {

@@ -16,6 +16,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/mod/semver"
 )
 
 const maxDiffBytes = 4 << 20
@@ -148,11 +150,27 @@ func ListWorktrees(root string) ([]Worktree, error) {
 		case strings.HasPrefix(line, "HEAD "):
 			head = strings.TrimPrefix(line, "HEAD ")
 		case line == "detached":
-			shortHash, err := runGit(gitPath, repoRoot, "rev-parse", "--short", head)
-			if err != nil {
-				return nil, err
+			if tags, tagsErr := runGit(gitPath, repoRoot, "tag", "--points-at", head); tagsErr == nil {
+				pointedTags := strings.Fields(string(tags))
+				sort.Slice(pointedTags, func(i, j int) bool { return len(pointedTags[i]) > len(pointedTags[j]) })
+				for _, tag := range pointedTags {
+					if strings.HasSuffix(filepath.ToSlash(current.Path), "/"+tag) {
+						current.Branch = "tag: " + tag
+						break
+					}
+				}
 			}
-			current.Branch = strings.TrimSpace(string(shortHash))
+			if current.Branch == "" {
+				if tag, tagErr := runGit(gitPath, repoRoot, "describe", "--tags", "--exact-match", head); tagErr == nil {
+					current.Branch = "tag: " + strings.TrimSpace(string(tag))
+				} else {
+					shortHash, err := runGit(gitPath, repoRoot, "rev-parse", "--short", head)
+					if err != nil {
+						return nil, err
+					}
+					current.Branch = strings.TrimSpace(string(shortHash))
+				}
+			}
 		}
 	}
 	flush()
@@ -174,6 +192,139 @@ func ListBranches(root string) ([]string, error) {
 	branches := strings.Fields(string(output))
 	sort.Strings(branches)
 	return branches, nil
+}
+
+func ListTags(root string) ([]string, error) {
+	gitPath, repoRoot, err := checkedRepository(root)
+	if err != nil {
+		return nil, err
+	}
+	output, err := runGit(gitPath, repoRoot, "for-each-ref", "--format=%(refname:short)", "refs/tags")
+	if err != nil {
+		return nil, err
+	}
+	tags := strings.Fields(string(output))
+	sort.Slice(tags, func(i, j int) bool {
+		leftValid, rightValid := semver.IsValid(tags[i]), semver.IsValid(tags[j])
+		if leftValid != rightValid {
+			return leftValid
+		}
+		if leftValid {
+			if comparison := semver.Compare(tags[i], tags[j]); comparison != 0 {
+				return comparison > 0
+			}
+		}
+		return tags[i] > tags[j]
+	})
+	return tags, nil
+}
+
+func CreateTag(root, tag string) error {
+	gitPath, repoRoot, err := checkedRepository(root)
+	if err != nil {
+		return err
+	}
+	if _, err := checkedTagName(gitPath, repoRoot, tag); err != nil {
+		return err
+	}
+	_, err = runGit(gitPath, repoRoot, "tag", "--", tag)
+	return err
+}
+
+func DeleteTag(root, tag string) error {
+	gitPath, repoRoot, err := checkedRepository(root)
+	if err != nil {
+		return err
+	}
+	if _, err := checkedLocalTag(gitPath, repoRoot, tag); err != nil {
+		return err
+	}
+	_, err = runGit(gitPath, repoRoot, "tag", "--delete", "--", tag)
+	return err
+}
+
+func CheckoutTag(root, tag string) error {
+	gitPath, repoRoot, err := checkedRepository(root)
+	if err != nil {
+		return err
+	}
+	ref, err := checkedLocalTag(gitPath, repoRoot, tag)
+	if err != nil {
+		return err
+	}
+	_, err = runGit(gitPath, repoRoot, "checkout", "--detach", ref)
+	return err
+}
+
+func CreateTagWorktree(root, tag, worktreePath string) (Worktree, error) {
+	gitPath, repoRoot, err := checkedRepository(root)
+	if err != nil {
+		return Worktree{}, err
+	}
+	ref, err := checkedLocalTag(gitPath, repoRoot, tag)
+	if err != nil {
+		return Worktree{}, err
+	}
+	commit, err := runGit(gitPath, repoRoot, "rev-parse", "--verify", "--quiet", ref+"^{commit}")
+	if err != nil {
+		return Worktree{}, fmt.Errorf("tag %q does not resolve to a commit", tag)
+	}
+	worktree, err := CreateWorktree(repoRoot, strings.TrimSpace(string(commit)), worktreePath, false)
+	if err != nil {
+		return Worktree{}, err
+	}
+	worktree.Branch = "tag: " + tag
+	return worktree, nil
+}
+
+func PullTags(root string, agentEnvironment ...map[string]string) (map[string]string, error) {
+	gitPath, repoRoot, err := checkedRepository(root)
+	if err != nil {
+		return nil, err
+	}
+	return runGitWithAgentEnvironment(gitPath, repoRoot, firstAgentEnvironment(agentEnvironment), "fetch", "origin", "refs/tags/*:refs/tags/*")
+}
+
+func PushTag(root, tag string, agentEnvironment ...map[string]string) (map[string]string, error) {
+	gitPath, repoRoot, err := checkedRepository(root)
+	if err != nil {
+		return nil, err
+	}
+	ref, err := checkedLocalTag(gitPath, repoRoot, tag)
+	if err != nil {
+		return nil, err
+	}
+	return runGitWithAgentEnvironment(gitPath, repoRoot, firstAgentEnvironment(agentEnvironment), "push", "origin", ref)
+}
+
+func firstAgentEnvironment(environments []map[string]string) map[string]string {
+	if len(environments) == 0 {
+		return nil
+	}
+	return environments[0]
+}
+
+func checkedTagName(gitPath, repoRoot, tag string) (string, error) {
+	tag = strings.TrimSpace(tag)
+	if tag == "" {
+		return "", errors.New("tag name is empty")
+	}
+	ref := "refs/tags/" + tag
+	if _, err := runGit(gitPath, repoRoot, "check-ref-format", ref); err != nil {
+		return "", fmt.Errorf("invalid tag name %q", tag)
+	}
+	return ref, nil
+}
+
+func checkedLocalTag(gitPath, repoRoot, tag string) (string, error) {
+	ref, err := checkedTagName(gitPath, repoRoot, tag)
+	if err != nil {
+		return "", err
+	}
+	if _, err := runGit(gitPath, repoRoot, "rev-parse", "--verify", "--quiet", ref); err != nil {
+		return "", fmt.Errorf("local tag %q does not exist", tag)
+	}
+	return ref, nil
 }
 
 func CheckoutBranch(root, branch string, create bool) error {
@@ -198,7 +349,20 @@ func CheckoutBranch(root, branch string, create bool) error {
 	return err
 }
 
-func FetchBranch(root, branch string) (map[string]string, error) {
+func DeleteBranch(root, branch string) error {
+	gitPath, repoRoot, err := checkedRepository(root)
+	if err != nil {
+		return err
+	}
+	ref, err := checkedLocalBranch(gitPath, repoRoot, branch)
+	if err != nil {
+		return err
+	}
+	_, err = runGit(gitPath, repoRoot, "branch", "-d", "--", strings.TrimPrefix(ref, "refs/heads/"))
+	return err
+}
+
+func FetchBranch(root, branch string, agentEnvironment ...map[string]string) (map[string]string, error) {
 	gitPath, repoRoot, err := checkedRepository(root)
 	if err != nil {
 		return nil, err
@@ -220,10 +384,14 @@ func FetchBranch(root, branch string) (map[string]string, error) {
 	if remote == "." {
 		destination = remoteRef
 	}
+	return runGitWithAgentEnvironment(gitPath, repoRoot, firstAgentEnvironment(agentEnvironment), "fetch", "--", remote, remoteRef+":"+destination)
+}
+
+func runGitWithAgentEnvironment(gitPath, repoRoot string, agentVars map[string]string, args ...string) (map[string]string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, gitPath, "-C", repoRoot, "fetch", "--", remote, remoteRef+":"+destination)
-	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
+	cmd := exec.CommandContext(ctx, gitPath, append([]string{"-C", repoRoot}, args...)...)
+	cmd.Env = fetchEnvironment(agentVars)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	runErr := cmd.Run()
@@ -234,6 +402,28 @@ func FetchBranch(root, branch string) (map[string]string, error) {
 		result["error"] = runErr.Error()
 	}
 	return result, nil
+}
+
+func fetchEnvironment(agentVars map[string]string) []string {
+	overrides := map[string]string{"GIT_TERMINAL_PROMPT": "0"}
+	for _, name := range []string{"SSH_AUTH_SOCK", "SSH_AGENT_PID"} {
+		if value := agentVars[name]; value != "" {
+			overrides[name] = value
+		}
+	}
+	environment := make([]string, 0)
+	for _, entry := range os.Environ() {
+		name, _, _ := strings.Cut(entry, "=")
+		if _, replaced := overrides[name]; !replaced {
+			environment = append(environment, entry)
+		}
+	}
+	for _, name := range []string{"GIT_TERMINAL_PROMPT", "SSH_AUTH_SOCK", "SSH_AGENT_PID"} {
+		if value, ok := overrides[name]; ok {
+			environment = append(environment, name+"="+value)
+		}
+	}
+	return environment
 }
 
 func DefaultWorktreePath(root string) (string, error) {

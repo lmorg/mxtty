@@ -1886,6 +1886,13 @@ body {
     flex: 0 0 auto;
 }
 
+.notes-git-toolbar-separator {
+    align-self: center;
+    height: 25px;
+    border-left: 1px solid rgba(var(--fg-rgb), 0.25);
+    flex: 0 0 auto;
+}
+
 .notes-git-compare {
     flex: 0 1 auto;
     min-width: 32px;

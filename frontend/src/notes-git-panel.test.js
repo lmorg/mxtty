@@ -409,7 +409,7 @@ describe('Notes Git panel', () => {
         await flushPromises();
 
         expect(elements.gitTab.style.display).toBe('');
-        expect(elements.gitWorkspace.textContent).toBe('Worktrees');
+        expect(elements.gitWorkspace.textContent).toBe(String.fromCodePoint(0xf802));
         expect(elements.gitBranch.textContent).toBe('main');
         expect(elements.gitCompare.textContent).toBe('HEAD');
         expect(elements.gitAheadBehind.textContent).toBe('↑2 ↓1');

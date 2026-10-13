@@ -2,8 +2,9 @@ import {
     GetWindowStyle, GetNotesMaxLogLines, GetNotesColumnWidths, SetNotesColumnWidths, GetFile,
     GetGitStatus, GetGitBrowserLink, GetGitBranchDiffFiles, GetGitDiff, GetGitDiffAgainstBranch,
     RefreshGitStatus, SetGitStatusWatch, StageGitFile, UnstageGitFile,
-    ListGitWorktrees, ListGitBranches, ListGitCommits, GetDefaultGitWorktreePath, CreateGitWorktree,
-    CheckoutGitBranch, FetchGitBranch,
+        ListGitWorktrees, ListGitBranches, ListGitTags, ListGitCommits, GetDefaultGitWorktreePath, CreateGitWorktree, CreateGitTagWorktree,
+    CheckoutGitBranch, DeleteGitBranch, FetchGitBranch,
+        CreateGitTag, DeleteGitTag, CheckoutGitTag, PullGitTags, PushGitTag,
     SwitchGitWorktree, RemoveGitWorktree, ShowGitWorktreeInfo,
     NotesTableSort, NotesTableClearSort, NotesTableFilter, NotesTableReconcile, NotesTableRestore, NotesTableSetGraph, NotesTableRenderGraph, NotesTableDisposeAll,
     GetNotesStructViewMaxSizeKB,
@@ -655,9 +656,12 @@ app.innerHTML = `
                                     <button id="notes-tools-git-compare" type="button" class="notes-tools-clear notes-git-compare" aria-label="Choose comparison branch" data-tooltip="Choose comparison branch">HEAD</button>
                                 </div>
                                 <div class="notes-git-actions">
-                                <button id="notes-tools-git-commits" type="button" class="notes-tools-clear notes-git-commits-toggle" aria-pressed="false">Commits</button>
-                                <button id="notes-tools-git-branches" type="button" class="notes-tools-clear" aria-haspopup="menu">Branches</button>
-                                <button id="notes-tools-git-workspace" type="button" class="notes-ai-model-picker" aria-label="Worktrees" data-tooltip="Git worktrees">Worktrees</button>
+                                <button id="notes-tools-git-commits" type="button" class="notes-tools-clear notes-tools-icon notes-git-commits-toggle" aria-label="View commit log" data-tooltip="View commit log" aria-pressed="false">&#xf386;</button>
+                                <span class="notes-git-toolbar-separator" aria-hidden="true"></span>
+                                <button id="notes-tools-git-tags" type="button" class="notes-tools-clear notes-tools-icon" aria-label="manage tags" data-tooltip="manage tags" aria-haspopup="menu">&#xf02c;</button>
+                                <button id="notes-tools-git-branches" type="button" class="notes-tools-clear notes-tools-icon" aria-label="Manage branches" data-tooltip="Manage branches" aria-haspopup="menu">&#xf126;</button>
+                                <button id="notes-tools-git-workspace" type="button" class="notes-tools-clear notes-tools-icon" aria-label="Worktrees" data-tooltip="Git worktrees">&#xf802;</button>
+                                <span class="notes-git-toolbar-separator" aria-hidden="true"></span>
                                 <button id="notes-tools-git-remote" type="button" class="notes-tools-clear notes-tools-icon notes-git-remote" aria-label="Open remote repository" data-tooltip="Open remote repository" hidden></button>
                                 <button id="notes-tools-git-refresh" type="button" class="notes-tools-clear notes-tools-icon" data-tooltip="Refresh Git status" aria-label="Refresh Git status">&#xf021;</button>
                                 </div>
@@ -840,6 +844,7 @@ const elements = {
     gitCompare: document.getElementById('notes-tools-git-compare'),
     gitCommits: document.getElementById('notes-tools-git-commits'),
     gitBranches: document.getElementById('notes-tools-git-branches'),
+    gitTags: document.getElementById('notes-tools-git-tags'),
     gitRefresh: document.getElementById('notes-tools-git-refresh'),
     gitFileList: document.getElementById('notes-tools-git-files'),
     toolsFindPane: document.getElementById('notes-tools-find-pane'),
@@ -15274,6 +15279,117 @@ async function checkoutNotesGitBranch(root, branch, create = false) {
     }
 }
 
+function notifyGitTagTransfer(output, successMessage) {
+    if (output.stdout) notifyTerminal(output.stdout, 'info');
+    if (output.stderr) notifyTerminal(output.stderr, 'error');
+    if (output.error && !output.stderr) notifyTerminal(output.error, 'error');
+    if (!output.error) notifyTerminal(successMessage, 'info');
+}
+
+async function createNotesGitTagWorktree(root, tag, worktreePath) {
+    const stickyId = `git-tag-worktree-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    await openStickyProgress(stickyId, 'Creating worktree');
+    try {
+        const worktree = await CreateGitTagWorktree(root, tag, worktreePath);
+        await switchNotesGitWorktree(root, worktree.path || worktreePath);
+        closeStickyProgress(stickyId);
+    } catch (error) {
+        closeStickyProgress(stickyId, String(error?.message || error), 'error');
+    }
+}
+
+elements.gitTags.addEventListener('click', async () => {
+    const root = notesGitPanel?.getCurrentRoot();
+    if (!root) return;
+    try {
+        const tags = await ListGitTags(root);
+        const rect = elements.gitTags.getBoundingClientRect();
+        const items = [
+            {
+                title: 'Create new tag', icon: CONTEXT_ICON_ADD,
+                onSelect: async () => {
+                    const tag = await openTextPrompt({ title: 'Create new tag', confirmLabel: 'Create', placeholder: 'v1.2.3' });
+                    if (!tag?.trim()) return;
+                    try {
+                        await CreateGitTag(root, tag.trim());
+                        notifyTerminal(`Created tag ${tag.trim()}`, 'info');
+                    } catch (error) {
+                        notifyTerminal(String(error?.message || error), 'error');
+                    }
+                },
+            },
+            { title: '-', icon: 0 },
+            {
+                title: 'Pull tags', icon: 0xf019,
+                onSelect: async () => {
+                    try {
+                        notifyGitTagTransfer(await PullGitTags(root), 'Tags pulled');
+                    } catch (error) {
+                        notifyTerminal(String(error?.message || error), 'error');
+                    }
+                },
+            },
+            { title: '-', icon: 0 },
+            ...tags.map((tag) => ({
+                title: tag,
+                icon: 0,
+                onSelect: () => showNotesLocalMenu([
+                    { title: 'Copy tag name', icon: CONTEXT_ICON_COPY, onSelect: () => { void ClipboardSetText(tag).catch((error) => notifyTerminal(String(error), 'error')); } },
+                    {
+                        title: 'Push tag', icon: 0xf093,
+                        onSelect: async () => {
+                            try {
+                                notifyGitTagTransfer(await PushGitTag(root, tag), `Pushed tag ${tag}`);
+                            } catch (error) {
+                                notifyTerminal(String(error?.message || error), 'error');
+                            }
+                        },
+                    },
+                    { title: '-', icon: 0 },
+                    {
+                        title: 'Checkout', icon: 0xf126,
+                        onSelect: async () => {
+                            try {
+                                await CheckoutGitTag(root, tag);
+                                notifyTerminal(`Checked out tag ${tag}`, 'info');
+                            } catch (error) {
+                                notifyTerminal(String(error?.message || error), 'error');
+                            }
+                        },
+                    },
+                    {
+                        title: 'Create new worktree', icon: CONTEXT_ICON_ADD,
+                        onSelect: async () => {
+                            try {
+                                const base = await GetDefaultGitWorktreePath(root);
+                                const path = `${String(base).replace(/[\\/]+$/, '')}/${tag}`;
+                                await createNotesGitTagWorktree(root, tag, path);
+                            } catch (error) {
+                                notifyTerminal(String(error?.message || error), 'error');
+                            }
+                        },
+                    },
+                    { title: '-', icon: 0 },
+                    {
+                        title: 'Delete tag', icon: 0xf2ed,
+                        onSelect: async () => {
+                            try {
+                                await DeleteGitTag(root, tag);
+                                notifyTerminal(`Deleted tag ${tag}`, 'info');
+                            } catch (error) {
+                                notifyTerminal(String(error?.message || error), 'error');
+                            }
+                        },
+                    },
+                ], rect.left, rect.bottom, tag),
+            })),
+        ];
+        showNotesLocalMenu(items, rect.left, rect.bottom, 'Tags');
+    } catch (error) {
+        notifyTerminal(String(error?.message || error), 'error');
+    }
+});
+
 elements.gitBranches.addEventListener('click', async () => {
     const root = notesGitPanel?.getCurrentRoot();
     if (!root) return;
@@ -15304,7 +15420,7 @@ elements.gitBranches.addEventListener('click', async () => {
                                 if (output.stdout) notifyTerminal(output.stdout, 'info');
                                 if (output.stderr) notifyTerminal(output.stderr, 'error');
                                 if (output.error && !output.stderr) notifyTerminal(output.error, 'error');
-                                if (!output.stdout && !output.stderr && !output.error) notifyTerminal(`Fetch completed for ${branch}`, 'info');
+                                if (!output.error) notifyTerminal(`Fetch completed for ${branch}`, 'info');
                             } catch (error) {
                                 notifyTerminal(String(error?.message || error), 'error');
                             }
@@ -15316,6 +15432,18 @@ elements.gitBranches.addEventListener('click', async () => {
                             try {
                                 const base = await GetDefaultGitWorktreePath(root);
                                 await createNotesGitWorktree(root, branch, `${String(base).replace(/[\\/]+$/, '')}/${branch}`, false);
+                            } catch (error) {
+                                notifyTerminal(String(error?.message || error), 'error');
+                            }
+                        },
+                    },
+                    { title: '-', icon: 0 },
+                    {
+                        title: 'Delete branch', icon: 0xf2ed,
+                        onSelect: async () => {
+                            try {
+                                await DeleteGitBranch(root, branch);
+                                notifyTerminal(`Deleted branch ${branch}`, 'info');
                             } catch (error) {
                                 notifyTerminal(String(error?.message || error), 'error');
                             }

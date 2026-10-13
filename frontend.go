@@ -2581,6 +2581,47 @@ func (a *WApp) ListGitBranches(projectRoot string) ([]string, error) {
 	return gitutils.ListBranches(projectRoot)
 }
 
+func (a *WApp) ListGitTags(projectRoot string) ([]string, error) {
+	return gitutils.ListTags(projectRoot)
+}
+
+func (a *WApp) CreateGitTag(projectRoot, tag string) error {
+	return gitutils.CreateTag(projectRoot, tag)
+}
+
+func (a *WApp) DeleteGitTag(projectRoot, tag string) error {
+	return gitutils.DeleteTag(projectRoot, tag)
+}
+
+func (a *WApp) CheckoutGitTag(projectRoot, tag string) error {
+	if err := gitutils.CheckoutTag(projectRoot, tag); err != nil {
+		return err
+	}
+	_, _ = a.refreshGitStatus(projectRoot)
+	return nil
+}
+
+func (a *WApp) CreateGitTagWorktree(projectRoot, tag, worktreePath string) (gitutils.Worktree, error) {
+	worktree, err := gitutils.CreateTagWorktree(projectRoot, tag, worktreePath)
+	if err != nil {
+		return gitutils.Worktree{}, err
+	}
+	_, _ = a.refreshGitStatus(projectRoot)
+	return worktree, nil
+}
+
+func (a *WApp) PullGitTags(projectRoot string) (map[string]string, error) {
+	output, err := gitutils.PullTags(projectRoot, activeGitAgentEnvironment())
+	if err == nil && output["error"] == "" {
+		_, _ = a.refreshGitStatus(projectRoot)
+	}
+	return output, err
+}
+
+func (a *WApp) PushGitTag(projectRoot, tag string) (map[string]string, error) {
+	return gitutils.PushTag(projectRoot, tag, activeGitAgentEnvironment())
+}
+
 func (a *WApp) CheckoutGitBranch(projectRoot, branch string, create bool) error {
 	if err := gitutils.CheckoutBranch(projectRoot, branch, create); err != nil {
 		return err
@@ -2589,12 +2630,37 @@ func (a *WApp) CheckoutGitBranch(projectRoot, branch string, create bool) error 
 	return nil
 }
 
+func (a *WApp) DeleteGitBranch(projectRoot, branch string) error {
+	if err := gitutils.DeleteBranch(projectRoot, branch); err != nil {
+		return err
+	}
+	_, _ = a.refreshGitStatus(projectRoot)
+	return nil
+}
+
 func (a *WApp) FetchGitBranch(projectRoot, branch string) (map[string]string, error) {
-	output, err := gitutils.FetchBranch(projectRoot, branch)
+	output, err := gitutils.FetchBranch(projectRoot, branch, activeGitAgentEnvironment())
 	if err == nil {
 		_, _ = a.refreshGitStatus(projectRoot)
 	}
 	return output, err
+}
+
+func activeGitAgentEnvironment() map[string]string {
+	agentVars := make(map[string]string)
+	if renderer, ok := renderwebkit.CurrentRenderer(); ok {
+		if tile := renderer.ActiveTile(); tile != nil {
+			if term := tile.GetTerm(); term != nil {
+				environment := term.GetEnvVars()
+				for _, name := range []string{"SSH_AUTH_SOCK", "SSH_AGENT_PID"} {
+					if value := environment[name]; value != "" {
+						agentVars[name] = value
+					}
+				}
+			}
+		}
+	}
+	return agentVars
 }
 
 func (a *WApp) GetDefaultGitWorktreePath(projectRoot string) (string, error) {
