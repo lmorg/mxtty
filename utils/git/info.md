@@ -1,26 +1,39 @@
 # Info
 
-## Repository
-
-### Worktree Path
+`{{ .CommitHashLong }}`
+{{ if .BranchName }}
+Branch: `{{ .BranchName }}`
+{{ end }}
+{{ if .MatchedTags }}## Tags
+{{- range $tag := .MatchedTags }}
+- `{{ $tag }}`
+{{- end }}{{ end }}
+{{ if .IsWorktree }}
+## Worktree Path
 
 `{{ .RepoWorktreePath }}`
 
-### Status
+## Status
 
 ```
 {{ .RepoStatus }}
 ```
+{{ end }}
+## Diff
 
-### Diff
-
-| Filename | Diff |
-| --- | --- |
+{{- if .IsWorktree }}
+Uncommitted changes:
+{{- else }}
+Changes in commit:
+{{- end }}
+| diff |
+| --- |
 {{- range $f := .RepoDiffFiles }}
-| {{ escapeMarkdown $f.Filename }} | {{ markdownTableCode $f.Diff }} |
+| <details><summary>{{ escapeMarkdown $f.Filename }}</summary>{{ markdownTableCode $f.Diff }}</details> |
 {{- end }}
 
 ## Git Executable
 
 - Version:  `{{ .GitExeVersion }}`
 - Path: `{{ .GitExePath }}`
+

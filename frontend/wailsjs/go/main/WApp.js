@@ -674,6 +674,10 @@ export function ShowCommandPalette() {
   return window['go']['main']['WApp']['ShowCommandPalette']();
 }
 
+export function ShowGitRefInfo(arg1, arg2, arg3) {
+  return window['go']['main']['WApp']['ShowGitRefInfo'](arg1, arg2, arg3);
+}
+
 export function ShowGitWorktreeInfo(arg1, arg2) {
   return window['go']['main']['WApp']['ShowGitWorktreeInfo'](arg1, arg2);
 }

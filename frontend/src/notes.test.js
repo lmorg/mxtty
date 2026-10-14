@@ -108,6 +108,7 @@ const createGitWorktreeMock = vi.fn(() => Promise.resolve({ path: '', branch: ''
 const switchGitWorktreeMock = vi.fn(() => Promise.resolve());
 const removeGitWorktreeMock = vi.fn(() => Promise.resolve());
 const showGitWorktreeInfoMock = vi.fn(() => Promise.resolve());
+const showGitRefInfoMock = vi.fn(() => Promise.resolve());
 const getFileMetaMarkdownMock = vi.fn(() => Promise.resolve([
     '# note.md',
     '',
@@ -230,6 +231,7 @@ vi.mock('../wailsjs/go/main/WApp', () => ({
     SwitchGitWorktree: switchGitWorktreeMock,
     RemoveGitWorktree: removeGitWorktreeMock,
     ShowGitWorktreeInfo: showGitWorktreeInfoMock,
+    ShowGitRefInfo: showGitRefInfoMock,
     GetNotesContext: vi.fn(async () => ({
         projectRoot: await getCurrentProjectMock(),
         groupName: await getCurrentGroupNameMock(),
@@ -561,6 +563,7 @@ describe('notes rendering', () => {
         switchGitWorktreeMock.mockReset();
         removeGitWorktreeMock.mockReset();
         showGitWorktreeInfoMock.mockReset();
+        showGitRefInfoMock.mockReset();
         getFileMetaMarkdownMock.mockReset();
         resolveFilePathMock.mockReset();
         resolveNotesLspLanguageMock.mockReset();
@@ -648,6 +651,7 @@ describe('notes rendering', () => {
         switchGitWorktreeMock.mockResolvedValue();
         removeGitWorktreeMock.mockResolvedValue();
         showGitWorktreeInfoMock.mockResolvedValue();
+        showGitRefInfoMock.mockResolvedValue();
         getFileMetaMarkdownMock.mockResolvedValue([
             '# note.md',
             '',
@@ -4917,7 +4921,7 @@ describe('notes rendering', () => {
         expect(gitToolbarItems[1].className).toBe(gitToolbarItems[5].className);
         for (const [id, glyph, label] of [
             ['notes-tools-git-commits', 0xf386, 'View commit log'],
-            ['notes-tools-git-tags', 0xf02c, 'manage tags'],
+            ['notes-tools-git-tags', 0xf02c, 'Manage tags'],
             ['notes-tools-git-branches', 0xf126, 'Manage branches'],
             ['notes-tools-git-workspace', 0xf802, 'Worktrees'],
         ]) {
@@ -4927,7 +4931,7 @@ describe('notes rendering', () => {
             expect(button.getAttribute('aria-label')).toBe(label);
         }
         expect(document.getElementById('notes-tools-git-commits').dataset.tooltip).toBe('View commit log');
-        expect(document.getElementById('notes-tools-git-tags').dataset.tooltip).toBe('manage tags');
+        expect(document.getElementById('notes-tools-git-tags').dataset.tooltip).toBe('Manage tags');
         expect(document.getElementById('notes-tools-git-branches').dataset.tooltip).toBe('Manage branches');
         await flushPromises();
         const gitRemote = document.getElementById('notes-tools-git-remote');
@@ -4955,21 +4959,24 @@ describe('notes rendering', () => {
         menu.onSelect(2);
         menu = showLocalMenuMock.mock.calls.at(-1)?.[0];
         expect(menu.title).toBe('alpha');
-        expect(menu.options).toEqual(['Copy branch name', '-', 'Checkout', 'Fetch latest', 'Create new worktree', '-', 'Delete branch']);
-        expect(menu.icons).toEqual([0xf0c5, 0, 0xf126, 0xf019, 0xf067, 0, 0xf2ed]);
+        expect(menu.options).toEqual(['Info', 'Copy branch name', '-', 'Checkout', 'Fetch latest', 'Create new worktree', '-', 'Delete branch']);
+        expect(menu.icons).toEqual([0xf129, 0xf0c5, 0, 0xf126, 0xf019, 0xf067, 0, 0xf2ed]);
         menu.onSelect(0);
         await flushPromises();
+        expect(showGitRefInfoMock).toHaveBeenCalledWith('/workspace/repo', 'alpha', false);
+        menu.onSelect(1);
+        await flushPromises();
         expect(clipboardSetTextMock).toHaveBeenCalledWith('alpha');
-        menu.onSelect(2);
+        menu.onSelect(3);
         await flushPromises();
         expect(checkoutGitBranchMock).toHaveBeenCalledWith('/workspace/repo', 'alpha', false);
         expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({ message: 'Switched to alpha', level: 'info' }));
         checkoutGitBranchMock.mockRejectedValueOnce(new Error('local changes would be overwritten'));
-        menu.onSelect(2);
+        menu.onSelect(3);
         await flushPromises();
         expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({ message: 'local changes would be overwritten', level: 'error' }));
         const checkouts = checkoutGitBranchMock.mock.calls.length;
-        menu.onSelect(3);
+        menu.onSelect(4);
         await flushPromises();
         expect(fetchGitBranchMock).toHaveBeenCalledWith('/workspace/repo', 'alpha');
         expect(checkoutGitBranchMock).toHaveBeenCalledTimes(checkouts);
@@ -4978,21 +4985,21 @@ describe('notes rendering', () => {
         expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({ message: 'Fetch completed for alpha', level: 'info' }));
         const previousCalls = sendIpcMock.mock.calls.length;
         fetchGitBranchMock.mockResolvedValueOnce({ stdout: '', stderr: 'Fetch failed', error: 'exit status 1' });
-        menu.onSelect(3);
+        menu.onSelect(4);
         await flushPromises();
         const failureCalls = sendIpcMock.mock.calls.slice(previousCalls);
         expect(failureCalls.some(([channel, payload]) => channel === 'terminal-notify' && payload.message === 'Fetch completed for alpha')).toBe(false);
         expect(failureCalls.some(([channel, payload]) => channel === 'terminal-notify' && payload.message === 'Fetch failed' && payload.level === 'error')).toBe(true);
-        menu.onSelect(4);
+        menu.onSelect(5);
         await flushPromises();
         expect(createGitWorktreeMock).toHaveBeenCalledWith('/workspace/repo', 'alpha', '/Users/test/.git_worktrees/default/alpha', false);
         expect(switchGitWorktreeMock).toHaveBeenCalledWith('/workspace/repo', '/Users/test/.git_worktrees/default/alpha');
-        menu.onSelect(6);
+        menu.onSelect(7);
         await flushPromises();
         expect(deleteGitBranchMock).toHaveBeenCalledWith('/workspace/repo', 'alpha');
         expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({ message: 'Deleted branch alpha', level: 'info' }));
         deleteGitBranchMock.mockRejectedValueOnce(new Error('branch is checked out'));
-        menu.onSelect(6);
+        menu.onSelect(7);
         await flushPromises();
         expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({ message: 'branch is checked out', level: 'error' }));
         document.getElementById('notes-tools-git-branches').click();
@@ -5035,24 +5042,27 @@ describe('notes rendering', () => {
         menu.onSelect(4);
         menu = showLocalMenuMock.mock.calls.at(-1)?.[0];
         expect(menu.title).toBe('v10.3.4');
-        expect(menu.options).toEqual(['Copy tag name', 'Push tag', '-', 'Checkout', 'Create new worktree', '-', 'Delete tag']);
-        expect(menu.icons).toEqual([0xf0c5, 0xf093, 0, 0xf126, 0xf067, 0, 0xf2ed]);
+        expect(menu.options).toEqual(['Info', 'Copy tag name', 'Push tag', '-', 'Checkout', 'Create new worktree', '-', 'Delete tag']);
+        expect(menu.icons).toEqual([0xf129, 0xf0c5, 0xf093, 0, 0xf126, 0xf067, 0, 0xf2ed]);
         menu.onSelect(0);
         await flushPromises();
-        expect(clipboardSetTextMock).toHaveBeenCalledWith('v10.3.4');
+        expect(showGitRefInfoMock).toHaveBeenCalledWith('/workspace/repo', 'v10.3.4', true);
         menu.onSelect(1);
+        await flushPromises();
+        expect(clipboardSetTextMock).toHaveBeenCalledWith('v10.3.4');
+        menu.onSelect(2);
         await flushPromises();
         expect(pushGitTagMock).toHaveBeenCalledWith('/workspace/repo', 'v10.3.4');
         expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({ message: 'Pushed tag', level: 'info' }));
         expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({ message: 'Pushed tag v10.3.4', level: 'info' }));
-        menu.onSelect(3);
+        menu.onSelect(4);
         await flushPromises();
         expect(checkoutGitTagMock).toHaveBeenCalledWith('/workspace/repo', 'v10.3.4');
-        menu.onSelect(4);
+        menu.onSelect(5);
         await flushPromises();
         expect(createGitTagWorktreeMock).toHaveBeenCalledWith('/workspace/repo', 'v10.3.4', '/Users/test/.git_worktrees/default/v10.3.4');
         expect(switchGitWorktreeMock).toHaveBeenCalledWith('/workspace/repo', '/Users/test/.git_worktrees/default/v10.3.4');
-        menu.onSelect(6);
+        menu.onSelect(7);
         await flushPromises();
         expect(deleteGitTagMock).toHaveBeenCalledWith('/workspace/repo', 'v10.3.4');
 
@@ -5215,8 +5225,8 @@ describe('notes rendering', () => {
         window.addEventListener('ttyphoon-focus-terminal', focusHandler);
         let actionMenu = showLocalMenuMock.mock.calls.at(-1)?.[0];
         expect(actionMenu.title).toBe('zeta');
-        expect(actionMenu.options).toEqual(['Info', 'Switch', 'Remove']);
-        expect(actionMenu.icons).toEqual([0xf129, 0xf204, 0xf2ed]);
+        expect(actionMenu.options).toEqual(['Info', 'Switch', '-', 'Remove']);
+        expect(actionMenu.icons).toEqual([0xf129, 0xf204, 0, 0xf2ed]);
         actionMenu.onSelect(0);
         await flushPromises();
         expect(showGitWorktreeInfoMock).toHaveBeenCalledWith('/workspace/repo', '/workspace/worktrees/zeta');
@@ -5226,7 +5236,7 @@ describe('notes rendering', () => {
         expect(switchGitWorktreeMock).toHaveBeenCalledWith('/workspace/repo', '/workspace/worktrees/zeta');
         expect(focusEvents).toContain('ttyphoon-focus-terminal');
         window.removeEventListener('ttyphoon-focus-terminal', focusHandler);
-        actionMenu.onSelect(2);
+        actionMenu.onSelect(3);
         await flushPromises();
         expect(removeGitWorktreeMock).toHaveBeenCalledWith('/workspace/repo', '/workspace/worktrees/zeta');
         expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({
@@ -5335,7 +5345,7 @@ describe('notes rendering', () => {
         }));
     });
 
-    it('offers commit copy, compare, and hash-path worktree creation through the shared handler', async () => {
+    it('offers commit info, copy, compare, and hash-path worktree creation through the shared handler', async () => {
         const fullHash = 'abcdef1' + '0'.repeat(33);
         getCurrentProjectMock.mockResolvedValue('/workspace/repo');
         getGitStatusMock.mockResolvedValue({ root: '/workspace/repo', branch: 'main', ahead: 0, behind: 0, clean: true, files: [] });
@@ -5353,16 +5363,20 @@ describe('notes rendering', () => {
         };
         let menu = await openMenu();
         expect(menu.title).toBe('abcdef1');
-        expect(menu.options).toEqual(['Copy commit hash', '-', 'Compare commit', 'Create worktree']);
-        expect(menu.icons[2]).toBe(0xe13a);
+        expect(menu.options).toEqual(['Info', 'Copy commit hash', '-', 'Compare commit', 'Create worktree']);
+        expect(menu.icons[0]).toBe(0xf129);
+        expect(menu.icons[3]).toBe(0xe13a);
         menu.onSelect(0);
         await flushPromises();
+        expect(showGitRefInfoMock).toHaveBeenCalledWith('/workspace/repo', fullHash, false);
+        menu.onSelect(1);
+        await flushPromises();
         expect(clipboardSetTextMock).toHaveBeenCalledWith(fullHash);
-        menu.onSelect(2);
+        menu.onSelect(3);
         await flushPromises();
         expect(document.getElementById('notes-tools-git-compare').textContent).toBe('abcdef1');
         menu = await openMenu();
-        menu.onSelect(3);
+        menu.onSelect(4);
         await flushPromises();
         expect(createGitWorktreeMock).toHaveBeenCalledWith('/workspace/repo', fullHash, '/Users/test/.git_worktrees/default/abcdef1', false);
         const stickyIndex = sendIpcMock.mock.calls.findIndex(([channel]) => channel === 'terminal-sticky-create');

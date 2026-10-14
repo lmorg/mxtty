@@ -1,11 +1,66 @@
 package main
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"testing"
+
+	"github.com/lmorg/ttyphoon/types"
 )
+
+type gitInfoTestRenderer struct {
+	types.Renderer
+	events []string
+}
+
+type gitInfoTestNotification struct {
+	types.Notification
+	renderer *gitInfoTestRenderer
+}
+
+func (notification *gitInfoTestNotification) Close() {
+	notification.renderer.events = append(notification.renderer.events, "close")
+}
+
+func (renderer *gitInfoTestRenderer) DisplaySticky(level types.NotificationType, message string, cancel func()) types.Notification {
+	renderer.events = append(renderer.events, level.String()+":"+message)
+	return &gitInfoTestNotification{renderer: renderer}
+}
+
+func (renderer *gitInfoTestRenderer) DisplayMarkdownModel(id, markdown string) {
+	renderer.events = append(renderer.events, "model:"+id+":"+markdown)
+}
+
+func TestGitInfoStickyClosesBeforeModelAndOnError(t *testing.T) {
+	for _, fail := range []bool{false, true} {
+		renderer := &gitInfoTestRenderer{}
+		generationError := errors.New("generation failed")
+		err := showGitInfoModel(renderer, "git-info:test", func() (string, error) {
+			renderer.events = append(renderer.events, "generate")
+			if fail {
+				return "", generationError
+			}
+			return "# Info", nil
+		})
+		want := []string{"info:Generating diffs", "generate", "close"}
+		if fail {
+			if !errors.Is(err, generationError) {
+				t.Fatalf("generation error = %v", err)
+			}
+		} else {
+			if err != nil {
+				t.Fatal(err)
+			}
+			want = append(want, "model:git-info:test:# Info")
+		}
+		if !reflect.DeepEqual(renderer.events, want) {
+			t.Fatalf("events = %v, want %v", renderer.events, want)
+		}
+	}
+}
 
 func TestGitStatusCacheReusesAndRefreshesSnapshots(t *testing.T) {
 	gitPath, err := exec.LookPath("git")

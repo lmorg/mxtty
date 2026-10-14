@@ -5,7 +5,7 @@ import {
         ListGitWorktrees, ListGitBranches, ListGitTags, ListGitCommits, GetDefaultGitWorktreePath, CreateGitWorktree, CreateGitTagWorktree,
     CheckoutGitBranch, DeleteGitBranch, FetchGitBranch,
         CreateGitTag, DeleteGitTag, CheckoutGitTag, PullGitTags, PushGitTag,
-    SwitchGitWorktree, RemoveGitWorktree, ShowGitWorktreeInfo,
+    SwitchGitWorktree, RemoveGitWorktree, ShowGitWorktreeInfo, ShowGitRefInfo,
     NotesTableSort, NotesTableClearSort, NotesTableFilter, NotesTableReconcile, NotesTableRestore, NotesTableSetGraph, NotesTableRenderGraph, NotesTableDisposeAll,
     GetNotesStructViewMaxSizeKB,
     GetNotesContext, GetNotesFilesSnapshot, SaveFile, SaveBinaryFile, DeleteFile, RenameFile,
@@ -658,7 +658,7 @@ app.innerHTML = `
                                 <div class="notes-git-actions">
                                 <button id="notes-tools-git-commits" type="button" class="notes-tools-clear notes-tools-icon notes-git-commits-toggle" aria-label="View commit log" data-tooltip="View commit log" aria-pressed="false">&#xf386;</button>
                                 <span class="notes-git-toolbar-separator" aria-hidden="true"></span>
-                                <button id="notes-tools-git-tags" type="button" class="notes-tools-clear notes-tools-icon" aria-label="manage tags" data-tooltip="manage tags" aria-haspopup="menu">&#xf02c;</button>
+                                <button id="notes-tools-git-tags" type="button" class="notes-tools-clear notes-tools-icon" aria-label="Manage tags" data-tooltip="Manage tags" aria-haspopup="menu">&#xf02c;</button>
                                 <button id="notes-tools-git-branches" type="button" class="notes-tools-clear notes-tools-icon" aria-label="Manage branches" data-tooltip="Manage branches" aria-haspopup="menu">&#xf126;</button>
                                 <button id="notes-tools-git-workspace" type="button" class="notes-tools-clear notes-tools-icon" aria-label="Worktrees" data-tooltip="Git worktrees">&#xf802;</button>
                                 <span class="notes-git-toolbar-separator" aria-hidden="true"></span>
@@ -15334,6 +15334,16 @@ elements.gitTags.addEventListener('click', async () => {
                 title: tag,
                 icon: 0,
                 onSelect: () => showNotesLocalMenu([
+                    {
+                        title: 'Info', icon: 0xf129,
+                        onSelect: async () => {
+                            try {
+                                await ShowGitRefInfo(root, tag, true);
+                            } catch (error) {
+                                notifyTerminal(String(error?.message || error), 'error');
+                            }
+                        },
+                    },
                     { title: 'Copy tag name', icon: CONTEXT_ICON_COPY, onSelect: () => { void ClipboardSetText(tag).catch((error) => notifyTerminal(String(error), 'error')); } },
                     {
                         title: 'Push tag', icon: 0xf093,
@@ -15409,6 +15419,16 @@ elements.gitBranches.addEventListener('click', async () => {
                 title: branch,
                 icon: branch === notesGitPanel?.getCurrentStatus()?.branch ? CONTEXT_ICON_TICK : 0,
                 onSelect: () => showNotesLocalMenu([
+                    {
+                        title: 'Info', icon: 0xf129,
+                        onSelect: async () => {
+                            try {
+                                await ShowGitRefInfo(root, branch, false);
+                            } catch (error) {
+                                notifyTerminal(String(error?.message || error), 'error');
+                            }
+                        },
+                    },
                     { title: 'Copy branch name', icon: CONTEXT_ICON_COPY, onSelect: () => { void ClipboardSetText(branch).catch((error) => notifyTerminal(String(error), 'error')); } },
                     { title: '-', icon: 0 },
                     { title: 'Checkout', icon: 0xf126, onSelect: () => checkoutNotesGitBranch(root, branch) },
@@ -15485,6 +15505,16 @@ notesGitPanel = initNotesGitPanel(elements, {
     showCommitMenu: ({ root, commit, x, y, compare }) => {
         const fullHash = commit.fullHash || commit.hash;
         const items = [
+            {
+                title: 'Info', icon: 0xf129,
+                onSelect: async () => {
+                    try {
+                        await ShowGitRefInfo(root, fullHash, false);
+                    } catch (error) {
+                        notifyTerminal(String(error?.message || error), 'error');
+                    }
+                },
+            },
             { title: 'Copy commit hash', icon: CONTEXT_ICON_COPY, onSelect: () => ClipboardSetText(fullHash) },
             { title: '-', icon: 0 },
             { title: 'Compare commit', icon: 0xe13a, onSelect: compare },
@@ -15568,6 +15598,7 @@ notesGitPanel = initNotesGitPanel(elements, {
                                 }
                             },
                         },
+                        { title: '-', icon: 0 },
                         {
                             title: 'Remove',
                             icon: CONTEXT_ICON_DELETE,

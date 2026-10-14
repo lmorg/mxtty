@@ -993,6 +993,96 @@ func TestRenderWorktreeInfoKeepsMultilineDiffInOneTableRow(t *testing.T) {
 	}
 }
 
+func TestGitRefInfoShowsCommitChangesAndMatchingTagsWithoutStatus(t *testing.T) {
+	root := initGitTestRepo(t)
+	gitPath, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	branchOutput, err := exec.Command(gitPath, "-C", root, "branch", "--show-current").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	rootBranch := strings.TrimSpace(string(branchOutput))
+	runGitTestCommand(t, gitPath, root, "checkout", "--quiet", "-b", "release/2.0")
+	if err := os.WriteFile(filepath.Join(root, "tracked file.txt"), []byte("committed change\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "added file.txt"), []byte("new file\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	runGitTestCommand(t, gitPath, root, "add", "--", "tracked file.txt", "added file.txt")
+	runGitTestCommand(t, gitPath, root, "commit", "--quiet", "-m", "release commit")
+	runGitTestCommand(t, gitPath, root, "tag", "-a", "v2.0.0", "-m", "release tag")
+	runGitTestCommand(t, gitPath, root, "tag", "v2.0.0-alias")
+
+	info, err := GitRefInfo(root, "release/2.0", false)
+	if err != nil {
+		t.Fatalf("GitRefInfo(branch) = %v", err)
+	}
+	if info.IsWorktree || info.RepoStatus != "" || info.BranchName != "release/2.0" {
+		t.Fatalf("branch Info fields = %+v", info)
+	}
+	if len(info.CommitHashLong) != 40 || len(info.MatchedTags) != 2 {
+		t.Fatalf("branch commit/tags = %+v", info)
+	}
+	if len(info.RepoDiffFiles) != 2 || info.RepoDiffFiles[0].Filename != "added file.txt" || info.RepoDiffFiles[1].Filename != "tracked file.txt" {
+		t.Fatalf("branch commit diff files = %+v", info.RepoDiffFiles)
+	}
+	if !strings.Contains(info.RepoDiffFiles[1].Diff, "+committed change") {
+		t.Fatalf("commit diff omitted changed contents: %+v", info.RepoDiffFiles[1])
+	}
+	for _, hash := range []string{info.CommitHashLong, info.CommitHashLong[:8]} {
+		commitInfo, err := GitRefInfo(root, hash, false)
+		if err != nil {
+			t.Fatalf("GitRefInfo(%q) = %v", hash, err)
+		}
+		if commitInfo.CommitHashLong != info.CommitHashLong || commitInfo.BranchName != "" || commitInfo.IsWorktree || commitInfo.RepoStatus != "" {
+			t.Fatalf("commit Info fields = %+v", commitInfo)
+		}
+		if len(commitInfo.RepoDiffFiles) != 2 || len(commitInfo.MatchedTags) != 2 || !strings.Contains(commitInfo.RepoDiffFiles[1].Diff, "+committed change") {
+			t.Fatalf("commit Info omitted changes or tags: %+v", commitInfo)
+		}
+		markdown, err := RenderGitRefInfo(root, hash, false)
+		if err != nil {
+			t.Fatalf("RenderGitRefInfo(%q) = %v", hash, err)
+		}
+		if !strings.Contains(markdown, info.CommitHashLong) || strings.Contains(markdown, "Branch:") || strings.Contains(markdown, "## Status") {
+			t.Fatalf("commit Info template rendered incorrect fields:\n%s", markdown)
+		}
+	}
+	for _, invalid := range []string{"HEAD~1", strings.Repeat("0", 40)} {
+		if _, err := GitRefInfo(root, invalid, false); err == nil {
+			t.Fatalf("GitRefInfo accepted invalid commit %q", invalid)
+		}
+	}
+	markdown, err := RenderGitRefInfo(root, "v2.0.0", true)
+	if err != nil {
+		t.Fatalf("RenderGitRefInfo(tag) = %v", err)
+	}
+	if strings.Contains(markdown, "## Status") || strings.Contains(markdown, "## Worktree Path") || !strings.Contains(markdown, "Changes in commit:") {
+		t.Fatalf("tag Info template rendered incorrect sections:\n%s", markdown)
+	}
+	if !strings.Contains(markdown, "- `v2.0.0`") || !strings.Contains(markdown, "- `v2.0.0-alias`") {
+		t.Fatalf("tag Info template omitted tags at commit:\n%s", markdown)
+	}
+
+	rootInfo, err := GitRefInfo(root, rootBranch, false)
+	if err != nil {
+		t.Fatalf("GitRefInfo(root commit) = %v", err)
+	}
+	if len(rootInfo.RepoDiffFiles) != 1 || !strings.Contains(rootInfo.RepoDiffFiles[0].Diff, "+head contents") {
+		t.Fatalf("root commit diff = %+v", rootInfo.RepoDiffFiles)
+	}
+	worktreeInfo, err := WorktreeInfo(root, root)
+	if err != nil {
+		t.Fatalf("WorktreeInfo() = %v", err)
+	}
+	if !worktreeInfo.IsWorktree || worktreeInfo.RepoStatus == "" {
+		t.Fatalf("worktree Info fields = %+v", worktreeInfo)
+	}
+}
+
 func TestRemoveWorktreeRejectsDirtyWorkingTreeWithoutForce(t *testing.T) {
 	root := initGitTestRepo(t)
 	gitPath, err := exec.LookPath("git")

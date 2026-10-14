@@ -2716,11 +2716,34 @@ func (a *WApp) ShowGitWorktreeInfo(projectRoot, worktreePath string) error {
 	if !ok {
 		return errors.New("Notes renderer is unavailable")
 	}
-	markdown, err := gitutils.RenderWorktreeInfo(projectRoot, worktreePath)
+	return showGitInfoModel(renderer, "git-info:"+worktreePath, func() (string, error) {
+		return gitutils.RenderWorktreeInfo(projectRoot, worktreePath)
+	})
+}
+
+func (a *WApp) ShowGitRefInfo(projectRoot, name string, isTag bool) error {
+	renderer, ok := renderwebkit.CurrentRenderer()
+	if !ok {
+		return errors.New("Notes renderer is unavailable")
+	}
+	kind := "branch"
+	if isTag {
+		kind = "tag"
+	}
+	return showGitInfoModel(renderer, "git-info:"+kind+":"+name, func() (string, error) {
+		return gitutils.RenderGitRefInfo(projectRoot, name, isTag)
+	})
+}
+
+func showGitInfoModel(renderer types.Renderer, id string, generate func() (string, error)) error {
+	sticky := renderer.DisplaySticky(types.NOTIFY_INFO, "Generating diffs", func() {})
+	markdown, err := generate()
 	if err != nil {
+		sticky.Close()
 		return err
 	}
-	renderer.DisplayMarkdownModel("git-info:"+worktreePath, markdown)
+	sticky.Close()
+	renderer.DisplayMarkdownModel(id, markdown)
 	return nil
 }
 

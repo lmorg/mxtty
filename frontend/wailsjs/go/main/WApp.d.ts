@@ -346,6 +346,8 @@ export function ShowAIToolsMenu():Promise<void>;
 
 export function ShowCommandPalette():Promise<void>;
 
+export function ShowGitRefInfo(arg1:string,arg2:string,arg3:boolean):Promise<void>;
+
 export function ShowGitWorktreeInfo(arg1:string,arg2:string):Promise<void>;
 
 export function ShowTooltip(arg1:string):Promise<void>;

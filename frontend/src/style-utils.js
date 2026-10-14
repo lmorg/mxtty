@@ -90,7 +90,8 @@ export function getMarkdownContentStyles(colors, fontSize, classPrefix = '') {
 
         ${prefix}i,
         ${prefix}em {
-            font-family: "Libre Baskerville", var(--font-family), sans-serif;
+            /*font-family: "Libre Baskerville", var(--font-family), sans-serif;*/
+            font-family: "Lato", var(--font-family), sans-serif;
             font-size: calc(${fontSize}px + 1);
         }
 
@@ -137,17 +138,19 @@ export function getMarkdownContentStyles(colors, fontSize, classPrefix = '') {
         }
 
         ${prefix}details {
-            opacity: 0.5;
             width: 100%;
-            border-radius: 0;
-            border-width: 2px;
-            border-style: solid;
-            padding: 5px;
-            margin-top: 5px;
         }
 
         ${prefix}summary {
             cursor: pointer;
+            font-size: calc(${fontSize}px - 1px);
+            color: var(--accent);
+        }
+
+        ${prefix}summary:hover {
+            color: var(--fg);
+            background: rgba(${colors.accent.Red}, ${colors.accent.Green}, ${colors.accent.Blue}, 0.3);
+            border-radius: 5px;
         }
 
         ${prefix}table {
