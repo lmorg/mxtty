@@ -42,9 +42,15 @@ Git is unavailable.
   copy name, checkout, Fetch latest, and Create new worktree. Checkout reports
   `Switched to <branch>` on success and Git errors on failure without forcing.
   Fetch targets the configured upstream (or same-named branch on origin), never
-  checks out or pulls, and reports stdout as info and stderr as error. Successful
-  fetches also report `Fetch completed for <branch>`, regardless of output;
-  failed fetches never emit that success notification. Fetch inherits the app
+  checks out or pulls. Classify transfer results by the command outcome, not
+  which stream carries the text: Git routinely writes successful progress and
+  ref updates to stderr. The Go transfer runner writes stdout and successful
+  stderr to the application log at info level, one log entry per nonempty line,
+  without creating output notifications. Successful fetches report one
+  `Fetch completed for <branch>` notification, regardless of output. Failed
+  transfers report one error notification using stderr, falling back to the
+  returned command error; they never emit a completion notification. Fetch
+  inherits the app
   environment with non-empty `SSH_AUTH_SOCK` and `SSH_AGENT_PID` overlaid from
   the active tile's terminal snapshot; no other terminal variables are copied.
   Missing agent values retain app defaults, and Git prompting stays disabled.
@@ -57,6 +63,12 @@ Git is unavailable.
   detached checkout, a detached worktree at the default directory plus tag
   name, and local deletion. Pull/push use the active tile's SSH-agent variables
   just like branch fetch; Git operations remain behind Wails bindings.
+- Tag pull/push uses the same outcome-based log/notification policy as branch
+  fetch, via a shared frontend transfer-result helper. Regression tests verify
+  successful stderr is logged as info, raw output is not presented as a popup,
+  completion/error notifications are mutually exclusive, and failures without
+  stderr fall back to the command error. Output streams remain unchanged in
+  the Go response.
 - Git toolbar controls use Font Awesome icons: Commits `0xf386` with tooltip
   `View commit log`, Branches `0xf126` with tooltip `Manage branches`, and
   Worktrees `0xf802` retaining its existing tooltip. Keep accessible labels and
@@ -149,9 +161,28 @@ Git is unavailable.
 - Keep separate Monaco editor and diff-editor factories because Monaco exposes
   different widget APIs, but share keyboard/completion, clipboard, and context
   menu hooks between them.
-- Support file-level stage and unstage actions, but no commit action. Save dirty
-  diff edits before staging or unstaging the same file. Select operations use
-  argument-separated Git invocations and paths relative to the validated root.
+- Support file-level stage and unstage actions. Save dirty diff edits before
+  staging or unstaging the same file. Select operations use argument-separated
+  Git invocations and paths relative to the validated root.
+- Place a Commit toggle with icon `0xf386` after the comparison selector on the
+  left side of the toolbar. The existing commit-history toggle moves to icon
+  `0xf022`. The Commit toggle shows/hides a row directly below the toolbar.
+  The row contains a themed single-line `Commit message` input and a Commit
+  button on the left, with Stage all aligned right to the existing 72-by-24
+  Staged/Unstaged actions. The row is hidden initially; changing project roots
+  hides it and clears any unsent message.
+- Stage all runs `git add -u -- .`: stage modifications and deletions to tracked
+  files, but do not stage untracked files. Disable the button when workspace
+  status has no unstaged tracked files. Refresh Git status after successful
+  staging.
+- The Git command result runner logs successful stdout and stderr lines at info
+  level, and does not info-log output from failed commands. Commit reports one
+  `Commit created` notification on success, or one error notification using
+  stderr with the command error as fallback.
+- Commit requires a non-empty trimmed message and invokes `git commit -m` with
+  the message as one argument. It commits the current index only; it does not
+  stage changes implicitly. A successful commit clears the input and refreshes
+  status. The empty staged-index case is reported as a Git error.
 - Show Git path and status-code hover help through Notes' shared tooltip rather
   than native webview tooltips. Keep tooltip behavior delegated from the Git
   pane so dynamically rendered status rows use the same path.
@@ -182,8 +213,8 @@ Git is unavailable.
   updates history/recents, but the side-by-side diff is unavailable.
 - Git operations include read, stage, unstage, worktree listing, local branch
   listing, worktree creation, and switching Notes to a registered worktree.
-  Commit, branch deletion/renaming, multi-repository discovery, and persistent
-  workspace lists are out of scope.
+  Branch deletion/renaming, multi-repository discovery, and persistent workspace
+  lists are out of scope.
 
 ## Reference
 

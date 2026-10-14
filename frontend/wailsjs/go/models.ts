@@ -766,6 +766,7 @@ export namespace main {
 	}
 	export class NotesTableGraphResultT {
 	    svg: string;
+	    pngDataURL: string;
 	    error: string;
 	
 	    static createFrom(source: any = {}) {
@@ -775,6 +776,7 @@ export namespace main {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.svg = source["svg"];
+	        this.pngDataURL = source["pngDataURL"];
 	        this.error = source["error"];
 	    }
 	}

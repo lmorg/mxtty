@@ -90,6 +90,8 @@ const getGitStatusMock = vi.fn(() => Promise.resolve({ root: '', branch: '', ahe
 const getGitBrowserLinkMock = vi.fn(() => Promise.resolve({ provider: 'github', url: 'https://github.com/org/repo/tree/main' }));
 const getGitDiffMock = vi.fn(() => Promise.resolve({ path: '', original: '', working: '', binary: false, deleted: false }));
 const stageGitFileMock = vi.fn(() => Promise.resolve());
+const stageAllGitFilesMock = vi.fn(() => Promise.resolve());
+const commitGitChangesMock = vi.fn(() => Promise.resolve({ stdout: '', stderr: '', error: '' }));
 const unstageGitFileMock = vi.fn(() => Promise.resolve());
 const listGitWorktreesMock = vi.fn(() => Promise.resolve([]));
 const listGitBranchesMock = vi.fn(() => Promise.resolve([]));
@@ -213,6 +215,8 @@ vi.mock('../wailsjs/go/main/WApp', () => ({
     GetGitDiff: getGitDiffMock,
     GetGitDiffAgainstBranch: vi.fn(() => Promise.resolve({ path: '', original: '', working: '', binary: false, deleted: false })),
     StageGitFile: stageGitFileMock,
+    StageAllGitFiles: stageAllGitFilesMock,
+    CommitGitChanges: commitGitChangesMock,
     UnstageGitFile: unstageGitFileMock,
     ListGitWorktrees: listGitWorktreesMock,
     ListGitBranches: listGitBranchesMock,
@@ -540,6 +544,9 @@ describe('notes rendering', () => {
         getGitBrowserLinkMock.mockResolvedValue({ provider: 'github', url: 'https://github.com/org/repo/tree/main' });
         getGitDiffMock.mockReset();
         stageGitFileMock.mockReset();
+        stageAllGitFilesMock.mockReset();
+        commitGitChangesMock.mockReset();
+        commitGitChangesMock.mockResolvedValue({ stdout: '', stderr: '', error: '' });
         unstageGitFileMock.mockReset();
         listGitWorktreesMock.mockReset();
         listGitBranchesMock.mockReset();
@@ -3574,7 +3581,7 @@ describe('notes rendering', () => {
 
         createAISessionMock.mockResolvedValueOnce({
             activeSessionId: 7,
-            sessions: [{ tableId: 7, summary: 'New session', active: true }],
+            sessions: [{ tableId: 7, summary: 'Planning notes', active: true }],
             history: [],
         });
         sessionButton.click();
@@ -3582,7 +3589,52 @@ describe('notes rendering', () => {
         menu = showLocalMenuMock.mock.calls.at(-1)?.[0];
         menu.onSelect(0);
         await flushPromises();
-        expect(createAISessionMock).toHaveBeenCalledTimes(1);
+        expect(document.getElementById('notes-modal-title').textContent).toBe('New AI session');
+        expect(document.getElementById('notes-modal-create').textContent).toBe('Create');
+        expect(document.getElementById('notes-modal-input').placeholder).toBe('Optional session name');
+        document.getElementById('notes-modal-input').value = 'Planning notes';
+        document.getElementById('notes-modal-create').click();
+        await flushPromises();
+        expect(createAISessionMock).toHaveBeenCalledWith('Planning notes');
+        expect(document.getElementById('notes-current-file').textContent).not.toContain('Planning notes');
+    });
+
+    it('places the commit toggle after comparison and uses distinct commit-log icon', async () => {
+        await importNotesModule();
+        const compare = document.getElementById('notes-tools-git-compare');
+        const commitToggle = document.getElementById('notes-tools-git-commit-toggle');
+        const commits = document.getElementById('notes-tools-git-commits');
+        expect(compare.nextElementSibling).toBe(commitToggle);
+        expect(commitToggle.textContent.codePointAt(0)).toBe(0xf386);
+        expect(commits.textContent.codePointAt(0)).toBe(0xf022);
+        expect(document.getElementById('notes-tools-git-commit-row').hidden).toBe(true);
+        expect(document.getElementById('notes-tools-git-commit-message').placeholder).toBe('Commit message');
+        expect(document.getElementById('notes-tools-git-stage-all').classList.contains('notes-git-action')).toBe(true);
+    });
+
+    it.each([
+        ['empty name', '', true],
+        ['cancelled prompt', null, false],
+    ])('creates an AI session with the existing default behavior for %s', async (_label, name, shouldCreate) => {
+        getAISessionManagementMock.mockResolvedValue({ activeSessionId: 5, sessions: [{ tableId: 5, summary: 'Planning', active: true }], history: [] });
+        await importNotesModule();
+        document.getElementById('notes-tools-ai-session').click();
+        await flushPromises();
+        const menu = showLocalMenuMock.mock.calls.at(-1)[0];
+        menu.onSelect(0);
+        await flushPromises();
+        if (name === null) {
+            document.getElementById('notes-modal-cancel').click();
+        } else {
+            document.getElementById('notes-modal-input').value = name;
+            document.getElementById('notes-modal-create').click();
+        }
+        await flushPromises();
+        if (shouldCreate) {
+            expect(createAISessionMock).toHaveBeenCalledWith('');
+        } else {
+            expect(createAISessionMock).not.toHaveBeenCalled();
+        }
     });
 
     it('uses href as fallback label when right-clicking an empty anchor label', async () => {
@@ -4841,6 +4893,38 @@ describe('notes rendering', () => {
         });
     });
 
+    it.each(['ai', 'log'])('hides the whole Tools tab bar while %s is maximized', async (panel) => {
+        await importNotesModule();
+        const tabs = document.getElementById('notes-tools-tabs');
+        const header = tabs.closest('.notes-tools-header');
+        document.getElementById('notes-tools-tab-git').style.display = '';
+        document.getElementById('notes-tools-tab-frontmatter').style.display = '';
+        const futureTab = document.createElement('button');
+        futureTab.textContent = 'Future tab';
+        tabs.appendChild(futureTab);
+        const hideRule = notesCss.match(new RegExp(
+            `\\[data-${panel}-maximized="true"\\] #notes-sidebar,[\\s\\S]*?\\{\\s*display: none !important;\\s*\\}`,
+        ));
+        expect(hideRule).not.toBeNull();
+        const style = document.createElement('style');
+        style.textContent = hideRule[0];
+        document.head.appendChild(style);
+        try {
+            const maximize = document.getElementById(`notes-tools-${panel}-maximize`);
+            expect(window.getComputedStyle(header).display).not.toBe('none');
+            maximize.click();
+            await flushPromises();
+            expect(window.getComputedStyle(header).display).toBe('none');
+            expect(header.contains(maximize)).toBe(false);
+            expect(window.getComputedStyle(maximize).display).not.toBe('none');
+            maximize.click();
+            await flushPromises();
+            expect(window.getComputedStyle(header).display).not.toBe('none');
+        } finally {
+            style.remove();
+        }
+    });
+
     it('toggles AI maximize state from the AI pane button', async () => {
         listFilesMock.mockResolvedValue(['$NOTES/guide.md']);
         getFileMock.mockResolvedValue({ contents: '# Guide', text: '', error: '' });
@@ -5034,13 +5118,13 @@ describe('notes rendering', () => {
         await flushPromises();
         expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({ message: 'local changes would be overwritten', level: 'error' }));
         const checkouts = checkoutGitBranchMock.mock.calls.length;
+        const beforeFetch = sendIpcMock.mock.calls.length;
         menu.onSelect(4);
         await flushPromises();
         expect(fetchGitBranchMock).toHaveBeenCalledWith('/workspace/repo', 'alpha');
         expect(checkoutGitBranchMock).toHaveBeenCalledTimes(checkouts);
-        expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({ message: 'Fetched objects', level: 'info' }));
-        expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({ message: 'Fetch warning', level: 'error' }));
-        expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({ message: 'Fetch completed for alpha', level: 'info' }));
+        expect(sendIpcMock.mock.calls.slice(beforeFetch).filter(([channel]) => channel === 'terminal-notify'))
+            .toEqual([['terminal-notify', { message: 'Fetch completed for alpha', level: 'info' }]]);
         const previousCalls = sendIpcMock.mock.calls.length;
         fetchGitBranchMock.mockResolvedValueOnce({ stdout: '', stderr: 'Fetch failed', error: 'exit status 1' });
         menu.onSelect(4);
@@ -5048,6 +5132,12 @@ describe('notes rendering', () => {
         const failureCalls = sendIpcMock.mock.calls.slice(previousCalls);
         expect(failureCalls.some(([channel, payload]) => channel === 'terminal-notify' && payload.message === 'Fetch completed for alpha')).toBe(false);
         expect(failureCalls.some(([channel, payload]) => channel === 'terminal-notify' && payload.message === 'Fetch failed' && payload.level === 'error')).toBe(true);
+        const beforeFallback = sendIpcMock.mock.calls.length;
+        fetchGitBranchMock.mockResolvedValueOnce({ stdout: 'partial output', stderr: '', error: 'exit status 128' });
+        menu.onSelect(4);
+        await flushPromises();
+        expect(sendIpcMock.mock.calls.slice(beforeFallback).filter(([channel]) => channel === 'terminal-notify'))
+            .toEqual([['terminal-notify', { message: 'exit status 128', level: 'error' }]]);
         menu.onSelect(5);
         await flushPromises();
         expect(createGitWorktreeMock).toHaveBeenCalledWith('/workspace/repo', 'alpha', '/Users/test/.git_worktrees/default/alpha', false);
@@ -5079,8 +5169,8 @@ describe('notes rendering', () => {
         listGitTagsMock.mockResolvedValue(['v10.3.4', 'v5.9.9', 'release']);
         getDefaultGitWorktreePathMock.mockResolvedValue('/Users/test/.git_worktrees/default/');
         createGitTagWorktreeMock.mockResolvedValue({ path: '/Users/test/.git_worktrees/default/v10.3.4', branch: 'tag: v10.3.4' });
-        pullGitTagsMock.mockResolvedValue({ stdout: 'Fetched tags', stderr: '', error: '' });
-        pushGitTagMock.mockResolvedValue({ stdout: 'Pushed tag', stderr: '', error: '' });
+        pullGitTagsMock.mockResolvedValue({ stdout: 'Fetched tags', stderr: 'From origin: new tags', error: '' });
+        pushGitTagMock.mockResolvedValue({ stdout: 'Pushed tag', stderr: 'To origin: new tag', error: '' });
         await importNotesModule();
 
         document.getElementById('notes-tools-git-tags').click();
@@ -5091,11 +5181,12 @@ describe('notes rendering', () => {
         expect(menu.options).toEqual(['Create new tag', '-', 'Pull tags', '-', 'v10.3.4', 'v5.9.9', 'release']);
         expect(menu.icons).toEqual([0xf067, 0, 0xf019, 0, 0, 0, 0]);
 
+        const beforePull = sendIpcMock.mock.calls.length;
         menu.onSelect(2);
         await flushPromises();
         expect(pullGitTagsMock).toHaveBeenCalledWith('/workspace/repo');
-        expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({ message: 'Fetched tags', level: 'info' }));
-        expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({ message: 'Tags pulled', level: 'info' }));
+        expect(sendIpcMock.mock.calls.slice(beforePull).filter(([channel]) => channel === 'terminal-notify'))
+            .toEqual([['terminal-notify', { message: 'Tags pulled', level: 'info' }]]);
 
         menu.onSelect(4);
         menu = showLocalMenuMock.mock.calls.at(-1)?.[0];
@@ -5108,11 +5199,18 @@ describe('notes rendering', () => {
         menu.onSelect(1);
         await flushPromises();
         expect(clipboardSetTextMock).toHaveBeenCalledWith('v10.3.4');
+        const beforePush = sendIpcMock.mock.calls.length;
         menu.onSelect(2);
         await flushPromises();
         expect(pushGitTagMock).toHaveBeenCalledWith('/workspace/repo', 'v10.3.4');
-        expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({ message: 'Pushed tag', level: 'info' }));
-        expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({ message: 'Pushed tag v10.3.4', level: 'info' }));
+        expect(sendIpcMock.mock.calls.slice(beforePush).filter(([channel]) => channel === 'terminal-notify'))
+            .toEqual([['terminal-notify', { message: 'Pushed tag v10.3.4', level: 'info' }]]);
+        const beforePushFailure = sendIpcMock.mock.calls.length;
+        pushGitTagMock.mockResolvedValueOnce({ stdout: '', stderr: 'Push rejected', error: 'exit status 1' });
+        menu.onSelect(2);
+        await flushPromises();
+        expect(sendIpcMock.mock.calls.slice(beforePushFailure).filter(([channel]) => channel === 'terminal-notify'))
+            .toEqual([['terminal-notify', { message: 'Push rejected', level: 'error' }]]);
         menu.onSelect(4);
         await flushPromises();
         expect(checkoutGitTagMock).toHaveBeenCalledWith('/workspace/repo', 'v10.3.4');
@@ -7176,6 +7274,74 @@ describe('notes rendering', () => {
             ]);
         });
 
+        it('displays a saved PNG-format graph as SVG without changing the saved format', async () => {
+            const spec = { type: 'bar', format: 'png', categoryColumn: 0, valueColumns: [1] };
+            notesTableRestoreMock.mockResolvedValue({ ...emptyTableResult(), order: [0, 1, 2], graph: spec });
+            const table = await loadMarkdownTable();
+            expect(notesTableRenderGraphMock).toHaveBeenCalledWith(expect.any(Object), { ...spec, format: 'svg' });
+            expect(document.querySelector('.notes-table-graph-image').src).toContain('data:image/svg+xml');
+            expect(JSON.parse(table.dataset.tableGraphSpec)).toEqual(spec);
+        });
+
+        it.each(['table', 'graph'])('modifies an existing graph from the %s context menu', async (target) => {
+            const spec = { type: 'bar', format: 'svg', title: 'Saved chart', categoryColumn: 0, valueColumns: [1], rowIndices: [1] };
+            notesTableRestoreMock.mockResolvedValue({ ...emptyTableResult(), order: [0, 1, 2], graph: spec });
+            const table = await loadMarkdownTable();
+            const element = target === 'table' ? table.querySelector('tbody td') : document.querySelector('.notes-table-graph');
+            expect(element).not.toBeNull();
+            element.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+            const menu = showLocalMenuMock.mock.calls.at(-1)[0];
+            expect(menu.options).toContain('Modify graph...');
+            expect(menu.options).not.toContain('Create graph...');
+            expect(menu.icons[menu.options.indexOf('Modify graph...')]).toBe(0xf201);
+            menu.onSelect(menu.options.indexOf('Modify graph...'));
+            await flushPromises();
+            expect(document.getElementById('notes-modal-title').textContent).toBe('Modify graph');
+            expect(document.getElementById('notes-modal-create').textContent).toBe('Modify graph');
+            expect(document.querySelector('.notes-graph-dropdown').textContent).toContain('Bar');
+            const title = document.querySelector('.notes-graph-text-title');
+            expect(title.value).toBe('Saved chart');
+            title.value = 'Modified chart';
+            title.dispatchEvent(new Event('input', { bubbles: true }));
+            document.getElementById('notes-modal-create').click();
+            await flushPromises();
+            await flushPromises();
+            expect(notesTableSetGraphMock).toHaveBeenLastCalledWith(expect.any(Object), expect.objectContaining({
+                type: 'bar', format: 'svg', title: 'Modified chart', categoryColumn: 0, valueColumns: [1], rowIndices: [1],
+            }));
+        });
+
+        it.each(['success', 'render failure', 'clipboard failure'])('copies a graph as PNG with %s handling', async (outcome) => {
+            const spec = { type: 'bar', format: 'svg', title: 'Saved chart', categoryColumn: 0, valueColumns: [1], rowIndices: [1] };
+            notesTableRestoreMock.mockResolvedValue({ ...emptyTableResult(), order: [0, 1, 2], graph: spec });
+            const table = await loadMarkdownTable();
+            const pngDataURL = 'data:image/png;base64,iVBORw0KGgo=';
+            notesTableRenderGraphMock.mockResolvedValueOnce(outcome === 'render failure'
+                ? { error: 'render failed' } : { pngDataURL, error: '' });
+            if (outcome === 'clipboard failure') terminalCopyImageDataURLMock.mockRejectedValueOnce(new Error('clipboard failed'));
+            document.querySelector('.notes-table-graph').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+            const menu = showLocalMenuMock.mock.calls.at(-1)[0];
+            menu.onSelect(menu.options.indexOf('Copy graph (PNG)'));
+            await flushPromises();
+            await flushPromises();
+            expect(notesTableRenderGraphMock).toHaveBeenLastCalledWith(expect.objectContaining({
+                seed: expect.objectContaining({ headings: ['Name', 'Value'], rows: [['Alpha', '1'], ['Beta', '2'], ['Gamma', '3']] }),
+            }), { ...spec, format: 'png' });
+            if (outcome === 'render failure') {
+                expect(terminalCopyImageDataURLMock).not.toHaveBeenCalled();
+            } else {
+                expect(terminalCopyImageDataURLMock).toHaveBeenCalledWith(pngDataURL);
+            }
+            if (outcome !== 'success') {
+                expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({
+                    level: 'error', message: `Failed to copy graph: ${outcome === 'render failure' ? 'render failed' : 'clipboard failed'}`,
+                }));
+            }
+            expect(notesTableSetGraphMock).not.toHaveBeenCalled();
+            expect(JSON.parse(table.dataset.tableGraphSpec)).toEqual(spec);
+            expect(document.querySelector('.notes-table-graph')).not.toBeNull();
+        });
+
         it('removes the persisted graph from the graph context menu', async () => {
             const table = await loadMarkdownTable();
             table.querySelector('tbody td').dispatchEvent(
@@ -7190,8 +7356,9 @@ describe('notes rendering', () => {
             const graph = document.querySelector('.notes-table-graph');
             graph.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 12, clientY: 12 }));
             const graphMenu = showLocalMenuMock.mock.calls.at(-1)[0];
-            expect(graphMenu.options).toEqual(['Remove graph']);
-            graphMenu.onSelect(0);
+            expect(graphMenu.options).toEqual(['Copy graph (PNG)', 'Modify graph...', '-', 'Remove graph']);
+            expect(graphMenu.icons).toEqual([0xf0c5, 0xf201, 0, 0]);
+            graphMenu.onSelect(graphMenu.options.indexOf('Remove graph'));
             await flushPromises();
 
             expect(notesTableSetGraphMock).toHaveBeenLastCalledWith(

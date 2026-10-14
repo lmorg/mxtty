@@ -36,6 +36,13 @@ for the modal did not need to change — only the two functions that decide what
 Both `renameCurrentLspSymbol()` and the AI session rename button now call
 `openTextPrompt(...)` instead of `window.prompt(...)`.
 
+Updated 2026-10-14: creating a new AI session from the AI panel's session
+dropdown also uses `openTextPrompt(...)`. A supplied name is passed to
+`CreateAISession`; confirming an empty value passes an empty summary so the
+session database retains its existing `New session` default. Cancelling the
+prompt creates no session. The prompt title is `New AI session`, with a `Create`
+confirmation action and an optional-name placeholder.
+
 ### Folder-targeted file creation
 
 The file-list context menu reuses the same create-file modal for

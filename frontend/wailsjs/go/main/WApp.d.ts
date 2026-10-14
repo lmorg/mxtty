@@ -36,11 +36,13 @@ export function CloseTooltip():Promise<void>;
 
 export function CommandPaletteSelect(arg1:number):Promise<void>;
 
+export function CommitGitChanges(arg1:string,arg2:string):Promise<Record<string, string>>;
+
 export function CompleteSyntax(arg1:string,arg2:string,arg3:string,arg4:number,arg5:number,arg6:number,arg7:string):Promise<main.CompleteSyntaxReturnT>;
 
 export function ComposeNoteLocationPath(arg1:string,arg2:string):Promise<string>;
 
-export function CreateAISession():Promise<sessiondb.FrontendStateT>;
+export function CreateAISession(arg1:string):Promise<sessiondb.FrontendStateT>;
 
 export function CreateGitTag(arg1:string,arg2:string):Promise<void>;
 
@@ -351,6 +353,8 @@ export function ShowGitRefInfo(arg1:string,arg2:string,arg3:boolean):Promise<voi
 export function ShowGitWorktreeInfo(arg1:string,arg2:string):Promise<void>;
 
 export function ShowTooltip(arg1:string):Promise<void>;
+
+export function StageAllGitFiles(arg1:string):Promise<void>;
 
 export function StageGitFile(arg1:string,arg2:string):Promise<void>;
 

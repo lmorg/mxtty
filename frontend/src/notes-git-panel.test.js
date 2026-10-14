@@ -9,19 +9,29 @@ function createElements() {
     const gitWorkspace = document.createElement('button');
     const gitCompare = document.createElement('button');
     const gitCommits = document.createElement('button');
+    const gitCommitToggle = document.createElement('button');
+    const gitCommitRow = document.createElement('div');
+    const gitCommitMessage = document.createElement('input');
+    const gitCommitSubmit = document.createElement('button');
+    const gitStageAll = document.createElement('button');
     const gitRemote = document.createElement('button');
     const gitBranch = document.createElement('span');
     const gitAheadBehind = document.createElement('span');
     const gitRefresh = document.createElement('button');
     const gitFileList = document.createElement('div');
     const gitCommitList = document.createElement('div');
-    gitPane.append(gitWorkspace, gitCompare, gitRemote, gitBranch, gitAheadBehind, gitRefresh, gitFileList);
+    gitPane.append(gitWorkspace, gitCompare, gitCommitToggle, gitCommitRow, gitCommitMessage, gitCommitSubmit, gitStageAll, gitRemote, gitBranch, gitAheadBehind, gitRefresh, gitFileList);
     return {
         gitTab,
         gitPane,
         gitWorkspace,
         gitCompare,
         gitCommits,
+        gitCommitToggle,
+        gitCommitRow,
+        gitCommitMessage,
+        gitCommitSubmit,
+        gitStageAll,
         gitRemote,
         gitBranch,
         gitAheadBehind,
@@ -66,16 +76,87 @@ function createApi(overrides = {}) {
                 { path: 'new-file.txt', code: '??', staged: false, unstaged: false, untracked: true },
             ],
         })),
+        refreshStatus: vi.fn(() => Promise.resolve({
+            root: '/work/repo', branch: 'main', ahead: 2, behind: 1, clean: false,
+            files: [
+                { path: 'src/main.go', code: ' M', staged: false, unstaged: true },
+                { path: 'README.md', code: 'A ', staged: true, unstaged: false },
+                { path: 'new-file.txt', code: '??', staged: false, unstaged: false, untracked: true },
+            ],
+        })),
         getDiff: vi.fn(() => Promise.resolve({ path: 'src/main.go', original: 'old', working: 'new' })),
         getDiffAgainstBranch: vi.fn(() => Promise.resolve({ path: 'src/main.go', original: 'branch', working: 'new' })),
         stageFile: vi.fn(() => Promise.resolve()),
+        stageAll: vi.fn(() => Promise.resolve()),
         unstageFile: vi.fn(() => Promise.resolve()),
+        commitChanges: vi.fn(() => Promise.resolve({ stdout: 'commit output', stderr: '', error: '' })),
         eventsOn: vi.fn(),
         ...overrides,
     };
 }
 
 describe('Notes Git panel', () => {
+    it('toggles the commit row, focuses its message, and stages tracked files only', async () => {
+        const elements = createElements();
+        const api = createApi();
+        const notify = vi.fn();
+        const panel = initNotesGitPanel(elements, api, { notify });
+        await flushPromises();
+        const focus = vi.spyOn(elements.gitCommitMessage, 'focus');
+        expect(elements.gitStageAll.disabled).toBe(false);
+        expect(elements.gitCommitRow.hidden).toBe(true);
+        elements.gitCommitToggle.click();
+        expect(elements.gitCommitRow.hidden).toBe(false);
+        expect(elements.gitCommitToggle.getAttribute('aria-pressed')).toBe('true');
+        expect(focus).toHaveBeenCalledOnce();
+        elements.gitCommitToggle.click();
+        expect(elements.gitCommitRow.hidden).toBe(true);
+        expect(elements.gitCommitToggle.getAttribute('aria-pressed')).toBe('false');
+
+        api.refreshStatus.mockClear();
+        elements.gitStageAll.click();
+        await flushPromises();
+        expect(api.stageAll).toHaveBeenCalledWith('/work/repo');
+        expect(api.refreshStatus).toHaveBeenCalledWith('/work/repo');
+        expect(notify).toHaveBeenCalledWith('All tracked changes staged', 'info');
+        expect(panel.getCurrentRoot()).toBe('/work/repo');
+    });
+
+    it('validates and commits a message using the shared output reporting rule', async () => {
+        const elements = createElements();
+        const api = createApi();
+        const notify = vi.fn();
+        const notifyTransfer = vi.fn();
+        initNotesGitPanel(elements, api, { notify, notifyTransfer });
+        await flushPromises();
+        elements.gitCommitSubmit.click();
+        await flushPromises();
+        expect(api.commitChanges).not.toHaveBeenCalled();
+        expect(notify).toHaveBeenCalledWith('Commit message is required', 'warn');
+
+        elements.gitCommitMessage.value = '  Add feature  ';
+        api.refreshStatus.mockClear();
+        elements.gitCommitSubmit.click();
+        await flushPromises();
+        expect(api.commitChanges).toHaveBeenCalledWith('/work/repo', 'Add feature');
+        expect(notifyTransfer).toHaveBeenCalledWith(
+            { stdout: 'commit output', stderr: '', error: '' }, 'Commit created',
+        );
+        expect(elements.gitCommitMessage.value).toBe('');
+        expect(api.refreshStatus).toHaveBeenCalledWith('/work/repo');
+
+        api.commitChanges.mockResolvedValueOnce({ stdout: '', stderr: 'hook failed', error: 'exit status 1' });
+        api.refreshStatus.mockClear();
+        elements.gitCommitMessage.value = 'Fix hook';
+        elements.gitCommitSubmit.click();
+        await flushPromises();
+        expect(notifyTransfer).toHaveBeenLastCalledWith(
+            { stdout: '', stderr: 'hook failed', error: 'exit status 1' }, 'Commit created',
+        );
+        expect(elements.gitCommitMessage.value).toBe('Fix hook');
+        expect(api.refreshStatus).not.toHaveBeenCalled();
+    });
+
     it('opens a commit context menu without changing comparison until requested', async () => {
         const elements = createElements();
         const api = createApi();

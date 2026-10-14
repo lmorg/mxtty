@@ -1,7 +1,7 @@
 import {
     GetWindowStyle, GetNotesMaxLogLines, GetNotesColumnWidths, SetNotesColumnWidths, GetFile,
     GetGitStatus, GetGitBrowserLink, GetGitBranchDiffFiles, GetGitDiff, GetGitDiffAgainstBranch,
-    RefreshGitStatus, SetGitStatusWatch, StageGitFile, UnstageGitFile,
+    RefreshGitStatus, SetGitStatusWatch, StageGitFile, StageAllGitFiles, UnstageGitFile, CommitGitChanges,
         ListGitWorktrees, ListGitBranches, ListGitTags, ListGitCommits, GetDefaultGitWorktreePath, CreateGitWorktree, CreateGitTagWorktree,
     CheckoutGitBranch, DeleteGitBranch, FetchGitBranch,
         CreateGitTag, DeleteGitTag, CheckoutGitTag, PullGitTags, PushGitTag,
@@ -654,17 +654,23 @@ app.innerHTML = `
                                     <span id="notes-tools-git-branch" class="notes-git-branch"></span>
                                     <span id="notes-tools-git-ahead-behind" class="notes-git-ahead-behind"></span>
                                     <button id="notes-tools-git-compare" type="button" class="notes-tools-clear notes-git-compare" aria-label="Choose comparison branch" data-tooltip="Choose comparison branch">HEAD</button>
+                                    <button id="notes-tools-git-commit-toggle" type="button" class="notes-tools-clear notes-tools-icon notes-git-commit-toggle" aria-label="Toggle commit controls" data-tooltip="Toggle commit controls" aria-pressed="false">&#xf386;</button>
                                 </div>
                                 <div class="notes-git-actions">
-                                <button id="notes-tools-git-commits" type="button" class="notes-tools-clear notes-tools-icon notes-git-commits-toggle" aria-label="View commit log" data-tooltip="View commit log" aria-pressed="false">&#xf386;</button>
+                                <button id="notes-tools-git-commits" type="button" class="notes-tools-clear notes-tools-icon notes-git-commits-toggle" aria-label="View commit log" data-tooltip="View commit log" aria-pressed="false">&#xf022;</button>
                                 <span class="notes-git-toolbar-separator" aria-hidden="true"></span>
-                                <button id="notes-tools-git-tags" type="button" class="notes-tools-clear notes-tools-icon" aria-label="Manage tags" data-tooltip="Manage tags" aria-haspopup="menu">&#xf02c;</button>
                                 <button id="notes-tools-git-branches" type="button" class="notes-tools-clear notes-tools-icon" aria-label="Manage branches" data-tooltip="Manage branches" aria-haspopup="menu">&#xf126;</button>
+                                <button id="notes-tools-git-tags" type="button" class="notes-tools-clear notes-tools-icon" aria-label="Manage tags" data-tooltip="Manage tags" aria-haspopup="menu">&#xf02c;</button>
                                 <button id="notes-tools-git-workspace" type="button" class="notes-tools-clear notes-tools-icon" aria-label="Worktrees" data-tooltip="Manage worktrees">&#xf802;</button>
                                 <span class="notes-git-toolbar-separator" aria-hidden="true"></span>
                                 <button id="notes-tools-git-remote" type="button" class="notes-tools-clear notes-tools-icon notes-git-remote" aria-label="Open remote repository" data-tooltip="Open remote repository" hidden></button>
                                 <button id="notes-tools-git-refresh" type="button" class="notes-tools-clear notes-tools-icon" data-tooltip="Refresh Git status" aria-label="Refresh Git status">&#xf021;</button>
                                 </div>
+                            </div>
+                            <div id="notes-tools-git-commit-row" class="notes-git-commit-row" hidden>
+                                <input id="notes-tools-git-commit-message" type="text" placeholder="Commit message" aria-label="Commit message" autocomplete="off">
+                                <button id="notes-tools-git-commit-submit" type="button" class="notes-git-action">Commit</button>
+                                <button id="notes-tools-git-stage-all" type="button" class="notes-git-action" data-tooltip="Stage all tracked changes">Stage all</button>
                             </div>
                             <div id="notes-tools-git-files" class="notes-git-file-list" role="list"></div>
                         </div>
@@ -843,6 +849,11 @@ const elements = {
     gitAheadBehind: document.getElementById('notes-tools-git-ahead-behind'),
     gitCompare: document.getElementById('notes-tools-git-compare'),
     gitCommits: document.getElementById('notes-tools-git-commits'),
+    gitCommitToggle: document.getElementById('notes-tools-git-commit-toggle'),
+    gitCommitRow: document.getElementById('notes-tools-git-commit-row'),
+    gitCommitMessage: document.getElementById('notes-tools-git-commit-message'),
+    gitCommitSubmit: document.getElementById('notes-tools-git-commit-submit'),
+    gitStageAll: document.getElementById('notes-tools-git-stage-all'),
     gitBranches: document.getElementById('notes-tools-git-branches'),
     gitTags: document.getElementById('notes-tools-git-tags'),
     gitRefresh: document.getElementById('notes-tools-git-refresh'),
@@ -4173,8 +4184,9 @@ function openNotesTableGraphPrompt(table) {
     elements.modalLocationRow.style.display = 'none';
     elements.modalBody.style.display = 'flex';
     elements.modalInput.value = '';
-    setNotesModalTitle('Create graph', true);
-    elements.modalCreate.textContent = 'Create graph';
+    const graphActionLabel = existing ? 'Modify graph' : 'Create graph';
+    setNotesModalTitle(graphActionLabel, true);
+    elements.modalCreate.textContent = graphActionLabel;
     elements.modalBody.replaceChildren();
 
     const form = document.createElement('div');
@@ -4392,7 +4404,7 @@ function openNotesTableGraphPrompt(table) {
         });
     };
 
-    elements.modalCreate.textContent = 'Create graph';
+    elements.modalCreate.textContent = graphActionLabel;
     setTimeout(() => typeButton.focus(), 0);
 }
 
@@ -4422,6 +4434,22 @@ async function setNotesTableGraph(table, spec) {
     await renderNotesTableGraph(table);
 }
 
+async function copyNotesTableGraphPNG(table) {
+    try {
+        const spec = JSON.parse(table.dataset.tableGraphSpec || 'null');
+        if (!spec) {
+            throw new Error('No graph is available to copy.');
+        }
+        const result = await NotesTableRenderGraph(notesTableRequest(table, true), { ...spec, format: 'png' });
+        if (result?.error || !result?.pngDataURL) {
+            throw new Error(result?.error || 'Graph rendering returned no PNG.');
+        }
+        await TerminalCopyImageDataURL(result.pngDataURL);
+    } catch (err) {
+        notifyTerminal(`Failed to copy graph: ${err instanceof Error ? err.message : err}`, 'error');
+    }
+}
+
 async function renderNotesTableGraph(table) {
     const extras = notesTableExtras(table, false);
     if (!extras) {
@@ -4446,6 +4474,10 @@ async function renderNotesTableGraph(table) {
             event.preventDefault();
             event.stopPropagation();
             showNotesLocalMenu([{
+                title: 'Copy graph (PNG)',
+                icon: CONTEXT_ICON_COPY,
+                onSelect: () => void copyNotesTableGraphPNG(table),
+            }, createTableGraphMenuItem(table), { title: '-', icon: 0 }, {
                 title: 'Remove graph',
                 icon: 0,
                 onSelect: () => void setNotesTableGraph(table, null),
@@ -4455,7 +4487,7 @@ async function renderNotesTableGraph(table) {
     const renderID = String(Number(graph.dataset.renderID || '0') + 1);
     graph.dataset.renderID = renderID;
     graph.setAttribute('aria-busy', 'true');
-    const result = await NotesTableRenderGraph(notesTableRequest(table, true), spec);
+    const result = await NotesTableRenderGraph(notesTableRequest(table, true), { ...spec, format: 'svg' });
     if (!graph.isConnected || graph.dataset.renderID !== renderID) {
         return;
     }
@@ -4613,7 +4645,7 @@ function createTableFilterMenuItem(table) {
 
 function createTableGraphMenuItem(table) {
     return {
-        title: 'Create graph...',
+        title: table.dataset.tableGraphSpec ? 'Modify graph...' : 'Create graph...',
         icon: 0xf201,
         onSelect: () => openNotesTableGraphPrompt(table),
     };
@@ -12637,8 +12669,17 @@ function activateAISession(sessionId) {
     });
 }
 
-function createNewAISession() {
-    CreateAISession().then((sessionState) => {
+async function createNewAISession() {
+    const summary = await openTextPrompt({
+        title: 'New AI session',
+        confirmLabel: 'Create',
+        placeholder: 'Optional session name',
+    });
+    if (summary === null) {
+        return;
+    }
+
+    CreateAISession(summary).then((sessionState) => {
         applyAISessionManagement(sessionState);
         renderAISessionManagement();
         void loadAISessionCache('');
@@ -15296,11 +15337,12 @@ async function checkoutNotesGitBranch(root, branch, create = false) {
     }
 }
 
-function notifyGitTagTransfer(output, successMessage) {
-    if (output.stdout) notifyTerminal(output.stdout, 'info');
-    if (output.stderr) notifyTerminal(output.stderr, 'error');
-    if (output.error && !output.stderr) notifyTerminal(output.error, 'error');
-    if (!output.error) notifyTerminal(successMessage, 'info');
+function notifyGitTransfer(output, successMessage) {
+    if (output.error) {
+        notifyTerminal(output.stderr || output.error, 'error');
+        return;
+    }
+    notifyTerminal(successMessage, 'info');
 }
 
 async function createNotesGitTagWorktree(root, tag, worktreePath) {
@@ -15340,7 +15382,7 @@ elements.gitTags.addEventListener('click', async () => {
                 title: 'Pull tags', icon: 0xf019,
                 onSelect: async () => {
                     try {
-                        notifyGitTagTransfer(await PullGitTags(root), 'Tags pulled');
+                        notifyGitTransfer(await PullGitTags(root), 'Tags pulled');
                     } catch (error) {
                         notifyTerminal(String(error?.message || error), 'error');
                     }
@@ -15366,7 +15408,7 @@ elements.gitTags.addEventListener('click', async () => {
                         title: 'Push tag', icon: 0xf093,
                         onSelect: async () => {
                             try {
-                                notifyGitTagTransfer(await PushGitTag(root, tag), `Pushed tag ${tag}`);
+                                notifyGitTransfer(await PushGitTag(root, tag), `Pushed tag ${tag}`);
                             } catch (error) {
                                 notifyTerminal(String(error?.message || error), 'error');
                             }
@@ -15454,10 +15496,7 @@ elements.gitBranches.addEventListener('click', async () => {
                         onSelect: async () => {
                             try {
                                 const output = await FetchGitBranch(root, branch);
-                                if (output.stdout) notifyTerminal(output.stdout, 'info');
-                                if (output.stderr) notifyTerminal(output.stderr, 'error');
-                                if (output.error && !output.stderr) notifyTerminal(output.error, 'error');
-                                if (!output.error) notifyTerminal(`Fetch completed for ${branch}`, 'info');
+                                notifyGitTransfer(output, `Fetch completed for ${branch}`);
                             } catch (error) {
                                 notifyTerminal(String(error?.message || error), 'error');
                             }
@@ -15512,12 +15551,16 @@ notesGitPanel = initNotesGitPanel(elements, {
     getDiff: GetGitDiff,
     getDiffAgainstBranch: GetGitDiffAgainstBranch,
     stageFile: StageGitFile,
+    stageAll: StageAllGitFiles,
     unstageFile: UnstageGitFile,
+    commitChanges: CommitGitChanges,
     getCurrentProject: GetCurrentProject,
     eventsOn: EventsOn,
 }, {
     showTooltip: (text) => { void showSharedTooltip(text); },
     hideTooltip: closeSharedTooltip,
+    notify: notifyTerminal,
+    notifyTransfer: notifyGitTransfer,
     onOpenDiff: openNotesGitDiff,
     showCommitMenu: ({ root, commit, x, y, compare }) => {
         const fullHash = commit.fullHash || commit.hash;

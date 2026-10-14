@@ -54,6 +54,10 @@ export function CommandPaletteSelect(arg1) {
   return window['go']['main']['WApp']['CommandPaletteSelect'](arg1);
 }
 
+export function CommitGitChanges(arg1, arg2) {
+  return window['go']['main']['WApp']['CommitGitChanges'](arg1, arg2);
+}
+
 export function CompleteSyntax(arg1, arg2, arg3, arg4, arg5, arg6, arg7) {
   return window['go']['main']['WApp']['CompleteSyntax'](arg1, arg2, arg3, arg4, arg5, arg6, arg7);
 }
@@ -62,8 +66,8 @@ export function ComposeNoteLocationPath(arg1, arg2) {
   return window['go']['main']['WApp']['ComposeNoteLocationPath'](arg1, arg2);
 }
 
-export function CreateAISession() {
-  return window['go']['main']['WApp']['CreateAISession']();
+export function CreateAISession(arg1) {
+  return window['go']['main']['WApp']['CreateAISession'](arg1);
 }
 
 export function CreateGitTag(arg1, arg2) {
@@ -684,6 +688,10 @@ export function ShowGitWorktreeInfo(arg1, arg2) {
 
 export function ShowTooltip(arg1) {
   return window['go']['main']['WApp']['ShowTooltip'](arg1);
+}
+
+export function StageAllGitFiles(arg1) {
+  return window['go']['main']['WApp']['StageAllGitFiles'](arg1);
 }
 
 export function StageGitFile(arg1, arg2) {

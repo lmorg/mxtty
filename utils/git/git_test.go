@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -37,6 +38,49 @@ func runGitTestCommand(t *testing.T, gitPath, root string, args ...string) {
 	cmd := exec.Command(gitPath, commandArgs...)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git %v: %v: %s", args, err, output)
+	}
+}
+
+func TestGitTransferLogsOutputByCommandOutcome(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		exit string
+	}{
+		{"success", "0"},
+		{"failure", "1"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			gitPath := filepath.Join(root, "git")
+			script := "#!/bin/sh\nprintf '%s\\n' 'stdout one' 'stdout two'\nprintf '%s\\n' 'stderr one' 'stderr two' >&2\nexit " + test.exit + "\n"
+			if err := os.WriteFile(gitPath, []byte(script), 0700); err != nil {
+				t.Fatal(err)
+			}
+			var output bytes.Buffer
+			previous := log.Writer()
+			log.SetOutput(&output)
+			t.Cleanup(func() { log.SetOutput(previous) })
+			result, err := runGitWithAgentEnvironment(gitPath, root, nil, "fetch")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if (result["error"] != "") != (test.exit != "0") {
+				t.Fatalf("command error = %q for exit %s", result["error"], test.exit)
+			}
+			for _, line := range []string{"stdout one", "stdout two"} {
+				if strings.Contains(output.String(), "[info] "+line) != (test.exit == "0") {
+					t.Errorf("stdout info classification incorrect for %s: %s", test.name, line)
+				}
+			}
+			for _, line := range []string{"stderr one", "stderr two"} {
+				if strings.Contains(output.String(), "[info] "+line) != (test.exit == "0") {
+					t.Errorf("stderr info classification incorrect for %s: %s", test.name, line)
+				}
+			}
+			if result["stdout"] != "stdout one\nstdout two" || result["stderr"] != "stderr one\nstderr two" {
+				t.Fatalf("command output changed: %v", result)
+			}
+		})
 	}
 }
 
@@ -561,6 +605,60 @@ func TestWorkspaceStatusAndStageLifecycle(t *testing.T) {
 	}
 	if len(status.Files) != 2 || !filesForPath(status.Files, "new file.txt").Untracked {
 		t.Fatalf("unstaged status = %+v, want new file restored to untracked", status.Files)
+	}
+}
+
+func TestStageAllTrackedFilesDoesNotStageUntracked(t *testing.T) {
+	root := initGitTestRepo(t)
+	if err := os.WriteFile(filepath.Join(root, "tracked file.txt"), []byte("changed\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "new file.txt"), []byte("untracked\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := StageAllTrackedFiles(root); err != nil {
+		t.Fatalf("StageAllTrackedFiles() error = %v", err)
+	}
+	status, err := WorkspaceStatus(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tracked := filesForPath(status.Files, "tracked file.txt")
+	untracked := filesForPath(status.Files, "new file.txt")
+	if !tracked.Staged || tracked.Untracked {
+		t.Errorf("tracked file status = %+v, want staged", tracked)
+	}
+	if !untracked.Untracked || untracked.Staged {
+		t.Errorf("untracked file status = %+v, want unstaged untracked", untracked)
+	}
+}
+
+func TestCommitChangesUsesMessageAndPreservesOutputContract(t *testing.T) {
+	root := initGitTestRepo(t)
+	if err := os.WriteFile(filepath.Join(root, "tracked file.txt"), []byte("committed contents\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := StageFile(root, "tracked file.txt"); err != nil {
+		t.Fatal(err)
+	}
+	result := CommitChanges(root, "  Update tracked file  ")
+	if result["error"] != "" || result["stdout"] == "" {
+		t.Fatalf("CommitChanges() result = %v, want successful commit output", result)
+	}
+	gitPath, err := exec.LookPath("git")
+	if err != nil {
+		t.Skip("git is not installed")
+	}
+	command := exec.Command(gitPath, "-C", root, "log", "-1", "--format=%s")
+	output, err := command.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.TrimSpace(string(output)); got != "Update tracked file" {
+		t.Fatalf("commit subject = %q, want trimmed message", got)
+	}
+	if result := CommitChanges(root, "  "); result["error"] != "commit message is required" {
+		t.Fatalf("empty message result = %v, want validation error", result)
 	}
 }
 

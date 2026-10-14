@@ -34,7 +34,9 @@ const gitRemoteIcons = {
 };
 
 export function initNotesGitPanel(elements, api, options = {}) {
-    if (!elements?.gitTab || !elements?.gitPane || !elements?.gitFileList || !elements?.gitRemote || !elements?.gitCompare) {
+    if (!elements?.gitTab || !elements?.gitPane || !elements?.gitFileList || !elements?.gitRemote || !elements?.gitCompare
+        || !elements?.gitCommitToggle || !elements?.gitCommitRow || !elements?.gitCommitMessage
+        || !elements?.gitCommitSubmit || !elements?.gitStageAll) {
         return null;
     }
 
@@ -65,6 +67,7 @@ export function initNotesGitPanel(elements, api, options = {}) {
     const setAvailable = (available) => {
         elements.gitTab.style.display = available ? '' : 'none';
         if (!available) {
+            elements.gitStageAll.disabled = true;
             historyRequest++;
             elements.gitPane.dataset.active = 'false';
             elements.gitTab.setAttribute('aria-selected', 'false');
@@ -128,6 +131,8 @@ export function initNotesGitPanel(elements, api, options = {}) {
             status.behind > 0 ? `↓${status.behind}` : '',
         ].filter(Boolean).join(' ');
         options.onStatusChange?.(status, projectRoot);
+        const stageableFiles = cachedStatus?.files || status.files || [];
+        elements.gitStageAll.disabled = !stageableFiles.some((file) => file.unstaged && !file.untracked);
 
         if (commitsActive) {
             void renderCommits(true);
@@ -400,6 +405,9 @@ export function initNotesGitPanel(elements, api, options = {}) {
         if (nextRoot === projectRoot && currentStatus) {
             return true;
         }
+        elements.gitCommitRow.hidden = true;
+        elements.gitCommitToggle.setAttribute('aria-pressed', 'false');
+        elements.gitCommitMessage.value = '';
         projectRoot = nextRoot;
         historySnapshot = null;
         historySnapshotLimit = 0;
@@ -461,6 +469,73 @@ export function initNotesGitPanel(elements, api, options = {}) {
 
     elements.gitRefresh.addEventListener('click', () => {
         void refresh();
+    });
+
+    const setCommitRowVisible = (visible) => {
+        elements.gitCommitRow.hidden = !visible;
+        elements.gitCommitToggle.setAttribute('aria-pressed', String(visible));
+        if (visible) {
+            elements.gitCommitMessage.focus();
+        }
+    };
+
+    elements.gitCommitToggle.setAttribute('aria-pressed', 'false');
+    elements.gitCommitRow.hidden = true;
+    elements.gitCommitToggle.addEventListener('click', () => {
+        setCommitRowVisible(elements.gitCommitRow.hidden);
+    });
+
+    const submitCommit = async () => {
+        const message = String(elements.gitCommitMessage.value || '').trim();
+        if (!message) {
+            options.notify?.('Commit message is required', 'warn');
+            elements.gitCommitMessage.focus();
+            return;
+        }
+        if (!projectRoot || typeof api.commitChanges !== 'function') {
+            return;
+        }
+        elements.gitCommitSubmit.disabled = true;
+        try {
+            const result = await api.commitChanges(projectRoot, message);
+            if (options.notifyTransfer) {
+                options.notifyTransfer(result, 'Commit created');
+            } else if (result?.error) {
+                options.notify?.(result.stderr || result.error, 'error');
+            }
+            if (result?.error) {
+                return;
+            }
+            elements.gitCommitMessage.value = '';
+            await refresh(true);
+        } catch (error) {
+            options.notify?.(String(error?.message || error), 'error');
+        } finally {
+            elements.gitCommitSubmit.disabled = false;
+        }
+    };
+
+    elements.gitCommitSubmit.addEventListener('click', () => void submitCommit());
+    elements.gitCommitMessage.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' && !event.isComposing) {
+            event.preventDefault();
+            void submitCommit();
+        }
+    });
+
+    elements.gitStageAll.addEventListener('click', async () => {
+        if (!projectRoot || elements.gitStageAll.disabled || typeof api.stageAll !== 'function') {
+            return;
+        }
+        elements.gitStageAll.disabled = true;
+        try {
+            await api.stageAll(projectRoot);
+            options.notify?.('All tracked changes staged', 'info');
+            await refresh(true);
+        } catch (error) {
+            options.notify?.(String(error?.message || error), 'error');
+            elements.gitStageAll.disabled = false;
+        }
     });
 
     elements.gitRemote.addEventListener('click', () => {

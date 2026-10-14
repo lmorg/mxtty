@@ -78,7 +78,7 @@ func (t *CreateGraph) create(_ context.Context, request *createGraphInputT, outp
 		return "", err
 	}
 	if format == "" {
-		format = graphs.SVG
+		format = graphs.PNG
 	}
 	if outputDir == "" {
 		outputDir, err = defaultGraphImagesDir()

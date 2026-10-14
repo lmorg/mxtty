@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log"
 	"net/url"
 	"os"
 	"os/exec"
@@ -80,6 +81,7 @@ func ListCommits(root string, limit int) ([]Commit, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	if limit < 1 || limit > 10000 {
 		return nil, errors.New("commit history limit must be between 1 and 10000")
 	}
@@ -398,9 +400,18 @@ func runGitWithAgentEnvironment(gitPath, repoRoot string, agentVars map[string]s
 	runErr := cmd.Run()
 	result := map[string]string{"stdout": strings.TrimSpace(stdout.String()), "stderr": strings.TrimSpace(stderr.String()), "error": ""}
 	if ctx.Err() != nil {
-		result["error"] = "git fetch timed out"
+		result["error"] = "git command timed out"
 	} else if runErr != nil {
 		result["error"] = runErr.Error()
+	}
+	if result["error"] == "" {
+		for _, output := range []string{result["stdout"], result["stderr"]} {
+			for _, line := range strings.Split(output, "\n") {
+				if line != "" {
+					log.Printf("[info] %s", line)
+				}
+			}
+		}
 	}
 	return result, nil
 }
@@ -994,6 +1005,31 @@ func StageFile(root, filePath string) error {
 	}
 	_, err = runGit(gitPath, repoRoot, "add", "--", filepath.ToSlash(relPath))
 	return err
+}
+
+func StageAllTrackedFiles(root string) error {
+	gitPath, repoRoot, err := checkedRepository(root)
+	if err != nil {
+		return err
+	}
+	_, err = runGit(gitPath, repoRoot, "add", "-u", "--", ".")
+	return err
+}
+
+func CommitChanges(root, message string) map[string]string {
+	message = strings.TrimSpace(message)
+	if message == "" {
+		return map[string]string{"stdout": "", "stderr": "", "error": "commit message is required"}
+	}
+	gitPath, repoRoot, err := checkedRepository(root)
+	if err != nil {
+		return map[string]string{"stdout": "", "stderr": "", "error": err.Error()}
+	}
+	result, err := runGitWithAgentEnvironment(gitPath, repoRoot, nil, "commit", "-m", message)
+	if err != nil {
+		return map[string]string{"stdout": "", "stderr": "", "error": err.Error()}
+	}
+	return result
 }
 
 func UnstageFile(root, filePath string) error {

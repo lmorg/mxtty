@@ -1905,6 +1905,41 @@ body {
     white-space: nowrap;
 }
 
+.notes-git-commit-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    border-bottom: 1px solid rgba(var(--fg-rgb), 0.12);
+}
+
+.notes-git-commit-row[hidden] {
+    display: none;
+}
+
+#notes-tools-git-commit-message {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 24px;
+    box-sizing: border-box;
+    border: 1px solid rgba(var(--fg-rgb), 0.3);
+    border-radius: 3px;
+    background: transparent;
+    color: var(--fg);
+    padding: 3px 8px;
+    font: inherit;
+    font-size: var(--notes-font-size-minus-2);
+    outline: none;
+}
+
+#notes-tools-git-commit-message:focus {
+    border-color: var(--accent);
+}
+
+#notes-tools-git-stage-all {
+    margin-left: auto;
+}
+
 .notes-git-file-list {
     flex: 1;
     min-height: 0;
@@ -1913,6 +1948,12 @@ body {
 }
 
 .notes-git-commits-toggle[aria-pressed="true"] {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: rgba(var(--selection-rgb), 0.22);
+}
+
+.notes-git-commit-toggle[aria-pressed="true"] {
     color: var(--accent);
     border-color: var(--accent);
     background: rgba(var(--selection-rgb), 0.22);
@@ -2961,11 +3002,7 @@ body {
 [data-log-maximized="true"] #notes-tools-ai-pane,
 [data-log-maximized="true"] #notes-tools-toc-pane,
 [data-log-maximized="true"] #notes-tools-find-pane,
-[data-log-maximized="true"] #notes-tools-tab-ai,
-[data-log-maximized="true"] #notes-tools-tab-toc,
-[data-log-maximized="true"] #notes-tools-tab-find,
-[data-log-maximized="true"] #notes-tools-tab-log,
-[data-log-maximized="true"] #notes-tools-minimize {
+[data-log-maximized="true"] .notes-tools-header {
     display: none !important;
 }
 
@@ -3006,11 +3043,7 @@ body {
 [data-ai-maximized="true"] #notes-tools-log-pane,
 [data-ai-maximized="true"] #notes-tools-toc-pane,
 [data-ai-maximized="true"] #notes-tools-find-pane,
-[data-ai-maximized="true"] #notes-tools-tab-ai,
-[data-ai-maximized="true"] #notes-tools-tab-toc,
-[data-ai-maximized="true"] #notes-tools-tab-find,
-[data-ai-maximized="true"] #notes-tools-tab-log,
-[data-ai-maximized="true"] #notes-tools-minimize {
+[data-ai-maximized="true"] .notes-tools-header {
     display: none !important;
 }
 

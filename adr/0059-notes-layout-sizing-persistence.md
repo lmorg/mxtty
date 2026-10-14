@@ -70,6 +70,12 @@ would overwrite the user's normal split with temporary dimensions.
   Invalid field names and non-finite/out-of-range ratios are rejected;
   missing/invalid cached ratios use existing defaults. Binding failures are
   caught without preventing the user from resizing the current view.
+- AI and Log maximization hide the entire Tools tab-bar header, not a list of
+  individual tab buttons. This also hides Git, Frontmatter, future tabs and the
+  header's background/border without adding new fullscreen selectors for each
+  tab. The maximized pane's own toolbar remains visible, including its restore
+  button. Restoring normal layout makes the tab bar visible again. Regression
+  tests cover both modes, explicitly visible Git/Frontmatter and an added tab.
 
 ## Consequences
 

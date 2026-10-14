@@ -79,6 +79,7 @@ Each record uses: **Status**, **Context**, **Decision**, **Consequences**,
 | [0065](0065-shared-documents-directory.md) | Shared application documents directory | Storage |
 | [0066](0066-end-key-name-must-reach-terminal-encoding.md) | End key names must reach terminal encoding | Terminal |
 | [0067](0067-terminal-hover-is-scoped-to-pointer-presence.md) | Terminal hover is scoped to pointer presence | Terminal |
+| [0068](0068-separate-git-command-output-streams-proposal.md) | Proposal: separate Git command output streams | Git |
 
 ## Recurring themes
 

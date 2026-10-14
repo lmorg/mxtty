@@ -2578,6 +2578,14 @@ func (a *WApp) StageGitFile(projectRoot, filePath string) error {
 	return gitutils.StageFile(projectRoot, filePath)
 }
 
+func (a *WApp) StageAllGitFiles(projectRoot string) error {
+	return gitutils.StageAllTrackedFiles(projectRoot)
+}
+
+func (a *WApp) CommitGitChanges(projectRoot, message string) map[string]string {
+	return gitutils.CommitChanges(projectRoot, message)
+}
+
 func (a *WApp) UnstageGitFile(projectRoot, filePath string) error {
 	return gitutils.UnstageFile(projectRoot, filePath)
 }
@@ -3536,13 +3544,13 @@ func (a *WApp) GetAISessionManagement() sessiondb.FrontendStateT {
 	return state
 }
 
-func (a *WApp) CreateAISession() sessiondb.FrontendStateT {
+func (a *WApp) CreateAISession(summary string) sessiondb.FrontendStateT {
 	agt, ok := a.activeAgent()
 	if !ok {
 		return sessiondb.FrontendStateT{}
 	}
 
-	state, err := sessiondb.CreateSession(agt.Workspace(), "", 24)
+	state, err := sessiondb.CreateSession(agt.Workspace(), summary, 24)
 	if err != nil {
 		log.Printf("[debug] ai create session: %v", err)
 		return sessiondb.FrontendStateT{}
