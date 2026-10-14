@@ -5,7 +5,7 @@
  * textarea. Word positions are measured with the mirror-div + Range API technique
  * so alignment is accurate for both word-wrapped and non-word-wrapped editors.
  *
- * Right-click context menus are handled entirely by the existing editor handlers.
+ * Right-clicking a misspelled word opens its spelling suggestions.
  *
  * Usage:
  *   import { attachSpellCheck } from './spellcheck';
@@ -376,11 +376,10 @@ export function attachSpellCheck(textarea, options = {}) {
     }
 
     /**
-     * On click: if the click lands inside a wavy-underlined word, show the
-     * suggestions popup. Uses the same coordinate transform as drawCanvas so
-     * hit-testing is always consistent with what is rendered.
+     * On right-click: if the pointer lands inside an underlined word, show its
+     * suggestions and keep the general editor context menu from also opening.
      */
-    function onTextareaClick(event) {
+    function onTextareaContextMenu(event) {
         if (!cachedWordData.length) return;
 
         const canvasRect = canvas.getBoundingClientRect();
@@ -400,6 +399,8 @@ export function attachSpellCheck(textarea, options = {}) {
                 // Position popup just below the word in viewport coords.
                 const popupX = canvasRect.left + x1;
                 const popupY = canvasRect.top  + top + lineH + 2;
+                event.preventDefault();
+                event.stopImmediatePropagation();
                 showSuggestionsPopup(popupX, popupY, misspelling);
                 return;
             }
@@ -424,7 +425,7 @@ export function attachSpellCheck(textarea, options = {}) {
 
     textarea.addEventListener('input',  onInput);
     textarea.addEventListener('scroll', onScroll);
-    textarea.addEventListener('click',  onTextareaClick);
+    textarea.addEventListener('contextmenu', onTextareaContextMenu);
     window.addEventListener('resize',   onGeometryChange);
     window.addEventListener('scroll',   onGeometryChange, true);
 
@@ -442,7 +443,7 @@ export function attachSpellCheck(textarea, options = {}) {
             if (rafId !== null) cancelAnimationFrame(rafId);
             textarea.removeEventListener('input',  onInput);
             textarea.removeEventListener('scroll', onScroll);
-            textarea.removeEventListener('click',  onTextareaClick);
+            textarea.removeEventListener('contextmenu', onTextareaContextMenu);
             window.removeEventListener('resize',   onGeometryChange);
             window.removeEventListener('scroll',   onGeometryChange, true);
             if (canvas.parentNode) canvas.parentNode.removeChild(canvas);

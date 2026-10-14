@@ -3,13 +3,14 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
 const notesSpellCheckMock = vi.fn(() => Promise.resolve([]));
+const showLocalMenuMock = vi.fn();
 
 vi.mock('../wailsjs/go/main/WApp', () => ({
     NotesSpellCheck: notesSpellCheckMock,
 }));
 
 vi.mock('./popup_menu', () => ({
-    showLocalMenu: vi.fn(),
+    showLocalMenu: showLocalMenuMock,
 }));
 
 // Canvas context mock — jsdom does not implement canvas drawing.
@@ -76,6 +77,50 @@ afterEach(() => {
     vi.restoreAllMocks();
     delete Range.prototype.getBoundingClientRect;
     document.body.innerHTML = '';
+});
+
+describe('spellcheck — suggestion interaction', () => {
+    it('opens suggestions on right-click over a misspelling, not left-click', async () => {
+        const textarea = makeTextarea('helo');
+        notesSpellCheckMock.mockResolvedValue([
+            { misspeltWord: 'helo', wordStart: 0, wordLength: 4, suggestions: ['hello'] },
+        ]);
+        attachSpellCheck(textarea);
+        await flush(900);
+
+        textarea.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, clientX: 0, clientY: 1 }));
+        expect(showLocalMenuMock).not.toHaveBeenCalled();
+
+        let bubbledContextMenu = false;
+        document.body.addEventListener('contextmenu', () => { bubbledContextMenu = true; }, { once: true });
+        const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 0, clientY: 1 });
+        textarea.dispatchEvent(event);
+
+        expect(event.defaultPrevented).toBe(true);
+        expect(bubbledContextMenu).toBe(false);
+        expect(showLocalMenuMock).toHaveBeenCalledWith(expect.objectContaining({
+            title: 'helo',
+            options: ['hello'],
+            x: 0,
+            y: 18,
+            showNextToMouseCursor: true,
+        }));
+    });
+
+    it('leaves right-clicks outside misspellings to the normal context menu', async () => {
+        const textarea = makeTextarea('hello');
+        notesSpellCheckMock.mockResolvedValue([]);
+        attachSpellCheck(textarea);
+        await flush(900);
+        let bubbledContextMenu = false;
+        document.body.addEventListener('contextmenu', () => { bubbledContextMenu = true; }, { once: true });
+        const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 0, clientY: 1 });
+        textarea.dispatchEvent(event);
+
+        expect(event.defaultPrevented).toBe(false);
+        expect(bubbledContextMenu).toBe(true);
+        expect(showLocalMenuMock).not.toHaveBeenCalled();
+    });
 });
 
 // ─── Tests ──────────────────────────────────────────────────────────────

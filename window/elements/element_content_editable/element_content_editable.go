@@ -123,7 +123,7 @@ func (el *ElementContentEditable) Rune(pos *types.XY) rune {
 }
 
 func (el *ElementContentEditable) MouseClick(pos *types.XY, button types.MouseButtonT, count uint8, state types.ButtonStateT, callback types.EventIgnoredCallback) {
-	if state != types.BUTTON_RELEASED || button != types.MOUSE_BUTTON_LEFT || pos == nil || pos.X < 0 {
+	if state != types.BUTTON_RELEASED || button != types.MOUSE_BUTTON_RIGHT || pos == nil || pos.X < 0 {
 		callback()
 		return
 	}

@@ -4848,6 +4848,42 @@ describe('notes rendering', () => {
         });
     });
 
+    it('re-runs project grep after typing a different files-containing query', async () => {
+        await importNotesModule();
+        const findFilesInput = document.getElementById('notes-find-files-input');
+        vi.useFakeTimers();
+        try {
+            findFilesInput.value = 'alpha';
+            findFilesInput.dispatchEvent(new Event('input', { bubbles: true }));
+            await vi.advanceTimersByTimeAsync(320);
+            expect(notesGrepStreamMock).toHaveBeenNthCalledWith(1, 'alpha', {
+                caseSensitive: false,
+                regex: false,
+                wholeWord: false,
+                fileFilter: '',
+            });
+
+            const firstDone = eventsOnMock.mock.calls
+                .filter(([eventName]) => eventName === 'notesGrepDone')
+                .at(-1)?.[1];
+            firstDone?.();
+
+            findFilesInput.value = 'beta';
+            findFilesInput.dispatchEvent(new Event('input', { bubbles: true }));
+            await vi.advanceTimersByTimeAsync(320);
+
+            expect(notesGrepStreamMock).toHaveBeenCalledTimes(2);
+            expect(notesGrepStreamMock).toHaveBeenNthCalledWith(2, 'beta', {
+                caseSensitive: false,
+                regex: false,
+                wholeWord: false,
+                fileFilter: '',
+            });
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
     it('invalidates and re-runs project grep after autosave while keeping find mode active', async () => {
         listFilesMock.mockResolvedValue(['$NOTES/guide.md']);
         getFileMock.mockResolvedValue({ contents: '# Guide\n\nalpha', text: '', error: '' });
