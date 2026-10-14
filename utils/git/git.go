@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lmorg/ttyphoon/utils/file"
 	"golang.org/x/mod/semver"
 )
 
@@ -442,7 +443,7 @@ func DefaultWorktreePath(root string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, "Documents", "ttyphoon", ".git_worktrees", hex.EncodeToString(hash[:])), nil
+	return filepath.Join(file.DocumentsDir(home), ".git_worktrees", hex.EncodeToString(hash[:])), nil
 }
 
 func CreateWorktree(root, branch, worktreePath string, createBranch bool) (Worktree, error) {

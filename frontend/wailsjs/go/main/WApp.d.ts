@@ -378,6 +378,8 @@ export function TerminalMenuSelect(arg1:number,arg2:number):Promise<void>;
 
 export function TerminalMouseButton(arg1:number,arg2:number,arg3:number,arg4:number,arg5:boolean):Promise<void>;
 
+export function TerminalMouseLeave():Promise<void>;
+
 export function TerminalMouseMotion(arg1:number,arg2:number,arg3:number,arg4:number,arg5:number):Promise<void>;
 
 export function TerminalMouseWheel(arg1:number,arg2:number,arg3:number,arg4:number):Promise<void>;

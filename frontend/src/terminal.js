@@ -1,4 +1,4 @@
-import { CloseNotification, GetWindowStyle, SendIpc, TerminalCopyImageDataURL, TerminalGetTabs, TerminalPaneZoom, TerminalRequestRedraw, TerminalResize, TerminalSelectWindow, TerminalSetGlyphSize } from '../wailsjs/go/main/WApp';
+import { CloseNotification, GetWindowStyle, SendIpc, TerminalCopyImageDataURL, TerminalGetTabs, TerminalMouseLeave, TerminalPaneZoom, TerminalRequestRedraw, TerminalResize, TerminalSelectWindow, TerminalSetGlyphSize } from '../wailsjs/go/main/WApp';
 import { EventsOn } from '../wailsjs/runtime/runtime';
 import { wireKeyboardEvents, wireMouseEvents } from './events';
 import { createFontController } from './font';
@@ -1103,6 +1103,9 @@ canvas.addEventListener('mousemove', (event) => {
 
 canvas.addEventListener('mouseleave', () => {
     closeSharedTooltip();
+    if (typeof TerminalMouseLeave === 'function') {
+        TerminalMouseLeave().catch(() => {});
+    }
 });
 
 EventsOn("terminalImageCachePut", payload => {

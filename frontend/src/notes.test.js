@@ -12,6 +12,7 @@ function getNotesRenderedStyles() {
 }
 
 const getWindowStyleMock = vi.fn();
+const createMonacoAdapterMock = vi.fn();
 const getNotesLayoutSizingMock = vi.fn(() => Promise.resolve({}));
 const setNotesLayoutRatioMock = vi.fn(() => Promise.resolve());
 const getNotesMaxLogLinesMock = vi.fn();
@@ -363,6 +364,11 @@ vi.mock('../wailsjs/runtime/runtime', () => ({
     BrowserOpenURL: browserOpenURLMock,
 }));
 
+vi.mock('./monaco_adapter', () => ({
+    createMonacoAdapter: createMonacoAdapterMock,
+    createMonacoDiffAdapter: vi.fn(),
+}));
+
 vi.mock('./popup_menu', () => ({
     showLocalMenu: showLocalMenuMock,
 }));
@@ -479,6 +485,7 @@ describe('notes rendering', () => {
         }
 
         getWindowStyleMock.mockReset();
+        createMonacoAdapterMock.mockReset();
         getNotesLayoutSizingMock.mockReset();
         getNotesLayoutSizingMock.mockResolvedValue({});
         setNotesLayoutRatioMock.mockClear();
@@ -2556,12 +2563,57 @@ describe('notes rendering', () => {
 
         modalLocation.textContent = '$PROJECT';
         modalInput.value = 'docs/todo.txt';
+        getFileMock.mockClear();
+        renameFileMock.mockImplementationOnce(async () => {
+            await getEventHandler('notesFileChanged')();
+        });
         document.getElementById('notes-modal-create').click();
         await flushPromises();
         await flushPromises();
 
         expect(renameFileMock).toHaveBeenCalledWith('$GLOBAL/docs/todo.md', '$PROJECT/docs/todo.txt');
         expect(renameFileMock).not.toHaveBeenCalledWith('$GLOBAL/docs/todo.md', '$PROJECT/docs/todo.txt.md');
+        expect(getFileMock).toHaveBeenCalledWith('$PROJECT/docs/todo.txt');
+        expect(getFileMock).not.toHaveBeenCalledWith('$GLOBAL/docs/todo.md');
+        getFileMock.mockClear();
+        await getEventHandler('notesFileChanged')();
+        expect(getFileMock).toHaveBeenCalledWith('$PROJECT/docs/todo.txt');
+    });
+
+    it.each([
+        ['open note', '$NOTES/current.md', '$NOTES/previous.md'],
+        ['other note', '$NOTES/previous.md', ''],
+        ['last note', '$NOTES/current.md', ''],
+    ])('deleting %s restores history only when needed', async (_label, deletedFile, historyFile) => {
+        listFilesMock.mockResolvedValue(['$NOTES/current.md', '$NOTES/previous.md']);
+        getFileMock.mockResolvedValue({ contents: 'one\ntwo\nthree\nfour', text: '', error: '' });
+        await importNotesModule();
+        document.querySelector('[data-file="$NOTES/current.md"]').click();
+        await flushPromises();
+        await flushPromises();
+        notesHistoryCurrentPositionMock.mockResolvedValue({ file: historyFile, line: 3 });
+        getFileMock.mockClear();
+        getEventHandler('fileActionDialog')({ action: 'delete', filePath: deletedFile });
+        await flushPromises();
+        deleteFileMock.mockImplementationOnce(async () => {
+            if (deletedFile === '$NOTES/current.md') {
+                await getEventHandler('notesFileChanged')();
+            }
+        });
+        document.getElementById('notes-delete-confirm').click();
+        await flushPromises();
+        await flushPromises();
+        await flushPromises();
+        expect(deleteFileMock).toHaveBeenCalledWith(deletedFile);
+        if (historyFile) {
+            expect(getFileMock).toHaveBeenCalledWith(historyFile);
+            expect(document.getElementById('notes-editor').selectionStart).toBe('one\ntwo\n'.length);
+        } else {
+            expect(getFileMock).not.toHaveBeenCalled();
+            expect(document.getElementById('notes-editor').value).toBe(
+                deletedFile === '$NOTES/current.md' ? '' : 'one\ntwo\nthree\nfour',
+            );
+        }
     });
 
     it('awaits composed rename path before calling RenameFile', async () => {
@@ -4706,14 +4758,18 @@ describe('notes rendering', () => {
         expect(editor.value).toBe('omega beta omega');
     });
 
-    it('re-runs project grep immediately when grep option toggles are clicked', async () => {
+    it.each([
+        ['case', 'caseSensitive'],
+        ['regex', 'regex'],
+        ['word', 'wholeWord'],
+    ])('re-runs project grep immediately when the %s option is clicked', async (button, option) => {
         listFilesMock.mockResolvedValue(['$NOTES/guide.md']);
         getFileMock.mockResolvedValue({ contents: '# Guide\n\nalpha', text: '', error: '' });
 
         await importNotesModule();
 
         const findFilesInput = document.getElementById('notes-find-files-input');
-        const findOptionWord = document.getElementById('notes-find-option-word');
+        const findOptionButton = document.getElementById(`notes-find-option-${button}`);
 
         findFilesInput.value = 'alpha';
         findFilesInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
@@ -4727,15 +4783,16 @@ describe('notes rendering', () => {
             fileFilter: '',
         });
 
-        findOptionWord.click();
+        findOptionButton.click();
         await flushPromises();
 
         expect(notesGrepStreamMock).toHaveBeenCalledTimes(2);
         expect(notesGrepStreamMock).toHaveBeenNthCalledWith(2, 'alpha', {
             caseSensitive: false,
             regex: false,
-            wholeWord: true,
+            wholeWord: false,
             fileFilter: '',
+            [option]: true,
         });
     });
 
@@ -4932,6 +4989,7 @@ describe('notes rendering', () => {
         }
         expect(document.getElementById('notes-tools-git-commits').dataset.tooltip).toBe('View commit log');
         expect(document.getElementById('notes-tools-git-tags').dataset.tooltip).toBe('Manage tags');
+        expect(document.getElementById('notes-tools-git-workspace').dataset.tooltip).toBe('Manage worktrees');
         expect(document.getElementById('notes-tools-git-branches').dataset.tooltip).toBe('Manage branches');
         await flushPromises();
         const gitRemote = document.getElementById('notes-tools-git-remote');
@@ -5498,6 +5556,109 @@ describe('notes rendering', () => {
         });
         expect(document.getElementById('notes-tab-diff').style.display).toBe('none');
     });
+
+    it.each([
+        ['json', '{"name":"needle"}'],
+        ['yaml', 'name: needle'],
+        ['yml', 'name: needle'],
+        ['xml', '<?xml version="1.0"?><root>needle</root>'],
+    ])('finds %s source in the live Monaco structured Edit view', async (extension, source) => {
+        const userAgent = vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Monaco regression test');
+        let value = source;
+        const match = { start: source.indexOf('needle'), end: source.indexOf('needle') + 6 };
+        const adapter = {
+            getValue: () => value,
+            setValue: (next) => { value = next; },
+            getSelectionOffsets: () => ({ start: 0, end: 0 }),
+            setSelectionOffsets: vi.fn(),
+            findMatches: vi.fn(() => [match]),
+            revealOffset: vi.fn(),
+            focus: vi.fn(),
+            layout: vi.fn(),
+            setLanguage: vi.fn(),
+            setWordWrap: vi.fn(),
+            setTypography: vi.fn(),
+            applyTheme: vi.fn(),
+            configureLsp: vi.fn(),
+            setDiagnostics: vi.fn(),
+            setTyposMisspellings: vi.fn(),
+        };
+        createMonacoAdapterMock.mockResolvedValue(adapter);
+        listFilesMock.mockResolvedValue([`$NOTES/search.${extension}`]);
+        getFileMock.mockResolvedValue({ contents: source, text: '', error: '' });
+        try {
+            await importNotesModule();
+            document.querySelector(`[data-file="$NOTES/search.${extension}"]`).click();
+            await flushPromises();
+            await flushPromises();
+            document.getElementById('notes-tab-swagger-edit').click();
+            await flushPromises();
+            await flushPromises();
+            expect(createMonacoAdapterMock).toHaveBeenCalled();
+            document.getElementById('notes-editor').value = 'stale hidden textarea';
+            const findInput = document.getElementById('notes-find-input');
+            findInput.value = 'needle';
+            findInput.dispatchEvent(new Event('input', { bubbles: true }));
+            expect(adapter.findMatches).toHaveBeenCalledWith('needle', {
+                isRegex: false, matchCase: false, limit: 10000,
+            });
+            expect(document.getElementById('notes-find-counter').textContent).toBe('1 of 1');
+            expect(adapter.setSelectionOffsets).toHaveBeenCalledWith(match.start, match.end);
+            expect(adapter.revealOffset).toHaveBeenCalledWith(match.start);
+        } finally {
+            userAgent.mockRestore();
+        }
+    });
+
+    it.each(['metaKey', 'ctrlKey'])('captures %s+F before Monaco handles the shortcut', async (modifier) => {
+        await importNotesModule();
+        const panel = document.getElementById('notes-tools-panel');
+        panel.dataset.collapsed = 'true';
+        const monacoElement = document.getElementById('notes-monaco-editor');
+        const nativeFind = vi.fn((event) => event.stopPropagation());
+        monacoElement.addEventListener('keydown', nativeFind, true);
+        const event = new KeyboardEvent('keydown', {
+            key: 'f', [modifier]: true, bubbles: true, cancelable: true,
+        });
+        monacoElement.dispatchEvent(event);
+        await flushPromises();
+        expect(event.defaultPrevented).toBe(true);
+        expect(nativeFind).not.toHaveBeenCalled();
+        expect(panel.dataset.collapsed).toBe('false');
+        expect(document.getElementById('notes-tools-tab-find').getAttribute('aria-selected')).toBe('true');
+        expect(document.activeElement).toBe(document.getElementById('notes-find-input'));
+    });
+
+    it.each(['terminalFocusedState', 'ttyphoonInputboxOpen', 'fullscreen-image-overlay'])(
+        'leaves the Find shortcut unhandled when %s is active', async (guard) => {
+            await importNotesModule();
+            const panel = document.getElementById('notes-tools-panel');
+            panel.dataset.collapsed = 'true';
+            const previous = window[guard];
+            const overlay = document.createElement('div');
+            if (guard === 'fullscreen-image-overlay') {
+                overlay.id = guard;
+                document.body.appendChild(overlay);
+            } else {
+                window[guard] = true;
+            }
+            try {
+                const monacoElement = document.getElementById('notes-monaco-editor');
+                const nativeFind = vi.fn();
+                monacoElement.addEventListener('keydown', nativeFind, true);
+                const event = new KeyboardEvent('keydown', {
+                    key: 'f', metaKey: true, bubbles: true, cancelable: true,
+                });
+                monacoElement.dispatchEvent(event);
+                expect(event.defaultPrevented).toBe(false);
+                expect(nativeFind).toHaveBeenCalledOnce();
+                expect(panel.dataset.collapsed).toBe('true');
+            } finally {
+                window[guard] = previous;
+                overlay.remove();
+            }
+        },
+    );
 
     it('keeps Find tools tab visible but disables controls in Hex and Meta modes', async () => {
         listFilesMock.mockResolvedValue(['$NOTES/guide.md']);

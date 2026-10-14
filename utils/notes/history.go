@@ -160,7 +160,7 @@ func HistoryListDelete(projectRoot, filename string) error {
 			return nil
 		}
 
-		if i < h.Index {
+		if i <= h.Index {
 			h.Index--
 		}
 

@@ -4,8 +4,8 @@ Date: 2026-09-06
 
 ## Status
 
-Accepted. Updated 2026-09-21 — the previously recorded Go and frontend baseline
-failures are resolved; the full verification commands pass.
+Accepted. Updated 2026-10-14: the historical failures below remain resolved,
+but current verification has the unrelated failures recorded below.
 
 ## Context
 
@@ -21,7 +21,33 @@ failures are fixed.
 
 ### Current known failure
 
-None.
+Observed on macOS with Go 1.27.1 on 2026-10-14:
+
+- `ai/tools/file`: `TestInsertLinesCallDescriptionRendersEscapedInserts` and
+  `TestPatchFileCallDescriptionRendersEmbeddedTemplate` expect older description
+  formatting/line numbers.
+- `ai/tools/shell`: `TestBashReturnsOutputAndExitError` expects a returned Bash
+  exit error, but receives nil.
+- `utils/git`: `TestRenderWorktreeInfoKeepsMultilineDiffInOneTableRow` expects
+  the older two-column diff table instead of the current details-based output.
+
+All four Go failures also reproduce in an isolated clean `HEAD` export, without
+the Notes navigation/storage changes. `go build ./...` passes. The affected
+Notes/history, shared path, asset, image, graph and session tests pass.
+
+The current working-tree frontend run has 481 passes and two Git-panel failures
+in `src/notes.test.js`: `resets Commits on a workspace change even when the
+project root stays the same` (commit-content CSS expectations), and `resets the
+branch selection when Create branch is cancelled and reports worktree action
+errors` (worktree creation/removal error expectations). Git-panel/CSS edits
+were already present before the Notes navigation work and are not changed by
+that task. Notes rename/delete/grep, structured Edit Find and shortcut regression
+tests pass.
+
+Terminal hover-exit verification also passes: `go test ./virtualterm
+./window/backend/renderer_webkit ./tmux ./types . -count=1`, `go build ./...`
+and all 10 tests in `src/terminal.test.js`. The frontend-wide failures above are
+unchanged.
 
 ### Resolved
 
@@ -50,7 +76,7 @@ go test ./ai/agent -count=1 -race      # concurrency-sensitive packages
 go test ./ai/agent -run '^$'           # compile/type-check only, runs nothing
 
 cd frontend
-npm test -- --run src/notes.test.js --reporter=dot   # 114 tests
+npm test -- --run src/notes.test.js --reporter=dot
 node --check src/notes.js                            # syntax only
 ```
 
@@ -73,4 +99,4 @@ different major version.
 
 - `ai/agent/services.go` — `findService`, `SwitchServiceModel`
 - `ai/tools/subagents/subagent_test.go` — `containsPhrase`
-- `utils/runewidth/runewidth_test.go` — outstanding failure
+- `utils/runewidth/runewidth_test.go` — passes in the 2026-10-14 verification

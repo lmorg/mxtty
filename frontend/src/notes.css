@@ -1824,6 +1824,7 @@ body {
 .notes-tools-minimize {
     font-family: "Font Awesome Regular", "Font Awesome Solid", "Font Awesome", sans-serif;
     font-weight: 400;
+    border: 0;
 }
 
 .notes-tools-icon {
@@ -1842,7 +1843,7 @@ body {
 
 .notes-tools-minimize:hover,
 .notes-tools-clear:hover {
-    border-color: var(--accent);
+    border: 1px solid var(--accent);
     background-color: rgba(var(--accent-rgb), 0.2);
 }
 

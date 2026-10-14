@@ -18,9 +18,9 @@ import (
 
 	"github.com/lmorg/ttyphoon/ai/agent"
 	"github.com/lmorg/ttyphoon/ai/agent/aitypes"
-	"github.com/lmorg/ttyphoon/app"
 	"github.com/lmorg/ttyphoon/debug"
 	"github.com/lmorg/ttyphoon/types"
+	"github.com/lmorg/ttyphoon/utils/file"
 )
 
 const (
@@ -462,7 +462,7 @@ func defaultImagesDir() (string, error) {
 		return "", err
 	}
 
-	return filepath.Join(home, "Documents", app.DirName, ".images"), nil
+	return filepath.Join(file.DocumentsDir(home), ".images"), nil
 }
 
 // defaultImagePath is used when the caller doesn't name a file.

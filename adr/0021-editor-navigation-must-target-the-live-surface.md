@@ -83,6 +83,27 @@ Rendered Find must likewise target the visible surface: CSV View and CSV Run
 search `elements.csvView`, not the hidden Markdown preview. Highlight cleanup
 includes the CSV pane, and active queries are reapplied when that pane rerenders.
 
+### Structured Edit Find and Monaco shortcuts
+
+Updated 2026-10-14: JSON, YAML and XML source editing uses `swagger-edit`,
+not the ordinary `editor` mode. The Monaco Find/Replace proxy must therefore
+check the active Find editor rather than require `viewMode === 'editor'`.
+Otherwise structured Edit searches the hidden textarea instead of the live
+Monaco model, and match selection/reveal never reaches the visible editor.
+Rendered structured View continues using the tree's rendered search path.
+
+Notes handles Cmd+F / Ctrl+F in a dedicated document-level capture listener,
+before Monaco's own Find shortcut can consume it. Prevent the default and stop
+propagation for that shortcut only, preserving the existing Notes Find-panel
+toggle behavior. Terminal focus, an open inputbox and fullscreen image overlays
+still leave the shortcut unhandled by Notes. Other shortcuts retain their
+existing listeners.
+
+Regression tests enable a mock Monaco adapter and deliberately make the hidden
+textarea stale, verifying model searches and visible selection/reveal for JSON,
+YAML, YML and XML. Shortcut tests simulate a Monaco-level handler that would
+consume the event and verify Notes captures both modifier variants first.
+
 ## Consequences
 
 - Symbol navigation works on the visible editor, and survives the

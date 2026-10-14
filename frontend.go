@@ -29,6 +29,7 @@ import (
 	"github.com/lmorg/ttyphoon/config"
 	"github.com/lmorg/ttyphoon/hotkeys"
 	"github.com/lmorg/ttyphoon/types"
+	"github.com/lmorg/ttyphoon/utils/file"
 	"github.com/lmorg/ttyphoon/utils/file/dirwatch"
 	"github.com/lmorg/ttyphoon/utils/file/meta"
 	"github.com/lmorg/ttyphoon/utils/file/watcher"
@@ -339,6 +340,14 @@ func (a *WApp) TerminalMouseWheel(cellX, cellY, moveX, moveY int32) {
 	}
 
 	renderer.HandleMouseWheel(cellX, cellY, moveX, moveY)
+}
+
+func (a *WApp) TerminalMouseLeave() {
+	renderer, ok := renderwebkit.CurrentRenderer()
+	if !ok {
+		return
+	}
+	renderer.HandleMouseLeave()
 }
 
 func (a *WApp) TerminalMouseMotion(cellX, cellY, relX, relY, state int32) {
@@ -910,7 +919,7 @@ func (a *WApp) markdownBaseDir() string {
 }
 
 func (a *WApp) documentsTtyphoonDir() string {
-	return filepath.Join(a.homeDir, "Documents", app.DirName)
+	return file.DocumentsDir(a.homeDir)
 }
 
 func (a *WApp) notesAssetHandler() http.Handler {
@@ -3753,7 +3762,7 @@ func saveAIImageUpload(mimeType, encoded string) (string, error) {
 }
 
 func aiImagesDir(home string) string {
-	return filepath.Join(home, "Documents", app.DirName, ".images")
+	return filepath.Join(file.DocumentsDir(home), ".images")
 }
 
 // --------------------

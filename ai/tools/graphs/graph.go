@@ -11,7 +11,7 @@ import (
 
 	"github.com/lmorg/ttyphoon/ai/agent"
 	"github.com/lmorg/ttyphoon/ai/agent/aitypes"
-	"github.com/lmorg/ttyphoon/app"
+	"github.com/lmorg/ttyphoon/utils/file"
 	"github.com/lmorg/ttyphoon/utils/graphs"
 )
 
@@ -111,7 +111,7 @@ func defaultGraphImagesDir() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, "Documents", app.DirName, ".images"), nil
+	return filepath.Join(file.DocumentsDir(home), ".images"), nil
 }
 
 func markdownAlt(text string) string {

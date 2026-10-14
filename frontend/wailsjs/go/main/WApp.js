@@ -738,6 +738,10 @@ export function TerminalMouseButton(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['main']['WApp']['TerminalMouseButton'](arg1, arg2, arg3, arg4, arg5);
 }
 
+export function TerminalMouseLeave() {
+  return window['go']['main']['WApp']['TerminalMouseLeave']();
+}
+
 export function TerminalMouseMotion(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['main']['WApp']['TerminalMouseMotion'](arg1, arg2, arg3, arg4, arg5);
 }

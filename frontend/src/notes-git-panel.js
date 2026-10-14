@@ -121,7 +121,7 @@ export function initNotesGitPanel(elements, api, options = {}) {
         elements.gitCompare.textContent = compareLabel || compareBranch || 'HEAD';
         statusCache.set(rootKey(projectRoot), { status: cachedStatus });
         elements.gitWorkspace.textContent = String.fromCodePoint(0xf802);
-        elements.gitWorkspace.dataset.tooltip = status.root || projectRoot;
+        elements.gitWorkspace.dataset.tooltip = 'Manage worktrees';
         elements.gitBranch.textContent = status.branch || 'Detached HEAD';
         elements.gitAheadBehind.textContent = [
             status.ahead > 0 ? `↑${status.ahead}` : '',

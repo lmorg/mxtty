@@ -23,6 +23,7 @@ const getWindowStyleMock = vi.fn(async () => ({
 }));
 const terminalGetTabsMock = vi.fn(async () => []);
 const terminalRequestRedrawMock = vi.fn(async () => {});
+const terminalMouseLeaveMock = vi.fn(async () => {});
 const terminalSetGlyphSizeMock = vi.fn(async () => {});
 const terminalResizeMock = vi.fn(async () => {});
 const sendIpcMock = vi.fn(async () => {});
@@ -53,6 +54,7 @@ vi.mock('../wailsjs/go/main/WApp', () => ({
     SendIpc: sendIpcMock,
     TerminalCopyImageDataURL: terminalCopyImageDataURLMock,
     TerminalGetTabs: terminalGetTabsMock,
+    TerminalMouseLeave: terminalMouseLeaveMock,
     TerminalRequestRedraw: terminalRequestRedrawMock,
     TerminalResize: terminalResizeMock,
     TerminalSelectWindow: terminalSelectWindowMock,
@@ -144,6 +146,7 @@ describe('terminal compact redraw decoder', () => {
         vi.resetModules();
         eventHandlers.clear();
         eventsOnMock.mockClear();
+        terminalMouseLeaveMock.mockClear();
         fontApplyCellStyleMock.mockClear();
 
         document.body.innerHTML = '<div id="terminal-pane"></div>';
@@ -188,6 +191,19 @@ describe('terminal compact redraw decoder', () => {
         }
 
         window.Image = MockImage;
+    });
+
+    it('clears backend hover when the pointer leaves the terminal for Notes', async () => {
+        await import('./terminal.js');
+        await flushPromises();
+        const notes = document.createElement('div');
+        notes.id = 'notes-pane';
+        document.body.appendChild(notes);
+        document.getElementById('ttyphoon-terminal').dispatchEvent(new MouseEvent('mouseleave', {
+            relatedTarget: notes,
+        }));
+        await flushPromises();
+        expect(terminalMouseLeaveMock).toHaveBeenCalledOnce();
     });
 
     it('vertically centres glyphs within adjusted cells', async () => {

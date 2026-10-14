@@ -6,6 +6,34 @@ import (
 	"testing"
 )
 
+func TestHistoryListDelete_SelectsSurvivingDocument(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		history []HistoryEntryT
+		index   int
+		deleted string
+		want    HistoryEntryT
+	}{
+		{"current middle", []HistoryEntryT{{Filename: "a.md", Line: 7}, {Filename: "b.md", Line: 3}, {Filename: "c.md", Line: 1}}, 1, "b.md", HistoryEntryT{Filename: "a.md", Line: 7}},
+		{"current first", []HistoryEntryT{{Filename: "a.md", Line: 7}, {Filename: "b.md", Line: 3}}, 0, "a.md", HistoryEntryT{Filename: "b.md", Line: 3}},
+		{"other document", []HistoryEntryT{{Filename: "a.md", Line: 7}, {Filename: "b.md", Line: 3}}, 1, "a.md", HistoryEntryT{Filename: "b.md", Line: 3}},
+		{"repeated current", []HistoryEntryT{{Filename: "a.md", Line: 7}, {Filename: "b.md", Line: 3}, {Filename: "b.md", Line: 25}, {Filename: "c.md", Line: 1}}, 2, "b.md", HistoryEntryT{Filename: "a.md", Line: 7}},
+		{"last document", []HistoryEntryT{{Filename: "a.md", Line: 7}}, 0, "a.md", HistoryEntryT{}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			projectRoot := t.TempDir()
+			getHistoryList(projectRoot)
+			setHistoryList(projectRoot, &HistoryListT{History: test.history, Index: test.index})
+			if err := HistoryListDelete(projectRoot, test.deleted); err != nil {
+				t.Fatal(err)
+			}
+			if got := HistoryListCurrentEntry(projectRoot); got != test.want {
+				t.Fatalf("current = %+v, want %+v", got, test.want)
+			}
+		})
+	}
+}
+
 func TestHistoryListAdd_FirstItemSetsIndex(t *testing.T) {
 	projectRoot := t.TempDir()
 

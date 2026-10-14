@@ -75,6 +75,10 @@ Each record uses: **Status**, **Context**, **Decision**, **Consequences**,
 | [0061](0061-fontawesome-face-fallbacks.md) | Font Awesome uses separate regular and solid faces | Frontend |
 | [0062](0062-notes-git-worktree-panel.md) | Notes Git panel is scoped to the current project root | Notes |
 | [0063](0063-notes-tooltips-use-shared-overlay.md) | Notes uses the shared tooltip instead of native webview tooltips | Notes |
+| [0064](0064-notes-file-mutation-navigation.md) | Notes file mutations preserve document navigation | Notes |
+| [0065](0065-shared-documents-directory.md) | Shared application documents directory | Storage |
+| [0066](0066-end-key-name-must-reach-terminal-encoding.md) | End key names must reach terminal encoding | Terminal |
+| [0067](0067-terminal-hover-is-scoped-to-pointer-presence.md) | Terminal hover is scoped to pointer presence | Terminal |
 
 ## Recurring themes
 

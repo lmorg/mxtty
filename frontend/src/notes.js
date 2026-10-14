@@ -660,7 +660,7 @@ app.innerHTML = `
                                 <span class="notes-git-toolbar-separator" aria-hidden="true"></span>
                                 <button id="notes-tools-git-tags" type="button" class="notes-tools-clear notes-tools-icon" aria-label="Manage tags" data-tooltip="Manage tags" aria-haspopup="menu">&#xf02c;</button>
                                 <button id="notes-tools-git-branches" type="button" class="notes-tools-clear notes-tools-icon" aria-label="Manage branches" data-tooltip="Manage branches" aria-haspopup="menu">&#xf126;</button>
-                                <button id="notes-tools-git-workspace" type="button" class="notes-tools-clear notes-tools-icon" aria-label="Worktrees" data-tooltip="Git worktrees">&#xf802;</button>
+                                <button id="notes-tools-git-workspace" type="button" class="notes-tools-clear notes-tools-icon" aria-label="Worktrees" data-tooltip="Manage worktrees">&#xf802;</button>
                                 <span class="notes-git-toolbar-separator" aria-hidden="true"></span>
                                 <button id="notes-tools-git-remote" type="button" class="notes-tools-clear notes-tools-icon notes-git-remote" aria-label="Open remote repository" data-tooltip="Open remote repository" hidden></button>
                                 <button id="notes-tools-git-refresh" type="button" class="notes-tools-clear notes-tools-icon" data-tooltip="Refresh Git status" aria-label="Refresh Git status">&#xf021;</button>
@@ -896,6 +896,7 @@ const elements = {
 const state = {
     files: [],
     currentFile: '',
+    mutatingFile: '',
     currentFileUri: '',
     currentFileProject: '',  // The project path when file was opened, prevents overwrites on project switch
     currentFileType: 'markdown',  // 'markdown' | 'json' | 'html' | 'code' | 'image' | 'csv' | 'binary'
@@ -10329,10 +10330,12 @@ async function confirmDelete() {
 
     const fileToDelete = state.deletingFile;
     const fileName = getPathFileName(fileToDelete);
+    const deletingCurrentFile = state.currentFile === fileToDelete;
     const fileUri = state.currentFile === fileToDelete
         ? state.currentFileUri
         : await resolveNotesFileUri(fileToDelete);
 
+    state.mutatingFile = fileToDelete;
     try {
         if (state.currentFile === fileToDelete) {
             await closeOpenLspDocument();
@@ -10357,10 +10360,21 @@ async function confirmDelete() {
         }
         closeDeletePrompt();
         await refreshFiles({ skipHistoryRestore: true });
+        if (deletingCurrentFile) {
+            const entry = await NotesHistoryCurrentPosition();
+            if (entry?.file && entry.file !== fileToDelete) {
+                await loadFile(entry.file);
+                setViewMode(editViewModeForCurrentFileType());
+                await ensureMonacoVisibleAndLaidOut();
+                jumpEditorToLine(entry.line);
+            }
+        }
         setStatus(`Deleted ${fileName}`, false);
     } catch (err) {
         notifyTerminal(`Failed to delete ${fileName}`, 'error');
         console.error(err);
+    } finally {
+        state.mutatingFile = '';
     }
 }
 
@@ -11075,7 +11089,7 @@ function buildFindPattern() {
 }
 
 function isMonacoFindProxyActive() {
-    return isMonacoActive() && state.viewMode === 'editor';
+    return isMonacoActive() && Boolean(getActiveFindEditor());
 }
 
 function buildMonacoFindRequest() {
@@ -13854,17 +13868,20 @@ async function createNewFile() {
             ? await ComposeNoteLocationPath((elements.modalLocation.textContent || '$NOTES').trim(), name)
             : name;
 
+        state.mutatingFile = state.renamingFile;
         try {
             await RenameFile(state.renamingFile, fileName);
-            await refreshFiles({ skipHistoryRestore: true });
             if (state.currentFile === state.renamingFile) {
                 await loadFile(fileName);
             }
+            await refreshFiles({ skipHistoryRestore: true });
             closeNewFilePrompt();
             setStatus(`Renamed to ${fileName}`, false);
         } catch (err) {
             notifyTerminal(`Failed to rename file: ${err}`, 'error');
             console.error(err);
+        } finally {
+            state.mutatingFile = '';
         }
         return;
     }
@@ -13994,7 +14011,7 @@ EventsOn('notesFileIndexChanged', (event) => {
 });
 
 EventsOn("notesFileChanged", async () => {
-    if (!state.currentFile) {
+    if (!state.currentFile || state.currentFile === state.mutatingFile) {
         return;
     }
 
@@ -17461,6 +17478,27 @@ elements.findPrev.addEventListener('mousedown', (event) => {
 })();
 
 document.addEventListener('keydown', (event) => {
+    if (!(event.metaKey || event.ctrlKey) || event.altKey || event.key.toLowerCase() !== 'f') {
+        return;
+    }
+    if (document.getElementById('fullscreen-image-overlay')
+        || window.ttyphoonInputboxOpen === true
+        || window.terminalFocusedState === true) {
+        return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    const findTabActive = elements.toolsTabFind?.getAttribute('aria-selected') === 'true';
+    const panelVisible = elements.toolsPanel?.dataset.collapsed !== 'true';
+    if (findTabActive && panelVisible) {
+        setToolsPanelCollapsed(true);
+    } else {
+        openFindBar();
+    }
+}, true);
+
+document.addEventListener('keydown', (event) => {
     // Block keyboard shortcuts if fullscreen image overlay is open
     if (document.getElementById('fullscreen-image-overlay')) {
         return;
@@ -17492,18 +17530,6 @@ document.addEventListener('keydown', (event) => {
             return;
         }
             saveAndFormat();
-        return;
-    }
-
-    if ((event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === 'f') {
-        event.preventDefault();
-        const findTabActive = elements.toolsTabFind?.getAttribute('aria-selected') === 'true';
-        const panelVisible = elements.toolsPanel?.dataset.collapsed !== 'true';
-        if (findTabActive && panelVisible) {
-            setToolsPanelCollapsed(true);
-        } else {
-            openFindBar();
-        }
         return;
     }
 
