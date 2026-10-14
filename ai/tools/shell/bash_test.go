@@ -32,14 +32,14 @@ func TestBashRunsScriptAndReturnsCombinedOutput(t *testing.T) {
 	}
 }
 
-func TestBashReturnsOutputAndExitError(t *testing.T) {
+func TestBashReturnsRecoverableExitFailureAsOutput(t *testing.T) {
 	output, err := (&Bash{}).CallStructured(context.Background(), &bashInputT{
 		Script: "printf 'before failure\\n'; exit 7",
 	})
-	if err == nil || !strings.Contains(err.Error(), "exited unsuccessfully") {
-		t.Fatalf("CallStructured() error = %v, want Bash exit error", err)
+	if err != nil {
+		t.Fatalf("CallStructured() error = %v, want recoverable failure as output", err)
 	}
-	if output != "before failure\n" {
-		t.Fatalf("output = %q, want script output", output)
+	if !strings.Contains(output, "before failure\n") || !strings.Contains(output, "bash exited unsuccessfully: exit status 7") {
+		t.Fatalf("output = %q, want partial output and model-visible exit failure", output)
 	}
 }

@@ -45,7 +45,6 @@ type createGraphInputT struct {
 	Headings          []string   `json:"headings"`
 	Rows              [][]string `json:"rows"`
 	Type              string     `json:"type"`
-	Format            string     `json:"format,omitempty"`
 	Title             string     `json:"title,omitempty"`
 	CategoryColumn    int        `json:"categoryColumn"`
 	ValueColumns      []int      `json:"valueColumns"`
@@ -63,7 +62,7 @@ func (t *CreateGraph) CallStructured(ctx context.Context, input any) (string, er
 }
 
 func (t *CreateGraph) create(_ context.Context, request *createGraphInputT, outputDir string) (string, error) {
-	format := graphs.Format(strings.ToLower(strings.TrimSpace(request.Format)))
+	const format = graphs.PNG
 	data, err := graphs.RenderTable(graphs.Table{Headings: request.Headings, Rows: request.Rows}, graphs.Spec{
 		Type:              graphs.Type(strings.ToLower(strings.TrimSpace(request.Type))),
 		Format:            format,
@@ -76,9 +75,6 @@ func (t *CreateGraph) create(_ context.Context, request *createGraphInputT, outp
 	})
 	if err != nil {
 		return "", err
-	}
-	if format == "" {
-		format = graphs.PNG
 	}
 	if outputDir == "" {
 		outputDir, err = defaultGraphImagesDir()

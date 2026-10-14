@@ -110,11 +110,12 @@ func TestPatchFileCallDescriptionRendersEmbeddedTemplate(t *testing.T) {
 
 	description := (&PatchFile{}).CallDescription(context.Background(), patch)
 	for _, want := range []string{
-		"File: src/&lt;example&gt;\\.go",
-		"&lt;old&gt; \\*\\*first\\*\\* \\|",
-		"| + | new first |",
-		"| - | old second |",
-		"| + | new second |",
+		"File: `src/&lt;example&gt;\\.go`",
+		"| Change | Text |",
+		"| `-` | &lt;old&gt; \\*\\*first\\*\\* \\| |",
+		"| `+` | new first |",
+		"| `-` | old second |",
+		"| `+` | new second |",
 	} {
 		if !strings.Contains(description, want) {
 			t.Errorf("CallDescription() = %q, want it to contain %q", description, want)

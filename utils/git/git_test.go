@@ -1075,14 +1075,14 @@ func TestRenderWorktreeInfoKeepsMultilineDiffInOneTableRow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RenderWorktreeInfo() error = %v", err)
 	}
-	if !strings.Contains(markdown, "| tracked file\\.txt | <pre><code>diff --git") {
+	if !strings.Contains(markdown, "| <details><summary>tracked file\\.txt</summary><pre><code>diff --git a/tracked file.txt b/tracked file.txt&#10;") {
 		t.Fatalf("RenderWorktreeInfo() missing diff table row:\n%s", markdown)
 	}
-	if !strings.Contains(markdown, "&#10;+new &#124; &lt;line&gt;</code></pre> |") {
+	if !strings.Contains(markdown, "&#10;+new &#124; &lt;line&gt;</code></pre></details> |") {
 		t.Fatalf("RenderWorktreeInfo() did not encode multiline diff:\n%s", markdown)
 	}
 	for _, line := range strings.Split(markdown, "\n") {
-		if strings.HasPrefix(line, "| tracked file\\.txt |") && !strings.HasSuffix(line, "</code></pre> |") {
+		if strings.HasPrefix(line, "| <details><summary>tracked file\\.txt</summary>") && !strings.HasSuffix(line, "</code></pre></details> |") {
 			t.Fatalf("diff row was split across lines: %q", line)
 		}
 	}

@@ -5055,15 +5055,15 @@ describe('notes rendering', () => {
         expect(document.querySelector('.notes-git-actions #notes-tools-git-workspace')).not.toBeNull();
         const gitToolbarItems = Array.from(document.querySelector('.notes-git-actions').children);
         expect(gitToolbarItems.map((element) => element.id || 'separator')).toEqual([
-            'notes-tools-git-commits', 'separator', 'notes-tools-git-tags', 'notes-tools-git-branches', 'notes-tools-git-workspace', 'separator', 'notes-tools-git-remote', 'notes-tools-git-refresh',
+            'notes-tools-git-commits', 'separator', 'notes-tools-git-branches', 'notes-tools-git-tags', 'notes-tools-git-workspace', 'separator', 'notes-tools-git-remote', 'notes-tools-git-refresh',
         ]);
         expect(gitToolbarItems[1].getAttribute('aria-hidden')).toBe('true');
         expect(gitToolbarItems[5].getAttribute('aria-hidden')).toBe('true');
         expect(gitToolbarItems[1].className).toBe(gitToolbarItems[5].className);
         for (const [id, glyph, label] of [
-            ['notes-tools-git-commits', 0xf386, 'View commit log'],
-            ['notes-tools-git-tags', 0xf02c, 'Manage tags'],
+            ['notes-tools-git-commits', 0xf022, 'View commit log'],
             ['notes-tools-git-branches', 0xf126, 'Manage branches'],
+            ['notes-tools-git-tags', 0xf02c, 'Manage tags'],
             ['notes-tools-git-workspace', 0xf802, 'Worktrees'],
         ]) {
             const button = document.getElementById(id);
@@ -5321,10 +5321,10 @@ describe('notes rendering', () => {
         const subjectStyle = notesCss.match(/\.notes-git-commit-subject\s*\{([^}]*)\}/)?.[1] || '';
         expect(subjectStyle).toContain('font-family: "Lato", var(--font-family), sans-serif;');
         expect(subjectStyle).toContain('font-size: var(--notes-font-size-minus-2);');
-        const contentStyle = notesCss.match(/\.notes-git-commit-content\s*\{([^}]*)\}/)?.[1] || '';
+        const contentStyle = notesCss.match(/^\.notes-git-commit-content\s*\{([^}]*)\}/m)?.[1] || '';
         expect(contentStyle).toContain('justify-self: end;');
         expect(contentStyle).toContain('width: max-content;');
-        expect(contentStyle).toContain('max-width: max(70%, calc(100% - var(--git-graph-width) - 8px));');
+        expect(contentStyle).toContain('width: max(70%, calc(100% - var(--git-graph-width) - 8px));');
         expect(contentStyle).toContain('z-index: 1;');
         getCurrentProjectMock.mockResolvedValue('/workspace/repo');
         getCurrentGroupNameMock.mockResolvedValue('First workspace');
@@ -5493,7 +5493,8 @@ describe('notes rendering', () => {
         const worktreeMenu = showLocalMenuMock.mock.calls.at(-1)?.[0];
         worktreeMenu.onSelect(2);
         const actionMenu = showLocalMenuMock.mock.calls.at(-1)?.[0];
-        actionMenu.onSelect(2);
+        expect(actionMenu.options).toContain('Remove');
+        actionMenu.onSelect(actionMenu.options.indexOf('Remove'));
         await flushPromises();
         expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({
             level: 'error',
