@@ -152,8 +152,15 @@ type Tmux struct {
 	readerDead atomic.Bool
 	prefixTtl  time.Time
 
+	layoutRefreshMu      sync.Mutex
+	layoutRefreshRunning bool
+	layoutRefreshPending bool
+
 	pendingPaneOutputMu sync.Mutex
 	pendingPaneOutput   map[string][][]byte
+
+	interactiveActionMu sync.Mutex
+	interactiveActions  map[string]interactiveActionEntry
 }
 
 type tmuxResponseT struct {
@@ -217,6 +224,7 @@ func NewStartSession(renderer types.Renderer, size *types.XY, startCommand strin
 		scanErr := scanner.Err()
 		debug.Log(fmt.Sprintf("tmux reader loop exited: %v", scanErr))
 		tmux.readerDead.Store(true)
+		tmux.cancelAllInteractiveActions(errors.New("tmux control channel closed"))
 
 		if scanErr != nil && tmux.renderer != nil {
 			tmux.renderer.DisplayNotification(types.NOTIFY_ERROR,
@@ -264,7 +272,7 @@ var tmuxCommandMap = map[string]func(*Tmux, []byte){
 	_RESP_CONFIG_ERROR:            _respConfigError,
 	_RESP_CONTINUE:                __respIgnored,
 	_RESP_EXIT:                    _respExit,
-	_RESP_LAYOUT_CHANGE:           __respIgnored,
+	_RESP_LAYOUT_CHANGE:           _respLayoutChange,
 	_RESP_EXTENDED_OUTPUT:         _respExtendedOutput,
 	_RESP_PANE_MODE_CHANGED:       __respIgnored,
 	_RESP_PASTE_BUFFER_CHANGED:    __respIgnored,
@@ -388,6 +396,31 @@ func _respWindowPaneChanged(tmux *Tmux, b []byte) {
 	go func() {
 		errToNotification(tmux.renderer, tmux.updatePaneInfo(string(params[2])))
 		tmux.renderer.RefreshWindowList()
+	}()
+}
+
+func _respLayoutChange(tmux *Tmux, _ []byte) {
+	tmux.layoutRefreshMu.Lock()
+	if tmux.layoutRefreshRunning {
+		tmux.layoutRefreshPending = true
+		tmux.layoutRefreshMu.Unlock()
+		return
+	}
+	tmux.layoutRefreshRunning = true
+	tmux.layoutRefreshMu.Unlock()
+	go func() {
+		for {
+			tmux.renderer.RefreshWindowList()
+			tmux.layoutRefreshMu.Lock()
+			if tmux.layoutRefreshPending {
+				tmux.layoutRefreshPending = false
+				tmux.layoutRefreshMu.Unlock()
+				continue
+			}
+			tmux.layoutRefreshRunning = false
+			tmux.layoutRefreshMu.Unlock()
+			return
+		}
 	}()
 }
 

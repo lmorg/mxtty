@@ -3,6 +3,8 @@ package rendererwebkit
 import (
 	"context"
 	"fmt"
+	"slices"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -25,8 +27,20 @@ type terminalTabsPayload struct {
 	TileCount int           `json:"tileCount"`
 }
 
+type TerminalPane struct {
+	ID          string `json:"id"`
+	X           int32  `json:"x"`
+	Y           int32  `json:"y"`
+	Width       int32  `json:"width"`
+	Height      int32  `json:"height"`
+	CanClose    bool   `json:"canClose"`
+	AutoCloseAt int64  `json:"autoCloseAt,omitempty"`
+}
+
 type webkitRender struct {
 	termWin         *types.AppWindowTerms
+	paneLayoutMu    sync.Mutex
+	paneLayout      []TerminalPane
 	tmux            *tmux.Tmux
 	app             interface{} // Reference to WApp for accessing methods like ListFiles()
 	auxTabsMu       sync.RWMutex
@@ -240,6 +254,67 @@ func (wr *webkitRender) GetWindowTabs() []terminalTab {
 	return wr.tmuxTabs()
 }
 
+func (wr *webkitRender) GetPaneLayout() []TerminalPane {
+	panes := make([]TerminalPane, 0)
+	termWin := wr.termWin
+	if termWin == nil {
+		return panes
+	}
+	for _, tile := range termWin.Tiles {
+		if tile == nil {
+			continue
+		}
+		term := tile.GetTerm()
+		if term == nil {
+			continue
+		}
+		size := term.GetSize()
+		if size == nil || size.X <= 0 || size.Y <= 0 {
+			continue
+		}
+		pane := TerminalPane{ID: tile.Id(), X: tile.Left(), Y: tile.Top(), Width: size.X, Height: size.Y}
+		if tmuxPane, ok := tile.(*tmux.PaneT); ok {
+			pane.CanClose = tmuxPane.CommandFinished()
+			pane.AutoCloseAt = tmuxPane.AutoCloseAt()
+		}
+		panes = append(panes, pane)
+	}
+	slices.SortFunc(panes, func(left, right TerminalPane) int { return strings.Compare(left.ID, right.ID) })
+	return panes
+}
+
+func (wr *webkitRender) emitPaneLayout() {
+	if wr.wapp == nil {
+		return
+	}
+	panes := wr.GetPaneLayout()
+	wr.paneLayoutMu.Lock()
+	defer wr.paneLayoutMu.Unlock()
+	if slices.Equal(wr.paneLayout, panes) {
+		return
+	}
+	wr.paneLayout = panes
+	runtime.EventsEmit(wr.wapp, "terminalPanes", panes)
+}
+
+func (wr *webkitRender) CancelPaneAutoClose(paneID string) error {
+	if wr.tmux == nil {
+		return fmt.Errorf("tmux not available")
+	}
+	return wr.tmux.CancelPaneAutoClose(paneID)
+}
+
+func (wr *webkitRender) CloseCompletedPane(paneID string) error {
+	if wr.tmux == nil {
+		return fmt.Errorf("tmux not available")
+	}
+	if err := wr.tmux.CloseCompletedPane(paneID); err != nil {
+		return err
+	}
+	wr.RefreshWindowList()
+	return nil
+}
+
 func (wr *webkitRender) SelectWindow(windowID string) {
 	if windowID == "" || wr.tmux == nil {
 		return
@@ -371,6 +446,20 @@ func (wr *webkitRender) ActiveTile() types.Tile {
 		return nil
 	}
 	return wr.termWin.Active
+}
+
+func (wr *webkitRender) CloneActivePane(command string, callback func(output []byte, exitCode int, err error)) error {
+	if wr == nil || wr.tmux == nil {
+		return fmt.Errorf("terminal is unavailable")
+	}
+	pane, err := wr.tmux.ActivePane()
+	if err != nil {
+		return err
+	}
+	if pane == nil {
+		return fmt.Errorf("active terminal pane is unavailable")
+	}
+	return wr.tmux.ClonePane(pane, command, callback)
 }
 
 func (wr *webkitRender) activeTerm() types.Term {

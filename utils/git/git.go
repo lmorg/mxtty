@@ -1016,22 +1016,6 @@ func StageAllTrackedFiles(root string) error {
 	return err
 }
 
-func CommitChanges(root, message string) map[string]string {
-	message = strings.TrimSpace(message)
-	if message == "" {
-		return map[string]string{"stdout": "", "stderr": "", "error": "commit message is required"}
-	}
-	gitPath, repoRoot, err := checkedRepository(root)
-	if err != nil {
-		return map[string]string{"stdout": "", "stderr": "", "error": err.Error()}
-	}
-	result, err := runGitWithAgentEnvironment(gitPath, repoRoot, nil, "commit", "-m", message)
-	if err != nil {
-		return map[string]string{"stdout": "", "stderr": "", "error": err.Error()}
-	}
-	return result
-}
-
 func UnstageFile(root, filePath string) error {
 	gitPath, repoRoot, err := checkedRepository(root)
 	if err != nil {

@@ -1,0 +1,6 @@
+set +e
+
+{{ .CommandLine }}
+
+_ttyphoon_exit_code=$?
+printf '\033_ttyphoon;interactive-action-complete;{"id":"%s","exitCode":%s}\033\\' '{{ .CallbackID }}' "$_ttyphoon_exit_code"

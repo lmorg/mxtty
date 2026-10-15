@@ -145,7 +145,12 @@ export function initNotesGitPanel(elements, api, options = {}) {
         }
 
         const fragment = document.createDocumentFragment();
-        for (const file of status.files) {
+        const files = [...status.files].sort((left, right) => {
+            const leftGroup = left.untracked ? 0 : left.unstaged ? 1 : 2;
+            const rightGroup = right.untracked ? 0 : right.unstaged ? 1 : 2;
+            return leftGroup - rightGroup || left.path.localeCompare(right.path);
+        });
+        for (const file of files) {
             const row = document.createElement('div');
             row.className = 'notes-git-file-row';
             row.dataset.path = file.path;
@@ -492,24 +497,26 @@ export function initNotesGitPanel(elements, api, options = {}) {
             elements.gitCommitMessage.focus();
             return;
         }
-        if (!projectRoot || typeof api.commitChanges !== 'function') {
+        if (!projectRoot || typeof api.runGitAction !== 'function') {
             return;
         }
         elements.gitCommitSubmit.disabled = true;
         try {
-            const result = await api.commitChanges(projectRoot, message);
-            if (options.notifyTransfer) {
-                options.notifyTransfer(result, 'Commit created');
-            } else if (result?.error) {
-                options.notify?.(result.stderr || result.error, 'error');
-            }
-            if (result?.error) {
+            const result = await api.runGitAction(projectRoot, 'commit', { message });
+            const { mode, ...output } = result || {};
+            if (output.error) {
+                options.notify?.('Commit failed. See terminal for output', 'error');
                 return;
             }
             elements.gitCommitMessage.value = '';
+            if (options.notifyTransfer) {
+                options.notifyTransfer(output, 'Commit created');
+            } else {
+                options.notify?.('Commit created', 'info');
+            }
             await refresh(true);
         } catch (error) {
-            options.notify?.(String(error?.message || error), 'error');
+            options.notify?.('Commit failed. See terminal for output', 'error');
         } finally {
             elements.gitCommitSubmit.disabled = false;
         }

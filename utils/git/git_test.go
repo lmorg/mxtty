@@ -21,7 +21,7 @@ func initGitTestRepo(t *testing.T) string {
 		t.Skip("git is not installed")
 	}
 	root := t.TempDir()
-	runGitTestCommand(t, gitPath, root, "init", "--quiet")
+	runGitTestCommand(t, gitPath, root, "init", "--quiet", "--initial-branch=main")
 	runGitTestCommand(t, gitPath, root, "config", "user.name", "Test User")
 	runGitTestCommand(t, gitPath, root, "config", "user.email", "test@example.invalid")
 	if err := os.WriteFile(filepath.Join(root, "tracked file.txt"), []byte("head contents\n"), 0600); err != nil {
@@ -633,32 +633,55 @@ func TestStageAllTrackedFilesDoesNotStageUntracked(t *testing.T) {
 	}
 }
 
-func TestCommitChangesUsesMessageAndPreservesOutputContract(t *testing.T) {
+func TestRunActionUsesInteractivePolicyForCommit(t *testing.T) {
 	root := initGitTestRepo(t)
-	if err := os.WriteFile(filepath.Join(root, "tracked file.txt"), []byte("committed contents\n"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	if err := StageFile(root, "tracked file.txt"); err != nil {
-		t.Fatal(err)
-	}
-	result := CommitChanges(root, "  Update tracked file  ")
-	if result["error"] != "" || result["stdout"] == "" {
-		t.Fatalf("CommitChanges() result = %v, want successful commit output", result)
-	}
-	gitPath, err := exec.LookPath("git")
-	if err != nil {
-		t.Skip("git is not installed")
-	}
-	command := exec.Command(gitPath, "-C", root, "log", "-1", "--format=%s")
-	output, err := command.Output()
+	canonicalRoot, err := filepath.EvalSymlinks(root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := strings.TrimSpace(string(output)); got != "Update tracked file" {
-		t.Fatalf("commit subject = %q, want trimmed message", got)
+	var called bool
+	result := RunAction(root, ActionRequest{Name: "commit", Parameters: map[string]string{"message": "Update"}}, nil, func(command string, complete func(InteractiveActionResult)) error {
+		called = true
+		want := "git -C '" + canonicalRoot + "' 'commit' '-m' 'Update'"
+		if command != want {
+			t.Errorf("interactive command = %q, want %q", command, want)
+		}
+		complete(InteractiveActionResult{Output: "commit output", ExitCode: 0})
+		return nil
+	})
+	if result["mode"] != string(ActionModeInteractive) || result["error"] != "" || result["stdout"] != "commit output" || result["exitCode"] != "0" || !called {
+		t.Fatalf("RunAction() = %v, runner called = %v; want successful interactive dispatch", result, called)
 	}
-	if result := CommitChanges(root, "  "); result["error"] != "commit message is required" {
-		t.Fatalf("empty message result = %v, want validation error", result)
+}
+
+func TestRunActionReturnsInteractiveFailureOutputAndExitCode(t *testing.T) {
+	root := initGitTestRepo(t)
+	result := RunAction(root, ActionRequest{Name: "commit", Parameters: map[string]string{"message": "Update"}}, nil, func(_ string, complete func(InteractiveActionResult)) error {
+		complete(InteractiveActionResult{Output: "hook rejected commit", ExitCode: 1})
+		return nil
+	})
+	if result["stdout"] != "hook rejected commit" || result["exitCode"] != "1" || result["error"] != "git action failed with exit code 1" {
+		t.Fatalf("RunAction() = %v, want interactive output and failure status", result)
+	}
+}
+
+func TestInteractiveCommandQuotesRootAndArguments(t *testing.T) {
+	command := interactiveCommand("/tmp/repo's dir", []string{"commit", "-m", "rock'n'roll"})
+	const want = `git -C '/tmp/repo'\''s dir' 'commit' '-m' 'rock'\''n'\''roll'`
+	if command != want {
+		t.Fatalf("interactiveCommand() = %q, want %q", command, want)
+	}
+}
+
+func TestRunActionUsesGoForFetch(t *testing.T) {
+	root := initGitTestRepo(t)
+	called := false
+	result := RunAction(root, ActionRequest{Name: "fetch"}, nil, func(string, func(InteractiveActionResult)) error {
+		called = true
+		return nil
+	})
+	if result["mode"] != string(ActionModeGo) || result["error"] != "" || called {
+		t.Fatalf("RunAction() = %v, interactive runner called = %v; want Go execution", result, called)
 	}
 }
 

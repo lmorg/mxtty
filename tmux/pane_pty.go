@@ -16,6 +16,7 @@ func (p *PaneT) Read() (rune, error) { return p.buf.Read() }
 func (p *PaneT) BufSize() int        { return p.buf.BufSize() }
 
 func (p *PaneT) exit() {
+	p.tmux.cancelInteractiveActionsForPane(p.id)
 	p.tmux.renderer.DisplayNotification(types.NOTIFY_INFO, fmt.Sprintf("Closing term %s: %s", p.id, p.title))
 
 	p.buf.Close()
@@ -52,6 +53,9 @@ func (p *PaneT) Write(b []byte) error {
 }
 
 func (p *PaneT) Resize(size *types.XY) error {
+	if p.width == int(size.X) && p.height == int(size.Y) {
+		return nil
+	}
 	command := fmt.Sprintf("resize-pane -t %s -x %d -y %d", p.id, size.X, size.Y)
 	_, err := p.tmux.SendCommand([]byte(command))
 	p.width = int(size.X)

@@ -1079,6 +1079,35 @@ export namespace notes {
 
 }
 
+export namespace rendererwebkit {
+	
+	export class TerminalPane {
+	    id: string;
+	    x: number;
+	    y: number;
+	    width: number;
+	    height: number;
+	    canClose: boolean;
+	    autoCloseAt?: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new TerminalPane(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.x = source["x"];
+	        this.y = source["y"];
+	        this.width = source["width"];
+	        this.height = source["height"];
+	        this.canClose = source["canClose"];
+	        this.autoCloseAt = source["autoCloseAt"];
+	    }
+	}
+
+}
+
 export namespace sessiondb {
 	
 	export class FrontendHistoryItemT {

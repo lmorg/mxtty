@@ -81,6 +81,9 @@ Each record uses: **Status**, **Context**, **Decision**, **Consequences**,
 | [0067](0067-terminal-hover-is-scoped-to-pointer-presence.md) | Terminal hover is scoped to pointer presence | Terminal |
 | [0068](0068-separate-git-command-output-streams-proposal.md) | Proposal: separate Git command output streams | Git |
 | [0069](0069-notes-spellcheck-suggestions-open-on-right-click.md) | Notes spellcheck suggestions open on right-click | Notes |
+| [0070](0070-notes-markup-lives-in-notes-html.md) | Keep static Notes markup in `notes.html` | Frontend |
+| [0071](0071-git-package-owns-action-execution-policy.md) | Git package owns action execution policy | Git |
+| [0072](0072-interactive-pane-actions-use-one-shot-uuid-callbacks.md) | Interactive pane actions use one-shot UUID callbacks | Terminal |
 
 ## Recurring themes
 

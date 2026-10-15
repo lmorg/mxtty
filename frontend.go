@@ -517,6 +517,30 @@ func (a *WApp) TerminalGetTabs() []map[string]any {
 	return out
 }
 
+func (a *WApp) TerminalGetPanes() []renderwebkit.TerminalPane {
+	renderer, ok := renderwebkit.CurrentRenderer()
+	if !ok {
+		return nil
+	}
+	return renderer.GetPaneLayout()
+}
+
+func (a *WApp) TerminalCancelPaneAutoClose(paneID string) error {
+	renderer, ok := renderwebkit.CurrentRenderer()
+	if !ok {
+		return fmt.Errorf("renderer not available")
+	}
+	return renderer.CancelPaneAutoClose(paneID)
+}
+
+func (a *WApp) TerminalClosePane(paneID string) error {
+	renderer, ok := renderwebkit.CurrentRenderer()
+	if !ok {
+		return fmt.Errorf("renderer not available")
+	}
+	return renderer.CloseCompletedPane(paneID)
+}
+
 func (a *WApp) TerminalSelectWindow(windowID string) {
 	renderer, ok := renderwebkit.CurrentRenderer()
 	if !ok {
@@ -2582,8 +2606,23 @@ func (a *WApp) StageAllGitFiles(projectRoot string) error {
 	return gitutils.StageAllTrackedFiles(projectRoot)
 }
 
-func (a *WApp) CommitGitChanges(projectRoot, message string) map[string]string {
-	return gitutils.CommitChanges(projectRoot, message)
+func (a *WApp) RunGitAction(projectRoot, actionName string, parameters map[string]string) map[string]string {
+	return gitutils.RunAction(projectRoot, gitutils.ActionRequest{
+		Name:       actionName,
+		Parameters: parameters,
+	}, activeGitAgentEnvironment(), func(command string, complete func(gitutils.InteractiveActionResult)) error {
+		renderer, ok := renderwebkit.CurrentRenderer()
+		if !ok {
+			return errors.New("Notes renderer is unavailable")
+		}
+		return renderer.CloneActivePane(command, func(output []byte, exitCode int, err error) {
+			complete(gitutils.InteractiveActionResult{
+				Output:   string(output),
+				ExitCode: exitCode,
+				Err:      err,
+			})
+		})
+	})
 }
 
 func (a *WApp) UnstageGitFile(projectRoot, filePath string) error {
@@ -3262,13 +3301,17 @@ func (a *WApp) GetCustomRegexp() []map[string]string {
 	return result
 }
 
-func (a *WApp) SendToTerminal(content string) {
+func (a *WApp) SendToTerminal(content string) error {
 	renderer, ok := renderwebkit.CurrentRenderer()
 	if !ok {
-		return
+		return fmt.Errorf("renderer not available")
 	}
 
-	renderer.ActiveTile().GetTerm().Reply([]byte(content))
+	return renderer.CloneActivePane(content, func(_ []byte, _ int, err error) {
+		if err != nil {
+			renderer.DisplayNotification(types.NOTIFY_ERROR, err.Error())
+		}
+	})
 }
 
 // SwaggerRequest executes an HTTP request for a Swagger/OpenAPI endpoint.

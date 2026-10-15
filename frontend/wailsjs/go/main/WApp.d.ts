@@ -9,6 +9,7 @@ import {types} from '../models';
 import {grep} from '../models';
 import {lsp} from '../models';
 import {swagger} from '../models';
+import {rendererwebkit} from '../models';
 
 export function AddNotesFindFieldValue(arg1:string,arg2:string):Promise<Array<string>>;
 
@@ -35,8 +36,6 @@ export function CloseNotification(arg1:number):Promise<void>;
 export function CloseTooltip():Promise<void>;
 
 export function CommandPaletteSelect(arg1:number):Promise<void>;
-
-export function CommitGitChanges(arg1:string,arg2:string):Promise<Record<string, string>>;
 
 export function CompleteSyntax(arg1:string,arg2:string,arg3:string,arg4:number,arg5:number,arg6:number,arg7:string):Promise<main.CompleteSyntaxReturnT>;
 
@@ -296,6 +295,8 @@ export function RunAIAgentWithStream(arg1:string,arg2:string):Promise<void>;
 
 export function RunFunction(arg1:string,arg2:string,arg3:string,arg4:string,arg5:Array<string>,arg6:string):Promise<main.RunFunctionReturnT>;
 
+export function RunGitAction(arg1:string,arg2:string,arg3:Record<string, string>):Promise<Record<string, string>>;
+
 export function RunHyperlinkMenuAction(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function RunNote(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
@@ -366,7 +367,13 @@ export function SwitchGitWorktree(arg1:string,arg2:string):Promise<void>;
 
 export function SyncNotesContext(arg1:notes.FileContext):Promise<void>;
 
+export function TerminalCancelPaneAutoClose(arg1:string):Promise<void>;
+
+export function TerminalClosePane(arg1:string):Promise<void>;
+
 export function TerminalCopyImageDataURL(arg1:string):Promise<void>;
+
+export function TerminalGetPanes():Promise<Array<rendererwebkit.TerminalPane>>;
 
 export function TerminalGetTabs():Promise<Array<Record<string, any>>>;
 

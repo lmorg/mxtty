@@ -1,4 +1,4 @@
-import { CloseNotification, GetWindowStyle, SendIpc, TerminalCopyImageDataURL, TerminalGetTabs, TerminalMouseLeave, TerminalPaneZoom, TerminalRequestRedraw, TerminalResize, TerminalSelectWindow, TerminalSetGlyphSize } from '../wailsjs/go/main/WApp';
+import { CloseNotification, GetWindowStyle, SendIpc, TerminalCancelPaneAutoClose, TerminalClosePane, TerminalCopyImageDataURL, TerminalGetPanes, TerminalGetTabs, TerminalMouseLeave, TerminalPaneZoom, TerminalRequestRedraw, TerminalResize, TerminalSelectWindow, TerminalSetGlyphSize } from '../wailsjs/go/main/WApp';
 import { EventsOn } from '../wailsjs/runtime/runtime';
 import { wireKeyboardEvents, wireMouseEvents } from './events';
 import { createFontController } from './font';
@@ -7,7 +7,7 @@ import { drawBlockChrome } from './block_chrome';
 import { initTerminalPopupMenu } from './popup_menu';
 import { initInputBox } from './inputbox';
 import { showFullscreenImageOverlay } from './fullscreen-image-overlay';
-import { bindSharedTooltipEvents, bindSharedTooltipMouseTracking, closeSharedTooltip } from './shared_tooltip';
+import { bindSharedTooltipEvents, bindSharedTooltipMouseTracking, closeSharedTooltip, showSharedTooltip } from './shared_tooltip';
 import { DARKEN_BACKGROUND_OVERLAY } from './style-utils';
 import dingSound from './assets/sound/ding.mp3';
 
@@ -16,6 +16,7 @@ import dingSound from './assets/sound/ding.mp3';
         <div id="terminal-tabs" role="tablist" aria-label="tmux windows"></div>
         <div id="terminal-viewport">
             <canvas id="ttyphoon-terminal"></canvas>
+            <div id="terminal-pane-controls"></div>
         </div>
         <div id="terminal-notifications"></div>
     </div>
@@ -23,6 +24,7 @@ import dingSound from './assets/sound/ding.mp3';
 
 const tabsEl = document.getElementById('terminal-tabs');
 const canvas = document.getElementById('ttyphoon-terminal');
+const paneControlsEl = document.getElementById('terminal-pane-controls');
 const ctx = canvas.getContext('2d');
 const offscreen = document.createElement('canvas');
 const offCtx = offscreen.getContext('2d');
@@ -31,6 +33,136 @@ let windowStyle;
 let rafPending = false;
 let rafHandle = 0;
 let rafWatchdog = 0;
+let terminalPanes = [];
+let paneLayoutVersion = 0;
+let paneCountdownInterval = 0;
+
+function updatePaneCountdowns() {
+    let active = false;
+    for (const timer of paneControlsEl.querySelectorAll('.terminal-pane-timer')) {
+        const remaining = Math.max(0, Number(timer.dataset.deadline) - Date.now());
+        const ratio = Math.max(0, Math.min(1, 1 - remaining / 30000));
+        timer.firstElementChild.style.setProperty('--progress-deg', `${Math.round(ratio * 360)}deg`);
+        timer.setAttribute('aria-label', `Closes in ${Math.ceil(remaining / 1000)}s. Click to keep open`);
+        if (remaining > 0) {
+            active = true;
+        } else {
+            timer.disabled = true;
+        }
+    }
+    if (!active && paneCountdownInterval) {
+        clearInterval(paneCountdownInterval);
+        paneCountdownInterval = 0;
+    }
+}
+
+function renderPaneControls() {
+    if (paneCountdownInterval) {
+        clearInterval(paneCountdownInterval);
+        paneCountdownInterval = 0;
+    }
+    paneControlsEl.replaceChildren();
+    document.getElementById('terminal-pane')?.removeAttribute('data-completed-panes');
+    document.getElementById('terminal-pane')?.removeAttribute('data-pane-countdowns');
+    closeSharedTooltip();
+    const { cellWidth, cellHeight } = font.getCellSize();
+    if (cellWidth <= 0 || cellHeight <= 0) {
+        return;
+    }
+    for (const pane of terminalPanes) {
+        if (!pane?.canClose || !pane.id || ![pane.x, pane.y, pane.width, pane.height].every(Number.isFinite)
+            || pane.x < 0 || pane.y < 0 || pane.width <= 0 || pane.height <= 0) {
+            continue;
+        }
+        const hasTimer = Number.isFinite(pane.autoCloseAt) && pane.autoCloseAt > 0;
+        const size = Math.min(20, (pane.width * cellWidth - (hasTimer ? 4 : 0)) / (hasTimer ? 2 : 1), pane.height * cellHeight);
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'notes-tools-clear terminal-pane-close';
+        button.dataset.paneId = pane.id;
+        button.setAttribute('aria-label', 'Close completed pane');
+        button.innerHTML = '&#xf00d;';
+        button.style.width = `${size}px`;
+        button.style.height = `${size}px`;
+        button.style.left = `${Math.max(pane.x * cellWidth, (pane.x + pane.width) * cellWidth - size - 2)}px`;
+        button.style.top = `${Math.min(pane.y * cellHeight + 2, (pane.y + pane.height) * cellHeight - size)}px`;
+        button.addEventListener('mouseenter', () => showSharedTooltip('Close completed pane'));
+        button.addEventListener('mouseleave', closeSharedTooltip);
+        button.addEventListener('focus', () => showSharedTooltip('Close completed pane'));
+        button.addEventListener('blur', closeSharedTooltip);
+        button.addEventListener('pointerdown', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+        });
+        button.addEventListener('click', async (event) => {
+            event.stopPropagation();
+            if (typeof TerminalClosePane !== 'function') {
+                return;
+            }
+            button.disabled = true;
+            closeSharedTooltip();
+            try {
+                await TerminalClosePane(pane.id);
+                terminalPanes = terminalPanes.filter((item) => item.id !== pane.id);
+                renderPaneControls();
+                canvas.focus();
+            } catch (error) {
+                button.disabled = false;
+                console.error('Failed to close completed pane', error);
+            }
+        });
+        paneControlsEl.appendChild(button);
+        if (hasTimer) {
+            const timer = document.createElement('button');
+            timer.type = 'button';
+            timer.className = 'terminal-pane-timer';
+            timer.dataset.paneId = pane.id;
+            timer.dataset.deadline = String(pane.autoCloseAt);
+            timer.style.width = `${size}px`;
+            timer.style.height = `${size}px`;
+            timer.style.left = `${parseFloat(button.style.left) - size - 4}px`;
+            timer.style.top = button.style.top;
+            const progress = document.createElement('span');
+            progress.className = 'notif-progress';
+            progress.setAttribute('aria-hidden', 'true');
+            timer.appendChild(progress);
+            timer.addEventListener('mouseenter', () => showSharedTooltip(timer.getAttribute('aria-label')));
+            timer.addEventListener('mouseleave', closeSharedTooltip);
+            timer.addEventListener('focus', () => showSharedTooltip(timer.getAttribute('aria-label')));
+            timer.addEventListener('blur', closeSharedTooltip);
+            timer.addEventListener('pointerdown', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+            });
+            timer.addEventListener('click', async (event) => {
+                event.stopPropagation();
+                if (typeof TerminalCancelPaneAutoClose !== 'function') {
+                    return;
+                }
+                timer.disabled = true;
+                closeSharedTooltip();
+                try {
+                    await TerminalCancelPaneAutoClose(pane.id);
+                    terminalPanes = terminalPanes.map((item) => item.id === pane.id && item.autoCloseAt === pane.autoCloseAt
+                        ? { ...item, autoCloseAt: 0 } : item);
+                    renderPaneControls();
+                    canvas.focus();
+                } catch (error) {
+                    timer.disabled = false;
+                    console.error('Failed to cancel pane auto-close', error);
+                }
+            });
+            paneControlsEl.appendChild(timer);
+        }
+    }
+    document.getElementById('terminal-pane')?.toggleAttribute('data-completed-panes', paneControlsEl.childElementCount > 0);
+    const hasCountdowns = !!paneControlsEl.querySelector('.terminal-pane-timer');
+    document.getElementById('terminal-pane')?.toggleAttribute('data-pane-countdowns', hasCountdowns);
+    if (hasCountdowns) {
+        updatePaneCountdowns();
+        paneCountdownInterval = setInterval(updatePaneCountdowns, 50);
+    }
+}
 
 function clearRedrawLatch() {
     if (rafWatchdog) {
@@ -383,6 +515,7 @@ function applyEmbeddedJupyterVisibility() {
     }
 
     canvas.style.display = showJupyter ? 'none' : 'block';
+    paneControlsEl.hidden = showJupyter;
 
     if (!showJupyter) {
         TerminalRequestRedraw().catch(() => {});
@@ -483,6 +616,67 @@ function applyTerminalStyles(result) {
             border-color: ${DARKEN_BACKGROUND_OVERLAY};
         }
 
+        #terminal-pane-controls {
+            position: absolute;
+            inset: 0;
+            z-index: 11;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        #terminal-pane[data-completed-panes] #terminal-zoom-btn {
+            right: 36px;
+        }
+
+        #terminal-pane[data-pane-countdowns] #terminal-zoom-btn {
+            right: 60px;
+        }
+
+        #terminal-pane-controls .terminal-pane-close,
+        #terminal-pane-controls .terminal-pane-timer {
+            position: absolute;
+            pointer-events: auto;
+            display: grid;
+            place-items: center;
+            padding: 0;
+            border: 1px solid var(--terminal-menu-border);
+            border-radius: 3px;
+            background: var(--terminal-bg);
+            color: var(--terminal-fg);
+            font-family: "Font Awesome Solid", "Font Awesome", sans-serif;
+            font-weight: 400;
+            font-size: 12px;
+            line-height: 1;
+            cursor: pointer;
+        }
+
+        #terminal-pane-controls .terminal-pane-close:hover,
+        #terminal-pane-controls .terminal-pane-close:focus-visible,
+        #terminal-pane-controls .terminal-pane-timer:hover,
+        #terminal-pane-controls .terminal-pane-timer:focus-visible {
+            color: var(--terminal-bg);
+            background: var(--terminal-accent);
+            border-color: var(--terminal-accent);
+        }
+
+        #terminal-pane-controls .terminal-pane-timer {
+            background: var(--terminal-green);
+        }
+
+        #terminal-pane-controls .terminal-pane-timer .notif-progress {
+            display: block;
+            width: 70%;
+            height: 70%;
+            min-width: 0;
+            margin: 0;
+        }
+
+        #terminal-pane-controls .terminal-pane-close:disabled,
+        #terminal-pane-controls .terminal-pane-timer:disabled {
+            opacity: 0.5;
+            cursor: default;
+        }
+
         #terminal-viewport[data-tile-count]:not([data-tile-count="1"]) {
             background-color: ${DARKEN_BACKGROUND_OVERLAY} !important;
         }
@@ -526,6 +720,7 @@ function fitCanvasToWindow() {
     canvas.height = height;
     offscreen.width = canvas.width;
     offscreen.height = canvas.height;
+    renderPaneControls();
 }
 
 function syncTerminalGridSize() {
@@ -1140,23 +1335,24 @@ EventsOn("terminalImageCacheDelete", payload => {
 });
 
 EventsOn("terminalRedraw", ops => {
-    if (rafPending) {
-        return;
-    }
-    rafPending = true;
-
-    // Guard against startup race where canvas dimensions are 0.
-    // If parent now has layout, re-fit to proper dimensions.
-    if (canvas.width === 0 || canvas.height === 0) {
-        fitCanvasToWindow();
-    }
-
+    let ownsRedrawLatch = false;
     try {
+        // Guard against startup race where canvas dimensions are 0.
+        // If parent now has layout, re-fit to proper dimensions.
+        if (canvas.width === 0 || canvas.height === 0) {
+            fitCanvasToWindow();
+        }
+
         const drawOps = decodeDrawOpsPayload(ops);
 
         if (!Array.isArray(drawOps) || drawOps.length === 0) {
-            clearRedrawLatch();
             return;
+        }
+
+        // Apply every batch to the offscreen canvas; only coalesce visible paints.
+        if (!rafPending) {
+            rafPending = true;
+            ownsRedrawLatch = true;
         }
 
         cursorRects = [];
@@ -1218,6 +1414,10 @@ EventsOn("terminalRedraw", ops => {
             }
         }
 
+        if (!ownsRedrawLatch) {
+            return;
+        }
+
         rafHandle = requestAnimationFrame(() => {
             try {
                 paintTerminalCanvas();
@@ -1250,7 +1450,9 @@ EventsOn("terminalRedraw", ops => {
         }, 1000);
     } catch (err) {
         console.error('terminal redraw failed', err);
-        clearRedrawLatch();
+        if (ownsRedrawLatch) {
+            clearRedrawLatch();
+        }
     }
 });
 
@@ -1266,6 +1468,17 @@ document.addEventListener('visibilitychange', () => {
 });
 window.addEventListener('focus', resumeTerminalAfterSuspend);
 window.addEventListener('pageshow', resumeTerminalAfterSuspend);
+
+EventsOn("terminalPanes", payload => {
+    const panes = Array.isArray(payload?.[0]) ? payload[0] : payload;
+    if (!Array.isArray(panes)) {
+        return;
+    }
+    paneLayoutVersion += 1;
+    terminalPanes = panes;
+    document.getElementById('terminal-viewport').setAttribute('data-tile-count', String(panes.length));
+    renderPaneControls();
+});
 
 EventsOn("terminalTabs", payload => {
     // Handle both old format (array of tabs) and new format (object with tabs and tileCount)
@@ -1339,6 +1552,16 @@ GetWindowStyle().then((result) => {
                 renderTerminalTabs(tabs);
                 fitCanvasToWindow();
             }).catch(() => {});
+
+            if (typeof TerminalGetPanes === 'function') {
+                const version = paneLayoutVersion;
+                TerminalGetPanes().then((panes) => {
+                    if (version === paneLayoutVersion && Array.isArray(panes)) {
+                        terminalPanes = panes;
+                        renderPaneControls();
+                    }
+                }).catch(() => {});
+            }
 
             TerminalRequestRedraw().catch(() => {});
         });

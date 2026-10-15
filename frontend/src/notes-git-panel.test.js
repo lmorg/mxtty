@@ -89,13 +89,37 @@ function createApi(overrides = {}) {
         stageFile: vi.fn(() => Promise.resolve()),
         stageAll: vi.fn(() => Promise.resolve()),
         unstageFile: vi.fn(() => Promise.resolve()),
-        commitChanges: vi.fn(() => Promise.resolve({ stdout: 'commit output', stderr: '', error: '' })),
+        runGitAction: vi.fn(() => Promise.resolve({ mode: 'interactive', stdout: 'commit output', stderr: '', error: '' })),
         eventsOn: vi.fn(),
         ...overrides,
     };
 }
 
 describe('Notes Git panel', () => {
+    it('sorts untracked, unstaged, then staged files alphabetically within each group', async () => {
+        const elements = createElements();
+        const files = Object.freeze([
+            { path: 'z-staged.txt', staged: true },
+            { path: 'z-work.txt', unstaged: true },
+            { path: 'z-new.txt', untracked: true },
+            { path: 'a-staged.txt', staged: true },
+            { path: 'm-mixed.txt', staged: true, unstaged: true },
+            { path: 'a-new.txt', untracked: true },
+            { path: 'a-work.txt', unstaged: true },
+        ]);
+        const api = createApi({
+            getStatus: vi.fn(async () => ({ root: '/work/repo', branch: 'main', clean: false, files })),
+        });
+        initNotesGitPanel(elements, api);
+        await flushPromises();
+
+        expect(Array.from(elements.gitFileList.querySelectorAll('.notes-git-file-row'), (row) => row.dataset.path)).toEqual([
+            'a-new.txt', 'z-new.txt',
+            'a-work.txt', 'm-mixed.txt', 'z-work.txt',
+            'a-staged.txt', 'z-staged.txt',
+        ]);
+    });
+
     it('toggles the commit row, focuses its message, and stages tracked files only', async () => {
         const elements = createElements();
         const api = createApi();
@@ -122,7 +146,7 @@ describe('Notes Git panel', () => {
         expect(panel.getCurrentRoot()).toBe('/work/repo');
     });
 
-    it('validates and commits a message using the shared output reporting rule', async () => {
+    it('validates the commit request and follows the Git package execution mode', async () => {
         const elements = createElements();
         const api = createApi();
         const notify = vi.fn();
@@ -131,30 +155,44 @@ describe('Notes Git panel', () => {
         await flushPromises();
         elements.gitCommitSubmit.click();
         await flushPromises();
-        expect(api.commitChanges).not.toHaveBeenCalled();
+        expect(api.runGitAction).not.toHaveBeenCalled();
         expect(notify).toHaveBeenCalledWith('Commit message is required', 'warn');
 
         elements.gitCommitMessage.value = '  Add feature  ';
         api.refreshStatus.mockClear();
         elements.gitCommitSubmit.click();
         await flushPromises();
-        expect(api.commitChanges).toHaveBeenCalledWith('/work/repo', 'Add feature');
+        expect(api.runGitAction).toHaveBeenCalledWith('/work/repo', 'commit', { message: 'Add feature' });
         expect(notifyTransfer).toHaveBeenCalledWith(
             { stdout: 'commit output', stderr: '', error: '' }, 'Commit created',
         );
         expect(elements.gitCommitMessage.value).toBe('');
         expect(api.refreshStatus).toHaveBeenCalledWith('/work/repo');
 
-        api.commitChanges.mockResolvedValueOnce({ stdout: '', stderr: 'hook failed', error: 'exit status 1' });
         api.refreshStatus.mockClear();
+        api.runGitAction.mockResolvedValueOnce({ mode: 'interactive', stdout: 'hook output', stderr: '', error: 'git action failed with exit code 1' });
         elements.gitCommitMessage.value = 'Fix hook';
         elements.gitCommitSubmit.click();
         await flushPromises();
-        expect(notifyTransfer).toHaveBeenLastCalledWith(
-            { stdout: '', stderr: 'hook failed', error: 'exit status 1' }, 'Commit created',
-        );
+        expect(notify).toHaveBeenLastCalledWith('Commit failed. See terminal for output', 'error');
+        expect(notifyTransfer).toHaveBeenCalledTimes(1);
         expect(elements.gitCommitMessage.value).toBe('Fix hook');
         expect(api.refreshStatus).not.toHaveBeenCalled();
+
+        api.runGitAction.mockRejectedValueOnce(new Error('bridge failure'));
+        elements.gitCommitMessage.value = 'Bridge failure';
+        elements.gitCommitSubmit.click();
+        await flushPromises();
+        expect(notify).toHaveBeenLastCalledWith('Commit failed. See terminal for output', 'error');
+
+        api.runGitAction.mockResolvedValueOnce({ mode: 'go', stdout: 'fetch completed', stderr: '', error: '' });
+        elements.gitCommitMessage.value = 'Run Go action';
+        elements.gitCommitSubmit.click();
+        await flushPromises();
+        expect(notifyTransfer).toHaveBeenCalledWith(
+            { stdout: 'fetch completed', stderr: '', error: '' }, 'Commit created',
+        );
+        expect(api.refreshStatus).toHaveBeenCalledWith('/work/repo');
     });
 
     it('opens a commit context menu without changing comparison until requested', async () => {
@@ -501,7 +539,7 @@ describe('Notes Git panel', () => {
         expect(api.openRemote).toHaveBeenCalledWith('https://github.com/org/repo/tree/main');
         expect(elements.gitFileList.textContent).toContain('src/main.go');
         expect(elements.gitFileList.textContent).toContain('README.md');
-        const statusCode = elements.gitFileList.querySelector('.notes-git-status-code');
+        const statusCode = elements.gitFileList.querySelector('[data-path="src/main.go"] .notes-git-status-code');
         statusCode.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
         expect(showTooltip).toHaveBeenCalledWith(expect.stringContaining('working tree (M) modified'));
         statusCode.dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: document.body }));
@@ -510,7 +548,7 @@ describe('Notes Git panel', () => {
         elements.gitWorkspace.click();
         expect(showWorkspaceMenu).toHaveBeenCalledWith('/work/repo', elements.gitWorkspace);
 
-        const stageButton = elements.gitFileList.querySelector('[data-git-action="stage"]');
+        const stageButton = elements.gitFileList.querySelector('[data-git-action="stage"][data-path="src/main.go"]');
         const unstageButton = elements.gitFileList.querySelector('[data-git-action="unstage"]');
         expect(stageButton.classList.contains('notes-git-action-stage')).toBe(true);
         expect(unstageButton.classList.contains('notes-git-action-unstage')).toBe(true);
@@ -537,7 +575,7 @@ describe('Notes Git panel', () => {
         });
         expect(api.stageFile).toHaveBeenCalledWith('/work/repo', 'src/main.go');
 
-        const fileButton = elements.gitFileList.querySelector('.notes-git-file');
+        const fileButton = elements.gitFileList.querySelector('.notes-git-file[data-path="src/main.go"]');
         fileButton.click();
         await flushPromises();
         expect(api.getDiff).toHaveBeenCalledWith('/work/repo', 'src/main.go', '');

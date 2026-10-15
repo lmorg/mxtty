@@ -91,7 +91,7 @@ const getGitBrowserLinkMock = vi.fn(() => Promise.resolve({ provider: 'github', 
 const getGitDiffMock = vi.fn(() => Promise.resolve({ path: '', original: '', working: '', binary: false, deleted: false }));
 const stageGitFileMock = vi.fn(() => Promise.resolve());
 const stageAllGitFilesMock = vi.fn(() => Promise.resolve());
-const commitGitChangesMock = vi.fn(() => Promise.resolve({ stdout: '', stderr: '', error: '' }));
+const runGitActionMock = vi.fn(() => Promise.resolve({ mode: 'interactive', stdout: '', stderr: '', error: '' }));
 const unstageGitFileMock = vi.fn(() => Promise.resolve());
 const listGitWorktreesMock = vi.fn(() => Promise.resolve([]));
 const listGitBranchesMock = vi.fn(() => Promise.resolve([]));
@@ -216,7 +216,7 @@ vi.mock('../wailsjs/go/main/WApp', () => ({
     GetGitDiffAgainstBranch: vi.fn(() => Promise.resolve({ path: '', original: '', working: '', binary: false, deleted: false })),
     StageGitFile: stageGitFileMock,
     StageAllGitFiles: stageAllGitFilesMock,
-    CommitGitChanges: commitGitChangesMock,
+    RunGitAction: runGitActionMock,
     UnstageGitFile: unstageGitFileMock,
     ListGitWorktrees: listGitWorktreesMock,
     ListGitBranches: listGitBranchesMock,
@@ -545,8 +545,8 @@ describe('notes rendering', () => {
         getGitDiffMock.mockReset();
         stageGitFileMock.mockReset();
         stageAllGitFilesMock.mockReset();
-        commitGitChangesMock.mockReset();
-        commitGitChangesMock.mockResolvedValue({ stdout: '', stderr: '', error: '' });
+        runGitActionMock.mockReset();
+        runGitActionMock.mockResolvedValue({ mode: 'interactive', stdout: '', stderr: '', error: '' });
         unstageGitFileMock.mockReset();
         listGitWorktreesMock.mockReset();
         listGitBranchesMock.mockReset();
@@ -3422,6 +3422,33 @@ describe('notes rendering', () => {
         expect(saveFileMock).toHaveBeenCalledWith('/project/code-block.js', 'const x = 1;\nconst y = 2;\n', '');
     });
 
+    it.each(['Markdown', 'Jupyter'])('sends %s code through the shared cloned-pane terminal API', async (source) => {
+        const content = "printf '%s\\n' 'hello world'\nprintf 'done\\n'\n";
+        listFilesMock.mockResolvedValue(['$NOTES/commands.md']);
+        getFileMock.mockResolvedValue({ contents: `# Commands\n\n\`\`\`bash\n${content}\`\`\``, text: '', error: '' });
+        await importNotesModule();
+        document.querySelector('[data-file="$NOTES/commands.md"]').click();
+        await flushPromises();
+        await flushPromises();
+
+        let expectedContent = content;
+        if (source === 'Jupyter') {
+            document.getElementById('notes-tab-jupyter').click();
+            await flushPromises();
+            expectedContent = "printf '%s\\n' 'edited cell'\n";
+            document.querySelector('.jupyter-code-editable').value = expectedContent;
+            document.querySelector('.jupyter-run-terminal').click();
+        } else {
+            const block = document.querySelector('#notes-preview pre');
+            block.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+            block.querySelector('.notes-send-terminal-block-button').click();
+        }
+        await flushPromises();
+        expect(sendToTerminalMock).toHaveBeenCalledOnce();
+        expect(sendToTerminalMock).toHaveBeenCalledWith(expectedContent);
+        expect(runNoteMock).not.toHaveBeenCalled();
+    });
+
     it('shows a hover copy button for code and quote blocks in View and AI output', async () => {
         listFilesMock.mockResolvedValue(['$NOTES/blocks.md']);
         getFileMock.mockResolvedValue({ contents: '# Blocks', text: '', error: '' });
@@ -3599,12 +3626,16 @@ describe('notes rendering', () => {
         expect(document.getElementById('notes-current-file').textContent).not.toContain('Planning notes');
     });
 
-    it('places the commit toggle after comparison and uses distinct commit-log icon', async () => {
+    it('places commit history after comparison and commit controls in the actions toolbar', async () => {
         await importNotesModule();
         const compare = document.getElementById('notes-tools-git-compare');
         const commitToggle = document.getElementById('notes-tools-git-commit-toggle');
         const commits = document.getElementById('notes-tools-git-commits');
-        expect(compare.nextElementSibling).toBe(commitToggle);
+        const separator = compare.nextElementSibling;
+        expect(separator.classList.contains('notes-git-toolbar-separator')).toBe(true);
+        expect(separator.getAttribute('aria-hidden')).toBe('true');
+        expect(separator.nextElementSibling).toBe(commits);
+        expect(document.querySelector('.notes-git-actions').firstElementChild).toBe(commitToggle);
         expect(commitToggle.textContent.codePointAt(0)).toBe(0xf386);
         expect(commits.textContent.codePointAt(0)).toBe(0xf022);
         expect(document.getElementById('notes-tools-git-commit-row').hidden).toBe(true);
@@ -5091,7 +5122,7 @@ describe('notes rendering', () => {
         expect(document.querySelector('.notes-git-actions #notes-tools-git-workspace')).not.toBeNull();
         const gitToolbarItems = Array.from(document.querySelector('.notes-git-actions').children);
         expect(gitToolbarItems.map((element) => element.id || 'separator')).toEqual([
-            'notes-tools-git-commits', 'separator', 'notes-tools-git-branches', 'notes-tools-git-tags', 'notes-tools-git-workspace', 'separator', 'notes-tools-git-remote', 'notes-tools-git-refresh',
+            'notes-tools-git-commit-toggle', 'separator', 'notes-tools-git-branches', 'notes-tools-git-tags', 'notes-tools-git-workspace', 'separator', 'notes-tools-git-remote', 'notes-tools-git-refresh',
         ]);
         expect(gitToolbarItems[1].getAttribute('aria-hidden')).toBe('true');
         expect(gitToolbarItems[5].getAttribute('aria-hidden')).toBe('true');
@@ -5173,7 +5204,7 @@ describe('notes rendering', () => {
         menu.onSelect(4);
         await flushPromises();
         expect(sendIpcMock.mock.calls.slice(beforeFallback).filter(([channel]) => channel === 'terminal-notify'))
-            .toEqual([['terminal-notify', { message: 'exit status 128', level: 'error' }]]);
+            .toEqual([['terminal-notify', { message: 'partial output', level: 'error' }]]);
         menu.onSelect(5);
         await flushPromises();
         expect(createGitWorktreeMock).toHaveBeenCalledWith('/workspace/repo', 'alpha', '/Users/test/.git_worktrees/default/alpha', false);

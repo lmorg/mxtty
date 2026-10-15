@@ -49,6 +49,18 @@ func (term *Term) Render() bool {
 	term._renderOutputBlockChrome(screen)
 
 	term._renderCursor()
+	if pane, ok := term.tile.(interface{ InteractiveActionChrome() *types.Colour }); ok {
+		if colour := pane.InteractiveActionChrome(); colour != nil {
+			term.renderer.DrawRectWithColourAndBorder(
+				term.tile,
+				&types.XY{},
+				&types.XY{X: term.size.X, Y: term.size.Y},
+				colour,
+				false,
+				true,
+			)
+		}
+	}
 
 	return true
 }

@@ -7,6 +7,7 @@ func (wr *webkitRender) enqueueDrawCommand(cmd DrawCommand) {
 }
 
 func (wr *webkitRender) PopDrawCommands() []DrawCommand {
+	wr.emitPaneLayout()
 	if wr.termWin != nil {
 		for _, tile := range wr.termWin.Tiles {
 			if tile == nil {

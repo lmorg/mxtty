@@ -3,7 +3,10 @@ package tmux
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"reflect"
+	"strings"
+	"sync/atomic"
 
 	"github.com/lmorg/ttyphoon/codes"
 	"github.com/lmorg/ttyphoon/debug"
@@ -58,23 +61,26 @@ import (
 var CMD_LIST_PANES = "list-panes"
 
 type PaneT struct {
-	title    string
-	id       string
-	width    int
-	height   int
-	left     int32
-	top      int32
-	right    int32
-	bottom   int32
-	active   bool
-	atBottom bool
-	zoomed   bool
-	windowId string
-	pwd      string
-	tmux     *Tmux
-	term     types.Term
-	buf      *runebuf.Buf
-	closed   bool
+	title        string
+	id           string
+	width        int
+	height       int
+	left         int32
+	top          int32
+	right        int32
+	bottom       int32
+	active       bool
+	atBottom     bool
+	zoomed       bool
+	windowId     string
+	pwd          string
+	tmux         *Tmux
+	term         types.Term
+	buf          *runebuf.Buf
+	closed       bool
+	dead         atomic.Bool
+	actionResult atomic.Int32
+	autoCloseAt  atomic.Int64
 }
 
 func (tmux *Tmux) initSessionPanes(renderer types.Renderer) error {
@@ -213,6 +219,10 @@ func (info *paneInfo) updatePane(tmux *Tmux) *PaneT {
 	pane.atBottom = info.AtBottom
 	pane.zoomed = info.Zoomed
 	pane.pwd = info.Path
+	if pane.dead.Swap(info.Dead) && !info.Dead {
+		pane.actionResult.Store(0)
+		pane.autoCloseAt.Store(0)
+	}
 	if pane.term != nil {
 		pane.term.MakeVisible(info.WinActive)
 		pane.term.SetFocus(info.Active)
@@ -301,4 +311,164 @@ func (tmux *Tmux) paneExited() error {
 	go tmux.renderer.RefreshWindowList()
 
 	return nil
+}
+
+func (tmux *Tmux) ClonePane(pane *PaneT, commandLine string, callback interactiveActionCallback) error {
+	if pane == nil || pane.term == nil {
+		return fmt.Errorf("source terminal pane is unavailable")
+	}
+	if callback == nil {
+		return fmt.Errorf("interactive action callback is required")
+	}
+
+	actionID, err := newInteractiveActionID()
+	if err != nil {
+		return err
+	}
+	scriptPath, err := writeBashScript(commandLine, actionID)
+	if err != nil {
+		return err
+	}
+	if !tmux.registerInteractiveAction(actionID, scriptPath, callback) {
+		_ = os.Remove(scriptPath)
+		return fmt.Errorf("interactive action UUID collision")
+	}
+
+	setupFailed := true
+	newPaneID := ""
+	defer func() {
+		if setupFailed {
+			tmux.discardInteractiveAction(actionID)
+			if newPaneID != "" {
+				_, _ = tmux.SendCommand(fmt.Appendf(nil, "kill-pane -t %s", newPaneID))
+			}
+		}
+	}()
+
+	envMap := pane.term.GetEnvVars()
+	var envStr strings.Builder
+	for key, value := range envMap {
+		envStr.WriteString(fmt.Sprintf("-e %s=%s ", key, quoteString(value)))
+	}
+
+	tmuxCommand := clonePaneCommand(pane.id, envStr.String(), scriptPath)
+	response, err := tmux.SendCommand([]byte(tmuxCommand))
+	if err != nil {
+		return err
+	}
+	newPaneID = responsePaneID(response)
+	if newPaneID == "" {
+		return fmt.Errorf("tmux did not return the cloned pane ID")
+	}
+	if err := tmux.updatePaneInfo(newPaneID); err != nil {
+		return err
+	}
+	clonedPane := tmux.panes.Get(newPaneID)
+	if clonedPane == nil || clonedPane.term == nil {
+		return fmt.Errorf("cloned terminal pane %s was not initialized", newPaneID)
+	}
+	if tmux.renderer != nil {
+		tmux.renderer.RefreshWindowList()
+	}
+	if !tmux.bindInteractiveActionPane(actionID, newPaneID) {
+		return fmt.Errorf("interactive action callback %s could not bind to pane %s", actionID, newPaneID)
+	}
+	setupFailed = false
+	return nil
+}
+
+func quoteString(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `"`, `\"`)
+	return fmt.Sprintf(`"%s"`, s)
+}
+
+func quoteShellArgument(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'"
+}
+
+func clonePaneCommand(paneID, environmentArgs, scriptPath string) string {
+	environmentArgs = strings.TrimSpace(environmentArgs)
+	if environmentArgs != "" {
+		environmentArgs = " " + environmentArgs
+	}
+	return fmt.Sprintf(`split-window -v -k -P -F '#{pane_id}' -t %s -c "#{pane_current_path}"%s bash %s`, paneID, environmentArgs, quoteString(scriptPath))
+}
+
+func responsePaneID(response *tmuxResponseT) string {
+	if response == nil {
+		return ""
+	}
+	for _, line := range response.Message {
+		paneID := strings.TrimSpace(string(line))
+		if strings.HasPrefix(paneID, "%") {
+			return paneID
+		}
+	}
+	return ""
+}
+
+func (pane *PaneT) HandleInteractiveActionCompletion(actionID string, exitCode int, output []byte) {
+	if pane == nil || pane.tmux == nil {
+		return
+	}
+	pane.tmux.completeInteractiveAction(actionID, pane.id, output, exitCode)
+}
+
+func (pane *PaneT) CommandFinished() bool {
+	return pane != nil && (pane.dead.Load() || pane.actionResult.Load() != 0)
+}
+
+func (pane *PaneT) AutoCloseAt() int64 {
+	if pane == nil {
+		return 0
+	}
+	return max(0, pane.autoCloseAt.Load())
+}
+
+func (tmux *Tmux) CancelPaneAutoClose(paneID string) error {
+	pane := tmux.panes.Get(paneID)
+	if pane == nil || pane.closed {
+		return fmt.Errorf("pane not found")
+	}
+	for {
+		deadline := pane.autoCloseAt.Load()
+		if deadline < 0 {
+			return fmt.Errorf("pane is already closing")
+		}
+		if deadline == 0 || pane.autoCloseAt.CompareAndSwap(deadline, 0) {
+			if tmux.renderer != nil {
+				tmux.renderer.TriggerRedraw()
+			}
+			return nil
+		}
+	}
+}
+
+func (tmux *Tmux) CloseCompletedPane(paneID string) error {
+	pane := tmux.panes.Get(paneID)
+	if pane == nil || pane.closed {
+		return fmt.Errorf("pane not found")
+	}
+	if !pane.CommandFinished() {
+		return fmt.Errorf("pane command is still running")
+	}
+	if _, err := tmux.SendCommand(fmt.Appendf(nil, "kill-pane -t %s", pane.id)); err != nil {
+		return err
+	}
+	return tmux.paneExited()
+}
+
+func (pane *PaneT) InteractiveActionChrome() *types.Colour {
+	if pane == nil {
+		return nil
+	}
+	switch pane.actionResult.Load() {
+	case 1:
+		return types.COLOR_OK
+	case 2:
+		return types.COLOR_ERROR
+	default:
+		return nil
+	}
 }

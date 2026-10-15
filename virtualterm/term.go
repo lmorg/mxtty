@@ -86,7 +86,8 @@ type Term struct {
 	_blockMetaId     atomic.Int64
 	_spellingExc     map[string]bool
 
-	_apcStack uint
+	_apcStack                uint
+	pendingInteractiveAction *interactiveActionCompletion
 
 	// search
 	_searchHighlight  bool

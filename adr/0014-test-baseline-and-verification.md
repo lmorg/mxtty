@@ -4,8 +4,8 @@ Date: 2026-09-06
 
 ## Status
 
-Accepted. Updated 2026-10-14: the historical failures below remain resolved,
-but current verification has the unrelated failures recorded below.
+Accepted. Updated 2026-10-15: the frontend suite passes; the unrelated Go
+failures recorded below remain the known baseline.
 
 ## Context
 
@@ -35,19 +35,17 @@ All four Go failures also reproduce in an isolated clean `HEAD` export, without
 the Notes navigation/storage changes. `go build ./...` passes. The affected
 Notes/history, shared path, asset, image, graph and session tests pass.
 
-The current working-tree frontend run has 481 passes and two Git-panel failures
-in `src/notes.test.js`: `resets Commits on a workspace change even when the
-project root stays the same` (commit-content CSS expectations), and `resets the
-branch selection when Create branch is cancelled and reports worktree action
-errors` (worktree creation/removal error expectations). Git-panel/CSS edits
-were already present before the Notes navigation work and are not changed by
-that task. Notes rename/delete/grep, structured Edit Find and shortcut regression
-tests pass.
+Frontend verification on 2026-10-15: `npm run test:run -- --reporter=dot` passes
+all 504 tests across 20 files. Two stale toolbar-placement assertions in
+`src/notes.test.js` were updated to match the current UI: commit history sits
+beside the comparison selector after a separator, and the commit-controls toggle
+is the first actions-toolbar item. Icon, visibility, and action checks remain;
+no application UI was changed during this test review.
 
 Terminal hover-exit verification also passes: `go test ./virtualterm
 ./window/backend/renderer_webkit ./tmux ./types . -count=1`, `go build ./...`
-and all 10 tests in `src/terminal.test.js`. The frontend-wide failures above are
-unchanged.
+and all 14 tests in `src/terminal.test.js`, included in the frontend-wide pass
+above.
 
 ### Resolved
 

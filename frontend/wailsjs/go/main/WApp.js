@@ -54,10 +54,6 @@ export function CommandPaletteSelect(arg1) {
   return window['go']['main']['WApp']['CommandPaletteSelect'](arg1);
 }
 
-export function CommitGitChanges(arg1, arg2) {
-  return window['go']['main']['WApp']['CommitGitChanges'](arg1, arg2);
-}
-
 export function CompleteSyntax(arg1, arg2, arg3, arg4, arg5, arg6, arg7) {
   return window['go']['main']['WApp']['CompleteSyntax'](arg1, arg2, arg3, arg4, arg5, arg6, arg7);
 }
@@ -574,6 +570,10 @@ export function RunFunction(arg1, arg2, arg3, arg4, arg5, arg6) {
   return window['go']['main']['WApp']['RunFunction'](arg1, arg2, arg3, arg4, arg5, arg6);
 }
 
+export function RunGitAction(arg1, arg2, arg3) {
+  return window['go']['main']['WApp']['RunGitAction'](arg1, arg2, arg3);
+}
+
 export function RunHyperlinkMenuAction(arg1, arg2, arg3) {
   return window['go']['main']['WApp']['RunHyperlinkMenuAction'](arg1, arg2, arg3);
 }
@@ -714,8 +714,20 @@ export function SyncNotesContext(arg1) {
   return window['go']['main']['WApp']['SyncNotesContext'](arg1);
 }
 
+export function TerminalCancelPaneAutoClose(arg1) {
+  return window['go']['main']['WApp']['TerminalCancelPaneAutoClose'](arg1);
+}
+
+export function TerminalClosePane(arg1) {
+  return window['go']['main']['WApp']['TerminalClosePane'](arg1);
+}
+
 export function TerminalCopyImageDataURL(arg1) {
   return window['go']['main']['WApp']['TerminalCopyImageDataURL'](arg1);
+}
+
+export function TerminalGetPanes() {
+  return window['go']['main']['WApp']['TerminalGetPanes']();
 }
 
 export function TerminalGetTabs() {
