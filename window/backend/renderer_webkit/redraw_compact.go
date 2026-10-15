@@ -44,7 +44,7 @@ func encodeDrawCommands(commands []DrawCommand) []DrawOpTuple {
 			})
 
 		case DrawOpFrame:
-			ops = append(ops, DrawOpTuple{compactOpFrame, cmd.X, cmd.Y, cmd.Width, cmd.Height})
+			ops = append(ops, DrawOpTuple{compactOpFrame, cmd.X, cmd.Y, cmd.Width, cmd.Height, cmd.Flags})
 
 		case DrawOpHighlight:
 			ops = append(ops, DrawOpTuple{compactOpHighlight, cmd.X, cmd.Y, cmd.Width, cmd.Height, packColour24(cmd.Fg), packColour24(cmd.Bg)})

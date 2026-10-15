@@ -3301,17 +3301,26 @@ func (a *WApp) GetCustomRegexp() []map[string]string {
 	return result
 }
 
-func (a *WApp) SendToTerminal(content string) error {
+func (a *WApp) SendToTerminal(content, language string) error {
 	renderer, ok := renderwebkit.CurrentRenderer()
 	if !ok {
 		return fmt.Errorf("renderer not available")
 	}
 
-	return renderer.CloneActivePane(content, func(_ []byte, _ int, err error) {
+	command, cleanup, err := jupyter.PrepareTerminalCommand(content, language, a.GetCurrentProject())
+	if err != nil {
+		return err
+	}
+	err = renderer.CloneActivePane(command, func(_ []byte, _ int, err error) {
+		cleanup()
 		if err != nil {
 			renderer.DisplayNotification(types.NOTIFY_ERROR, err.Error())
 		}
 	})
+	if err != nil {
+		cleanup()
+	}
+	return err
 }
 
 // SwaggerRequest executes an HTTP request for a Swagger/OpenAPI endpoint.

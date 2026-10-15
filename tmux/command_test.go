@@ -1,6 +1,7 @@
 package tmux
 
 import (
+	"net/url"
 	"os"
 	"os/exec"
 	"reflect"
@@ -336,7 +337,7 @@ func TestClosingInteractiveActionPaneFailsPendingCallback(t *testing.T) {
 }
 
 func TestWriteBashScriptEmitsCallbackUUIDAndExitCode(t *testing.T) {
-	path, err := writeBashScript("git commit -m 'message'", "550e8400-e29b-41d4-a716-446655440000")
+	path, err := writeBashScript("git commit -m 'message'", "550e8400-e29b-41d4-a716-446655440000", "/tmp/project")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -360,7 +361,7 @@ func TestWriteBashScriptEmitsCallbackUUIDAndExitCode(t *testing.T) {
 
 func TestBashScriptEmitsCompletionAfterCommandFailure(t *testing.T) {
 	const id = "550e8400-e29b-41d4-a716-446655440000"
-	path, err := writeBashScript("printf 'hook failed\\n'; false", id)
+	path, err := writeBashScript("printf 'hook failed\\n'; false", id, "/tmp/project")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -372,5 +373,39 @@ func TestBashScriptEmitsCompletionAfterCommandFailure(t *testing.T) {
 	}
 	if !strings.Contains(string(output), "hook failed") || !strings.Contains(string(output), `ttyphoon;interactive-action-complete;{"id":"`+id+`","exitCode":1}`) {
 		t.Fatalf("wrapper output %q does not include command output and failed completion APC", output)
+	}
+}
+
+func TestBashScriptReportsEncodedSourcePanePath(t *testing.T) {
+	for _, pwd := range []string{
+		"/tmp/project",
+		"/tmp/space #?%/$HOME/$(printf injected)/quote'\"/caf\u00e9",
+		"/tmp/line\nbreak",
+	} {
+		t.Run(pwd, func(t *testing.T) {
+			path, err := writeBashScript(":", "550e8400-e29b-41d4-a716-446655440000", pwd)
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = os.Remove(path) })
+			command := exec.Command("bash", path)
+			command.Dir = t.TempDir()
+			command.Env = append(os.Environ(), "HOSTNAME=synthetic-host")
+			output, err := command.CombinedOutput()
+			if err != nil {
+				t.Fatalf("wrapper failed: %v, %q", err, output)
+			}
+			sequence, _, found := strings.Cut(string(output), "\x1b\\")
+			if !found || !strings.HasPrefix(sequence, "\x1b]7;file://synthetic-host/") {
+				t.Fatalf("missing OSC 7 file URI: %q", output)
+			}
+			uri, err := url.Parse(strings.TrimPrefix(sequence, "\x1b]7;"))
+			if err != nil || uri.Path != pwd || uri.Host != "synthetic-host" || uri.RawQuery != "" || uri.Fragment != "" {
+				t.Fatalf("OSC 7 URI = %+v, %v; want path %q", uri, err, pwd)
+			}
+			if strings.ContainsAny(sequence, "\r\n\t ") {
+				t.Fatalf("OSC 7 contains unencoded whitespace: %q", sequence)
+			}
+		})
 	}
 }

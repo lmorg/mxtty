@@ -18,6 +18,36 @@ func (tile *paneLayoutTestTile) Left() int32         { return tile.x }
 func (tile *paneLayoutTestTile) Top() int32          { return tile.y }
 func (tile *paneLayoutTestTile) GetTerm() types.Term { return tile.term }
 
+type completionFrameTestTile struct {
+	paneLayoutTestTile
+	colour *types.Colour
+}
+
+func (tile *completionFrameTestTile) Right() int32                           { return tile.x + tile.term.GetSize().X - 1 }
+func (tile *completionFrameTestTile) Bottom() int32                          { return tile.y + tile.term.GetSize().Y - 1 }
+func (tile *completionFrameTestTile) InteractiveActionChrome() *types.Colour { return tile.colour }
+
+func TestCompletedPaneFrameCarriesBackgroundResult(t *testing.T) {
+	for _, test := range []struct {
+		colour *types.Colour
+		flags  int32
+	}{{nil, 0}, {types.COLOR_OK, 1}, {types.COLOR_ERROR, 2}} {
+		renderer := &webkitRender{}
+		tile := &completionFrameTestTile{
+			paneLayoutTestTile: paneLayoutTestTile{term: &paneLayoutTestTerm{size: types.XY{X: 80, Y: 24}}},
+			colour:             test.colour,
+		}
+		renderer.DrawFrame(tile)
+		if len(renderer.drawCommands) != 1 || renderer.drawCommands[0].Op != DrawOpFrame || renderer.drawCommands[0].Flags != test.flags {
+			t.Fatalf("completion frame = %+v, want frame with result %d", renderer.drawCommands, test.flags)
+		}
+		ops := encodeDrawCommands(renderer.drawCommands)
+		if len(ops) != 1 || len(ops[0]) != 6 || ops[0][5] != test.flags {
+			t.Fatalf("compact completion frame = %v, want result %d", ops, test.flags)
+		}
+	}
+}
+
 type paneLayoutTestTerm struct {
 	types.Term
 	size types.XY

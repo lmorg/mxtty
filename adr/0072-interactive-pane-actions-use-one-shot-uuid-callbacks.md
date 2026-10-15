@@ -38,9 +38,11 @@ terminal text; it must correspond to an outstanding invocation.
   focused shell's reported environment as well as its working directory.
 - Remove a pending callback if pane creation fails or the associated pane exits
   without reporting completion.
-- On exit code zero, paint the pane with the existing green hover chrome and
-  close it after thirty seconds. On non-zero exit, paint it with the existing red
-  error-hover chrome and leave it open for inspection.
+- On exit code zero, tint the pane's default background with the theme green at
+  0.2 opacity and close it after thirty seconds. On non-zero exit, use the theme
+  red at the same opacity and leave it open for inspection. Completion adds no
+  borders or foreground overlay: blend the tint into the frame background before
+  drawing text, retaining text colors and explicit cell backgrounds.
 - Include the backend auto-close deadline as Unix milliseconds in the pane
   snapshot's `autoCloseAt` field. Show the notification-style pie countdown next
   to the close icon, using that deadline so redraws and tab switches do not reset
@@ -73,13 +75,26 @@ terminal text; it must correspond to an outstanding invocation.
 - Keep this terminal mechanism generic; Git-specific execution policy remains
   in `utils/git` (ADR 0071).
 - Markdown code blocks and Jupyter's Send to terminal action share the
-  `SendToTerminal(content)` Wails API. It delegates to `CloneActivePane`, running
-  the supplied content immediately as a shell script in a cloned tmux pane,
-  rather than pasting into the active shell. The clone inherits the source
-  pane's environment and working directory, uses the same authenticated
-  completion callback, and gets the same close controls and cancellable success
-  countdown. Pane setup errors are returned to the frontend; tmux must be
-  available rather than falling back to writing into the original pane.
+  `SendToTerminal(content, language)` Wails API. Jupyter passes its selected
+  runtime; Markdown resolves the fenced language (or highlighting-based
+  detection for unlabelled blocks) through the same language-description hook.
+  `jupyter.PrepareTerminalCommand` resolves the runtime binding, renders its
+  existing source template into a unique temporary directory, and expands the
+  configured formatter, both build commands, and execution command using
+  absolute file paths. Generated files use a `Main` basename for templates that
+  require it, such as Java's public Main class.
+- Execute those commands through `CloneActivePane`, not inside the Go process.
+  The clone inherits the source pane's environment; the pipeline explicitly
+  enters the current project directory, matching Jupyter's Run action. As in
+  the existing runner, formatting failures are non-fatal, while either build
+  failure prevents execution and preserves its exit status. Shell arguments
+  are quoted individually. The pipeline runs in a subshell so a directory-change
+  failure cannot bypass the outer wrapper's completion APC.
+- Remove generated source and build artifacts on completion, cancellation, or
+  pane-creation failure. The authenticated completion callback supplies the same
+  close controls and cancellable success countdown. Unsupported runtimes and
+  pane setup errors are returned to the frontend; tmux must be available rather
+  than falling back to writing into the original pane.
 
 The UUID match is an accidental-use guard, not a cryptographic security
 boundary.
@@ -99,4 +114,5 @@ complete normally.
 - `virtualterm/ansi_apc.go` - APC parsing entry point
 - `virtualterm/term.go` - terminal screen output access
 - `utils/git/action.go` - Git execution policy and interactive action caller
+- `utils/jupyter/run.go` - runtime-aware terminal pipeline preparation
 - `frontend.go` - Wails-to-renderer adapter

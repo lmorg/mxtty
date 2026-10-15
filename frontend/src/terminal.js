@@ -252,7 +252,7 @@ function toCompactCommand(op) {
         }
 
         case REDRAW_OP.FRAME:
-            return { op: 'frame', x: op[1], y: op[2], width: op[3], height: op[4] };
+            return { op: 'frame', x: op[1], y: op[2], width: op[3], height: op[4], result: Number(op[5]) || 0 };
 
         case REDRAW_OP.HIGHLIGHT_RECT:
             return {
@@ -1127,7 +1127,13 @@ function drawFrame(cmd = null) {
     }
 
     const bg = windowStyle?.colors?.bg || { Red: 0, Green: 0, Blue: 0 };
-    offCtx.fillStyle = `rgb(${bg.Red}, ${bg.Green}, ${bg.Blue})`;
+    const tint = cmd?.result === 1 ? windowStyle?.colors?.green : cmd?.result === 2 ? windowStyle?.colors?.red : null;
+    const background = tint ? {
+        Red: Math.round(bg.Red * 0.8 + tint.Red * 0.2),
+        Green: Math.round(bg.Green * 0.8 + tint.Green * 0.2),
+        Blue: Math.round(bg.Blue * 0.8 + tint.Blue * 0.2),
+    } : bg;
+    offCtx.fillStyle = `rgb(${background.Red}, ${background.Green}, ${background.Blue})`;
     offCtx.fillRect(x, y, width, height);
 }
 

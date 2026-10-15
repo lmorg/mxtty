@@ -325,7 +325,7 @@ func (tmux *Tmux) ClonePane(pane *PaneT, commandLine string, callback interactiv
 	if err != nil {
 		return err
 	}
-	scriptPath, err := writeBashScript(commandLine, actionID)
+	scriptPath, err := writeBashScript(commandLine, actionID, pane.pwd)
 	if err != nil {
 		return err
 	}

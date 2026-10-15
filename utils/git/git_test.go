@@ -884,14 +884,57 @@ func TestWorkspaceStatusAcceptsWorktreeRoot(t *testing.T) {
 }
 
 func TestListBranchesAndWorktreesFromEitherRootAndCreateWorktrees(t *testing.T) {
-	root := initGitTestRepo(t)
-	gitPath, err := exec.LookPath("git")
-	if err != nil {
-		t.Skip("git is not installed")
+	base := resolveTestPath(t, t.TempDir())
+	root := filepath.Join(base, "primary repo")
+	linkedRoot := filepath.Join(base, " linked worktree")
+	binDir := filepath.Join(base, "bin")
+	for _, path := range []string{filepath.Join(root, ".git", "info"), linkedRoot, binDir} {
+		if err := os.MkdirAll(path, 0700); err != nil {
+			t.Fatal(err)
+		}
 	}
-	linkedRoot := filepath.Join(t.TempDir(), " linked worktree")
-	runGitTestCommand(t, gitPath, root, "worktree", "add", "--quiet", "-b", "zeta", linkedRoot)
-	runGitTestCommand(t, gitPath, root, "branch", "alpha")
+	if err := os.WriteFile(filepath.Join(linkedRoot, ".git"), []byte("gitdir: synthetic\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	commandLog := filepath.Join(base, "worktree-commands")
+	t.Setenv("TTYPHOON_TEST_GIT_ROOT", root)
+	t.Setenv("TTYPHOON_TEST_GIT_LINKED_ROOT", linkedRoot)
+	t.Setenv("TTYPHOON_TEST_GIT_COMMAND_LOG", commandLog)
+	t.Setenv("PATH", binDir)
+	script := `#!/bin/sh
+if [ "$1" != "-C" ]; then
+    printf 'expected -C, got %s\n' "$*" >&2
+    exit 1
+fi
+repo=$2
+shift 2
+case "$repo" in
+    "$TTYPHOON_TEST_GIT_ROOT"|"$TTYPHOON_TEST_GIT_LINKED_ROOT") ;;
+    *) printf 'unexpected repository: %s\n' "$repo" >&2; exit 1 ;;
+esac
+if [ "$1" = "worktree" ] && [ "$2" = "add" ]; then
+    printf '%s\000' -C "$repo" "$@" >> "$TTYPHOON_TEST_GIT_COMMAND_LOG"
+    exit 0
+fi
+case "$*" in
+    'rev-parse --show-toplevel')
+        printf '%s\n' "$repo" ;;
+    'for-each-ref --format=%(refname:short) refs/heads')
+        printf '%s\n' zeta main alpha ;;
+    'worktree list --porcelain -z')
+        printf 'worktree %s\000HEAD aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\000branch refs/heads/main\000\000' "$TTYPHOON_TEST_GIT_ROOT"
+        printf 'worktree %s\000HEAD aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\000branch refs/heads/zeta\000\000' "$TTYPHOON_TEST_GIT_LINKED_ROOT" ;;
+    'check-ref-format refs/heads/alpha'|'check-ref-format refs/heads/feature/new') ;;
+    'rev-parse --git-common-dir')
+        printf '%s/.git\n' "$TTYPHOON_TEST_GIT_ROOT" ;;
+    '--no-optional-locks status --porcelain=v1 -z --branch --untracked-files=all')
+        printf '## main\000' ;;
+    *) printf 'unexpected git command: %s\n' "$*" >&2; exit 1 ;;
+esac
+`
+	if err := os.WriteFile(filepath.Join(binDir, "git"), []byte(script), 0700); err != nil {
+		t.Fatal(err)
+	}
 
 	for _, queryRoot := range []string{root, linkedRoot} {
 		branches, err := ListBranches(queryRoot)
@@ -905,11 +948,8 @@ func TestListBranchesAndWorktreesFromEitherRootAndCreateWorktrees(t *testing.T) 
 		if err != nil {
 			t.Fatalf("ListWorktrees(%q) error = %v", queryRoot, err)
 		}
-		if len(worktrees) != 2 {
-			t.Fatalf("ListWorktrees(%q) = %+v, want both worktrees", queryRoot, worktrees)
-		}
-		if !containsWorktreePath(worktrees, resolveTestPath(t, linkedRoot)) {
-			t.Fatalf("ListWorktrees(%q) = %+v, missing exact whitespace-containing path %q", queryRoot, worktrees, linkedRoot)
+		if len(worktrees) != 2 || worktrees[0] != (Worktree{Path: linkedRoot, Branch: "zeta"}) || worktrees[1] != (Worktree{Path: root, Branch: "main"}) {
+			t.Fatalf("ListWorktrees(%q) = %+v, want sorted synthetic worktrees with exact paths", queryRoot, worktrees)
 		}
 	}
 
@@ -934,8 +974,26 @@ func TestListBranchesAndWorktreesFromEitherRootAndCreateWorktrees(t *testing.T) 
 	if err != nil {
 		t.Fatalf("CreateWorktree(new branch from linked root) error = %v", err)
 	}
-	if worktree.Branch != "feature/new" {
+	if worktree.Branch != "feature/new" || worktree.Path != filepath.Join(linkedRoot, newBranchPath) {
 		t.Fatalf("CreateWorktree(new branch) = %+v", worktree)
+	}
+	commands, err := os.ReadFile(commandLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantCommands := []string{
+		"-C", root, "worktree", "add", createdPath, "alpha",
+		"-C", linkedRoot, "worktree", "add", "-b", "feature/new", filepath.Join(linkedRoot, newBranchPath),
+	}
+	if string(commands) != strings.Join(wantCommands, "\x00")+"\x00" {
+		t.Fatalf("worktree commands = %q, want %q", strings.Split(string(commands), "\x00"), wantCommands)
+	}
+	exclude, err := os.ReadFile(filepath.Join(root, ".git", "info", "exclude"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(exclude) != "/.git_worktrees/alpha/\n/.git_worktrees/feature/new/\n" {
+		t.Fatalf("worktree exclusions = %q, want both nested worktree paths in the shared Git directory", exclude)
 	}
 }
 

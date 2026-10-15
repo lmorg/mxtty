@@ -528,7 +528,7 @@ describe('notes rendering', () => {
         stopNoteMock.mockClear();
         sendIpcMock.mockClear();
         sendToTerminalMock.mockClear();
-        getLanguageDescriptionsMock.mockClear();
+        getLanguageDescriptionsMock.mockReset().mockResolvedValue([]);
         getAllLanguageDescriptionsMock.mockClear();
         terminalCopyImageDataURLMock.mockClear();
         saveImageDialogMock.mockClear();
@@ -3424,6 +3424,7 @@ describe('notes rendering', () => {
 
     it.each(['Markdown', 'Jupyter'])('sends %s code through the shared cloned-pane terminal API', async (source) => {
         const content = "printf '%s\\n' 'hello world'\nprintf 'done\\n'\n";
+        getLanguageDescriptionsMock.mockResolvedValue(['Bash Shell Script', 'Alternative shell']);
         listFilesMock.mockResolvedValue(['$NOTES/commands.md']);
         getFileMock.mockResolvedValue({ contents: `# Commands\n\n\`\`\`bash\n${content}\`\`\``, text: '', error: '' });
         await importNotesModule();
@@ -3432,11 +3433,15 @@ describe('notes rendering', () => {
         await flushPromises();
 
         let expectedContent = content;
+        let expectedRuntime = 'Bash Shell Script';
         if (source === 'Jupyter') {
             document.getElementById('notes-tab-jupyter').click();
             await flushPromises();
             expectedContent = "printf '%s\\n' 'edited cell'\n";
             document.querySelector('.jupyter-code-editable').value = expectedContent;
+            document.querySelector('.jupyter-runtime-dropdown').click();
+            showLocalMenuMock.mock.calls.at(-1)[0].onSelect(1);
+            expectedRuntime = 'Alternative shell';
             document.querySelector('.jupyter-run-terminal').click();
         } else {
             const block = document.querySelector('#notes-preview pre');
@@ -3445,7 +3450,7 @@ describe('notes rendering', () => {
         }
         await flushPromises();
         expect(sendToTerminalMock).toHaveBeenCalledOnce();
-        expect(sendToTerminalMock).toHaveBeenCalledWith(expectedContent);
+        expect(sendToTerminalMock).toHaveBeenCalledWith(expectedContent, expectedRuntime);
         expect(runNoteMock).not.toHaveBeenCalled();
     });
 

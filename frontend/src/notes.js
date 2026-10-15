@@ -7637,12 +7637,13 @@ async function runCodeBlockInTerminal(blockId) {
         block.currentContent = editableElement.value;
     }
     
-        try {
-            await SendToTerminal(block.currentContent);
-            window.dispatchEvent(new CustomEvent('ttyphoon-focus-terminal'));
-        } catch (err) {
-            console.error('Error sending to terminal:', err);
-        }
+    try {
+        await SendToTerminal(block.currentContent, block.runtime);
+        window.dispatchEvent(new CustomEvent('ttyphoon-focus-terminal'));
+    } catch (err) {
+        console.error('Error sending to terminal:', err);
+        notifyTerminal(`Failed to send to terminal: ${err}`, 'error');
+    }
 }
 
 async function toggleLspModeForBlock(blockId) {
@@ -11941,7 +11942,16 @@ function ensureRenderedBlockCopyButton(block) {
             event.preventDefault();
             event.stopPropagation();
             try {
-                await SendToTerminal(getRenderedCopyBlockText(block));
+                const content = getRenderedCopyBlockText(block);
+                const code = block.querySelector('code');
+                const languageClass = Array.from(code?.classList || []).find((name) => name.startsWith('language-'));
+                const language = languageClass ? languageClass.slice('language-'.length) : hljs.highlightAuto(content)?.language || '';
+                const descriptions = language ? await GetLanguageDescriptions(language) : [];
+                const runtime = descriptions?.[0] || language;
+                if (!runtime) {
+                    throw new Error('Cannot determine the runtime; select one in Run mode');
+                }
+                await SendToTerminal(content, runtime);
                 window.dispatchEvent(new CustomEvent('ttyphoon-focus-terminal'));
                 terminalButton.dataset.sent = 'true';
                 setTimeout(() => {
@@ -11949,7 +11959,7 @@ function ensureRenderedBlockCopyButton(block) {
                 }, 700);
             } catch (err) {
                 console.error('Error sending to terminal:', err);
-                notifyTerminal('Failed to send to terminal', 'error');
+                notifyTerminal(`Failed to send to terminal: ${err}`, 'error');
             }
         });
         actions.appendChild(terminalButton);

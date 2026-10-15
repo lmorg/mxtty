@@ -1,5 +1,7 @@
 set +e
 
+printf '\033]7;file://%s%s\033\\' "$HOSTNAME" {{ shellQuote .PathURI }}
+
 {{ .CommandLine }}
 
 _ttyphoon_exit_code=$?

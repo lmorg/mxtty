@@ -17,6 +17,7 @@ const getWindowStyleMock = vi.fn(async () => ({
         yellow: { Red: 220, Green: 180, Blue: 40 },
         selection: { Red: 80, Green: 120, Blue: 200 },
         green: { Red: 70, Green: 180, Blue: 110 },
+        red: { Red: 220, Green: 50, Blue: 60 },
         searchResult: { Red: 64, Green: 64, Blue: 255 },
         whiteBright: { Red: 255, Green: 255, Blue: 255 },
     },
@@ -290,6 +291,24 @@ describe('terminal compact redraw decoder', () => {
         await flushPromises();
         await flushPromises();
         expect(document.querySelector('.terminal-pane-close')?.dataset.paneId).toBe('%3');
+    });
+
+    it.each([
+        [1, 'rgb(22, 52, 46)'],
+        [2, 'rgb(52, 26, 36)'],
+    ])('tints completed pane backgrounds at 20 percent without borders for result %s', async (result, colour) => {
+        await import('./terminal.js');
+        await flushPromises();
+        await flushPromises();
+        const redraw = eventHandlers.get('terminalRedraw');
+        latestOffscreenCtx.strokeRect.mockClear();
+        redraw([[2, 0, 0, 40, 24, result]]);
+        expect(latestOffscreenCtx.fillStyle).toBe(colour);
+        expect(latestOffscreenCtx.strokeRect).not.toHaveBeenCalled();
+        redraw([[1, 1, 1, 1, 'X', 0, 0xAABBCC, 0]]);
+        expect(latestOffscreenCtx.fillStyle).toBe('rgb(170, 187, 204)');
+        redraw([[2, 41, 0, 39, 24, 0]]);
+        expect(latestOffscreenCtx.fillStyle).toBe('rgb(10, 20, 30)');
     });
 
     it('vertically centres glyphs within adjusted cells', async () => {
