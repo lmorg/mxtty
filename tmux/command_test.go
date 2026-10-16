@@ -1,6 +1,7 @@
 package tmux
 
 import (
+	"fmt"
 	"net/url"
 	"os"
 	"os/exec"
@@ -100,6 +101,39 @@ func TestPaneInfoResizeUpdatesLocalTerminalWithoutEchoingTmux(t *testing.T) {
 	info.updatePane(tmux)
 	if term.resizes != 2 || term.resizeErr != nil || pane.width != 80 || pane.height != 24 {
 		t.Fatalf("geometry refresh echoed a resize: calls=%d error=%v size=%dx%d", term.resizes, term.resizeErr, pane.width, pane.height)
+	}
+}
+
+func TestPaneInfoIgnoresMissingOrClosedOwnerWindow(t *testing.T) {
+	for _, owner := range []string{"missing", "closed", "removed"} {
+		for _, existing := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/existing=%t", owner, existing), func(t *testing.T) {
+				tmux := &Tmux{panes: newPaneMap(), wins: newWindowMap()}
+				win := &WindowT{id: "@39", panes: newPaneMap(), closed: owner == "closed"}
+				if owner != "missing" {
+					tmux.wins.Set(win.id, win)
+				}
+				pane := &PaneT{id: "%134", windowId: win.id, width: 80, height: 24, tmux: tmux}
+				term := &paneGeometryTestTerm{pane: pane}
+				pane.term = term
+				if existing {
+					tmux.panes.Set(pane.id, pane)
+				}
+				info := &paneInfo{Id: pane.id, WindowId: win.id, Width: 100, Height: 40, Active: true}
+				if owner == "removed" {
+					tmux.wins.Delete(win.id)
+				}
+				if got := info.updatePane(tmux); got != nil {
+					t.Fatalf("stale pane update returned %+v", got)
+				}
+				if term.resizes != 0 || pane.width != 80 || pane.height != 24 || win.activePane != nil {
+					t.Fatal("stale pane update mutated terminal or window state")
+				}
+				if !existing && tmux.panes.Get(pane.id) != nil {
+					t.Fatal("stale pane update recreated a terminal after its window closed")
+				}
+			})
+		}
 	}
 }
 

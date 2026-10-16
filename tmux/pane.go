@@ -101,6 +101,9 @@ func (tmux *Tmux) initSessionPanes(renderer types.Renderer) error {
 		}
 
 		pane := info.updatePane(tmux)
+		if pane == nil {
+			continue
+		}
 
 		command := fmt.Sprintf("capture-pane -J -S- -E- -e -p -t %s", pane.id)
 		resp, err := tmux.SendCommand([]byte(command))
@@ -194,6 +197,11 @@ func (tmux *Tmux) updatePaneInfo(paneId string) error {
 }
 
 func (info *paneInfo) updatePane(tmux *Tmux) *PaneT {
+	win := tmux.wins.Get(info.WindowId)
+	if win == nil || win.closed {
+		return nil
+	}
+
 	pane := tmux.panes.Get(info.Id)
 	if pane == nil {
 		pane = tmux.newPane(info)
@@ -229,15 +237,6 @@ func (info *paneInfo) updatePane(tmux *Tmux) *PaneT {
 		pane.term.Resize(&types.XY{X: int32(info.Width), Y: int32(info.Height)})
 	}
 
-	win := tmux.wins.Get(pane.windowId)
-	if win == nil {
-		/*err := tmux.updateWinInfo(pane.WindowId)
-		if err != nil {
-			panic(err)
-		}
-		win = tmux.win[pane.WindowId]*/
-		panic("tmux pane created before window")
-	}
 	win.panes.Set(pane.id, pane)
 	if pane.active {
 		win.activePane = pane
