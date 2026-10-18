@@ -78,10 +78,15 @@ type paneGeometryTestTerm struct {
 	pane      *PaneT
 	resizeErr error
 	resizes   int
+	onFocus   func()
 }
 
 func (term *paneGeometryTestTerm) MakeVisible(bool) {}
-func (term *paneGeometryTestTerm) SetFocus(bool)    {}
+func (term *paneGeometryTestTerm) SetFocus(bool) {
+	if term.onFocus != nil {
+		term.onFocus()
+	}
+}
 func (term *paneGeometryTestTerm) Resize(size *types.XY) {
 	term.resizes++
 	term.resizeErr = term.pane.Resize(size)
@@ -134,6 +139,109 @@ func TestPaneInfoIgnoresMissingOrClosedOwnerWindow(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+func TestActivePaneReconcilesClosedRemovedAndUnsetSelection(t *testing.T) {
+	for _, state := range []string{"closed", "removed", "unset", "reported active"} {
+		t.Run(state, func(t *testing.T) {
+			win := &WindowT{id: "@1", panes: newPaneMap()}
+			old := &PaneT{id: "%136", closed: state == "closed"}
+			first := &PaneT{id: "%1", left: 0}
+			selected := &PaneT{id: "%2", left: 40, active: true}
+			win.panes.Set(first.id, first)
+			win.panes.Set(selected.id, selected)
+			if state != "unset" {
+				win.activePane = old
+			}
+			if state == "closed" || state == "reported active" {
+				win.panes.Set(old.id, old)
+			}
+			if got := win.ActivePane(); got != selected || win.activePane != selected {
+				t.Fatalf("active pane = %v, want tmux-reported survivor", got)
+			}
+		})
+	}
+}
+
+func TestActivePaneFallbackIsLocalAndEmptyWindowIsSafe(t *testing.T) {
+	win := &WindowT{id: "@1", panes: newPaneMap(), activePane: &PaneT{id: "%closed", closed: true}}
+	first := &PaneT{id: "%1", top: 0, left: 0}
+	later := &PaneT{id: "%2", top: 10}
+	win.panes.Set(later.id, later)
+	win.panes.Set(first.id, first)
+	if got := win.ActivePane(); got != first {
+		t.Fatalf("local fallback = %v, want top-left surviving pane", got)
+	}
+	win.activePane = later
+	if got := win.ActivePane(); got != later {
+		t.Fatal("valid cached selection was not preserved")
+	}
+	win.panes.Delete(first.id)
+	win.panes.Delete(later.id)
+	if got := win.ActivePane(); got != nil || win.activePane != nil {
+		t.Fatal("empty window retained a stale active pane")
+	}
+	win.closed = true
+	win.panes.Set(first.id, first)
+	if got := win.ActivePane(); got != nil {
+		t.Fatal("closed window returned a pane")
+	}
+	tmux := &Tmux{activeWindow: win}
+	if pane, err := tmux.ActivePane(); pane != nil || err == nil {
+		t.Fatalf("unavailable active pane = %v, %v", pane, err)
+	}
+}
+
+func TestPaneInfoPublishesSelectionBeforeFocusCallbacks(t *testing.T) {
+	tmux := &Tmux{wins: newWindowMap(), panes: newPaneMap()}
+	tmux.readerDead.Store(true)
+	win := &WindowT{id: "@1", panes: newPaneMap(), activePane: &PaneT{id: "%136", closed: true}}
+	tmux.wins.Set(win.id, win)
+	pane := &PaneT{id: "%2", tmux: tmux}
+	tmux.panes.Set(pane.id, pane)
+	called := false
+	pane.term = &paneGeometryTestTerm{pane: pane, onFocus: func() {
+		called = true
+		if win.panes.Get(pane.id) != pane || win.activePane != pane {
+			t.Fatal("focus callback observed stale active-pane metadata")
+		}
+	}}
+	info := &paneInfo{Id: pane.id, WindowId: win.id, Width: 80, Height: 24, Active: true}
+	info.updatePane(tmux)
+	if !called {
+		t.Fatal("focus callback did not run")
+	}
+}
+
+func TestActiveWindowSkipsClosedAndRemovedSelection(t *testing.T) {
+	tmux := &Tmux{wins: newWindowMap()}
+	old := &WindowT{id: "@39", closed: true}
+	survivor := &WindowT{id: "@1", active: true}
+	tmux.wins.Set(old.id, old)
+	tmux.wins.Set(survivor.id, survivor)
+	tmux.activeWindow = old
+	if got, err := tmux.ActiveWindow(); err != nil || got != survivor {
+		t.Fatalf("active window = %v, %v; want surviving window", got, err)
+	}
+	tmux.wins.Delete(survivor.id)
+	if got, err := tmux.ActiveWindow(); got != nil || err == nil || tmux.activeWindow != nil {
+		t.Fatalf("removed window still active: %v, %v", got, err)
+	}
+}
+
+func TestEmptyPaneLayoutHasNilActiveTile(t *testing.T) {
+	tmux := &Tmux{wins: newWindowMap(), panes: newPaneMap()}
+	tmux.readerDead.Store(true)
+	win := &WindowT{id: "@1", active: true, panes: newPaneMap()}
+	tmux.wins.Set(win.id, win)
+	tmux.activeWindow = win
+	if layout := tmux.GetTermTiles(); layout.Active != nil || len(layout.Tiles) != 0 {
+		t.Fatalf("empty window layout retained a typed-nil or stale tile: %+v", layout)
+	}
+	win.closed = true
+	if layout := tmux.GetTermTiles(); layout.Active != nil || len(layout.Tiles) != 0 || len(layout.Tabs) != 0 {
+		t.Fatalf("closed window layout retained tiles or tabs: %+v", layout)
 	}
 }
 

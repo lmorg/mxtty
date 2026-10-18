@@ -164,6 +164,7 @@ type paneInfo struct {
 	WinActive bool   `tmux:"?window_active,true,false"`
 	AtBottom  bool   `tmux:"?pane_at_bottom,true,false"`
 	Path      string `tmux:"pane_current_path"`
+	PathStart string `tmux:"pane_start_path"`
 	Zoomed    bool   `tmux:"?pane_zoomed,true,false"`
 }
 
@@ -197,6 +198,7 @@ func (tmux *Tmux) updatePaneInfo(paneId string) error {
 }
 
 func (info *paneInfo) updatePane(tmux *Tmux) *PaneT {
+	var isNew bool
 	win := tmux.wins.Get(info.WindowId)
 	if win == nil || win.closed {
 		return nil
@@ -204,6 +206,7 @@ func (info *paneInfo) updatePane(tmux *Tmux) *PaneT {
 
 	pane := tmux.panes.Get(info.Id)
 	if pane == nil {
+		isNew = true
 		pane = tmux.newPane(info)
 	}
 
@@ -226,20 +229,23 @@ func (info *paneInfo) updatePane(tmux *Tmux) *PaneT {
 	pane.bottom = int32(info.PosBottom)
 	pane.atBottom = info.AtBottom
 	pane.zoomed = info.Zoomed
-	pane.pwd = info.Path
+	if isNew {
+		pane.pwd = info.PathStart
+	} else {
+		pane.pwd = info.Path
+	}
 	if pane.dead.Swap(info.Dead) && !info.Dead {
 		pane.actionResult.Store(0)
 		pane.autoCloseAt.Store(0)
+	}
+	win.panes.Set(pane.id, pane)
+	if pane.active {
+		win.activePane = pane
 	}
 	if pane.term != nil {
 		pane.term.MakeVisible(info.WinActive)
 		pane.term.SetFocus(info.Active)
 		pane.term.Resize(&types.XY{X: int32(info.Width), Y: int32(info.Height)})
-	}
-
-	win.panes.Set(pane.id, pane)
-	if pane.active {
-		win.activePane = pane
 	}
 
 	return pane
@@ -251,7 +257,11 @@ func (tmux *Tmux) ActivePane() (*PaneT, error) {
 		return nil, err
 	}
 
-	return win.ActivePane(), nil
+	pane := win.ActivePane()
+	if pane == nil {
+		return nil, fmt.Errorf("no active pane available")
+	}
+	return pane, nil
 }
 
 func (tmux *Tmux) SelectPane(paneId string) error {

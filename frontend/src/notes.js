@@ -6292,9 +6292,6 @@ async function openCurrentLspDocument(content) {
 
         await NotesLspOpenDocument(state.currentFile, languageID, String(content || ''));
         state.lspOpenFile = state.currentFile;
-        lspSpellCheckExclusions.keywords = (await GetNotesLanguageReservedWords(languageID)) || [];
-        lspSpellCheckExclusions.tokens = [];
-        applyLspSpellCheckExclusions();
 
         if (isMonacoActive()) {
             monacoMainEditor.configureLsp({
@@ -7198,6 +7195,7 @@ function convertToJupyterCodeBlocks() {
             
             // Restore LSP mode and other state from document cache
             await restoreJupyterBlockState(blockId);
+            void refreshJupyterReservedWords(blockId);
         })();
 
         runtimeLink.addEventListener('click', () => {
@@ -7209,6 +7207,7 @@ function convertToJupyterCodeBlocks() {
                     onSelect: () => {
                         state.jupyterCodeBlocks[blockId].runtime = desc;
                         runtimeLink.textContent = desc;
+                        void refreshJupyterReservedWords(blockId);
                     },
                 })),
                 rect.left,
@@ -7558,6 +7557,7 @@ function convertToJupyterCodeBlocks() {
         }
         const blockSpellCheck = attachSpellCheck(editableCode);
         jupyterSpellCheckHandles[blockId] = blockSpellCheck;
+        void refreshJupyterReservedWords(blockId);
         const blockForSpell = state.jupyterCodeBlocks[blockId];
         if (blockForSpell && blockForSpell.typosFilePath) {
             blockSpellCheck.setMode('external');
@@ -9941,6 +9941,7 @@ async function loadFile(file, options = {}) {
             closeFindBar();
         }
 
+        await refreshMainReservedWords(file);
         if (isCurrentFileLspEligible()) {
             await openCurrentLspDocument(elements.editor.value || '');
         }
@@ -15902,6 +15903,43 @@ const lspSpellCheckExclusions = { symbols: [], tokens: [], keywords: [] };
 function applyLspSpellCheckExclusions() {
     const merged = Array.from(getLspSpellCheckExclusionSet());
     notesSpellCheckHandle?.setExclusions(merged);
+}
+
+async function refreshMainReservedWords(file) {
+    let words = [];
+    try {
+        const language = await ResolveNotesLspLanguage(file);
+        words = language ? (await GetNotesLanguageReservedWords(language)) || [] : [];
+    } catch (error) {
+        console.error('Loading document reserved words failed:', error);
+    }
+    if (state.currentFile !== file) {
+        return;
+    }
+    lspSpellCheckExclusions.keywords = Array.isArray(words) ? words : [];
+    lspSpellCheckExclusions.tokens = [];
+    applyLspSpellCheckExclusions();
+}
+
+async function refreshJupyterReservedWords(blockId) {
+    const block = state.jupyterCodeBlocks[blockId];
+    const handle = jupyterSpellCheckHandles[blockId];
+    if (!block || !handle) {
+        return;
+    }
+    const sequence = (block.reservedWordsSequence || 0) + 1;
+    block.reservedWordsSequence = sequence;
+    const language = block.runtime || block.language;
+    let words = [];
+    try {
+        words = language ? (await GetNotesLanguageReservedWords(language)) || [] : [];
+    } catch (error) {
+        console.error('Loading code-block reserved words failed:', error);
+    }
+    if (state.jupyterCodeBlocks[blockId] !== block || jupyterSpellCheckHandles[blockId] !== handle || block.reservedWordsSequence !== sequence) {
+        return;
+    }
+    handle.setExclusions(Array.isArray(words) ? words : []);
 }
 
 if (elements.editor) {

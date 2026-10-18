@@ -48,7 +48,9 @@ remove the wrapper schema.
   non-interactive Bash script. `envVars` uses an empty JSON object.
 - `delegate` and `report` use arrays of `{name, prompt}` objects; `askUser` uses
   a `{question, choices}` object.
-- `searchDuckDuckGo` uses a JSON string; `scrapeWebPage` uses a `{url}` object.
+- `searchDuckDuckGo` uses a `{query}` object for search and an
+  `{action:"discover"}` object for SearXNG discovery, with optional filters and
+  refresh behavior described in ADR 0073; `scrapeWebPage` uses a `{url}` object.
 - `dateTime` accepts an optional positive amount, unit, and before/after
   direction; omitting them returns the current local date and time.
 - jq accepts a structured JSON object with a query and arbitrary JSON value. The
@@ -79,7 +81,8 @@ remove the wrapper schema.
 - `ai/agent/runtime_eino_test.go` - schema and typed invocation regression
 - `ai/tools/file/observation_test.go` - grep structured invocation coverage
 - `ai/tools/image/generate.go` - structured generation/edit input
-- `ai/tools/webtools/web_tools.go` - structured web search and page scraping inputs
+- `ai/tools/websearch/tool.go` - structured web search and discovery inputs
+- `ai/tools/webtools/web_tools.go` - structured page scraping inputs
 - `ai/tools/shell/interactive.go` and `ai/tools/shell/bash.go` - structured shell inputs
 - `utils/markdownutil` - escaping helpers used by invocation descriptions
 - ADR 0030 - legacy native string-input compatibility

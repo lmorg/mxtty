@@ -45,7 +45,6 @@ test: generate
 	npm --prefix frontend run test:run
 	go test ./... -count 1 -race -covermode=atomic
 
-
 # Benchmark
 .PHONY: bench
 bench:

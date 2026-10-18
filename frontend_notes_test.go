@@ -5,12 +5,50 @@ import (
 	"errors"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/lmorg/ttyphoon/config"
 	"github.com/lmorg/ttyphoon/utils/notes"
 	"golang.design/x/clipboard"
 )
+
+func TestNotesReservedWordsResolveFenceAliasesAndRuntimeDescriptions(t *testing.T) {
+	app := &WApp{}
+	for _, test := range []struct{ language, word string }{
+		{"docker", "FROM"}, {"dockerfile", "FROM"}, {" DOCKERFILE ", "FROM"},
+		{"Dockerfile (build and run)", "FROM"}, {"node", "function"},
+		{"Javascript (node.js)", "function"}, {"py", "def"},
+	} {
+		words := app.GetNotesLanguageReservedWords(test.language)
+		found := false
+		for _, word := range words {
+			found = found || strings.EqualFold(word, test.word)
+		}
+		if !found {
+			t.Errorf("reserved words for %q omit %q", test.language, test.word)
+		}
+	}
+	if words := app.GetNotesLanguageReservedWords("unknown-synthetic-language"); len(words) != 0 {
+		t.Fatalf("unknown language returned words: %v", words)
+	}
+}
+
+func TestNotesReservedWordsPreferExactConfiguredLanguage(t *testing.T) {
+	previous, existed := config.Config.Notes.Languages["dockerfile"]
+	t.Cleanup(func() {
+		if existed {
+			config.Config.Notes.Languages["dockerfile"] = previous
+		} else {
+			delete(config.Config.Notes.Languages, "dockerfile")
+		}
+	})
+	config.Config.Notes.Languages["dockerfile"] = &config.LanguageOptionsT{ReservedWords: []string{"custom-direct-word"}}
+	if got := (&WApp{}).GetNotesLanguageReservedWords("dockerfile"); !reflect.DeepEqual(got, []string{"custom-direct-word"}) {
+		t.Fatalf("exact configured words were overridden: %v", got)
+	}
+}
 
 func TestNotesContextChangesBeforeScanAndCancelsOldScan(t *testing.T) {
 	app := &WApp{}

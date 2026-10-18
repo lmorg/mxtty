@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import * as swaggerUtils from './swagger-utils.js';
 import { attachJsonViewerEditHandler, renderJsonViewer } from './json-viewer.js';
 import { marked } from 'marked';
+import { attachSpellCheck } from './spellcheck';
 
 const notesCss = readFileSync('./src/notes.css', 'utf8');
 
@@ -17,6 +18,7 @@ const getNotesLayoutSizingMock = vi.fn(() => Promise.resolve({}));
 const setNotesLayoutRatioMock = vi.fn(() => Promise.resolve());
 const getNotesMaxLogLinesMock = vi.fn();
 const getNotesLanguageTabIndentMock = vi.fn();
+const getNotesLanguageReservedWordsMock = vi.fn(() => Promise.resolve([]));
 const getNotesColumnWidthsMock = vi.fn();
 const setNotesColumnWidthsMock = vi.fn(() => Promise.resolve());
 const emptyTableResult = () => ({ missing: false, order: [], sortColumn: 0, sortDesc: false, filter: '', graph: null, error: '' });
@@ -200,7 +202,7 @@ vi.mock('../wailsjs/go/main/WApp', () => ({
     GetNotesMaxLogLines: getNotesMaxLogLinesMock,
     GetNotesStructViewMaxSizeKB: vi.fn(() => Promise.resolve(1024)),
     GetNotesLanguageTabIndent: getNotesLanguageTabIndentMock,
-    GetNotesLanguageReservedWords: vi.fn(() => Promise.resolve([])),
+    GetNotesLanguageReservedWords: getNotesLanguageReservedWordsMock,
     GetNotesColumnWidths: getNotesColumnWidthsMock,
     GetFile: getFileMock,
     GetImage: getImageMock,
@@ -495,6 +497,7 @@ describe('notes rendering', () => {
         setNotesLayoutRatioMock.mockClear();
         getNotesMaxLogLinesMock.mockReset();
         getNotesLanguageTabIndentMock.mockReset();
+        getNotesLanguageReservedWordsMock.mockReset().mockResolvedValue([]);
         getNotesColumnWidthsMock.mockReset();
         setNotesColumnWidthsMock.mockReset();
         notesTableSortMock.mockReset();
@@ -3422,6 +3425,86 @@ describe('notes rendering', () => {
         expect(saveFileMock).toHaveBeenCalledWith('/project/code-block.js', 'const x = 1;\nconst y = 2;\n', '');
     });
 
+    it('keeps Jupyter reserved words isolated and ignores stale runtime responses', async () => {
+        getLanguageDescriptionsMock.mockImplementation((language) => Promise.resolve(language === 'docker'
+            ? ['Dockerfile (build and run)', 'Dockerfile (custom runtime)'] : ['Python 3.x']));
+        getNotesLanguageReservedWordsMock.mockImplementation((language) => Promise.resolve(
+            language === 'docker' || language === 'Dockerfile (build and run)' ? ['FROM', 'RUN']
+                : language === 'Dockerfile (custom runtime)' ? ['CUSTOM']
+                    : language === 'python' || language === 'Python 3.x' ? ['def'] : []));
+        listFilesMock.mockResolvedValue(['$NOTES/reserved.md']);
+        getFileMock.mockResolvedValue({ contents: '```docker\nFROM alpine\n```\n\n```python\ndef example(): pass\n```', text: '', error: '' });
+        await importNotesModule();
+        document.querySelector('[data-file="$NOTES/reserved.md"]').click();
+        await flushPromises();
+        await flushPromises();
+        document.getElementById('notes-tab-jupyter').click();
+        await flushPromises();
+        await flushPromises();
+
+        const spellcheckFor = (element) => attachSpellCheck.mock.results[attachSpellCheck.mock.calls.findIndex(([target]) => target === element)].value;
+        const editors = document.querySelectorAll('.jupyter-code-editable');
+        const dockerHandle = spellcheckFor(editors[0]);
+        const pythonHandle = spellcheckFor(editors[1]);
+        const mainHandle = spellcheckFor(document.getElementById('notes-editor'));
+        expect(dockerHandle.setExclusions).toHaveBeenLastCalledWith(['FROM', 'RUN']);
+        expect(pythonHandle.setExclusions).toHaveBeenLastCalledWith(['def']);
+        const pythonCalls = pythonHandle.setExclusions.mock.calls.length;
+        const mainCalls = mainHandle.setExclusions.mock.calls.length;
+
+        document.querySelector('.jupyter-runtime-dropdown').click();
+        const menu = showLocalMenuMock.mock.calls.at(-1)[0];
+        menu.onSelect(1);
+        await flushPromises();
+        expect(dockerHandle.setExclusions).toHaveBeenLastCalledWith(['CUSTOM']);
+
+        let resolveStale;
+        getNotesLanguageReservedWordsMock.mockImplementationOnce(() => new Promise((resolve) => { resolveStale = resolve; }));
+        menu.onSelect(0);
+        menu.onSelect(1);
+        await flushPromises();
+        resolveStale(['STALE']);
+        await flushPromises();
+        expect(dockerHandle.setExclusions).toHaveBeenLastCalledWith(['CUSTOM']);
+        expect(dockerHandle.setExclusions).not.toHaveBeenCalledWith(['STALE']);
+        expect(pythonHandle.setExclusions).toHaveBeenCalledTimes(pythonCalls);
+        expect(mainHandle.setExclusions).toHaveBeenCalledTimes(mainCalls);
+    });
+
+    it('loads Jupyter reserved words for the restored runtime', async () => {
+        getLanguageDescriptionsMock.mockResolvedValue(['Dockerfile (build and run)', 'Dockerfile (restored)']);
+        getNotesLanguageReservedWordsMock.mockImplementation((language) => Promise.resolve(language === 'Dockerfile (restored)' ? ['RESTORED'] : ['FROM']));
+        getDocumentCacheMock.mockResolvedValue({ DocumentTab: 'jupyter', ToolsOpen: true, ToolsTab: 'ai', jupyterBlockState: {
+            'jupyter-block-0': { runtime: 'Dockerfile (restored)', lspMode: false },
+        } });
+        listFilesMock.mockResolvedValue(['$NOTES/restored.md']);
+        getFileMock.mockResolvedValue({ contents: '```docker\nFROM alpine\n```', text: '', error: '' });
+        await importNotesModule();
+        document.querySelector('[data-file="$NOTES/restored.md"]').click();
+        await flushPromises();
+        await flushPromises();
+        const editor = document.querySelector('.jupyter-code-editable');
+        const handle = attachSpellCheck.mock.results[attachSpellCheck.mock.calls.findIndex(([target]) => target === editor)].value;
+        expect(document.querySelector('.jupyter-runtime-dropdown').textContent).toBe('Dockerfile (restored)');
+        expect(handle.setExclusions).toHaveBeenLastCalledWith(['RESTORED']);
+    });
+
+    it('loads Dockerfile reserved words even when the code LSP cannot open', async () => {
+        listFilesMock.mockResolvedValue(['$NOTES/Dockerfile']);
+        getFileMock.mockResolvedValue({ contents: 'FROM alpine\nRUN echo hello', text: '', error: '' });
+        resolveNotesLspLanguageMock.mockResolvedValue('dockerfile');
+        notesLspOpenDocumentMock.mockRejectedValue(new Error('No Dockerfile language server'));
+        getNotesLanguageReservedWordsMock.mockResolvedValue(['FROM', 'RUN']);
+        await importNotesModule();
+        document.querySelector('[data-file="$NOTES/Dockerfile"]').click();
+        await flushPromises();
+        await flushPromises();
+        const editor = document.getElementById('notes-editor');
+        const handle = attachSpellCheck.mock.results[attachSpellCheck.mock.calls.findIndex(([target]) => target === editor)].value;
+        expect(getNotesLanguageReservedWordsMock).toHaveBeenCalledWith('dockerfile');
+        expect(handle.setExclusions).toHaveBeenLastCalledWith(['from', 'run']);
+    });
+
     it.each(['Markdown', 'Jupyter'])('sends %s code through the shared cloned-pane terminal API', async (source) => {
         const content = "printf '%s\\n' 'hello world'\nprintf 'done\\n'\n";
         getLanguageDescriptionsMock.mockResolvedValue(['Bash Shell Script', 'Alternative shell']);
@@ -5103,6 +5186,20 @@ describe('notes rendering', () => {
         expect(notesCss).toContain('font-family: "Font Awesome Regular", "Font Awesome Solid", "Font Awesome", sans-serif;');
         expect(notesCss).toContain('.notes-git-remote');
         expect(notesCss).toContain('font-family: "Font Awesome Brands", sans-serif;');
+    });
+
+    it('uses a shared height for Git, AI, and Log toolbar icon and text buttons', () => {
+        const toolbarRule = notesCss.match(/\.notes-tools-pane-header button\s*\{([^}]*)\}/)?.[1] || '';
+        expect(toolbarRule).toContain('box-sizing: border-box;');
+        expect(toolbarRule).toContain('height: 25px;');
+        expect(toolbarRule).toContain('display: inline-flex;');
+        expect(toolbarRule).toContain('align-items: center;');
+        expect(toolbarRule).toContain('justify-content: center;');
+        expect(toolbarRule).toContain('line-height: 1;');
+        const hiddenRule = notesCss.match(/\.notes-tools-pane-header button\[hidden\]\s*\{([^}]*)\}/)?.[1] || '';
+        expect(hiddenRule).toContain('display: none;');
+        const logRule = notesCss.match(/\.notes-tools-log-button-group \.notes-tools-icon\s*\{([^}]*)\}/)?.[1] || '';
+        expect(logRule).not.toMatch(/(?:^|;)\s*(?:min-|max-)?height\s*:/);
     });
 
     it('shows Git Tools only after the current project is confirmed as a Git root', async () => {

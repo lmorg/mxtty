@@ -29,9 +29,14 @@ func (tmux *Tmux) GetTermTiles() *types.AppWindowTerms {
 	_ = tmux.updatePaneInfo("")
 
 	aw := new(types.AppWindowTerms)
+	win, err := tmux.ActiveWindow()
+	if err != nil {
+		tmux.appWindow = aw
+		return aw
+	}
 
 	var zoomed *PaneT
-	for pane := range tmux.activeWindow.panes.Each() {
+	for pane := range win.panes.Each() {
 		if pane.closed {
 			debug.Log(fmt.Sprintf("skipping closed pane %s", pane.id))
 			pane.exit()
@@ -49,7 +54,9 @@ func (tmux *Tmux) GetTermTiles() *types.AppWindowTerms {
 		aw.Tiles = []types.Tile{zoomed}
 	}
 
-	aw.Active = tmux.activeWindow.ActivePane()
+	if pane := win.ActivePane(); pane != nil {
+		aw.Active = pane
+	}
 
 	for win := range tmux.wins.Each() {
 		if win.closed {

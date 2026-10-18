@@ -4,7 +4,8 @@ Date: 2026-10-15
 
 ## Status
 
-Accepted.
+Accepted. Updated 2026-10-16 with OSC 7 path encoding and stale pane-update
+handling after window closure.
 
 ## Context
 
@@ -36,6 +37,14 @@ terminal text; it must correspond to an outstanding invocation.
 - Bash and Zsh output-block integrations report their exported environment as
   base64-encoded NUL-delimited data, allowing a cloned pane to inherit the
   focused shell's reported environment as well as its working directory.
+- Announce the source pane's initial working directory with OSC 7 before running
+  the wrapper command. Go encodes the path using `net/url.URL.EscapedPath` and
+  passes it as `PathURI`; the Bash template renders it through `shellQuote`,
+  while Bash supplies `$HOSTNAME`. URI encoding and shell quoting are separate
+  requirements: preserve path separators, encode URI delimiters and whitespace,
+  and prevent shell expansion of characters left in the encoded path. The OSC 7
+  receiver parses the URI and uses its decoded path. This initial announcement
+  does not automatically report later directory changes inside the command.
 - Remove a pending callback if pane creation fails or the associated pane exits
   without reporting completion.
 - On exit code zero, tint the pane's default background with the theme green at
@@ -64,6 +73,23 @@ terminal text; it must correspond to an outstanding invocation.
   a resize/refresh feedback loop, causing terminal flicker and application
   lockups. Coalesce layout-event bursts into one refresh worker with one pending
   trailing refresh rather than starting an unbounded goroutine per event.
+- Treat pane metadata received after its owner window closes as a stale update,
+  not an invariant violation. `paneInfo.updatePane` checks that the owner window
+  exists and is open before creating a terminal, changing pane state, or resizing
+  it. Return nil for missing or closed owners, and let initial pane loading skip
+  those records. Do not panic or recreate a terminal from such a snapshot:
+  independently queried window/pane lists and asynchronous close notifications
+  can legitimately arrive in this order.
+- Reconcile active windows and panes from live local metadata during closure.
+  Prefer tmux's reported active flag, retain only cached selections still in
+  their maps and not closed, and use a stable surviving fallback during refresh
+  gaps. Active-pane lookup must not sleep, issue select-pane commands, trigger
+  nested refreshes, or report a missing-selection error merely because a closed
+  pane was cached. Mark exiting panes closed and clear their cached selection.
+  Publish replacement pane membership/selection before focus callbacks. When
+  none survive, return an unavailable-pane error to callers and a truly nil
+  active tile in the renderer layout, not a Tile interface containing a nil
+  pane pointer. Closed or removed windows must not remain the active window.
 - Place a close icon inside the top-right corner of completed panes. Both
   validated interactive-action results and tmux's `pane_dead` state make a pane
   closable; a running shell is not closable through this control. Track the
@@ -109,7 +135,9 @@ complete normally.
 ## Reference
 
 - `tmux/pane.go` - cloned pane lifecycle
+- `tmux/bash.go` - encoded path data and shell-safe template rendering
 - `tmux/bash.sh.tmpl` - completion APC wrapper
+- `tmux/command_test.go` - URI round trips, stale pane updates, and lifecycle regressions
 - `integrations/shell.bash`, `integrations/shell.zsh` - command environment snapshots
 - `virtualterm/ansi_apc.go` - APC parsing entry point
 - `virtualterm/term.go` - terminal screen output access

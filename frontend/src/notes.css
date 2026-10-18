@@ -2294,11 +2294,23 @@ body {
     gap: 3px;
 }
 
+.notes-tools-pane-header button {
+    box-sizing: border-box;
+    height: 25px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.notes-tools-pane-header button[hidden] {
+    display: none;
+}
+
 .notes-tools-log-button-group .notes-tools-icon {
     flex: 0 0 32px;
     width: 32px;
     min-width: 32px;
-    height: 25px;
     padding: 4px 0;
 }
 

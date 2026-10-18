@@ -282,8 +282,13 @@ func (a *WApp) GetNotesLanguageTabIndent(language string) int {
 
 // GetNotesLanguageReservedWords returns the reserved words / built-in identifiers for a given language.
 func (a *WApp) GetNotesLanguageReservedWords(language string) []string {
-	if settings, ok := config.Config.Notes.Languages[strings.ToLower(language)]; ok {
+	if settings := config.Config.Notes.Languages[strings.ToLower(strings.TrimSpace(language))]; settings != nil && len(settings.ReservedWords) > 0 {
 		return settings.ReservedWords
+	}
+	for _, alias := range jupyter.LanguageAliases(language) {
+		if settings := config.Config.Notes.Languages[strings.ToLower(alias)]; settings != nil && len(settings.ReservedWords) > 0 {
+			return settings.ReservedWords
+		}
 	}
 	return nil
 }

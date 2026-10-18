@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"time"
 
 	"github.com/lmorg/ttyphoon/types"
 )
@@ -170,64 +169,51 @@ func (tmux *Tmux) ActiveWindow() (*WindowT, error) {
 		return nil, errors.New("no open windows")
 	}
 
-	win := tmux.activeWindow
-	if win != nil {
-		return win, nil
+	var fallback *WindowT
+	for win := range tmux.wins.Each() {
+		if win == nil || win.closed {
+			continue
+		}
+		if win.active {
+			tmux.activeWindow = win
+			return win, nil
+		}
+		if fallback == nil || win.index < fallback.index || (win.index == fallback.index && win.id < fallback.id) {
+			fallback = win
+		}
 	}
-
-	if len(tmux.wins._map) == 0 {
+	if cached := tmux.activeWindow; cached != nil && !cached.closed && tmux.wins.Get(cached.id) == cached {
+		return cached, nil
+	}
+	tmux.activeWindow = fallback
+	if fallback == nil {
 		return nil, errors.New("no open windows")
 	}
-
-	// lets just pick one at random
-	for win = range tmux.wins.Each() {
-		break
-	}
-	return win, nil
+	return fallback, nil
 }
 
 func (win *WindowT) ActivePane() *PaneT {
-	if win.activePane == nil {
-		time.Sleep(50 * time.Millisecond)
-		if win.activePane == nil {
-			for _, p := range win.panes._map {
-				win.activePane.tmux.renderer.DisplayNotification(types.NOTIFY_ERROR, "Active pane is unset")
-				_ = fnKeySelectPaneLast(p.tmux)
-			}
-			return win.activePane
+	if win == nil || win.closed {
+		return nil
+	}
+	var fallback *PaneT
+	for pane := range win.panes.Each() {
+		if pane == nil || pane.closed {
+			continue
+		}
+		if pane.active {
+			win.activePane = pane
+			return pane
+		}
+		if fallback == nil || pane.top < fallback.top || (pane.top == fallback.top && pane.left < fallback.left) || (pane.top == fallback.top && pane.left == fallback.left && pane.id < fallback.id) {
+			fallback = pane
 		}
 	}
-	//panic("*WindowT.activePane is unset")
-	//return nil
-	//return win.activePane
-	//}
-
-	if !win.activePane.closed {
-		return win.activePane
+	if cached := win.activePane; cached != nil && !cached.closed && win.panes.Get(cached.id) == cached {
+		return cached
 	}
-
-	err := fnKeySelectPaneLast(win.activePane.tmux)
-	if err == nil && !win.activePane.closed {
-		return win.activePane
-	}
-
-	err = fnKeySelectPaneUp(win.activePane.tmux)
-	if err == nil && !win.activePane.closed {
-		return win.activePane
-	}
-
-	err = fnKeySelectPaneLeft(win.activePane.tmux)
-	if err == nil && !win.activePane.closed {
-		return win.activePane
-	}
-
-	if err != nil {
-		win.activePane.tmux.renderer.DisplayNotification(types.NOTIFY_ERROR, err.Error())
-	} else {
-		win.activePane.tmux.renderer.DisplayNotification(types.NOTIFY_ERROR, "Cannot find an active pane")
-	}
-
-	return win.activePane
+	win.activePane = fallback
+	return fallback
 }
 
 func (tmux *Tmux) RenameWindow(win *WindowT, name string) error {

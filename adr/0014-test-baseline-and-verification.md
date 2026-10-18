@@ -4,8 +4,8 @@ Date: 2026-09-06
 
 ## Status
 
-Accepted. Updated 2026-10-15: the frontend suite passes; the unrelated Go
-failures recorded below remain the known baseline.
+Accepted. Updated 2026-10-16: record the current frontend startup timeouts,
+previously verified Go passes, and historical Go failures separately.
 
 ## Context
 
@@ -19,33 +19,55 @@ attributing them to work in progress.
 Record the baseline and the verification commands, and keep this record current as
 failures are fixed.
 
-### Current known failure
+### Latest verification
 
-Observed on macOS with Go 1.27.1 on 2026-10-14:
+On 2026-10-16, `npm run test:run -- --reporter=dot` ran 508 tests across 20 files:
+506 passed and two exceeded Vitest's 5000 ms timeout:
+
+- `src/notes.test.js`: `renders grouped note categories and nested files from the Wails file list`.
+- `src/terminal.test.js`: `clears backend hover when the pointer leaves the terminal for Notes`.
+
+These were timeouts, not failed UI assertions. Their cause has not been
+established; do not treat this run as a complete pass. The previous full
+frontend run passed all 506 tests before the two completion-background cases
+were added. The terminal file subsequently passed all 16 tests in isolation.
+
+Previously completed checks passed for `./utils/git`, `./utils/jupyter`,
+`./tmux`, `./virtualterm`, `./window/backend/renderer_webkit`, and the root
+package. `go build ./...` also passed. Focused tmux race checks cover layout-event
+coalescing, non-echoing resize updates, and stale pane metadata after window
+closure. The Go recheck was skipped during this documentation update; these are
+prior results, not a fresh full-module verification.
+
+The full `utils/git` package passed with `init.defaultBranch=master` supplied
+through process-local `GIT_CONFIG_*` variables. Its former worktree-table
+failure is no longer part of the failing baseline. The combined branch/worktree
+test now uses a strict synthetic Git executable and fixtures: unsorted records,
+whitespace-containing paths, exact worktree-creation arguments, and shared
+exclude-file entries. It cannot invoke installed Git because its `PATH` contains
+only the stub. Other Git integration fixtures explicitly initialize `main`,
+rather than inheriting the machine's default branch.
+
+### Historical Go failures
+
+Observed on macOS with Go 1.27.1 on 2026-10-14; these AI packages were not rerun
+during this documentation update:
 
 - `ai/tools/file`: `TestInsertLinesCallDescriptionRendersEscapedInserts` and
   `TestPatchFileCallDescriptionRendersEmbeddedTemplate` expect older description
   formatting/line numbers.
 - `ai/tools/shell`: `TestBashReturnsOutputAndExitError` expects a returned Bash
   exit error, but receives nil.
-- `utils/git`: `TestRenderWorktreeInfoKeepsMultilineDiffInOneTableRow` expects
-  the older two-column diff table instead of the current details-based output.
 
-All four Go failures also reproduce in an isolated clean `HEAD` export, without
-the Notes navigation/storage changes. `go build ./...` passes. The affected
-Notes/history, shared path, asset, image, graph and session tests pass.
+At that time, these three failures and the now-cleared Git worktree-table
+failure also reproduced in an isolated clean `HEAD` export, without the Notes
+navigation/storage changes.
 
-Frontend verification on 2026-10-15: `npm run test:run -- --reporter=dot` passes
-all 504 tests across 20 files. Two stale toolbar-placement assertions in
-`src/notes.test.js` were updated to match the current UI: commit history sits
-beside the comparison selector after a separator, and the commit-controls toggle
-is the first actions-toolbar item. Icon, visibility, and action checks remain;
-no application UI was changed during this test review.
-
-Terminal hover-exit verification also passes: `go test ./virtualterm
-./window/backend/renderer_webkit ./tmux ./types . -count=1`, `go build ./...`
-and all 14 tests in `src/terminal.test.js`, included in the frontend-wide pass
-above.
+On 2026-10-15, two stale toolbar-placement assertions in `src/notes.test.js`
+were updated to match the current UI: commit history sits beside the comparison
+selector after a separator, and the commit-controls toggle is the first
+actions-toolbar item. Icon, visibility, and action checks remain; no application
+UI was changed during that test review.
 
 ### Resolved
 
@@ -83,8 +105,9 @@ different major version.
 
 ## Consequences
 
-- The AI packages now pass end to end, so a new failure there is genuinely caused
-  by the change in progress.
+- A passing focused check does not establish a full-suite pass. Keep historical
+  failures, fresh assertion failures, and timeouts distinct when assessing a
+  regression.
 - **Lesson: prefer fixing the code over relaxing the assertion.** Both failures
   were real defects — a panic that broke testability and contradicted its
   callers, and an assertion that could never pass — not stale expectations.

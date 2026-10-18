@@ -84,6 +84,7 @@ Each record uses: **Status**, **Context**, **Decision**, **Consequences**,
 | [0070](0070-notes-markup-lives-in-notes-html.md) | Keep static Notes markup in `notes.html` | Frontend |
 | [0071](0071-git-package-owns-action-execution-policy.md) | Git package owns action execution policy | Git |
 | [0072](0072-interactive-pane-actions-use-one-shot-uuid-callbacks.md) | Interactive pane actions use one-shot UUID callbacks | Terminal |
+| [0073](0073-configurable-web-search-backends.md) | Web search supports configurable DuckDuckGo and SearXNG backends | AI tools |
 
 ## Recurring themes
 

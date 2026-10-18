@@ -9,5 +9,6 @@ import (
 	_ "github.com/lmorg/ttyphoon/ai/tools/shell"
 	_ "github.com/lmorg/ttyphoon/ai/tools/subagents"
 	_ "github.com/lmorg/ttyphoon/ai/tools/userquestion"
+	_ "github.com/lmorg/ttyphoon/ai/tools/websearch"
 	_ "github.com/lmorg/ttyphoon/ai/tools/webtools"
 )

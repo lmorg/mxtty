@@ -16,6 +16,7 @@ func (p *PaneT) Read() (rune, error) { return p.buf.Read() }
 func (p *PaneT) BufSize() int        { return p.buf.BufSize() }
 
 func (p *PaneT) exit() {
+	p.closed = true
 	p.tmux.cancelInteractiveActionsForPane(p.id)
 	p.tmux.renderer.DisplayNotification(types.NOTIFY_INFO, fmt.Sprintf("Closing term %s: %s", p.id, p.title))
 
@@ -28,6 +29,9 @@ func (p *PaneT) exit() {
 	win := p.tmux.wins.Get(p.windowId)
 	if win != nil {
 		win.panes.Delete(p.id)
+		if win.activePane == p {
+			win.activePane = nil
+		}
 	}
 
 	debug.Log(p)
