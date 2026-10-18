@@ -4,8 +4,9 @@ Date: 2026-10-15
 
 ## Status
 
-Accepted. Updated 2026-10-16 with OSC 7 path encoding and stale pane-update
-handling after window closure.
+Accepted. Updated 2026-10-18 with OSC 7 path encoding, stale pane-update
+handling after window closure, active window/pane reconciliation, and safe
+pane-exit snapshot pruning.
 
 ## Context
 
@@ -80,6 +81,15 @@ terminal text; it must correspond to an outstanding invocation.
   those records. Do not panic or recreate a terminal from such a snapshot:
   independently queried window/pane lists and asynchronous close notifications
   can legitimately arrive in this order.
+- When a pane is first discovered, seed its working directory from tmux's
+  `pane_start_path`; use `pane_current_path` for subsequent updates.
+- During pane-exit reconciliation, compare pane IDs in tmux's live snapshot with
+  the existing pane map and close only panes absent from that snapshot. Do not
+  temporarily mark every pane closed during a sweep: renderer layout refreshes
+  can run concurrently and treat that temporary state as real exits. Iterate a
+  stable pane-map snapshot so removals cannot invalidate an in-progress
+  traversal. The tmux pane-exit hook handles panes closed through the normal
+  kill-pane key binding as well as exits initiated elsewhere.
 - Reconcile active windows and panes from live local metadata during closure.
   Prefer tmux's reported active flag, retain only cached selections still in
   their maps and not closed, and use a stable surviving fallback during refresh
@@ -135,6 +145,9 @@ complete normally.
 ## Reference
 
 - `tmux/pane.go` - cloned pane lifecycle
+- `tmux/pane_pty.go` - pane exit and active-selection cleanup
+- `tmux/window.go`, `tmux/window_tab.go` - active window/pane reconciliation and
+  renderer layout
 - `tmux/bash.go` - encoded path data and shell-safe template rendering
 - `tmux/bash.sh.tmpl` - completion APC wrapper
 - `tmux/command_test.go` - URI round trips, stale pane updates, and lifecycle regressions

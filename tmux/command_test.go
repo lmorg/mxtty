@@ -1,6 +1,7 @@
 package tmux
 
 import (
+	"bufio"
 	"fmt"
 	"net/url"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/lmorg/ttyphoon/types"
+	runebuf "github.com/lmorg/ttyphoon/utils/rune_buf"
 )
 
 func TestCommandLine(t *testing.T) {
@@ -52,6 +54,92 @@ type layoutChangeTestRenderer struct {
 	types.Renderer
 	refreshed chan struct{}
 	release   <-chan struct{}
+}
+
+type paneCloseTestRenderer struct{ types.Renderer }
+
+func (*paneCloseTestRenderer) DisplayNotification(types.NotificationType, string) {}
+func (*paneCloseTestRenderer) RefreshWindowList()                                 {}
+
+func TestPaneExitPrunesOnlyPanesMissingFromTmuxSnapshot(t *testing.T) {
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = reader.Close()
+		_ = writer.Close()
+	})
+
+	tmux := &Tmux{
+		tty:      writer,
+		resp:     make(chan *tmuxResponseT, 1),
+		wins:     newWindowMap(),
+		panes:    newPaneMap(),
+		renderer: &paneCloseTestRenderer{},
+	}
+	win := &WindowT{id: "@1", panes: newPaneMap()}
+	tmux.wins.Set(win.id, win)
+	tmux.activeWindow = win
+
+	removedPane := &PaneT{id: "%1", windowId: win.id, active: true, tmux: tmux, buf: runebuf.New()}
+	survivingPane := &PaneT{id: "%2", windowId: win.id, active: false, tmux: tmux, buf: runebuf.New()}
+	tmux.panes.Set(removedPane.id, removedPane)
+	tmux.panes.Set(survivingPane.id, survivingPane)
+	win.panes.Set(removedPane.id, removedPane)
+	win.panes.Set(survivingPane.id, survivingPane)
+	win.activePane = removedPane
+
+	serverDone := make(chan struct{})
+	go func() {
+		defer close(serverDone)
+		for scanner := bufio.NewScanner(reader); scanner.Scan(); {
+			line := scanner.Text()
+			switch {
+			case strings.HasPrefix(line, "list-panes "):
+				tmux.resp <- &tmuxResponseT{Message: [][]byte{[]byte("Id:%2|||Width:80|||Height:24|||PosLeft:40|||PosTop:0|||PosRight:80|||PosBottom:24|||Active:true|||Dead:false|||WindowId:@1|||WinActive:true|||AtBottom:false|||Path:/tmp|||PathStart:/tmp|||Zoomed:false")}}
+			default:
+				tmux.resp <- &tmuxResponseT{IsErr: true, Message: [][]byte{[]byte("unexpected test command: " + line)}}
+			}
+		}
+	}()
+
+	if err := tmux.paneExited(); err != nil {
+		t.Fatalf("pane exit reconciliation failed: %v", err)
+	}
+	if got := tmux.panes.Get(removedPane.id); got != nil {
+		t.Fatalf("removed pane remains in tmux pane map: %v", got.id)
+	}
+	if got := win.panes.Get(removedPane.id); got != nil {
+		t.Fatalf("removed pane remains in window pane map: %v", got.id)
+	}
+	if !removedPane.closed {
+		t.Fatal("pane missing from tmux's snapshot was not closed")
+	}
+	if survivingPane.closed || tmux.panes.Get(survivingPane.id) != survivingPane || win.panes.Get(survivingPane.id) != survivingPane {
+		t.Fatal("pane still present in tmux's snapshot was incorrectly closed")
+	}
+	_ = writer.Close()
+	<-serverDone
+}
+
+func TestPaneMapEachUsesStableSnapshot(t *testing.T) {
+	panes := newPaneMap()
+	first := &PaneT{id: "%1"}
+	second := &PaneT{id: "%2"}
+	inserted := &PaneT{id: "%3"}
+	panes.Set(first.id, first)
+	panes.Set(second.id, second)
+
+	seen := make(map[string]bool)
+	for pane := range panes.Each() {
+		seen[pane.id] = true
+		panes.Delete(second.id)
+		panes.Set(inserted.id, inserted)
+	}
+	if len(seen) != 2 || !seen[first.id] || !seen[second.id] || seen[inserted.id] {
+		t.Fatalf("iteration did not retain its starting snapshot: %v", seen)
+	}
 }
 
 func (renderer *layoutChangeTestRenderer) RefreshWindowList() {
@@ -165,6 +253,11 @@ func TestActivePaneReconcilesClosedRemovedAndUnsetSelection(t *testing.T) {
 }
 
 func TestActivePaneFallbackIsLocalAndEmptyWindowIsSafe(t *testing.T) {
+	var uninitialized *Tmux
+	if pane, err := uninitialized.ActivePane(); pane != nil || err == nil || err.Error() != "no open windows" {
+		t.Fatalf("nil tmux active pane = %v, %v; want no-open-windows error", pane, err)
+	}
+
 	win := &WindowT{id: "@1", panes: newPaneMap(), activePane: &PaneT{id: "%closed", closed: true}}
 	first := &PaneT{id: "%1", top: 0, left: 0}
 	later := &PaneT{id: "%2", top: 10}

@@ -55,6 +55,10 @@ type paneLayoutTestTerm struct {
 
 func (term *paneLayoutTestTerm) GetSize() *types.XY { return &term.size }
 
+func TestRefreshWindowListBeforeTmuxInitializationIsSafe(t *testing.T) {
+	(&webkitRender{}).RefreshWindowList()
+}
+
 func TestPaneLayoutTracksVisiblePaneGeometry(t *testing.T) {
 	first := &paneLayoutTestTile{id: "%1", term: &paneLayoutTestTerm{size: types.XY{X: 80, Y: 24}}}
 	secondTerm := &paneLayoutTestTerm{size: types.XY{X: 80, Y: 24}}

@@ -252,6 +252,10 @@ func (info *paneInfo) updatePane(tmux *Tmux) *PaneT {
 }
 
 func (tmux *Tmux) ActivePane() (*PaneT, error) {
+	if tmux == nil {
+		return nil, fmt.Errorf("no open windows")
+	}
+
 	win, err := tmux.ActiveWindow()
 	if err != nil {
 		return nil, err
@@ -292,34 +296,27 @@ func (tmux *Tmux) paneExited() error {
 		return fmt.Errorf("expecting an array of panes, instead got %T", v)
 	}
 
-	// start bypass the paneMap helper functions
-	//tmux.panes.mutex.Lock()
-	for pane := range tmux.panes.Each() {
-		pane.closed = true
-	}
-	//tmux.panes.mutex.Unlock()
-	// end bypass the paneMap helper functions
-
+	livePanes := make(map[string]struct{}, len(panes))
 	for i := range panes {
 		info, ok := panes[i].(*paneInfo)
 		if !ok {
 			return fmt.Errorf("expecting info on a pane, instead got %T", info)
 		}
-
-		if pane := tmux.panes.Get(info.Id); pane != nil {
-			pane.closed = false
-		}
+		livePanes[info.Id] = struct{}{}
 	}
 
-	for pane := range tmux.panes.Each() {
-		if pane.closed {
-			pane.exit()
-		}
-	}
-
+	tmux.removeExitedPanes(livePanes)
 	go tmux.renderer.RefreshWindowList()
 
 	return nil
+}
+
+func (tmux *Tmux) removeExitedPanes(livePanes map[string]struct{}) {
+	for pane := range tmux.panes.Each() {
+		if _, ok := livePanes[pane.id]; !ok {
+			pane.exit()
+		}
+	}
 }
 
 func (tmux *Tmux) ClonePane(pane *PaneT, commandLine string, callback interactiveActionCallback) error {
