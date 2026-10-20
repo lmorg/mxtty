@@ -718,8 +718,16 @@ export function TerminalCancelPaneAutoClose(arg1) {
   return window['go']['main']['WApp']['TerminalCancelPaneAutoClose'](arg1);
 }
 
+export function TerminalClonePane(arg1) {
+  return window['go']['main']['WApp']['TerminalClonePane'](arg1);
+}
+
 export function TerminalClosePane(arg1) {
   return window['go']['main']['WApp']['TerminalClosePane'](arg1);
+}
+
+export function TerminalConfirmKillPane(arg1, arg2) {
+  return window['go']['main']['WApp']['TerminalConfirmKillPane'](arg1, arg2);
 }
 
 export function TerminalCopyImageDataURL(arg1) {
@@ -770,8 +778,8 @@ export function TerminalMouseWheel(arg1, arg2, arg3, arg4) {
   return window['go']['main']['WApp']['TerminalMouseWheel'](arg1, arg2, arg3, arg4);
 }
 
-export function TerminalPaneZoom() {
-  return window['go']['main']['WApp']['TerminalPaneZoom']();
+export function TerminalPaneZoom(arg1) {
+  return window['go']['main']['WApp']['TerminalPaneZoom'](arg1);
 }
 
 export function TerminalRequestRedraw() {

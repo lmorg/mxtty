@@ -3829,7 +3829,7 @@ function notesGraphField(labelText) {
     return { field, label };
 }
 
-function setNotesModalTitle(text, markdownHeading = false) {
+function setNotesModalTitle(text, markdownHeading = true) {
     const title = elements.modal.querySelector('#notes-modal-title');
     title.classList.toggle('markdown-body', markdownHeading);
     title.classList.toggle('notes-graph-title', markdownHeading);

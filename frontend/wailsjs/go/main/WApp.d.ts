@@ -369,7 +369,11 @@ export function SyncNotesContext(arg1:notes.FileContext):Promise<void>;
 
 export function TerminalCancelPaneAutoClose(arg1:string):Promise<void>;
 
+export function TerminalClonePane(arg1:string):Promise<void>;
+
 export function TerminalClosePane(arg1:string):Promise<void>;
+
+export function TerminalConfirmKillPane(arg1:string,arg2:string):Promise<void>;
 
 export function TerminalCopyImageDataURL(arg1:string):Promise<void>;
 
@@ -395,7 +399,7 @@ export function TerminalMouseMotion(arg1:number,arg2:number,arg3:number,arg4:num
 
 export function TerminalMouseWheel(arg1:number,arg2:number,arg3:number,arg4:number):Promise<void>;
 
-export function TerminalPaneZoom():Promise<void>;
+export function TerminalPaneZoom(arg1:string):Promise<void>;
 
 export function TerminalRequestRedraw():Promise<void>;
 

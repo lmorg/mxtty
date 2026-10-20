@@ -26,8 +26,8 @@ function ensureInputBoxDom() {
                 <div id="inputbox-input-container"></div>
                 <div class="inputbox-hint" id="inputbox-hint">
                     <span id="inputbox-confirm-hint">Return to confirm</span>
-                    <span>Escape for Vim keys</span>
-                    <span>Escape again to close</span>
+                    <span id="inputbox-vim-hint">Escape for Vim keys</span>
+                    <span id="inputbox-escape-hint">Escape again to close</span>
                 </div>
                 <div class="inputbox-buttons">
                     <button class="inputbox-btn inputbox-ok" id="inputbox-ok">OK</button>
@@ -50,6 +50,8 @@ export function initInputBox(canvas) {
     const inputboxHistoryBtn = document.getElementById('inputbox-history-btn');
     const inputboxTitle = document.getElementById('inputbox-title');
     const inputboxConfirmHint = document.getElementById('inputbox-confirm-hint');
+    const inputboxVimHint = document.getElementById('inputbox-vim-hint');
+    const inputboxEscapeHint = document.getElementById('inputbox-escape-hint');
     const inputboxOkBtn = document.getElementById('inputbox-ok');
     const inputboxCancel = document.getElementById('inputbox-cancel');
 
@@ -65,6 +67,7 @@ export function initInputBox(canvas) {
     let backdropPointerDown = false;
     let inputboxVimHandle = null;
     let inputboxSpellCheckHandle = null;
+    let inputboxConfirmation = false;
 
     function setSharedTerminalFocusState(focused, options = {}) {
         if (typeof window.ttyphoonSetTerminalFocusState === 'function') {
@@ -205,10 +208,13 @@ export function initInputBox(canvas) {
     }
 
     function isInputboxVisible() {
-        return inputboxId !== null && inputboxOverlay.style.display !== 'none';
+        return inputboxId !== null && inputboxOverlay.isConnected && inputboxOverlay.style.display !== 'none';
     }
 
     function getInputboxFocusableElements() {
+        if (inputboxConfirmation) {
+            return [inputboxOkBtn, inputboxCancel].filter((button) => !button.disabled);
+        }
         const selectors = [
             'input:not([type="hidden"])',
             'textarea',
@@ -256,6 +262,10 @@ export function initInputBox(canvas) {
     }
 
     function focusFirstInputboxElement() {
+        if (inputboxConfirmation) {
+            inputboxCancel.focus();
+            return;
+        }
         const focusables = getInputboxFocusableElements();
         if (focusables.length === 0) {
             return;
@@ -406,11 +416,11 @@ export function initInputBox(canvas) {
     }
 
     function inputboxSubmit(isOk) {
-        if (inputboxId === null || !inputboxInput) {
+        if (inputboxId === null) {
             return;
         }
 
-        const value = inputboxInput.value;
+        const value = inputboxInput?.value ?? '';
         const variables = {};
         for (const field of inputboxVariableGetters) {
             if (!field || !field.name || typeof field.getter !== 'function') {
@@ -464,8 +474,31 @@ export function initInputBox(canvas) {
         backdropPointerDown = false;
     });
 
+    function handleConfirmationKeyboard(e) {
+        if (!isInputboxVisible() || !inputboxConfirmation) {
+            return;
+        }
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (e.type !== 'keydown') {
+            return;
+        }
+        if (e.key === 'Escape') {
+            inputboxSubmit(false);
+        } else if (e.key === 'Tab' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+            cycleInputboxFocus(e.shiftKey);
+        }
+    }
+    for (const eventName of ['keydown', 'keypress', 'keyup']) {
+        window.addEventListener(eventName, handleConfirmationKeyboard, true);
+    }
+
     document.addEventListener('keydown', (e) => {
-        if (e.key !== 'Tab' || !isInputboxVisible()) {
+        if (!isInputboxVisible()) {
+            return;
+        }
+
+        if (e.key !== 'Tab') {
             return;
         }
 
@@ -508,11 +541,33 @@ export function initInputBox(canvas) {
         inputboxPreviousTerminalFocusedState = window.terminalFocusedState === true;
         setSharedTerminalFocusState(false, { focusVisible: false, force: true });
         inputboxTitle.querySelector('h3').textContent = p.title ?? '';
+        inputboxConfirmation = p.confirmation === true;
+        inputboxConfirmHint.hidden = inputboxConfirmation;
         inputboxConfirmHint.textContent = p.multiline
-            ? 'Ctrl+Return to confirm'
-            : 'Return to confirm';
+            ? 'Ctrl+Return to confirm' : 'Return to confirm';
+        inputboxVimHint.hidden = inputboxConfirmation;
+        inputboxEscapeHint.textContent = inputboxConfirmation ? 'Escape to cancel' : 'Escape again to close';
+        inputboxEscapeHint.hidden = false;
+        inputboxOkBtn.textContent = p.confirmLabel || 'OK';
+        inputboxCancel.textContent = p.cancelLabel || 'Cancel';
+        inputboxOkBtn.classList.toggle('inputbox-danger', p.confirmIsDanger === true);
         inputboxInputContainer.innerHTML = '';
         inputboxVariableGetters = [];
+
+        if (inputboxConfirmation) {
+            inputboxInput = null;
+            inputboxHistoryItems = [];
+            inputboxHistoryBtn.style.display = 'none';
+            const message = document.createElement('div');
+            message.className = 'inputbox-confirmation-message';
+            message.textContent = p.message ?? '';
+            inputboxInputContainer.appendChild(message);
+            inputboxOverlay.style.display = 'flex';
+            setTimeout(() => inputboxCancel.focus(), 0);
+            return;
+        }
+
+        inputboxVimHint.hidden = false;
 
         if (p.multiline) {
             inputboxInput = document.createElement('textarea');

@@ -13,6 +13,7 @@ type TermT struct {
 	Cmd  string            `yaml:"Cmd"`
 }
 
+// Workspace will never return nil. It is used to offer the workspace values, plus defaults should the workspace not exist or workspace specific settings are undefined
 func (w *WorkspaceT) Workspace(name string) *TermT {
 	t := &TermT{
 		Pwd: w.Defaults.Pwd,

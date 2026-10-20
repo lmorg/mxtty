@@ -26,14 +26,23 @@
 }
 
 .inputbox-title {
-    font-size: 14px;
+    font-family: "Jura", var(--font-family), sans-serif;
+    font-size: var(--notes-font-size, 14px);
     font-weight: bold;
-    color: var(--terminal-accent, #99c0d3);
+    color: var(--yellow, #99c0d3);
     word-break: break-word;
 }
 
 .inputbox-title h3 {
     margin: 0;
+}
+
+.inputbox-confirmation-message {
+    color: var(--terminal-fg, #e6edf3);
+    font-size: 13px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
 }
 
 .inputbox-input {
@@ -233,6 +242,18 @@
     border-color: var(--terminal-green, #3d7fc7);
     color: var(--terminal-green, #3d7fc7);
     background: var(--terminal-green-20, rgba(61, 127, 199, 0.2));
+}
+
+.inputbox-danger {
+    border-color: var(--terminal-fg, #99c0d3);
+    color: var(--terminal-fg, #99c0d3);
+    background: transparent;
+}
+
+.inputbox-danger:hover {
+    border-color: var(--red, var(--terminal-red, #dc323c));
+    color: var(--red, var(--terminal-red, #dc323c));
+    background: var(--terminal-red-20, rgba(220, 50, 60, 0.2));
 }
 
 .inputbox-cancel {

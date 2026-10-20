@@ -1,4 +1,4 @@
-import { CloseNotification, GetWindowStyle, SendIpc, TerminalCancelPaneAutoClose, TerminalClosePane, TerminalCopyImageDataURL, TerminalGetPanes, TerminalGetTabs, TerminalMouseLeave, TerminalPaneZoom, TerminalRequestRedraw, TerminalResize, TerminalSelectWindow, TerminalSetGlyphSize } from '../wailsjs/go/main/WApp';
+import { CloseNotification, GetWindowStyle, SendIpc, TerminalCancelPaneAutoClose, TerminalClonePane, TerminalClosePane, TerminalConfirmKillPane, TerminalCopyImageDataURL, TerminalGetPanes, TerminalGetTabs, TerminalMouseLeave, TerminalPaneZoom, TerminalRequestRedraw, TerminalResize, TerminalSelectWindow, TerminalSetGlyphSize } from '../wailsjs/go/main/WApp';
 import { EventsOn } from '../wailsjs/runtime/runtime';
 import { wireKeyboardEvents, wireMouseEvents } from './events';
 import { createFontController } from './font';
@@ -36,12 +36,41 @@ let rafWatchdog = 0;
 let terminalPanes = [];
 let paneLayoutVersion = 0;
 let paneCountdownInterval = 0;
+let hoveredPaneId = '';
+let lastPanePointer = null;
+let activeTmuxWindowId = '';
+
+function paneIsFinished(pane) {
+    return pane?.finished === true || (pane?.finished == null && pane?.canClose === true);
+}
+
+function updateHoveredPane(event) {
+    if (event) {
+        lastPanePointer = { x: event.clientX, y: event.clientY };
+    }
+    const rect = canvas.getBoundingClientRect();
+    const { cellWidth, cellHeight } = font.getCellSize();
+    if (!lastPanePointer || rect.width <= 0 || rect.height <= 0 || cellWidth <= 0 || cellHeight <= 0) {
+        hoveredPaneId = '';
+    } else {
+        const cellX = (lastPanePointer.x - rect.left) * canvas.width / rect.width / cellWidth;
+        const cellY = (lastPanePointer.y - rect.top) * canvas.height / rect.height / cellHeight;
+        const pane = terminalPanes.find((item) => item?.canClose
+            && cellX >= item.x && cellX < item.x + item.width
+            && cellY >= item.y && cellY < item.y + item.height);
+        hoveredPaneId = pane?.id || '';
+    }
+    for (const button of paneControlsEl.querySelectorAll('.terminal-pane-action')) {
+        button.dataset.hovered = String(button.dataset.paneId === hoveredPaneId);
+    }
+}
 
 function updatePaneCountdowns() {
     let active = false;
     for (const timer of paneControlsEl.querySelectorAll('.terminal-pane-timer')) {
         const remaining = Math.max(0, Number(timer.dataset.deadline) - Date.now());
-        const ratio = Math.max(0, Math.min(1, 1 - remaining / 30000));
+        const duration = Math.max(1, Number(timer.dataset.duration) || 30000);
+        const ratio = Math.max(0, Math.min(1, 1 - remaining / duration));
         timer.firstElementChild.style.setProperty('--progress-deg', `${Math.round(ratio * 360)}deg`);
         timer.setAttribute('aria-label', `Closes in ${Math.ceil(remaining / 1000)}s. Click to keep open`);
         if (remaining > 0) {
@@ -62,8 +91,6 @@ function renderPaneControls() {
         paneCountdownInterval = 0;
     }
     paneControlsEl.replaceChildren();
-    document.getElementById('terminal-pane')?.removeAttribute('data-completed-panes');
-    document.getElementById('terminal-pane')?.removeAttribute('data-pane-countdowns');
     closeSharedTooltip();
     const { cellWidth, cellHeight } = font.getCellSize();
     if (cellWidth <= 0 || cellHeight <= 0) {
@@ -74,21 +101,27 @@ function renderPaneControls() {
             || pane.x < 0 || pane.y < 0 || pane.width <= 0 || pane.height <= 0) {
             continue;
         }
+        const finished = paneIsFinished(pane);
         const hasTimer = Number.isFinite(pane.autoCloseAt) && pane.autoCloseAt > 0;
-        const size = Math.min(20, (pane.width * cellWidth - (hasTimer ? 4 : 0)) / (hasTimer ? 2 : 1), pane.height * cellHeight);
+        const controlCount = hasTimer ? 4 : 3;
+        const size = Math.min(20, (pane.width * cellWidth - (controlCount - 1) * 4) / controlCount, pane.height * cellHeight);
         const button = document.createElement('button');
         button.type = 'button';
-        button.className = 'notes-tools-clear terminal-pane-close';
+        button.className = 'notes-tools-clear terminal-pane-action terminal-pane-close';
         button.dataset.paneId = pane.id;
-        button.setAttribute('aria-label', 'Close completed pane');
+        button.dataset.finished = String(finished);
+        button.dataset.hovered = String(pane.id === hoveredPaneId);
+        const closeLabel = finished ? 'Close completed pane' : 'Kill pane';
+        button.setAttribute('aria-label', closeLabel);
         button.innerHTML = '&#xf00d;';
         button.style.width = `${size}px`;
         button.style.height = `${size}px`;
-        button.style.left = `${Math.max(pane.x * cellWidth, (pane.x + pane.width) * cellWidth - size - 2)}px`;
+        const closeLeft = Math.max(pane.x * cellWidth, (pane.x + pane.width) * cellWidth - size - 2);
+        button.style.left = `${closeLeft}px`;
         button.style.top = `${Math.min(pane.y * cellHeight + 2, (pane.y + pane.height) * cellHeight - size)}px`;
-        button.addEventListener('mouseenter', () => showSharedTooltip('Close completed pane'));
+        button.addEventListener('mouseenter', () => showSharedTooltip(closeLabel));
         button.addEventListener('mouseleave', closeSharedTooltip);
-        button.addEventListener('focus', () => showSharedTooltip('Close completed pane'));
+        button.addEventListener('focus', () => showSharedTooltip(closeLabel));
         button.addEventListener('blur', closeSharedTooltip);
         button.addEventListener('pointerdown', (event) => {
             event.preventDefault();
@@ -96,31 +129,109 @@ function renderPaneControls() {
         });
         button.addEventListener('click', async (event) => {
             event.stopPropagation();
-            if (typeof TerminalClosePane !== 'function') {
+            if (finished ? typeof TerminalClosePane !== 'function' : typeof TerminalConfirmKillPane !== 'function') {
                 return;
             }
             button.disabled = true;
             closeSharedTooltip();
             try {
-                await TerminalClosePane(pane.id);
-                terminalPanes = terminalPanes.filter((item) => item.id !== pane.id);
-                renderPaneControls();
-                canvas.focus();
+                if (finished) {
+                    await TerminalClosePane(pane.id);
+                    terminalPanes = terminalPanes.filter((item) => item.id !== pane.id);
+                    renderPaneControls();
+                    canvas.focus();
+                } else {
+                    await TerminalConfirmKillPane(pane.id, pane.name || '');
+                    button.disabled = false;
+                }
             } catch (error) {
                 button.disabled = false;
-                console.error('Failed to close completed pane', error);
+                console.error('Failed to close pane', error);
             }
         });
-        paneControlsEl.appendChild(button);
+        const zoomButton = document.createElement('button');
+        zoomButton.type = 'button';
+        zoomButton.className = 'terminal-pane-action terminal-pane-zoom';
+        zoomButton.dataset.paneId = pane.id;
+        zoomButton.dataset.finished = String(finished);
+        zoomButton.dataset.hovered = String(pane.id === hoveredPaneId);
+        zoomButton.setAttribute('aria-label', pane.zoomed ? 'Restore pane' : 'Maximize pane');
+        zoomButton.title = zoomButton.getAttribute('aria-label');
+        zoomButton.innerHTML = pane.zoomed ? '&#xf066;' : '&#xf065;';
+        zoomButton.style.width = `${size}px`;
+        zoomButton.style.height = `${size}px`;
+        zoomButton.style.left = `${closeLeft - size - 4 - (hasTimer ? size + 4 : 0)}px`;
+        zoomButton.style.top = button.style.top;
+        zoomButton.addEventListener('mouseenter', () => showSharedTooltip(zoomButton.title));
+        zoomButton.addEventListener('mouseleave', closeSharedTooltip);
+        zoomButton.addEventListener('focus', () => showSharedTooltip(zoomButton.title));
+        zoomButton.addEventListener('blur', closeSharedTooltip);
+        zoomButton.addEventListener('pointerdown', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+        });
+        zoomButton.addEventListener('click', async (event) => {
+            event.stopPropagation();
+            if (typeof TerminalPaneZoom !== 'function') {
+                return;
+            }
+            zoomButton.disabled = true;
+            closeSharedTooltip();
+            try {
+                await TerminalPaneZoom(pane.id);
+                window.dispatchEvent(new CustomEvent('ttyphoon-terminal-fullsize-toggle'));
+            } catch (error) {
+                console.error('Failed to zoom pane', error);
+            } finally {
+                zoomButton.disabled = false;
+            }
+        });
+        const cloneButton = document.createElement('button');
+        cloneButton.type = 'button';
+        cloneButton.className = 'terminal-pane-action terminal-pane-clone';
+        cloneButton.dataset.paneId = pane.id;
+        cloneButton.dataset.finished = String(finished);
+        cloneButton.dataset.hovered = String(pane.id === hoveredPaneId);
+        cloneButton.setAttribute('aria-label', 'Clone pane');
+        cloneButton.innerHTML = '&#xf24d;';
+        cloneButton.style.width = `${size}px`;
+        cloneButton.style.height = `${size}px`;
+        cloneButton.style.left = `${parseFloat(zoomButton.style.left) - size - 4}px`;
+        cloneButton.style.top = button.style.top;
+        cloneButton.addEventListener('mouseenter', () => showSharedTooltip('Clone pane'));
+        cloneButton.addEventListener('mouseleave', closeSharedTooltip);
+        cloneButton.addEventListener('focus', () => showSharedTooltip('Clone pane'));
+        cloneButton.addEventListener('blur', closeSharedTooltip);
+        cloneButton.addEventListener('pointerdown', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+        });
+        cloneButton.addEventListener('click', async (event) => {
+            event.stopPropagation();
+            if (typeof TerminalClonePane !== 'function') return;
+            cloneButton.disabled = true;
+            closeSharedTooltip();
+            try {
+                await TerminalClonePane(pane.id);
+                canvas.focus();
+            } catch (error) {
+                console.error('Failed to clone pane', error);
+            } finally {
+                cloneButton.disabled = false;
+            }
+        });
+        paneControlsEl.appendChild(cloneButton);
+        paneControlsEl.appendChild(zoomButton);
         if (hasTimer) {
             const timer = document.createElement('button');
             timer.type = 'button';
             timer.className = 'terminal-pane-timer';
             timer.dataset.paneId = pane.id;
             timer.dataset.deadline = String(pane.autoCloseAt);
+            timer.dataset.duration = String(pane.autoCloseDuration || 30000);
             timer.style.width = `${size}px`;
             timer.style.height = `${size}px`;
-            timer.style.left = `${parseFloat(button.style.left) - size - 4}px`;
+            timer.style.left = `${closeLeft - size - 4}px`;
             timer.style.top = button.style.top;
             const progress = document.createElement('span');
             progress.className = 'notif-progress';
@@ -154,15 +265,22 @@ function renderPaneControls() {
             });
             paneControlsEl.appendChild(timer);
         }
+        paneControlsEl.appendChild(button);
     }
-    document.getElementById('terminal-pane')?.toggleAttribute('data-completed-panes', paneControlsEl.childElementCount > 0);
     const hasCountdowns = !!paneControlsEl.querySelector('.terminal-pane-timer');
-    document.getElementById('terminal-pane')?.toggleAttribute('data-pane-countdowns', hasCountdowns);
     if (hasCountdowns) {
         updatePaneCountdowns();
         paneCountdownInterval = setInterval(updatePaneCountdowns, 50);
     }
+    updateHoveredPane();
 }
+
+const terminalViewport = document.getElementById('terminal-viewport');
+terminalViewport.addEventListener('pointermove', updateHoveredPane);
+terminalViewport.addEventListener('pointerleave', () => {
+    lastPanePointer = null;
+    updateHoveredPane();
+});
 
 function clearRedrawLatch() {
     if (rafWatchdog) {
@@ -188,6 +306,17 @@ const REDRAW_OP = {
 
 const REDRAW_FLAG = {
     FOLDED: 1 << 5,
+};
+
+const FRAME_FLAG = {
+    RESULT_MASK: 0x3,
+    TOP_HALF_INSET: 1 << 2,
+    BOTTOM_HALF_INSET: 1 << 3,
+};
+
+const TILE_OVERLAY_FLAG = {
+    TOP_HALF: 1 << 0,
+    BOTTOM_HALF: 1 << 1,
 };
 
 // SGR_FLAG mirrors the Go types.SgrFlag iota bit layout.
@@ -318,6 +447,7 @@ function toCompactCommand(op) {
                 width: op[3],
                 height: op[4],
                 alpha: op[5],
+                flags: Number(op[6]) || 0,
             };
 
         case REDRAW_OP.IMAGE:
@@ -434,6 +564,17 @@ function renderTerminalTabs(tabs) {
     }
 
     tabState = Array.isArray(tabs) ? [...tabs].sort((a, b) => (a?.index ?? 0) - (b?.index ?? 0)) : [];
+    const nextActiveWindowId = tabState.find((tab) => tab?.active && tab.id && tab.id !== '__jupyter__')?.id || '';
+    if (activeTmuxWindowId && activeTmuxWindowId !== nextActiveWindowId) {
+        const zoomedPane = terminalPanes.find((pane) => pane?.zoomed);
+        if (zoomedPane && typeof TerminalPaneZoom === 'function') {
+            TerminalPaneZoom(zoomedPane.id).catch((error) => console.error('Failed to restore outgoing tmux pane', error));
+        }
+        if (document.getElementById('terminal-pane')?.dataset.fullsize === 'true') {
+            window.dispatchEvent(new CustomEvent('ttyphoon-terminal-fullsize-toggle'));
+        }
+    }
+    activeTmuxWindowId = nextActiveWindowId;
     tabsEl.innerHTML = '';
 
     for (const tab of tabState) {
@@ -481,29 +622,6 @@ function renderTerminalTabs(tabs) {
     tabsEl.style.display = (tabState.length > 0 || jupyterTabEnabled) ? 'flex' : 'none';
     updateNotificationOffset();
 
-    // Ensure the pane zoom (fullscreen) button exists
-    createOrUpdateZoomButton();
-}
-
-function createOrUpdateZoomButton() {
-    if (document.getElementById('terminal-zoom-btn')) {
-        return;
-    }
-
-    const btn = document.createElement('button');
-    btn.id = 'terminal-zoom-btn';
-    btn.type = 'button';
-    btn.className = 'notes-tools-clear';
-    btn.title = 'Zoom pane';
-    btn.innerHTML = '&#xf065;';
-    btn.dataset.enabled = 'false';
-    btn.addEventListener('click', () => {
-        // Zoom the active tmux pane so only it fills the maximized overlay, then
-        // toggle the fullscreen overlay (mirrors the Notes full-size model).
-        TerminalPaneZoom();
-        window.dispatchEvent(new CustomEvent('ttyphoon-terminal-fullsize-toggle'));
-    });
-    document.getElementById('terminal-pane').appendChild(btn);
 }
 
 function applyEmbeddedJupyterVisibility() {
@@ -540,6 +658,8 @@ function applyTerminalStyles(result) {
             --terminal-selection-20: rgba(${result.colors.selection.Red}, ${result.colors.selection.Green}, ${result.colors.selection.Blue}, 0.2);
             --terminal-green: rgb(${result.colors.green.Red}, ${result.colors.green.Green}, ${result.colors.green.Blue});
             --terminal-green-20: rgba(${result.colors.green.Red}, ${result.colors.green.Green}, ${result.colors.green.Blue}, 0.2);
+            --terminal-red: rgb(${result.colors.red.Red}, ${result.colors.red.Green}, ${result.colors.red.Blue});
+            --terminal-red-20: rgba(${result.colors.red.Red}, ${result.colors.red.Green}, ${result.colors.red.Blue}, 0.2);
             --terminal-menu-fg: rgb(${result.colors.fg.Red}, ${result.colors.fg.Green}, ${result.colors.fg.Blue});
             --terminal-menu-bg: rgb(${result.colors.bg.Red}, ${result.colors.bg.Green}, ${result.colors.bg.Blue});
             --terminal-menu-border: rgba(${result.colors.selection.Red}, ${result.colors.selection.Green}, ${result.colors.selection.Blue}, 0.3);
@@ -624,16 +744,10 @@ function applyTerminalStyles(result) {
             overflow: hidden;
         }
 
-        #terminal-pane[data-completed-panes] #terminal-zoom-btn {
-            right: 36px;
-        }
-
-        #terminal-pane[data-pane-countdowns] #terminal-zoom-btn {
-            right: 60px;
-        }
-
+        #terminal-pane-controls .terminal-pane-clone,
         #terminal-pane-controls .terminal-pane-close,
-        #terminal-pane-controls .terminal-pane-timer {
+        #terminal-pane-controls .terminal-pane-timer,
+        #terminal-pane-controls .terminal-pane-zoom {
             position: absolute;
             pointer-events: auto;
             display: grid;
@@ -650,13 +764,29 @@ function applyTerminalStyles(result) {
             cursor: pointer;
         }
 
+        #terminal-pane-controls .terminal-pane-clone:hover,
+        #terminal-pane-controls .terminal-pane-clone:focus-visible,
         #terminal-pane-controls .terminal-pane-close:hover,
         #terminal-pane-controls .terminal-pane-close:focus-visible,
+        #terminal-pane-controls .terminal-pane-zoom:hover,
+        #terminal-pane-controls .terminal-pane-zoom:focus-visible,
         #terminal-pane-controls .terminal-pane-timer:hover,
         #terminal-pane-controls .terminal-pane-timer:focus-visible {
             color: var(--terminal-bg);
             background: var(--terminal-accent);
             border-color: var(--terminal-accent);
+        }
+
+        #terminal-pane-controls .terminal-pane-action {
+            transition: opacity 120ms ease, transform 120ms ease, visibility 0s;
+        }
+
+        #terminal-pane-controls .terminal-pane-action[data-finished="false"][data-hovered="false"] {
+            opacity: 0;
+            transform: scale(0.9);
+            visibility: hidden;
+            pointer-events: none;
+            transition: opacity 120ms ease, transform 120ms ease, visibility 0s linear 120ms;
         }
 
         #terminal-pane-controls .terminal-pane-timer {
@@ -671,8 +801,10 @@ function applyTerminalStyles(result) {
             margin: 0;
         }
 
+        #terminal-pane-controls .terminal-pane-clone:disabled,
         #terminal-pane-controls .terminal-pane-close:disabled,
-        #terminal-pane-controls .terminal-pane-timer:disabled {
+        #terminal-pane-controls .terminal-pane-timer:disabled,
+        #terminal-pane-controls .terminal-pane-zoom:disabled {
             opacity: 0.5;
             cursor: default;
         }
@@ -1104,9 +1236,14 @@ function drawFrame(cmd = null) {
     const yCell = Number.isFinite(cmd?.y) ? cmd.y : 0;
     const widthCells = Number.isFinite(cmd?.width) && cmd.width > 0 ? cmd.width : null;
     const heightCells = Number.isFinite(cmd?.height) && cmd.height > 0 ? cmd.height : null;
+    const frameFlags = Number.isFinite(cmd?.result) ? cmd.result : 0;
+    const topInset = (frameFlags & FRAME_FLAG.TOP_HALF_INSET) !== 0 ? cellHeight / 2 : 0;
+    const bottomInset = (frameFlags & FRAME_FLAG.BOTTOM_HALF_INSET) !== 0 ? cellHeight / 2 : 0;
 
     const x = Math.max(0, Math.floor(xCell * cellWidth));
-    const y = Math.max(0, Math.floor(yCell * cellHeight));
+    const frameY = yCell * cellHeight + topInset;
+    const y = Math.max(0, frameY);
+    const clippedTop = y - frameY;
 
     let width = offscreen.width;
     let height = offscreen.height;
@@ -1116,18 +1253,19 @@ function drawFrame(cmd = null) {
         const rows = heightCells ?? Math.floor(offscreen.height / cellHeight);
 
         width = Math.max(0, cols * cellWidth);
-        height = Math.max(0, rows * cellHeight);
+        height = Math.max(0, rows * cellHeight - topInset + bottomInset - clippedTop);
     }
 
     width = Math.min(width, Math.max(0, offscreen.width-x)) + 2;
-    height = Math.min(height, Math.max(0, offscreen.height-y)) + 2;
+    height = Math.min(height, Math.max(0, offscreen.height-y)) + (bottomInset === 0 ? 2 : 0);
 
     if (width <= 0 || height <= 0) {
         return;
     }
 
     const bg = windowStyle?.colors?.bg || { Red: 0, Green: 0, Blue: 0 };
-    const tint = cmd?.result === 1 ? windowStyle?.colors?.green : cmd?.result === 2 ? windowStyle?.colors?.red : null;
+    const result = frameFlags & FRAME_FLAG.RESULT_MASK;
+    const tint = result === 1 ? windowStyle?.colors?.green : result === 2 ? windowStyle?.colors?.red : null;
     const background = tint ? {
         Red: Math.round(bg.Red * 0.8 + tint.Red * 0.2),
         Green: Math.round(bg.Green * 0.8 + tint.Green * 0.2),
@@ -1280,9 +1418,12 @@ function drawTileOverlay(cmd) {
     }
 
     const x = xCell * cellWidth;
-    const y = yCell * cellHeight;
+    const flags = Number(cmd.flags) || 0;
+    const topHalf = (flags & TILE_OVERLAY_FLAG.TOP_HALF) !== 0;
+    const bottomHalf = (flags & TILE_OVERLAY_FLAG.BOTTOM_HALF) !== 0;
+    const y = yCell * cellHeight + (bottomHalf ? cellHeight / 2 : 0);
     const width = widthCells * cellWidth;
-    const height = heightCells * cellHeight;
+    const height = topHalf || bottomHalf ? cellHeight / 2 : heightCells * cellHeight;
 
     const alpha = Number.isFinite(cmd.alpha) ? Math.max(0, Math.min(255, cmd.alpha)) / 255 : 0.5;
     const bg = cmd.bg;
@@ -1482,6 +1623,7 @@ EventsOn("terminalPanes", payload => {
     }
     paneLayoutVersion += 1;
     terminalPanes = panes;
+    updateHoveredPane();
     document.getElementById('terminal-viewport').setAttribute('data-tile-count', String(panes.length));
     renderPaneControls();
 });

@@ -3705,6 +3705,8 @@ describe('notes rendering', () => {
         menu.onSelect(0);
         await flushPromises();
         expect(document.getElementById('notes-modal-title').textContent).toBe('New AI session');
+        expect(document.querySelector('#notes-modal-title h3')?.textContent).toBe('New AI session');
+        expect(document.getElementById('notes-modal-title').classList.contains('markdown-body')).toBe(true);
         expect(document.getElementById('notes-modal-create').textContent).toBe('Create');
         expect(document.getElementById('notes-modal-input').placeholder).toBe('Optional session name');
         document.getElementById('notes-modal-input').value = 'Planning notes';
@@ -5324,6 +5326,8 @@ describe('notes rendering', () => {
         showLocalMenuMock.mock.calls.at(-1)?.[0].onSelect(0);
         await flushPromises();
         expect(document.getElementById('notes-modal').dataset.open).toBe('true');
+        expect(document.querySelector('#notes-modal-title h3')?.textContent).toBe('Create new branch');
+        expect(document.getElementById('notes-modal-title').classList.contains('markdown-body')).toBe(true);
         document.getElementById('notes-modal-input').value = 'topic/new';
         document.getElementById('notes-modal-create').click();
         await flushPromises();
@@ -5398,6 +5402,8 @@ describe('notes rendering', () => {
         menu.onSelect(0);
         await flushPromises();
         expect(document.getElementById('notes-modal-title')?.textContent).toBe('Create new tag');
+        expect(document.querySelector('#notes-modal-title h3')?.textContent).toBe('Create new tag');
+        expect(document.getElementById('notes-modal-title').classList.contains('markdown-body')).toBe(true);
         document.getElementById('notes-modal-input').value = 'v11.0.0';
         document.getElementById('notes-modal-create').click();
         await flushPromises();

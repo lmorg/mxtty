@@ -1083,12 +1083,16 @@ export namespace rendererwebkit {
 	
 	export class TerminalPane {
 	    id: string;
+	    name: string;
 	    x: number;
 	    y: number;
 	    width: number;
 	    height: number;
 	    canClose: boolean;
+	    finished: boolean;
+	    zoomed: boolean;
 	    autoCloseAt?: number;
+	    autoCloseDuration?: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new TerminalPane(source);
@@ -1097,12 +1101,16 @@ export namespace rendererwebkit {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
+	        this.name = source["name"];
 	        this.x = source["x"];
 	        this.y = source["y"];
 	        this.width = source["width"];
 	        this.height = source["height"];
 	        this.canClose = source["canClose"];
+	        this.finished = source["finished"];
+	        this.zoomed = source["zoomed"];
 	        this.autoCloseAt = source["autoCloseAt"];
+	        this.autoCloseDuration = source["autoCloseDuration"];
 	    }
 	}
 

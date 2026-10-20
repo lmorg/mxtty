@@ -140,6 +140,31 @@ function loadMonacoModule() {
     return monacoModulePromise;
 }
 
+export function attachMonacoSpellcheckContextMenu(editor, findMisspelling, replaceMisspelling) {
+    const domNode = editor.getDomNode();
+    const handler = (event) => {
+        const position = editor.getTargetAtClientPoint(event.clientX, event.clientY)?.position;
+        if (!position) return;
+        const misspelling = findMisspelling(editor.getModel().getOffsetAt(position));
+        if (!misspelling) return;
+
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        showSpellcheckSuggestionsPopup(
+            event.clientX,
+            event.clientY,
+            misspelling,
+            (suggestion) => replaceMisspelling(misspelling, suggestion),
+        );
+    };
+    domNode?.addEventListener('contextmenu', handler, true);
+    return {
+        dispose() {
+            domNode?.removeEventListener('contextmenu', handler, true);
+        },
+    };
+}
+
 function attachMonacoEditorHooks(editor, options, onEscape) {
     const keyDownDisposable = editor.onKeyDown((event) => {
         const browserEvent = event?.browserEvent;
@@ -1008,31 +1033,7 @@ export async function createMonacoAdapter(container, options = {}) {
         }
     });
 
-    const mouseDownDisposable = editor.onMouseDown((event) => {
-        const browserEvent = event?.event?.browserEvent;
-        const position = event?.target?.position;
-
-        if (!browserEvent || Number(browserEvent.button) !== 0 || !position) {
-            return;
-        }
-
-        const misspelling = getMisspellingAtOffset(model.getOffsetAt(position));
-        if (!misspelling) {
-            return;
-        }
-
-        browserEvent.preventDefault?.();
-        browserEvent.stopPropagation?.();
-
-        showSpellcheckSuggestionsPopup(
-            Number(browserEvent.clientX) || 0,
-            Number(browserEvent.clientY) || 0,
-            misspelling,
-            (suggestion) => {
-                replaceMisspellingWithSuggestion(misspelling, suggestion);
-            },
-        );
-    });
+    const spellcheckContextMenu = attachMonacoSpellcheckContextMenu(editor, getMisspellingAtOffset, replaceMisspellingWithSuggestion);
 
     const lspDisposables = [];
     let lspCodeActionCommandDisposable = null;
@@ -1641,7 +1642,7 @@ export async function createMonacoAdapter(container, options = {}) {
             mouseMoveDisposable.dispose();
             blurDisposable.dispose();
             focusDisposable.dispose();
-            mouseDownDisposable.dispose();
+            spellcheckContextMenu.dispose();
             scrollDisposable.dispose();
             inputHooks.dispose();
             disposeLsp();

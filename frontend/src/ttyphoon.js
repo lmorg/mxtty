@@ -10,7 +10,7 @@ import {
     WindowSetPosition,
     WindowSetSize,
 } from '../wailsjs/runtime/runtime';
-import { GetWindowStyle, GetAppTitle, TerminalSetFocus } from '../wailsjs/go/main/WApp';
+import { GetWindowStyle, GetAppTitle, TerminalGetPanes, TerminalPaneZoom, TerminalSetFocus } from '../wailsjs/go/main/WApp';
 import { EventsOn } from '../wailsjs/runtime/runtime';
 import { DARKEN_BACKGROUND_OVERLAY } from './style-utils';
 import { restoreLayoutRatio, saveLayoutRatio } from './layout-sizing.js';
@@ -914,9 +914,21 @@ function enterFullsize(kind) {
         'justify-content: center',
         'background: rgba(0, 0, 0, 0.7)',
     ].join('; ');
-    // Clicking the darkened border exits full-size mode.
-    overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) exitFullsize();
+    // Clicking outside a tmux-zoomed pane restores the pane before leaving fullsize.
+    overlay.addEventListener('click', async (e) => {
+        if (e.target !== overlay) return;
+        if (kind === 'terminal') {
+            try {
+                const panes = await TerminalGetPanes();
+                const zoomedPane = panes?.find((item) => item?.zoomed && item.id);
+                if (zoomedPane && typeof TerminalPaneZoom === 'function') {
+                    await TerminalPaneZoom(zoomedPane.id);
+                }
+            } catch (err) {
+                console.error('Failed to restore zoomed terminal pane', err);
+            }
+        }
+        exitFullsize();
     });
 
     overlay.appendChild(pane);
@@ -1044,6 +1056,10 @@ window.addEventListener('ttyphoon-notes-fullsize-toggle', () => {
 });
 
 window.addEventListener('ttyphoon-terminal-fullsize-toggle', () => {
+    toggleFullsize('terminal');
+});
+
+EventsOn('terminalFullsizeToggle', () => {
     toggleFullsize('terminal');
 });
 

@@ -1,11 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+
+const inputboxCss = readFileSync('./src/inputbox.css', 'utf8');
 
 const terminalInputBoxSubmitMock = vi.fn(() => Promise.resolve());
+const terminalTextInputMock = vi.fn(() => Promise.resolve());
+const terminalKeyPressMock = vi.fn(() => Promise.resolve());
 const eventsOnMock = vi.fn();
 const showLocalMenuMock = vi.fn();
 
 vi.mock('../wailsjs/go/main/WApp', () => ({
     TerminalInputBoxSubmit: terminalInputBoxSubmitMock,
+    TerminalTextInput: terminalTextInputMock,
+    TerminalKeyPress: terminalKeyPressMock,
 }));
 
 vi.mock('../wailsjs/runtime/runtime', () => ({
@@ -32,6 +39,8 @@ describe('inputbox', () => {
         showLocalMenuMock.mockReset();
         terminalInputBoxSubmitMock.mockReset();
         terminalInputBoxSubmitMock.mockResolvedValue();
+        terminalTextInputMock.mockClear();
+        terminalKeyPressMock.mockClear();
     });
 
     it('shows a history popup button and writes the selected item into the input', async () => {
@@ -133,6 +142,115 @@ describe('inputbox', () => {
             value: '',
             variables: {},
         }, false);
+    });
+
+    it('uses themed Kill and Cancel buttons and lets Escape cancel a confirmation', async () => {
+        const { initInputBox } = await import('./inputbox.js');
+        initInputBox(document.createElement('canvas'));
+        const openHandler = eventsOnMock.mock.calls.find(([name]) => name === 'terminalInputBox')[1];
+        openHandler({
+            id: 12,
+            title: 'Confirm pane close',
+            message: 'Are you sure you wish to kill the active pane?\n\nID: %7\nName: shell',
+            confirmation: true,
+            confirmLabel: 'Kill',
+            cancelLabel: 'Cancel',
+            confirmIsDanger: true,
+        });
+
+        expect(document.querySelector('#inputbox-title h3')?.textContent).toBe('Confirm pane close');
+        expect(document.querySelector('.inputbox-confirmation-message')?.textContent).toContain('ID: %7\nName: shell');
+        expect(document.querySelector('.inputbox-input')).toBeNull();
+        expect(document.getElementById('inputbox-ok').textContent).toBe('Kill');
+        expect(document.getElementById('inputbox-ok').classList.contains('inputbox-danger')).toBe(true);
+        expect(document.getElementById('inputbox-cancel').textContent).toBe('Cancel');
+        expect(document.getElementById('inputbox-escape-hint').textContent).toBe('Escape to cancel');
+        const visibleButtons = Array.from(document.querySelectorAll('.inputbox-buttons button'))
+            .filter((button) => button.style.display !== 'none');
+        expect(visibleButtons.map((button) => button.id)).toEqual(['inputbox-ok', 'inputbox-cancel']);
+
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+        expect(terminalInputBoxSubmitMock).toHaveBeenCalledWith(12, { value: '', variables: {} }, false);
+    });
+
+    it('uses the shared yellow Jura heading style for dialog titles', () => {
+        const style = document.createElement('style');
+        style.textContent = inputboxCss;
+        document.head.appendChild(style);
+        try {
+            const title = Array.from(style.sheet.cssRules).find((rule) => rule.selectorText === '.inputbox-title').style;
+            expect(title.getPropertyValue('color')).toContain('--yellow');
+            expect(title.getPropertyValue('font-family')).toContain('Jura');
+            expect(title.getPropertyValue('font-size')).toContain('--notes-font-size');
+        } finally {
+            style.remove();
+        }
+    });
+
+    it('keeps the Kill background transparent at rest and red-tinted on hover', () => {
+        const style = document.createElement('style');
+        style.textContent = inputboxCss;
+        document.head.appendChild(style);
+        try {
+            const rules = Array.from(style.sheet.cssRules);
+            const idle = rules.find((rule) => rule.selectorText === '.inputbox-danger').style;
+            const hover = rules.find((rule) => rule.selectorText === '.inputbox-danger:hover').style;
+            const cancel = rules.find((rule) => rule.selectorText === '.inputbox-cancel').style;
+            expect(idle.getPropertyValue('background')).toBe('transparent');
+            expect(idle.getPropertyValue('border-color')).toBe(cancel.getPropertyValue('border-color'));
+            expect(idle.getPropertyValue('color')).toBe(cancel.getPropertyValue('color'));
+            expect(hover.getPropertyValue('border-color')).toContain('--red');
+            expect(hover.getPropertyValue('background')).toContain('--terminal-red-20');
+        } finally {
+            style.remove();
+        }
+    });
+
+    it('submits a confirmation only when Kill is activated', async () => {
+        const { initInputBox } = await import('./inputbox.js');
+        initInputBox(document.createElement('canvas'));
+        const openHandler = eventsOnMock.mock.calls.find(([name]) => name === 'terminalInputBox')[1];
+        openHandler({ id: 13, title: 'Confirm pane close', confirmation: true, confirmLabel: 'Kill' });
+        document.getElementById('inputbox-ok').click();
+        expect(terminalInputBoxSubmitMock).toHaveBeenCalledWith(13, { value: '', variables: {} }, true);
+    });
+
+    it('blocks terminal input during confirmation and cycles only Kill and Cancel with Tab', async () => {
+        const { initInputBox } = await import('./inputbox.js');
+        const { wireKeyboardEvents } = await import('./events.js');
+        const canvas = document.createElement('canvas');
+        document.body.appendChild(canvas);
+        wireKeyboardEvents(canvas);
+        initInputBox(canvas);
+        const openHandler = eventsOnMock.mock.calls.find(([name]) => name === 'terminalInputBox')[1];
+        openHandler({ id: 14, title: 'Confirm pane close', confirmation: true, confirmLabel: 'Kill' });
+
+        const kill = document.getElementById('inputbox-ok');
+        const cancel = document.getElementById('inputbox-cancel');
+        cancel.focus();
+        window.terminalFocusedState = true;
+        for (const key of ['x', 'Enter', ' ', 'ArrowUp']) {
+            for (const type of ['keydown', 'keypress', 'keyup']) {
+                const event = new KeyboardEvent(type, { key, bubbles: true, cancelable: true });
+                cancel.dispatchEvent(event);
+                expect(event.defaultPrevented).toBe(true);
+            }
+        }
+        cancel.dispatchEvent(new KeyboardEvent('keydown', { key: 'v', ctrlKey: true, bubbles: true, cancelable: true }));
+        expect(terminalTextInputMock).not.toHaveBeenCalled();
+        expect(terminalKeyPressMock).not.toHaveBeenCalled();
+        expect(terminalInputBoxSubmitMock).not.toHaveBeenCalled();
+
+        cancel.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
+        expect(document.activeElement).toBe(kill);
+        kill.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
+        expect(document.activeElement).toBe(cancel);
+        cancel.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true }));
+        expect(document.activeElement).toBe(kill);
+
+        kill.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+        expect(terminalInputBoxSubmitMock).toHaveBeenCalledWith(14, { value: '', variables: {} }, false);
+        expect(terminalKeyPressMock).not.toHaveBeenCalled();
     });
 
     it('maps Home and End to current line boundaries in multiline input', async () => {
