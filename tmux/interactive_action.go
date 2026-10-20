@@ -6,11 +6,11 @@ import (
 	"errors"
 	"os"
 	"time"
+
+	"github.com/lmorg/ttyphoon/config"
 )
 
 type interactiveActionCallback func(output []byte, exitCode int, err error)
-
-const interactiveActionAutoCloseDelay = 30 * time.Second
 
 type interactiveActionEntry struct {
 	paneID     string
@@ -124,10 +124,11 @@ func (tmux *Tmux) finishInteractiveAction(entry interactiveActionEntry, output [
 	}
 	if pane := tmux.panes.Get(entry.paneID); pane != nil {
 		if exitCode == 0 && actionErr == nil {
-			deadline := time.Now().Add(interactiveActionAutoCloseDelay).UnixMilli()
+			delay := config.PaneAutoCloseDelay()
+			deadline := time.Now().Add(delay).UnixMilli()
 			pane.autoCloseAt.Store(deadline)
 			pane.actionResult.Store(1)
-			time.AfterFunc(interactiveActionAutoCloseDelay, func() {
+			time.AfterFunc(delay, func() {
 				if tmux.panes.Get(entry.paneID) != pane || !pane.autoCloseAt.CompareAndSwap(deadline, -1) {
 					return
 				}

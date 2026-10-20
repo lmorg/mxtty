@@ -53,12 +53,17 @@ func (ib *inputBoxesT) pop(id int64) (inputBoxCallbacksT, bool) {
 }
 
 type inputBoxPayload struct {
-	ID           int64    `json:"id"`
-	Title        string   `json:"title"`
-	DefaultValue string   `json:"defaultValue"`
-	Placeholder  string   `json:"placeholder"`
-	History      []string `json:"history"`
-	Multiline    bool     `json:"multiline"`
+	ID              int64    `json:"id"`
+	Title           string   `json:"title"`
+	Message         string   `json:"message"`
+	DefaultValue    string   `json:"defaultValue"`
+	Placeholder     string   `json:"placeholder"`
+	History         []string `json:"history"`
+	Multiline       bool     `json:"multiline"`
+	Confirmation    bool     `json:"confirmation"`
+	ConfirmLabel    string   `json:"confirmLabel"`
+	CancelLabel     string   `json:"cancelLabel"`
+	ConfirmIsDanger bool     `json:"confirmIsDanger"`
 
 	Variables []types.InputBoxWTVariables `json:"variables"`
 }
@@ -80,7 +85,9 @@ func (wr *webkitRender) DisplayInputBoxW(parameters *types.InputBoxWT) {
 	// get history
 
 	cacheKey := parameters.Options.CacheKey
-	if len(parameters.Options.History) == 0 {
+	if parameters.Options.Confirmation {
+		cacheKey = ""
+	} else if len(parameters.Options.History) == 0 {
 		if cacheKey == "" {
 			// get caller
 			pc, _, _, ok := goruntime.Caller(2)
@@ -99,13 +106,18 @@ func (wr *webkitRender) DisplayInputBoxW(parameters *types.InputBoxWT) {
 
 	if wr.wapp != nil {
 		runtime.EventsEmit(wr.wapp, "terminalInputBox", inputBoxPayload{
-			ID:           id,
-			Title:        parameters.Options.Title,
-			DefaultValue: parameters.Options.Prefill,
-			Placeholder:  parameters.Options.Placeholder,
-			History:      parameters.Options.History,
-			Multiline:    parameters.Options.Multiline,
-			Variables:    parameters.Options.Variables,
+			ID:              id,
+			Title:           parameters.Options.Title,
+			Message:         parameters.Options.Message,
+			DefaultValue:    parameters.Options.Prefill,
+			Placeholder:     parameters.Options.Placeholder,
+			History:         parameters.Options.History,
+			Multiline:       parameters.Options.Multiline,
+			Confirmation:    parameters.Options.Confirmation,
+			ConfirmLabel:    parameters.Options.ConfirmLabel,
+			CancelLabel:     parameters.Options.CancelLabel,
+			ConfirmIsDanger: parameters.Options.ConfirmIsDanger,
+			Variables:       parameters.Options.Variables,
 		})
 	}
 }

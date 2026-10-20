@@ -49,12 +49,14 @@ terminal text; it must correspond to an outstanding invocation.
 - Remove a pending callback if pane creation fails or the associated pane exits
   without reporting completion.
 - On exit code zero, tint the pane's default background with the theme green at
-  0.2 opacity and close it after thirty seconds. On non-zero exit, use the theme
+  0.2 opacity and close it after `Terminal.PaneAutoCloseDelay` (default `30s`).
+  The configured Go duration is shared with the frontend countdown. On non-zero exit, use the theme
   red at the same opacity and leave it open for inspection. Completion adds no
   borders or foreground overlay: blend the tint into the frame background before
   drawing text, retaining text colors and explicit cell backgrounds.
 - Include the backend auto-close deadline as Unix milliseconds in the pane
-  snapshot's `autoCloseAt` field. Show the notification-style pie countdown next
+  snapshot's `autoCloseAt` field and the configured delay as `autoCloseDuration`.
+  Show the notification-style pie countdown next
   to the close icon, using that deadline so redraws and tab switches do not reset
   it. Animate the DOM indicator only, without terminal redraws or tmux commands.
   Clicking the timer calls `TerminalCancelPaneAutoClose`, atomically cancelling
@@ -88,8 +90,8 @@ terminal text; it must correspond to an outstanding invocation.
   temporarily mark every pane closed during a sweep: renderer layout refreshes
   can run concurrently and treat that temporary state as real exits. Iterate a
   stable pane-map snapshot so removals cannot invalidate an in-progress
-  traversal. The tmux pane-exit hook handles panes closed through the normal
-  kill-pane key binding as well as exits initiated elsewhere.
+  traversal. The tmux pane-exit hook remains the fallback for exits initiated
+  elsewhere.
 - Reconcile active windows and panes from live local metadata during closure.
   Prefer tmux's reported active flag, retain only cached selections still in
   their maps and not closed, and use a stable surviving fallback during refresh
@@ -100,14 +102,52 @@ terminal text; it must correspond to an outstanding invocation.
   none survive, return an unavailable-pane error to callers and a truly nil
   active tile in the renderer layout, not a Tile interface containing a nil
   pane pointer. Closed or removed windows must not remain the active window.
-- Place a close icon inside the top-right corner of completed panes. Both
-  validated interactive-action results and tmux's `pane_dead` state make a pane
-  closable; a running shell is not closable through this control. Track the
-  `pane-died` hook for retained panes and clear completion state on respawn.
-  `TerminalClosePane` delegates to tmux, which validates the stored pane state,
-  kills that exact pane ID, and reconciles removed panes before refreshing the
-  renderer. Manual close remains available during and after the countdown;
-  closing the pane makes its pending auto-close callback a no-op.
+- Place a close icon inside the top-right corner of every tmux pane. For a
+  completed pane, keep the icon visible and close immediately; for a running
+  pane, reveal it only while the pointer is over that pane and require
+  confirmation in the shared themed input box. The dialog identifies the pane,
+  puts `Kill` before right-aligned `Cancel`, and gives Kill the same neutral
+  outline at rest with a red-tinted hover state. Confirmation dialogs consume
+  keyboard events before terminal handlers: only Tab/Shift+Tab cycles between
+  the buttons and Escape cancels. Enter, Space, text, and terminal shortcuts
+  are ignored; actions remain mouse-activated. Confirmed kills target that pane ID, not whichever pane is active
+  when the dialog is answered. The kill-pane hotkey passes the selected pane's
+  ID and title through the same renderer `ConfirmKillPane` policy as the button:
+  running panes require confirmation, completed panes close immediately, and
+  both use `KillPane` for removal reconciliation. Never fall back to a direct
+  `kill-pane` command when the confirmation provider is unavailable.
+  Imported tmux hotkeys map "Move to the previously active pane" to
+  `select-pane -l` and "Zoom the active pane" to the active pane's validated
+  `resize-pane -Z` path; both refresh the renderer after the command. The zoom
+  hotkey also emits `terminalFullsizeToggle` after a successful zoom, reaching
+  the same fullsize controller as the pane button. A failed zoom must not toggle
+  the application overlay.
+  A pane-local zoom/restore button targets that
+  pane ID with tmux `resize-pane -Z`, then enters the shared terminal fullsize
+  overlay used by Notes maximize; like close, it is shown only for a completed
+  pane or while hovered. On active tmux window changes, restore the outgoing
+  window's zoomed pane and exit terminal fullsize; same-window refreshes do not
+  affect zoom. Populate the renderer's per-pane zoom state from tmux's
+  `pane_zoomed_flag`, not the window-wide `window_zoomed_flag`. Both validated
+  interactive-action results and
+  tmux's `pane_dead` state make a pane completed; track the `pane-died` hook for
+  retained panes and clear completion state on respawn. `TerminalClosePane`
+  validates completed state, kills that exact pane ID, and reconciles removed
+  panes before refreshing the renderer. Manual close remains available during
+  and after the countdown; closing the pane makes its pending auto-close
+  callback a no-op.
+- Horizontal and vertical split hotkeys pass `-c` with the workspace directory
+  configured for the active window's name, falling back to `Workspaces.Defaults.Pwd`.
+  Expand environment variables and quote the directory as a tmux argument. With
+  no configured directory, omit `-c` and preserve tmux's normal split behavior.
+  Splitting does not reapply the workspace's command or environment settings.
+- A pane-local Clone control (icon `0xf24d`) appears before zoom with the same
+  hover/finished visibility rule. It calls `ClonePane` for the clicked source
+  pane with an empty command and no callback. This splits below the source and
+  starts tmux's normal shell with the source working directory and reported
+  environment. Shell-only clones omit the completion wrapper, retained-exit
+  flag, callback registration, and auto-close timer; command clones keep their
+  existing interactive-action lifecycle.
 - Keep this terminal mechanism generic; Git-specific execution policy remains
   in `utils/git` (ADR 0071).
 - Markdown code blocks and Jupyter's Send to terminal action share the

@@ -2,16 +2,27 @@ package tmux
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/lmorg/ttyphoon/codes"
+	"github.com/lmorg/ttyphoon/config"
 	"github.com/lmorg/ttyphoon/hotkeys"
 	"github.com/lmorg/ttyphoon/types"
+	"github.com/lmorg/ttyphoon/utils/workspace"
 )
 
 type terminalPaneTabsProvider interface {
 	TerminalPaneTabs() []types.TerminalPaneTab
 	ActivateTerminalPaneTab(string)
+}
+
+type terminalPaneCloseProvider interface {
+	ConfirmKillPane(string, string) error
+}
+
+type terminalPaneZoomProvider interface {
+	ZoomPaneAndMaximize(string) error
 }
 
 func fnKeyNewWindow(tmux *Tmux) error {
@@ -24,9 +35,23 @@ func fnKeyKillPane(tmux *Tmux) error {
 	if err != nil {
 		return err
 	}
-	command := fmt.Sprintf("kill-pane -t %s", pane.id)
-	_, err = tmux.SendCommand([]byte(command))
-	return err
+	closer, ok := tmux.renderer.(terminalPaneCloseProvider)
+	if !ok {
+		return fmt.Errorf("pane close confirmation is unavailable")
+	}
+	return closer.ConfirmKillPane(pane.Id(), pane.Name())
+}
+
+func fnKeyZoomPane(tmux *Tmux) error {
+	pane, err := tmux.ActivePane()
+	if err != nil {
+		return err
+	}
+	zoomer, ok := tmux.renderer.(terminalPaneZoomProvider)
+	if !ok {
+		return fmt.Errorf("pane maximize is unavailable")
+	}
+	return zoomer.ZoomPaneAndMaximize(pane.Id())
 }
 
 func fnKeyKillCurrentWindow(tmux *Tmux) error {
@@ -210,11 +235,6 @@ func _fnKeySelectWindow(tmux *Tmux, i int) error {
 	return tmux.selectWindow(tmux.appWindow.Tabs[i].Id())
 }
 
-func fnKeyLastPane(tmux *Tmux) error {
-	_, err := tmux.SendCommand([]byte("last-pane"))
-	return err
-}
-
 func fnKeyLastWindow(tmux *Tmux) error {
 	_, err := tmux.SendCommand([]byte("last-window"))
 	return err
@@ -230,10 +250,25 @@ func fnKeyPreviousWindowAlert(tmux *Tmux) error {
 	return err
 }
 
-func _fnKeySplitWindow(tmux *Tmux, flag string) error {
-	_, err := tmux.SendCommand([]byte("split-window " + flag))
-	//go tmux.renderer.RefreshWindowList()
-	return err
+func _fnKeySplitWindow(tmux *Tmux, flag string) (err error) {
+	command := "split-window " + flag
+
+	defer func() { _, err = tmux.SendCommand([]byte(command)) }()
+
+	win, err := tmux.ActiveWindow()
+	if err != nil {
+		log.Printf("[error] cannot set new pane pwd: cannot find active window: %v", err)
+		return
+	}
+
+	settings := config.Config.Workspaces.Workspace(win.name)
+
+	if pwd := settings.Pwd; pwd != "" {
+		log.Printf("[trace] setting pwd of new pane to %s\n", pwd)
+		command += " -c " + workspace.PwdTmux(pwd)
+	}
+
+	return
 }
 func fnKeySplitWindowHorizontally(tmux *Tmux) error { return _fnKeySplitWindow(tmux, "-h") }
 func fnKeySplitWindowVertically(tmux *Tmux) error   { return _fnKeySplitWindow(tmux, "-v") }
@@ -241,7 +276,6 @@ func fnKeySplitWindowVertically(tmux *Tmux) error   { return _fnKeySplitWindow(t
 func _fnKeySelectPane(tmux *Tmux, flag string) error {
 	_, err := tmux.SendCommand([]byte("select-pane " + flag))
 	go tmux.renderer.RefreshWindowList()
-	//go tmux.updatePaneInfo("")
 	return err
 }
 func fnKeySelectPaneUp(tmux *Tmux) error    { return _fnKeySelectPane(tmux, "-U") }
@@ -259,7 +293,6 @@ func fnKeyTilePanes(tmux *Tmux) error {
 func _fnKeyResizePane(tmux *Tmux, flag string) error {
 	_, err := tmux.SendCommand([]byte("resize-pane " + flag))
 	go tmux.renderer.RefreshWindowList()
-	//go tmux.updatePaneInfo("")
 	return err
 }
 func fnKeyResizePaneUp1(tmux *Tmux) error    { return _fnKeyResizePane(tmux, "-U 1") }

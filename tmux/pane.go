@@ -12,6 +12,7 @@ import (
 	"github.com/lmorg/ttyphoon/debug"
 	"github.com/lmorg/ttyphoon/types"
 	runebuf "github.com/lmorg/ttyphoon/utils/rune_buf"
+	"github.com/lmorg/ttyphoon/utils/workspace"
 	"github.com/lmorg/ttyphoon/virtualterm"
 )
 
@@ -165,7 +166,7 @@ type paneInfo struct {
 	AtBottom  bool   `tmux:"?pane_at_bottom,true,false"`
 	Path      string `tmux:"pane_current_path"`
 	PathStart string `tmux:"pane_start_path"`
-	Zoomed    bool   `tmux:"?pane_zoomed,true,false"`
+	Zoomed    bool   `tmux:"?pane_zoomed_flag,true,false"`
 }
 
 // updatePaneInfo, paneId is optional. Leave blank to update all panes
@@ -278,8 +279,11 @@ func (tmux *Tmux) SelectPane(paneId string) error {
 }
 
 func (tmux *Tmux) ZoomPane(paneId string) error {
-	//log.Printf("ZoomPane %s\n", paneId)
-	command := fmt.Sprintf("resize-pane -t %s -Z", paneId)
+	pane := tmux.panes.Get(paneId)
+	if pane == nil || pane.closed {
+		return fmt.Errorf("pane not found")
+	}
+	command := fmt.Sprintf("resize-pane -t %s -Z", pane.id)
 	_, err := tmux.SendCommand([]byte(command))
 
 	return err
@@ -320,44 +324,46 @@ func (tmux *Tmux) removeExitedPanes(livePanes map[string]struct{}) {
 }
 
 func (tmux *Tmux) ClonePane(pane *PaneT, commandLine string, callback interactiveActionCallback) error {
-	if pane == nil || pane.term == nil {
+	if pane == nil || pane.closed || pane.term == nil {
 		return fmt.Errorf("source terminal pane is unavailable")
 	}
-	if callback == nil {
+	if commandLine != "" && callback == nil {
 		return fmt.Errorf("interactive action callback is required")
 	}
 
-	actionID, err := newInteractiveActionID()
-	if err != nil {
-		return err
-	}
-	scriptPath, err := writeBashScript(commandLine, actionID, pane.pwd)
-	if err != nil {
-		return err
-	}
-	if !tmux.registerInteractiveAction(actionID, scriptPath, callback) {
-		_ = os.Remove(scriptPath)
-		return fmt.Errorf("interactive action UUID collision")
+	var actionID, scriptPath string
+	if commandLine != "" {
+		var err error
+		actionID, err = newInteractiveActionID()
+		if err != nil {
+			return err
+		}
+		scriptPath, err = writeBashScript(commandLine, actionID, pane.pwd)
+		if err != nil {
+			return err
+		}
+		if !tmux.registerInteractiveAction(actionID, scriptPath, callback) {
+			_ = os.Remove(scriptPath)
+			return fmt.Errorf("interactive action UUID collision")
+		}
 	}
 
 	setupFailed := true
 	newPaneID := ""
 	defer func() {
 		if setupFailed {
-			tmux.discardInteractiveAction(actionID)
+			if actionID != "" {
+				tmux.discardInteractiveAction(actionID)
+			}
 			if newPaneID != "" {
 				_, _ = tmux.SendCommand(fmt.Appendf(nil, "kill-pane -t %s", newPaneID))
 			}
 		}
 	}()
 
-	envMap := pane.term.GetEnvVars()
-	var envStr strings.Builder
-	for key, value := range envMap {
-		envStr.WriteString(fmt.Sprintf("-e %s=%s ", key, quoteString(value)))
-	}
+	envStr := workspace.EnvsTmux(pane.term.GetEnvVars())
 
-	tmuxCommand := clonePaneCommand(pane.id, envStr.String(), scriptPath)
+	tmuxCommand := clonePaneCommand(pane.id, envStr, scriptPath)
 	response, err := tmux.SendCommand([]byte(tmuxCommand))
 	if err != nil {
 		return err
@@ -376,17 +382,11 @@ func (tmux *Tmux) ClonePane(pane *PaneT, commandLine string, callback interactiv
 	if tmux.renderer != nil {
 		tmux.renderer.RefreshWindowList()
 	}
-	if !tmux.bindInteractiveActionPane(actionID, newPaneID) {
+	if actionID != "" && !tmux.bindInteractiveActionPane(actionID, newPaneID) {
 		return fmt.Errorf("interactive action callback %s could not bind to pane %s", actionID, newPaneID)
 	}
 	setupFailed = false
 	return nil
-}
-
-func quoteString(s string) string {
-	s = strings.ReplaceAll(s, `\`, `\\`)
-	s = strings.ReplaceAll(s, `"`, `\"`)
-	return fmt.Sprintf(`"%s"`, s)
 }
 
 func quoteShellArgument(value string) string {
@@ -398,7 +398,10 @@ func clonePaneCommand(paneID, environmentArgs, scriptPath string) string {
 	if environmentArgs != "" {
 		environmentArgs = " " + environmentArgs
 	}
-	return fmt.Sprintf(`split-window -v -k -P -F '#{pane_id}' -t %s -c "#{pane_current_path}"%s bash %s`, paneID, environmentArgs, quoteString(scriptPath))
+	if scriptPath == "" {
+		return fmt.Sprintf(`split-window -v -P -F '#{pane_id}' -t %s -c "#{pane_current_path}"%s`, paneID, environmentArgs)
+	}
+	return fmt.Sprintf(`split-window -v -k -P -F '#{pane_id}' -t %s -c "#{pane_current_path}"%s bash %s`, paneID, environmentArgs, workspace.QuoteString(scriptPath))
 }
 
 func responsePaneID(response *tmuxResponseT) string {
@@ -458,6 +461,22 @@ func (tmux *Tmux) CloseCompletedPane(paneID string) error {
 	}
 	if !pane.CommandFinished() {
 		return fmt.Errorf("pane command is still running")
+	}
+	return tmux.KillPane(paneID)
+}
+
+func (tmux *Tmux) PaneCommandFinished(paneID string) (bool, error) {
+	pane := tmux.panes.Get(paneID)
+	if pane == nil || pane.closed {
+		return false, fmt.Errorf("pane not found")
+	}
+	return pane.CommandFinished(), nil
+}
+
+func (tmux *Tmux) KillPane(paneID string) error {
+	pane := tmux.panes.Get(paneID)
+	if pane == nil || pane.closed {
+		return fmt.Errorf("pane not found")
 	}
 	if _, err := tmux.SendCommand(fmt.Appendf(nil, "kill-pane -t %s", pane.id)); err != nil {
 		return err

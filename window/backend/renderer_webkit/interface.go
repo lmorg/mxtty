@@ -28,13 +28,17 @@ type terminalTabsPayload struct {
 }
 
 type TerminalPane struct {
-	ID          string `json:"id"`
-	X           int32  `json:"x"`
-	Y           int32  `json:"y"`
-	Width       int32  `json:"width"`
-	Height      int32  `json:"height"`
-	CanClose    bool   `json:"canClose"`
-	AutoCloseAt int64  `json:"autoCloseAt,omitempty"`
+	ID                string `json:"id"`
+	Name              string `json:"name"`
+	X                 int32  `json:"x"`
+	Y                 int32  `json:"y"`
+	Width             int32  `json:"width"`
+	Height            int32  `json:"height"`
+	CanClose          bool   `json:"canClose"`
+	Finished          bool   `json:"finished"`
+	Zoomed            bool   `json:"zoomed"`
+	AutoCloseAt       int64  `json:"autoCloseAt,omitempty"`
+	AutoCloseDuration int64  `json:"autoCloseDuration,omitempty"`
 }
 
 type webkitRender struct {
@@ -272,10 +276,13 @@ func (wr *webkitRender) GetPaneLayout() []TerminalPane {
 		if size == nil || size.X <= 0 || size.Y <= 0 {
 			continue
 		}
-		pane := TerminalPane{ID: tile.Id(), X: tile.Left(), Y: tile.Top(), Width: size.X, Height: size.Y}
+		pane := TerminalPane{ID: tile.Id(), Name: tile.Name(), X: tile.Left(), Y: tile.Top(), Width: size.X, Height: size.Y}
 		if tmuxPane, ok := tile.(*tmux.PaneT); ok {
-			pane.CanClose = tmuxPane.CommandFinished()
+			pane.CanClose = true
+			pane.Finished = tmuxPane.CommandFinished()
+			pane.Zoomed = tmuxPane.IsZoomed()
 			pane.AutoCloseAt = tmuxPane.AutoCloseAt()
+			pane.AutoCloseDuration = config.PaneAutoCloseDelay().Milliseconds()
 		}
 		panes = append(panes, pane)
 	}
@@ -315,6 +322,39 @@ func (wr *webkitRender) CloseCompletedPane(paneID string) error {
 	return nil
 }
 
+func (wr *webkitRender) ConfirmKillPane(paneID, paneName string) error {
+	if wr.tmux == nil {
+		return fmt.Errorf("tmux not available")
+	}
+	finished, err := wr.tmux.PaneCommandFinished(paneID)
+	if err != nil {
+		return err
+	}
+	if finished {
+		return wr.CloseCompletedPane(paneID)
+	}
+
+	wr.DisplayInputBoxW(&types.InputBoxWT{
+		Options: types.InputBoxWTOptions{
+			Title:           "Confirm pane close",
+			Message:         fmt.Sprintf("Are you sure you wish to kill the active pane?\n\nID: %s\nName: %s", paneID, paneName),
+			Confirmation:    true,
+			ConfirmLabel:    "Kill",
+			CancelLabel:     "Cancel",
+			ConfirmIsDanger: true,
+		},
+		OkFunc: func(*types.InputBoxCallbackResultT) {
+			if wr.tmux == nil {
+				return
+			}
+			if err := wr.tmux.KillPane(paneID); err != nil {
+				wr.DisplayNotification(types.NOTIFY_ERROR, err.Error())
+			}
+		},
+	})
+	return nil
+}
+
 func (wr *webkitRender) SelectWindow(windowID string) {
 	if windowID == "" || wr.tmux == nil {
 		return
@@ -331,26 +371,30 @@ func (wr *webkitRender) SelectWindow(windowID string) {
 	wr.RefreshWindowList()
 }
 
-func (wr *webkitRender) ZoomActivePane() error {
+func (wr *webkitRender) ZoomPane(paneID string) error {
 	if wr.tmux == nil {
 		return fmt.Errorf("tmux not available")
 	}
-
-	pane, err := wr.tmux.ActivePane()
-	if err != nil {
-		return err
+	if paneID == "" {
+		return fmt.Errorf("pane ID is required")
 	}
-	if pane == nil {
-		return fmt.Errorf("no active pane")
-	}
-
-	if err := wr.tmux.ZoomPane(pane.Id()); err != nil {
+	if err := wr.tmux.ZoomPane(paneID); err != nil {
 		return err
 	}
 
 	// ZoomPane blocks until tmux has applied the (un)zoom, so re-read the tile
 	// layout now to pick up the new pane geometry.
 	wr.RefreshWindowList()
+	return nil
+}
+
+func (wr *webkitRender) ZoomPaneAndMaximize(paneID string) error {
+	if err := wr.ZoomPane(paneID); err != nil {
+		return err
+	}
+	if wr.wapp != nil {
+		runtime.EventsEmit(wr.wapp, "terminalFullsizeToggle")
+	}
 	return nil
 }
 
@@ -446,6 +490,18 @@ func (wr *webkitRender) ActiveTile() types.Tile {
 		return nil
 	}
 	return wr.termWin.Active
+}
+
+func (wr *webkitRender) ClonePane(paneID string) error {
+	if wr == nil || wr.tmux == nil || wr.termWin == nil {
+		return fmt.Errorf("terminal is unavailable")
+	}
+	for _, tile := range wr.termWin.Tiles {
+		if pane, ok := tile.(*tmux.PaneT); ok && pane != nil && pane.Id() == paneID {
+			return wr.tmux.ClonePane(pane, "", nil)
+		}
+	}
+	return fmt.Errorf("source terminal pane is unavailable")
 }
 
 func (wr *webkitRender) CloneActivePane(command string, callback func(output []byte, exitCode int, err error)) error {

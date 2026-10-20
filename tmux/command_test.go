@@ -11,8 +11,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lmorg/ttyphoon/config"
 	"github.com/lmorg/ttyphoon/types"
 	runebuf "github.com/lmorg/ttyphoon/utils/rune_buf"
+	"github.com/lmorg/ttyphoon/utils/workspace"
 )
 
 func TestCommandLine(t *testing.T) {
@@ -44,9 +46,178 @@ func TestCommandLine(t *testing.T) {
 	}
 }
 
+func TestPaneListReadsPerPaneZoomFlag(t *testing.T) {
+	command := string(mkCmdLine(CMD_LIST_PANES, reflect.TypeOf(paneInfo{}), "-s"))
+	if !strings.Contains(command, "Zoomed:#{?pane_zoomed_flag,true,false}") {
+		t.Fatalf("list-panes command does not query the pane-specific zoom flag: %s", command)
+	}
+	if strings.Contains(command, "pane_zoomed}") || strings.Contains(command, "window_zoomed_flag") {
+		t.Fatalf("list-panes command uses a non-pane-specific zoom flag: %s", command)
+	}
+}
+
 func TestQuoteStringEscapesTmuxArgument(t *testing.T) {
-	if got, want := quoteString(`SSH_AUTH_SOCK=/tmp/agent\"value`), `"SSH_AUTH_SOCK=/tmp/agent\\\"value"`; got != want {
+	if got, want := workspace.QuoteString(`SSH_AUTH_SOCK=/tmp/agent\"value`), `"SSH_AUTH_SOCK=/tmp/agent\\\"value"`; got != want {
 		t.Fatalf("quoteString() = %q, want %q", got, want)
+	}
+}
+
+type paneNavigationTestRenderer struct {
+	layoutChangeTestRenderer
+	tmux        *Tmux
+	maximizedID string
+}
+
+func (renderer *paneNavigationTestRenderer) ZoomPaneAndMaximize(paneID string) error {
+	if err := renderer.tmux.ZoomPane(paneID); err != nil {
+		return err
+	}
+	renderer.maximizedID = paneID
+	renderer.RefreshWindowList()
+	return nil
+}
+
+func TestPaneNavigationAndZoomBindingsRefreshRenderer(t *testing.T) {
+	for _, test := range []struct{ note, command string }{
+		{"Move to the previously active pane", "select-pane -l"},
+		{"Zoom the active pane", "resize-pane -t %7 -Z"},
+	} {
+		t.Run(test.note, func(t *testing.T) {
+			handler, ok := defaultFnKeys[test.note]
+			if !ok {
+				t.Fatalf("missing binding for %q", test.note)
+			}
+			reader, writer, err := os.Pipe()
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() {
+				_ = reader.Close()
+				_ = writer.Close()
+			})
+			renderer := &paneNavigationTestRenderer{layoutChangeTestRenderer: layoutChangeTestRenderer{refreshed: make(chan struct{}, 1)}}
+			tmux := &Tmux{tty: writer, resp: make(chan *tmuxResponseT, 1), wins: newWindowMap(), panes: newPaneMap(), renderer: renderer}
+			renderer.tmux = tmux
+			win := &WindowT{id: "@1", active: true, panes: newPaneMap()}
+			pane := &PaneT{id: "%7", windowId: win.id, active: true}
+			tmux.wins.Set(win.id, win)
+			tmux.panes.Set(pane.id, pane)
+			win.panes.Set(pane.id, pane)
+			commands := make(chan string, 1)
+			go func() {
+				scanner := bufio.NewScanner(reader)
+				if scanner.Scan() {
+					commands <- scanner.Text()
+					tmux.resp <- &tmuxResponseT{}
+				}
+			}()
+			if err := handler(tmux); err != nil {
+				t.Fatal(err)
+			}
+			if got := <-commands; got != test.command {
+				t.Fatalf("binding command = %q, want %q", got, test.command)
+			}
+			if test.note == "Zoom the active pane" && renderer.maximizedID != pane.id {
+				t.Fatalf("maximize request = %q, want %q", renderer.maximizedID, pane.id)
+			}
+			select {
+			case <-renderer.refreshed:
+			case <-time.After(time.Second):
+				t.Fatal("binding did not refresh renderer")
+			}
+		})
+	}
+}
+
+func TestSplitWindowUsesWorkspaceDirectoryWhenSupplied(t *testing.T) {
+	previous := config.Config.Workspaces
+	t.Cleanup(func() { config.Config.Workspaces = previous })
+	t.Setenv("TTYPHOON_TEST_SPLIT_ROOT", "/tmp/workspace root")
+	for _, test := range []struct {
+		name     string
+		settings *workspace.WorkspaceT
+		suffix   string
+	}{
+		{name: "no workspace"},
+		{name: "no directory", settings: &workspace.WorkspaceT{}},
+		{name: "default directory", settings: &workspace.WorkspaceT{Defaults: workspace.TermT{Pwd: "/tmp/default"}}, suffix: ` -c "/tmp/default"`},
+		{name: "named override", settings: &workspace.WorkspaceT{
+			Defaults:  workspace.TermT{Pwd: "/tmp/default"},
+			Terminals: map[string]workspace.TermT{"project": {Pwd: `$TTYPHOON_TEST_SPLIT_ROOT/"quoted"`, Cmd: "must-not-run", Envs: map[string]string{"UNUSED": "value"}}},
+		}, suffix: ` -c "/tmp/workspace root/\"quoted\""`},
+	} {
+		for _, flag := range []string{"-h", "-v"} {
+			t.Run(test.name+flag, func(t *testing.T) {
+				config.Config.Workspaces = test.settings
+				reader, writer, err := os.Pipe()
+				if err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(func() { _ = reader.Close(); _ = writer.Close() })
+				tmux := &Tmux{tty: writer, resp: make(chan *tmuxResponseT, 1), wins: newWindowMap()}
+				win := &WindowT{id: "@1", name: "project", active: true}
+				tmux.wins.Set(win.id, win)
+				commands := make(chan string, 1)
+				go func() {
+					scanner := bufio.NewScanner(reader)
+					if scanner.Scan() {
+						commands <- scanner.Text()
+						tmux.resp <- &tmuxResponseT{}
+					}
+				}()
+				if err := _fnKeySplitWindow(tmux, flag); err != nil {
+					t.Fatal(err)
+				}
+				if got, want := <-commands, "split-window "+flag+test.suffix; got != want {
+					t.Fatalf("split command = %q, want %q", got, want)
+				}
+			})
+		}
+	}
+}
+
+func TestZoomPaneTargetsRequestedPane(t *testing.T) {
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = reader.Close()
+		_ = writer.Close()
+	})
+	tmux := &Tmux{tty: writer, resp: make(chan *tmuxResponseT, 1), panes: newPaneMap()}
+	tmux.panes.Set("%17", &PaneT{id: "%17"})
+	command := make(chan string, 1)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for scanner := bufio.NewScanner(reader); scanner.Scan(); {
+			command <- scanner.Text()
+			tmux.resp <- &tmuxResponseT{}
+		}
+	}()
+	if err := tmux.ZoomPane("%17"); err != nil {
+		t.Fatalf("zoom pane: %v", err)
+	}
+	if got := <-command; got != "resize-pane -t %17 -Z" {
+		t.Fatalf("zoom command = %q; want requested pane ID", got)
+	}
+	_ = writer.Close()
+	<-done
+}
+
+func TestPaneZoomStateTracksTmuxMetadata(t *testing.T) {
+	tmux := &Tmux{wins: newWindowMap(), panes: newPaneMap()}
+	win := &WindowT{id: "@1", panes: newPaneMap()}
+	tmux.wins.Set(win.id, win)
+	pane := &PaneT{id: "%17", windowId: win.id, tmux: tmux}
+	tmux.panes.Set(pane.id, pane)
+	win.panes.Set(pane.id, pane)
+
+	info := &paneInfo{Id: pane.id, WindowId: win.id, Zoomed: true}
+	info.updatePane(tmux)
+	if !pane.IsZoomed() {
+		t.Fatal("pane metadata did not retain tmux zoom state")
 	}
 }
 
@@ -61,7 +232,50 @@ type paneCloseTestRenderer struct{ types.Renderer }
 func (*paneCloseTestRenderer) DisplayNotification(types.NotificationType, string) {}
 func (*paneCloseTestRenderer) RefreshWindowList()                                 {}
 
-func TestPaneExitPrunesOnlyPanesMissingFromTmuxSnapshot(t *testing.T) {
+type paneCloseRequestTestRenderer struct {
+	types.Renderer
+	request func(string, string) error
+}
+
+func (renderer *paneCloseRequestTestRenderer) ConfirmKillPane(paneID, paneName string) error {
+	return renderer.request(paneID, paneName)
+}
+
+func TestKillPaneHotkeyUsesButtonClosePolicy(t *testing.T) {
+	for _, finished := range []bool{false, true} {
+		t.Run(fmt.Sprintf("finished=%t", finished), func(t *testing.T) {
+			tmux := &Tmux{wins: newWindowMap(), panes: newPaneMap()}
+			tmux.readerDead.Store(true)
+			win := &WindowT{id: "@1", active: true, panes: newPaneMap()}
+			pane := &PaneT{id: "%7", title: "Selected shell", windowId: win.id, active: true}
+			pane.dead.Store(finished)
+			tmux.wins.Set(win.id, win)
+			tmux.panes.Set(pane.id, pane)
+			win.panes.Set(pane.id, pane)
+			calls := 0
+			requestErr := fmt.Errorf("synthetic close request error")
+			tmux.renderer = &paneCloseRequestTestRenderer{request: func(paneID, paneName string) error {
+				calls++
+				if paneID != pane.id || paneName != pane.title {
+					t.Fatalf("close request = %q, %q; want selected pane ID and name", paneID, paneName)
+				}
+				return requestErr
+			}}
+			if err := fnKeyKillPane(tmux); err != requestErr || calls != 1 {
+				t.Fatalf("hotkey error = %v, calls = %d; want delegated error and one request", err, calls)
+			}
+			if tmux.panes.Get(pane.id) != pane || pane.closed {
+				t.Fatal("hotkey removed the pane before the shared close policy handled it")
+			}
+			tmux.renderer = &paneCloseTestRenderer{}
+			if err := fnKeyKillPane(tmux); err == nil || err.Error() != "pane close confirmation is unavailable" {
+				t.Fatalf("missing confirmation provider error = %v; want safe failure", err)
+			}
+		})
+	}
+}
+
+func TestKillPanePrunesOnlyPanesMissingFromTmuxSnapshot(t *testing.T) {
 	reader, writer, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)
@@ -96,6 +310,8 @@ func TestPaneExitPrunesOnlyPanesMissingFromTmuxSnapshot(t *testing.T) {
 		for scanner := bufio.NewScanner(reader); scanner.Scan(); {
 			line := scanner.Text()
 			switch {
+			case strings.HasPrefix(line, "kill-pane "):
+				tmux.resp <- &tmuxResponseT{}
 			case strings.HasPrefix(line, "list-panes "):
 				tmux.resp <- &tmuxResponseT{Message: [][]byte{[]byte("Id:%2|||Width:80|||Height:24|||PosLeft:40|||PosTop:0|||PosRight:80|||PosBottom:24|||Active:true|||Dead:false|||WindowId:@1|||WinActive:true|||AtBottom:false|||Path:/tmp|||PathStart:/tmp|||Zoomed:false")}}
 			default:
@@ -104,8 +320,11 @@ func TestPaneExitPrunesOnlyPanesMissingFromTmuxSnapshot(t *testing.T) {
 		}
 	}()
 
-	if err := tmux.paneExited(); err != nil {
-		t.Fatalf("pane exit reconciliation failed: %v", err)
+	if finished, err := tmux.PaneCommandFinished(removedPane.id); err != nil || finished {
+		t.Fatalf("running pane state = %t, %v; want unfinished", finished, err)
+	}
+	if err := tmux.KillPane(removedPane.id); err != nil {
+		t.Fatalf("confirmed pane kill failed: %v", err)
 	}
 	if got := tmux.panes.Get(removedPane.id); got != nil {
 		t.Fatalf("removed pane remains in tmux pane map: %v", got.id)
@@ -425,6 +644,60 @@ func TestRespawnedPaneClearsCompletionState(t *testing.T) {
 	}
 }
 
+type shellCloneTestTerm struct{ paneGeometryTestTerm }
+
+func (*shellCloneTestTerm) GetEnvVars() map[string]string {
+	return map[string]string{"CLONE_TEST": "inherited value"}
+}
+
+func TestClonePaneWithoutCommandStartsNormalShell(t *testing.T) {
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = reader.Close(); _ = writer.Close() })
+	client := &Tmux{tty: writer, resp: make(chan *tmuxResponseT, 1), wins: newWindowMap(), panes: newPaneMap(), renderer: &paneCloseTestRenderer{}}
+	win := &WindowT{id: "@1", panes: newPaneMap()}
+	client.wins.Set(win.id, win)
+	source := &PaneT{id: "%7", windowId: win.id, tmux: client}
+	source.term = &shellCloneTestTerm{paneGeometryTestTerm{pane: source}}
+	cloned := &PaneT{id: "%8", windowId: win.id, tmux: client}
+	cloned.term = &paneGeometryTestTerm{pane: cloned}
+	client.panes.Set(source.id, source)
+	client.panes.Set(cloned.id, cloned)
+	commands := make(chan string, 2)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for scanner := bufio.NewScanner(reader); scanner.Scan(); {
+			command := scanner.Text()
+			commands <- command
+			switch {
+			case strings.HasPrefix(command, "split-window "):
+				client.resp <- &tmuxResponseT{Message: [][]byte{[]byte("%8")}}
+			case strings.HasPrefix(command, "list-panes "):
+				client.resp <- &tmuxResponseT{Message: [][]byte{[]byte("Id:%8|||WindowId:@1|||Width:80|||Height:12|||Active:true")}}
+			default:
+				client.resp <- &tmuxResponseT{IsErr: true}
+			}
+		}
+	}()
+	if err := client.ClonePane(source, "", nil); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := <-commands, `split-window -v -P -F '#{pane_id}' -t %7 -c "#{pane_current_path}" -e CLONE_TEST="inherited value"`; got != want {
+		t.Fatalf("shell clone command = %q, want %q", got, want)
+	}
+	if got := <-commands; !strings.HasPrefix(got, "list-panes ") {
+		t.Fatalf("clone did not refresh new pane metadata: %s", got)
+	}
+	if len(client.interactiveActions) != 0 || cloned.CommandFinished() || cloned.AutoCloseAt() != 0 {
+		t.Fatal("shell clone unexpectedly registered completion or auto-close state")
+	}
+	_ = writer.Close()
+	<-done
+}
+
 func TestClonePaneCommandKeepsExitedPaneAndStartsWrapper(t *testing.T) {
 	command := clonePaneCommand("%7", `-e "TOKEN=a b" `, "/tmp/ttyphoon action.sh")
 	want := `split-window -v -k -P -F '#{pane_id}' -t %7 -c "#{pane_current_path}" -e "TOKEN=a b" bash "/tmp/ttyphoon action.sh"`
@@ -501,6 +774,10 @@ func TestInteractiveActionRegistryDoesNotReplaceExistingUUID(t *testing.T) {
 }
 
 func TestSuccessfulInteractiveActionUsesSuccessChrome(t *testing.T) {
+	previousDelay := config.Config.Terminal.PaneAutoCloseDelay
+	config.Config.Terminal.PaneAutoCloseDelay = "7s"
+	t.Cleanup(func() { config.Config.Terminal.PaneAutoCloseDelay = previousDelay })
+
 	tmux := &Tmux{panes: newPaneMap()}
 	pane := &PaneT{id: "%10", tmux: tmux}
 	tmux.panes.Set("%10", pane)
@@ -521,8 +798,8 @@ func TestSuccessfulInteractiveActionUsesSuccessChrome(t *testing.T) {
 	}
 	deadline := pane.AutoCloseAt()
 	remaining := time.Until(time.UnixMilli(deadline))
-	if remaining < 29*time.Second || remaining > 30*time.Second {
-		t.Fatalf("auto-close deadline is %s away, want 30 seconds", remaining)
+	if remaining < 6*time.Second || remaining > 7*time.Second {
+		t.Fatalf("auto-close deadline is %s away, want 7 seconds", remaining)
 	}
 	if err := tmux.CancelPaneAutoClose(pane.id); err != nil {
 		t.Fatal(err)

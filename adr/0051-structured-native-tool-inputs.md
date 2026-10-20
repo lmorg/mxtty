@@ -41,11 +41,11 @@ remove the wrapper schema.
   arguments to the MCP adapter through `JSONSchemaTool` / `StringInputTool`.
 - The native migration is complete: dateTime, readDirectory, grep, readFiles,
   writeFile, insertLines, patchFile, createGraph, generateImage, jq, bash,
-  envVars, interactive, delegate, report, askUser, searchDuckDuckGo, and
+  envVars, delegate, report, askUser, searchDuckDuckGo, and
   scrapeWebPage all implement `StructuredTool`.
-- `interactive` accepts a `{command}` object and sends the command directly to
-  the active TTY; `bash` accepts a `{script}` object and executes a temporary
-  non-interactive Bash script. `envVars` uses an empty JSON object.
+- `bash` accepts a `{script, summary}` object and executes Bash in a cloned terminal pane
+  for both commands and scripts. It replaces the separate `interactive` tool
+  (ADR 0056). `envVars` uses an empty JSON object.
 - `delegate` and `report` use arrays of `{name, prompt}` objects; `askUser` uses
   a `{question, choices}` object.
 - `searchDuckDuckGo` uses a `{query}` object for search and an
@@ -83,6 +83,6 @@ remove the wrapper schema.
 - `ai/tools/image/generate.go` - structured generation/edit input
 - `ai/tools/websearch/tool.go` - structured web search and discovery inputs
 - `ai/tools/webtools/web_tools.go` - structured page scraping inputs
-- `ai/tools/shell/interactive.go` and `ai/tools/shell/bash.go` - structured shell inputs
+- `ai/tools/shell/bash.go` - structured shell input and cloned-pane execution
 - `utils/markdownutil` - escaping helpers used by invocation descriptions
 - ADR 0030 - legacy native string-input compatibility

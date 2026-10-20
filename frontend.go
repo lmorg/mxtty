@@ -538,12 +538,28 @@ func (a *WApp) TerminalCancelPaneAutoClose(paneID string) error {
 	return renderer.CancelPaneAutoClose(paneID)
 }
 
+func (a *WApp) TerminalClonePane(paneID string) error {
+	renderer, ok := renderwebkit.CurrentRenderer()
+	if !ok {
+		return fmt.Errorf("renderer not available")
+	}
+	return renderer.ClonePane(paneID)
+}
+
 func (a *WApp) TerminalClosePane(paneID string) error {
 	renderer, ok := renderwebkit.CurrentRenderer()
 	if !ok {
 		return fmt.Errorf("renderer not available")
 	}
 	return renderer.CloseCompletedPane(paneID)
+}
+
+func (a *WApp) TerminalConfirmKillPane(paneID, paneName string) error {
+	renderer, ok := renderwebkit.CurrentRenderer()
+	if !ok {
+		return fmt.Errorf("renderer not available")
+	}
+	return renderer.ConfirmKillPane(paneID, paneName)
 }
 
 func (a *WApp) TerminalSelectWindow(windowID string) {
@@ -555,18 +571,12 @@ func (a *WApp) TerminalSelectWindow(windowID string) {
 	renderer.SelectWindow(windowID)
 }
 
-func (a *WApp) TerminalPaneZoom() {
-	log.Println("TerminalPaneZoom()")
+func (a *WApp) TerminalPaneZoom(paneID string) error {
 	renderer, ok := renderwebkit.CurrentRenderer()
 	if !ok {
-		//return fmt.Errorf("renderer not available")
-		panic("renderer not available")
+		return fmt.Errorf("renderer not available")
 	}
-
-	err := renderer.ZoomActivePane()
-	if err != nil {
-		renderer.DisplayNotification(types.NOTIFY_ERROR, err.Error())
-	}
+	return renderer.ZoomPane(paneID)
 }
 
 func (a *WApp) Log(s string) {

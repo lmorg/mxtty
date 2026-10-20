@@ -23,6 +23,10 @@ gesture only when the pointer is over a spelling underline.
   the existing editor context-menu handler.
 - Apply a selected suggestion through the existing text replacement and input
   event path so spellcheck and editor state refresh normally.
+- Monaco follows the same right-click rule. Its capturing `contextmenu`
+  listener resolves the pointer to a model position and intercepts the event
+  only for a misspelling, before the general editor menu. Left mouse-down and
+  click remain untouched; dispose the listener with the editor adapter.
 
 ## Consequences
 
@@ -35,3 +39,5 @@ spelling hit and pass-through behavior elsewhere.
 - `frontend/src/spellcheck.js`
 - `frontend/src/spellcheck.test.js`
 - `frontend/src/notes.js` - general editor context menu
+- `frontend/src/monaco_adapter.js` - Monaco spelling context-menu listener
+- `frontend/src/monaco_adapter.test.js` - mouse gestures, pass-through, and cleanup

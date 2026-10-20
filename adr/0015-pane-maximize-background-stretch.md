@@ -67,6 +67,11 @@ Only one pane may be maximized at a time; `toggleFullsize` exits any active
 pane first. Both buttons now signal active state through `data-enabled`, with
 matching CSS rules, so no inline style is left behind on exit.
 
+When terminal fullsize is dismissed by clicking its backdrop, the frontend
+queries the pane snapshot and toggles off any tmux-zoomed pane before restoring
+the split. This prevents tmux zoom from surviving after the application overlay
+has closed.
+
 ## Consequences
 
 - Both directions look the same: the other pane fills the window behind the

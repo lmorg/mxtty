@@ -43,6 +43,12 @@ session database retains its existing `New session` default. Cancelling the
 prompt creates no session. The prompt title is `New AI session`, with a `Create`
 confirmation action and an optional-name placeholder.
 
+Updated 2026-10-19: shared prompts use the same `markdown-body`/`h3` title
+markup as Rename, Delete, and New Worktree, including Git Branch/Tag and AI
+Session creation. Dialog titles use the yellow Jura heading style rather than
+plain accent-colored prompt text. Shared terminal input-box titles and the AI
+settings dialog follow that same heading presentation.
+
 ### Folder-targeted file creation
 
 The file-list context menu reuses the same create-file modal for

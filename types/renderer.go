@@ -49,13 +49,18 @@ type InputBoxWT struct {
 }
 
 type InputBoxWTOptions struct {
-	Title       string                `json:"title"`
-	Prefill     string                `json:"prefill"`
-	Placeholder string                `json:"placeholder"`
-	History     []string              `json:"history"`
-	Multiline   bool                  `json:"multiline"`
-	Variables   []InputBoxWTVariables `json:"variables"`
-	CacheKey    string
+	Title           string                `json:"title"`
+	Message         string                `json:"message"`
+	Prefill         string                `json:"prefill"`
+	Placeholder     string                `json:"placeholder"`
+	History         []string              `json:"history"`
+	Multiline       bool                  `json:"multiline"`
+	Confirmation    bool                  `json:"confirmation"`
+	ConfirmLabel    string                `json:"confirmLabel"`
+	CancelLabel     string                `json:"cancelLabel"`
+	ConfirmIsDanger bool                  `json:"confirmIsDanger"`
+	Variables       []InputBoxWTVariables `json:"variables"`
+	CacheKey        string
 }
 
 type InputBoxWTVariables struct {

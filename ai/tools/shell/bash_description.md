@@ -1,4 +1,8 @@
-Bash script tool. Writes the provided multiline script to a temporary file and executes it with Bash. Use this for non-interactive shell work, including pipelines, redirects, variables, loops, conditionals, command substitution, and other Bash or POSIX shell syntax.
-- Pass a JSON object with the script in `script`, for example `{"script":"set -e\nprintf '%s\\n' hello"}`. Do not wrap the object in an `input` property.
-- The script runs as a Bash script without a TTY. Use the `interactive` tool for commands that require a real terminal or interactive input.
-- Standard output and standard error are returned together and streamed to the AI panel while the script runs.
+Bash command and script tool. Runs the provided script with Bash in a new cloned terminal pane inheariting the working directory and environmental variables of the project. Use this for both commands requiring a TTY and composed shell work, including pipelines, redirects, variables, loops, conditionals, and command substitution.
+- Pass a JSON object with the script in `script` and a concise one-line purpose in `summary`, for example `{"summary":"Print a greeting to verify Bash execution","script":"set -e\nprintf '%s\\n' hello"}`. Do not wrap the object in an `input` property.
+- The summary is displayed to the user when approval is required. Describe what the command accomplishes, including any important side effects. It is explanatory text only and is never executed; the full script remains visible for review.
+- The clone inherits the active terminal pane's working directory and reported environment. The original pane is not modified. Shell syntax is Bash regardless of the original pane's shell.
+- Output is visible in the cloned terminal while running. On completion, the tool returns JSON with the terminal screen in `output` and the process `exitCode`. This is a screen snapshot, not a complete unbounded stdout/stderr log or a live AI-panel stream.
+- Execution/setup failures are returned in `error`; a non-zero `exitCode` means the script failed. Correct the cause rather than assuming success.
+- If interactive input is required, the user can respond directly in the cloned terminal pane. Do not request secrets through chat.
+- Cancelling the tool stops waiting; it does not necessarily terminate the cloned command. The pane can be inspected or killed through its normal controls.

@@ -7993,8 +7993,7 @@ async function loadProjectCache(options = {}) {
         if (hasHistoryDoc && historyDoc !== state.lastRestoredDocument) {
             state.lastRestoredDocument = historyDoc;
             await loadFile(historyDoc);
-            if (historyPosition.line > 1) {
-                setViewMode(editViewModeForCurrentFileType());
+            if (historyPosition.line > 1 && state.viewMode === editViewModeForCurrentFileType()) {
                 await ensureMonacoVisibleAndLaidOut();
                 jumpEditorToLine(historyPosition.line);
             }

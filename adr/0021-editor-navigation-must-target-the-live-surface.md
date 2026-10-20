@@ -79,6 +79,13 @@ the target file, select its Edit mode, await Monaco initialization, and restore
 the saved line through `jumpEditorToLine`. Filename-only compatibility bindings
 remain available.
 
+Updated 2026-10-20: automatic workspace history restoration preserves the
+document tab restored from the document cache. A saved line greater than 1
+does not itself request Edit mode. Restore that line only when the restored
+tab is the file type's Edit mode; explicit Previous/Next navigation continues
+to select Edit. This prevents terminal pane context changes, including clone
+closure, from overriding the document's cached View or Run tab.
+
 Rendered Find must likewise target the visible surface: CSV View and CSV Run
 search `elements.csvView`, not the hidden Markdown preview. Highlight cleanup
 includes the CSV pane, and active queries are reapplied when that pane rerenders.

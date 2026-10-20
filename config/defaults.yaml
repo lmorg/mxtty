@@ -43,6 +43,10 @@ Hotkeys:
     "F4::w": LspJumpToWorkspaceSymbol
 
 Terminal:
+  # How long successful interactive-action panes remain open before auto-close.
+  # Use a Go duration such as 30s, 2m, or 1m30s.
+  PaneAutoCloseDelay: 10s
+
   # ScrollbackHistory is the size of the scrollback buffer.
   # Value is number of lines
   ScrollbackHistory: 10000

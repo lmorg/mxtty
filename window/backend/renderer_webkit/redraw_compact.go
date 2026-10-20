@@ -66,7 +66,7 @@ func encodeDrawCommands(commands []DrawCommand) []DrawOpTuple {
 			ops = append(ops, DrawOpTuple{compactOpGaugeV, cmd.X, cmd.Y, cmd.Height, cmd.Value, cmd.Max, packColour24(cmd.Fg)})
 
 		case DrawOpTileOverlay:
-			ops = append(ops, DrawOpTuple{compactOpTileOverlay, cmd.X, cmd.Y, cmd.Width, cmd.Height, cmd.Alpha})
+			ops = append(ops, DrawOpTuple{compactOpTileOverlay, cmd.X, cmd.Y, cmd.Width, cmd.Height, cmd.Alpha, cmd.Flags})
 
 		case DrawOpImage:
 			ops = append(ops, DrawOpTuple{

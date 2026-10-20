@@ -2822,6 +2822,41 @@ describe('notes rendering', () => {
         scrollSpy.mockRestore();
     });
 
+    it.each(['viewer', 'editor'])('preserves the cached %s tab when returning to a workspace with a saved cursor position', async (mode) => {
+        const file = '$NOTES/guide.md';
+        const contents = 'one\ntwo\nthree\nfour';
+        listFilesMock.mockResolvedValue([file]);
+        getCurrentProjectMock.mockResolvedValue('/tmp/project-one');
+        getFileMock.mockResolvedValue({ contents, text: '', error: '' });
+        getDocumentCacheMock.mockResolvedValue({ DocumentTab: mode });
+
+        await importNotesModule();
+        document.querySelector(`[data-file="${file}"]`).click();
+        await flushPromises();
+        await flushPromises();
+
+        const contextChanged = getEventHandler('notesContextChanged');
+        listFilesMock.mockResolvedValue([]);
+        getCurrentProjectMock.mockResolvedValue('/tmp/project-two');
+        contextChanged({ projectRoot: '/tmp/project-two', groupName: 'Workspace' });
+        await flushPromises();
+        await flushPromises();
+
+        listFilesMock.mockResolvedValue([file]);
+        getCurrentProjectMock.mockResolvedValue('/tmp/project-one');
+        notesHistoryCurrentPositionMock.mockResolvedValue({ file, line: 3 });
+        contextChanged({ projectRoot: '/tmp/project-one', groupName: 'Workspace' });
+        await flushPromises();
+        await flushPromises();
+        await flushPromises();
+
+        const tabId = mode === 'viewer' ? 'notes-tab-viewer' : 'notes-tab-editor';
+        expect(document.getElementById(tabId).getAttribute('aria-selected')).toBe('true');
+        if (mode === 'editor') {
+            expect(document.getElementById('notes-editor').selectionStart).toBe('one\ntwo\n'.length);
+        }
+    });
+
     it('ignores old workspace scans and does not rescan unchanged contexts', async () => {
         listFilesMock.mockResolvedValue(['$PROJECT/initial.md']);
         await importNotesModule();
