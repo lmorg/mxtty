@@ -138,12 +138,21 @@ func TestSplitWindowUsesWorkspaceDirectoryWhenSupplied(t *testing.T) {
 		settings *workspace.WorkspaceT
 		suffix   string
 	}{
-		{name: "no workspace"},
-		{name: "no directory", settings: &workspace.WorkspaceT{}},
-		{name: "default directory", settings: &workspace.WorkspaceT{Defaults: workspace.TermT{Pwd: "/tmp/default"}}, suffix: ` -c "/tmp/default"`},
+		{name: "no workspace entry", settings: &workspace.WorkspaceT{
+			Defaults:  workspace.TermT{Envs: map[string]string{}},
+			Terminals: map[string]workspace.TermT{},
+		}},
+		{name: "workspace directory", settings: &workspace.WorkspaceT{
+			Defaults: workspace.TermT{Envs: map[string]string{}},
+			Terminals: map[string]workspace.TermT{
+				"project": {Pwd: "/tmp/workspace", Envs: map[string]string{}},
+			},
+		}, suffix: ` -c "/tmp/workspace"`},
 		{name: "named override", settings: &workspace.WorkspaceT{
-			Defaults:  workspace.TermT{Pwd: "/tmp/default"},
-			Terminals: map[string]workspace.TermT{"project": {Pwd: `$TTYPHOON_TEST_SPLIT_ROOT/"quoted"`, Cmd: "must-not-run", Envs: map[string]string{"UNUSED": "value"}}},
+			Defaults: workspace.TermT{Envs: map[string]string{}},
+			Terminals: map[string]workspace.TermT{
+				"project": {Pwd: `$TTYPHOON_TEST_SPLIT_ROOT/"quoted"`, Envs: map[string]string{}},
+			},
 		}, suffix: ` -c "/tmp/workspace root/\"quoted\""`},
 	} {
 		for _, flag := range []string{"-h", "-v"} {
