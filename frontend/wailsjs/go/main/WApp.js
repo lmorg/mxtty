@@ -742,6 +742,10 @@ export function TerminalGetTabs() {
   return window['go']['main']['WApp']['TerminalGetTabs']();
 }
 
+export function TerminalInputBoxHistoryImages(arg1, arg2) {
+  return window['go']['main']['WApp']['TerminalInputBoxHistoryImages'](arg1, arg2);
+}
+
 export function TerminalInputBoxSubmit(arg1, arg2, arg3) {
   return window['go']['main']['WApp']['TerminalInputBoxSubmit'](arg1, arg2, arg3);
 }

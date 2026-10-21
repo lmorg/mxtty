@@ -109,7 +109,4 @@ type Meta struct {
 }
 
 // ImageAttachment carries an inline image to send alongside a prompt.
-type ImageAttachment struct {
-	MIMEType string
-	Base64   string
-}
+type ImageAttachment = types.ImageAttachment

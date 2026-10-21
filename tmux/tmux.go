@@ -353,6 +353,9 @@ func (tmux *Tmux) finishPendingPaneOutput(paneId string, pane *PaneT, initErr er
 	if initErr != nil && tmux.renderer != nil {
 		tmux.renderer.DisplayNotification(types.NOTIFY_ERROR, initErr.Error())
 	}
+	if initErr == nil && pane != nil {
+		tmux.renderer.RefreshWindowList()
+	}
 }
 
 func _respExtendedOutput(tmux *Tmux, b []byte) {

@@ -86,6 +86,9 @@ Each record uses: **Status**, **Context**, **Decision**, **Consequences**,
 | [0072](0072-interactive-pane-actions-use-one-shot-uuid-callbacks.md) | Interactive pane actions use one-shot UUID callbacks | Terminal |
 | [0073](0073-configurable-web-search-backends.md) | Web search supports configurable DuckDuckGo and SearXNG backends | AI tools |
 | [0074](0074-notes-history-is-scoped-to-workspace-names.md) | Notes history follows tmux window names; recents derive from history | Notes |
+| [0075](0075-inputbox-drafts-are-separate-from-history.md) | Inputboxes persist complete drafts separately from submitted history | Inputboxes |
+| [0076](0076-inputbox-history-restores-complete-submissions.md) | Inputbox history restores complete submissions or individual text fields | Inputboxes |
+| [0077](0077-ai-filesystem-tools-use-the-live-project-root.md) | AI filesystem tools resolve the owning pane's live project root | AI tools |
 
 ## Recurring themes
 

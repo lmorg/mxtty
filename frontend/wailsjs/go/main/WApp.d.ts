@@ -381,6 +381,8 @@ export function TerminalGetPanes():Promise<Array<rendererwebkit.TerminalPane>>;
 
 export function TerminalGetTabs():Promise<Array<Record<string, any>>>;
 
+export function TerminalInputBoxHistoryImages(arg1:number,arg2:number):Promise<Array<types.ImageAttachment>>;
+
 export function TerminalInputBoxSubmit(arg1:number,arg2:types.InputBoxCallbackResultT,arg3:boolean):Promise<void>;
 
 export function TerminalKeyPress(arg1:string,arg2:boolean,arg3:boolean,arg4:boolean,arg5:boolean):Promise<void>;

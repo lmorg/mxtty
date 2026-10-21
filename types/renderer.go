@@ -33,9 +33,17 @@ const MENU_SEPARATOR = "-"
 
 type InputBoxCallbackT func(*InputBoxCallbackResultT)
 
+type ImageAttachment struct {
+	MIMEType string `json:"mimeType"`
+	Base64   string `json:"base64"`
+	Path     string `json:"path,omitempty"`
+}
+
 type InputBoxCallbackResultT struct {
-	Value     string         `json:"value"`
-	Variables map[string]any `json:"variables"`
+	Value     string            `json:"value"`
+	Variables map[string]any    `json:"variables"`
+	Images    []ImageAttachment `json:"images,omitempty"`
+	SaveDraft bool              `json:"saveDraft,omitempty"`
 }
 
 func (ibcr InputBoxCallbackResultT) String() string {
@@ -55,6 +63,7 @@ type InputBoxWTOptions struct {
 	Placeholder     string                `json:"placeholder"`
 	History         []string              `json:"history"`
 	Multiline       bool                  `json:"multiline"`
+	AllowImagePaste bool                  `json:"allowImagePaste"`
 	Confirmation    bool                  `json:"confirmation"`
 	ConfirmLabel    string                `json:"confirmLabel"`
 	CancelLabel     string                `json:"cancelLabel"`

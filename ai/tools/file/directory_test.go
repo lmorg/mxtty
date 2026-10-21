@@ -123,3 +123,26 @@ func TestDirectoryCallReturnsFilesInProjectRoot(t *testing.T) {
 		t.Fatalf("directory response missing nested/beta.txt: %q", response)
 	}
 }
+
+func TestDirectoryToolFollowsCurrentProjectRoot(t *testing.T) {
+	firstRoot, secondRoot := t.TempDir(), t.TempDir()
+	agent := &directoryTestAgent{pathTestAgent: pathTestAgent{projectRoot: firstRoot}, renderer: directoryTestRenderer{}}
+	tool := &Directory{agent: agent}
+	for _, test := range []struct{ root, name string }{{firstRoot, "first.txt"}, {secondRoot, "second.txt"}} {
+		if err := os.WriteFile(filepath.Join(test.root, test.name), []byte("content"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		agent.projectRoot = test.root
+		response, err := tool.CallStructured(context.Background(), &directoryInputT{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var files []file
+		if err := json.Unmarshal([]byte(response), &files); err != nil {
+			t.Fatal(err)
+		}
+		if len(files) != 1 || files[0].Name != test.name {
+			t.Fatalf("directory tool did not follow root %q: %s", test.root, response)
+		}
+	}
+}

@@ -44,6 +44,12 @@ func GetExplainCmdMessages(agt *agent.Agent, userPrompt string) []*schema.Messag
 	}
 }
 
+func GetExplainCmdMessagesWithImages(agt *agent.Agent, userPrompt string, images []aitypes.ImageAttachment) []*schema.Message {
+	messages := GetExplainCmdMessages(agt, userPrompt)
+	messages[len(messages)-1] = buildUserMessageWithImages(messages[len(messages)-1].Content, images)
+	return messages
+}
+
 func GetExplainDoc(agt *agent.Agent, userPrompt string) string {
 	return os.Expand(_PROMPT_EXPLAIN_DOC, promptVars(agt, userPrompt))
 }
@@ -137,6 +143,12 @@ func GetAskMessages(agt *agent.Agent, userPrompt string) []*schema.Message {
 		schema.SystemMessage(buildPromptSystem(agt, userPrompt)),
 		schema.UserMessage(user),
 	}
+}
+
+func GetAskMessagesWithImages(agt *agent.Agent, userPrompt string, images []aitypes.ImageAttachment) []*schema.Message {
+	messages := GetAskMessages(agt, userPrompt)
+	messages[len(messages)-1] = buildUserMessageWithImages(messages[len(messages)-1].Content, images)
+	return messages
 }
 
 func GetTitle(agt *agent.Agent, userPrompt string) string {

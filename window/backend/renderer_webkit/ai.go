@@ -18,8 +18,9 @@ func (wr *webkitRender) AskAi() {
 
 	wr.DisplayInputBoxW(&types.InputBoxWT{
 		Options: types.InputBoxWTOptions{
-			Title:     fmt.Sprintf("What would you like to ask %s?", agt.ServiceName()),
-			Multiline: true,
+			Title:           fmt.Sprintf("What would you like to ask %s?", agt.ServiceName()),
+			Multiline:       true,
+			AllowImagePaste: true,
 			Variables: []types.InputBoxWTVariables{
 				agt.ListModelsInputVariable(),
 				ai.SaveMarkdownToggle(false),
@@ -28,7 +29,7 @@ func (wr *webkitRender) AskAi() {
 		OkFunc: func(v *types.InputBoxCallbackResultT) {
 			agt.Meta.Variables = v.Variables
 			agt.SetModelFromInputVariable(v.Variables)
-			ai.AskAI(agt, v.String())
+			ai.AskAIWithImages(agt, v.String(), v.Images)
 		},
 	})
 }
@@ -86,8 +87,9 @@ func askAiSkill(wr *webkitRender, skill *skills.SkillT) {
 
 	parameters := &types.InputBoxWT{
 		Options: types.InputBoxWTOptions{
-			Title:     strings.Title(skill.Description),
-			Multiline: true,
+			Title:           strings.Title(skill.Description),
+			Multiline:       true,
+			AllowImagePaste: true,
 			Variables: append(skill.Variables,
 				agt.ListModelsInputVariable(),
 				ai.SaveMarkdownToggle(false),
@@ -96,7 +98,7 @@ func askAiSkill(wr *webkitRender, skill *skills.SkillT) {
 		OkFunc: func(v *types.InputBoxCallbackResultT) {
 			agt.Meta.Variables = v.Variables
 			agt.SetModelFromInputVariable(v.Variables)
-			ai.AskAI(agt, fmt.Sprintf("/%s %s", skill.FunctionName, v.String()))
+			ai.AskAIWithImages(agt, fmt.Sprintf("/%s %s", skill.FunctionName, v.String()), v.Images)
 		},
 	}
 	wr.DisplayInputBoxW(parameters)

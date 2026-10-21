@@ -592,7 +592,9 @@ const elements = {
     aiSettingsSessionNew: document.getElementById('notes-ai-settings-session-new'),
     aiSettingsHistoryList: document.getElementById('notes-ai-settings-history-list'),
     aiSettingsToolsList: document.getElementById('notes-ai-settings-tools-list'),
+    aiSettingsToolsFilter: document.getElementById('notes-ai-settings-tools-filter'),
     aiSettingsMcpList: document.getElementById('notes-ai-settings-mcp-list'),
+    aiSettingsMcpFilter: document.getElementById('notes-ai-settings-mcp-filter'),
     aiToolMetaModal: document.getElementById('notes-ai-tool-meta-modal'),
     aiToolMetaCard: document.getElementById('notes-ai-tool-meta-card'),
     aiToolMetaContent: document.getElementById('notes-ai-tool-meta-content'),
@@ -12582,15 +12584,23 @@ function renderAIToolsList() {
         return;
     }
 
-    const tools = Array.isArray(state.aiToolsList) ? state.aiToolsList : [];
-    if (tools.length === 0) {
+    const allTools = Array.isArray(state.aiToolsList) ? state.aiToolsList : [];
+    if (allTools.length === 0) {
         elements.aiSettingsToolsList.textContent = 'No tools available.';
         elements.aiSettingsToolsList.dataset.empty = 'true';
         return;
     }
 
+    const query = String(elements.aiSettingsToolsFilter?.value || '').trim().toLowerCase();
+    const tools = allTools.map((tool, index) => ({ tool, index }))
+        .filter(({ tool }) => `${tool.name || ''}\n${tool.description || ''}`.toLowerCase().includes(query));
+    if (tools.length === 0) {
+        elements.aiSettingsToolsList.textContent = 'No tools match this filter.';
+        elements.aiSettingsToolsList.dataset.empty = 'true';
+        return;
+    }
     elements.aiSettingsToolsList.dataset.empty = 'false';
-    const items = tools.map((tool, index) => {
+    const items = tools.map(({ tool, index }) => {
         const safeName = escapeHtml(tool.name || 'Unknown tool');
         const toolState = String(tool.state || (tool.enabled === true ? 'always' : 'disabled'));
         const state = toolStateDisplay(toolState);
@@ -12644,15 +12654,23 @@ function renderAIMcpServersList() {
         return;
     }
 
-    const servers = Array.isArray(state.aiMcpServersList) ? state.aiMcpServersList : [];
-    if (servers.length === 0) {
+    const allServers = Array.isArray(state.aiMcpServersList) ? state.aiMcpServersList : [];
+    if (allServers.length === 0) {
         elements.aiSettingsMcpList.textContent = 'No MCP servers found in config.';
         elements.aiSettingsMcpList.dataset.empty = 'true';
         return;
     }
 
+    const query = String(elements.aiSettingsMcpFilter?.value || '').trim().toLowerCase();
+    const servers = allServers.map((server, index) => ({ server, index }))
+        .filter(({ server }) => `${getMcpServerDisplayName(server)}\n${server.source || ''}`.toLowerCase().includes(query));
+    if (servers.length === 0) {
+        elements.aiSettingsMcpList.textContent = 'No MCP servers match this filter.';
+        elements.aiSettingsMcpList.dataset.empty = 'true';
+        return;
+    }
     elements.aiSettingsMcpList.dataset.empty = 'false';
-    const items = servers.map((server, index) => {
+    const items = servers.map(({ server, index }) => {
         const safeName = escapeHtml(getMcpServerDisplayName(server));
         const safeKey = escapeHtml(String(server.key || ''));
         const checked = server.loaded === true;
@@ -14687,6 +14705,8 @@ if (elements.aiSettingsModal) {
         }
     });
 }
+elements.aiSettingsToolsFilter?.addEventListener('input', renderAIToolsList);
+elements.aiSettingsMcpFilter?.addEventListener('input', renderAIMcpServersList);
 if (elements.aiSettingsToolsList) {
     elements.aiSettingsToolsList.addEventListener('click', (event) => {
         const stateButton = event.target instanceof HTMLButtonElement

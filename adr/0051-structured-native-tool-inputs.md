@@ -53,6 +53,19 @@ remove the wrapper schema.
   refresh behavior described in ADR 0073; `scrapeWebPage` uses a `{url}` object.
 - `dateTime` accepts an optional positive amount, unit, and before/after
   direction; omitting them returns the current local date and time.
+- Updated 2026-10-21: `readFiles` accepts a `files` array of objects containing
+  `path` and optional `startLine`/`endLine` bounds for that individual file.
+  One call can mix different ranges and whole-file reads. Legacy string entries
+  are accepted as whole-file reads; top-level bounds are explicitly rejected
+  rather than silently ignored. Lines are 1-based and inclusive. Omitting both
+  bounds for a file reads that whole file; an omitted start means line 1
+  and an omitted end means EOF. Reject nonpositive or reversed bounds. Requests
+  beyond EOF return available content or empty content if the start is beyond
+  EOF. Ranged reads stream through the needed prefix, preserve line endings and
+  long lines, honor cancellation, and stop after the selected end rather than
+  loading the entire file. Approval descriptions and structured observations
+  associate each requested range with its file; the output remains a
+  filename-keyed txtar archive.
 - jq accepts a structured JSON object with a query and arbitrary JSON value. The
   value is encoded to jq's stdin without an XML wrapper or lossy number decoding.
 - Add the optional `aitypes.ToolCallDescriber` contract for tools that need to

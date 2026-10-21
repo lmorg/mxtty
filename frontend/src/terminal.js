@@ -1519,7 +1519,7 @@ EventsOn("terminalRedraw", ops => {
                 continue;
             }
             if (cmd.op === 'gauge_h' || cmd.op === 'gauge_v') {
-                drawGauge(offCtx, font.getCellSize, cmd);
+                drawGauge(offCtx, font.getCellSize, cmd, windowStyle?.colors?.fg);
                 continue;
             }
             if (cmd.op === 'block_chrome') {

@@ -8,6 +8,8 @@ Accepted. Updated 2026-10-18 with OSC 7 path encoding, stale pane-update
 handling after window closure, active window/pane reconciliation, and safe
 pane-exit snapshot pruning.
 
+Updated 2026-10-21: refresh visible tiles after output-driven pane initialization.
+
 ## Context
 
 Some commands must run in an interactive cloned tmux pane so shell hooks,
@@ -76,6 +78,14 @@ terminal text; it must correspond to an outstanding invocation.
   a resize/refresh feedback loop, causing terminal flicker and application
   lockups. Coalesce layout-event bursts into one refresh worker with one pending
   trailing refresh rather than starting an unbounded goroutine per event.
+- When `%output` discovers an unknown pane, complete its initialization, flush
+  the ordered output backlog, remove the pending-output entry, and then refresh
+  the renderer's visible tiles. Release the pending-output lock before calling
+  the renderer. Layout/window notifications may have refreshed before that pane
+  was ready; buffering bytes alone does not publish it to the renderer's cached
+  tile list. Without this handoff the pane can remain blank until a tab click
+  refreshes the layout. Already-known panes keep the direct output path without
+  additional layout queries.
 - Treat pane metadata received after its owner window closes as a stale update,
   not an invariant violation. `paneInfo.updatePane` checks that the owner window
   exists and is open before creating a terminal, changing pane state, or resizing

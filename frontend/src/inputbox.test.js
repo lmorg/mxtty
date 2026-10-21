@@ -2,8 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 
 const inputboxCss = readFileSync('./src/inputbox.css', 'utf8');
+const imageBytes = readFileSync('./src/assets/images/icon-question.png');
+const imageBase64 = imageBytes.toString('base64');
 
 const terminalInputBoxSubmitMock = vi.fn(() => Promise.resolve());
+const terminalInputBoxHistoryImagesMock = vi.fn(() => Promise.resolve([]));
+const getClipboardDataMock = vi.fn(() => Promise.resolve({ text: '', image: '' }));
 const terminalTextInputMock = vi.fn(() => Promise.resolve());
 const terminalKeyPressMock = vi.fn(() => Promise.resolve());
 const eventsOnMock = vi.fn();
@@ -11,6 +15,8 @@ const showLocalMenuMock = vi.fn();
 
 vi.mock('../wailsjs/go/main/WApp', () => ({
     TerminalInputBoxSubmit: terminalInputBoxSubmitMock,
+    TerminalInputBoxHistoryImages: terminalInputBoxHistoryImagesMock,
+    GetClipboardData: getClipboardDataMock,
     TerminalTextInput: terminalTextInputMock,
     TerminalKeyPress: terminalKeyPressMock,
 }));
@@ -39,8 +45,359 @@ describe('inputbox', () => {
         showLocalMenuMock.mockReset();
         terminalInputBoxSubmitMock.mockReset();
         terminalInputBoxSubmitMock.mockResolvedValue();
+        terminalInputBoxHistoryImagesMock.mockReset();
+        terminalInputBoxHistoryImagesMock.mockResolvedValue([]);
         terminalTextInputMock.mockClear();
         terminalKeyPressMock.mockClear();
+        getClipboardDataMock.mockReset();
+        getClipboardDataMock.mockResolvedValue({ text: '', image: '' });
+    });
+
+    async function openImageInputbox(options = {}) {
+        const { initInputBox } = await import('./inputbox.js');
+        initInputBox(document.createElement('canvas'));
+        const open = eventsOnMock.mock.calls.find(([event]) => event === 'terminalInputBox')[1];
+        open({ id: 101, title: 'Ask AI', multiline: true, ...options });
+        return open;
+    }
+
+    function pasteImage(file) {
+        const event = new Event('paste', { bubbles: true, cancelable: true });
+        Object.defineProperty(event, 'clipboardData', { value: {
+            items: file ? [{ kind: 'file', type: file.type, getAsFile: () => file }] : [],
+            getData: () => '',
+        } });
+        document.querySelector('.inputbox-input').dispatchEvent(event);
+        return event;
+    }
+
+    it('restores and saves a complete draft with false, zero, empty, list and image values', async () => {
+        await openImageInputbox({
+            canSaveDraft: true, allowImagePaste: true, defaultValue: 'Default prompt',
+            variables: [
+                { name: 'text', type: 'string', default: 'Default text' },
+                { name: 'count', type: 'integer', default: '5' },
+                { name: 'enabled', type: 'boolean', default: 'true' },
+                { name: 'mode', type: 'list', default: 'first,second' },
+            ],
+            draft: {
+                value: '', variables: { text: '', count: 0, enabled: false, mode: 'second' },
+                images: [{ mimeType: 'image/png', base64: imageBase64 }],
+            },
+        });
+        expect(document.querySelector('textarea.inputbox-input').value).toBe('');
+        const rows = document.querySelectorAll('.inputbox-variable-row');
+        expect(rows[0].querySelector('input').value).toBe('');
+        expect(rows[1].querySelector('input').value).toBe('0');
+        expect(rows[2].querySelector('input').checked).toBe(false);
+        expect(rows[3].querySelector('button').textContent).toBe('second');
+        expect(document.querySelectorAll('.inputbox-image')).toHaveLength(1);
+        const draftButton = document.getElementById('inputbox-draft');
+        expect(draftButton.previousElementSibling.id).toBe('inputbox-ok');
+        expect(draftButton.textContent).toBe('Draft');
+        expect(draftButton.children).toHaveLength(0);
+        document.getElementById('inputbox-draft').click();
+        await vi.waitFor(() => expect(document.getElementById('terminal-inputbox').style.display).toBe('none'));
+        expect(terminalInputBoxSubmitMock).toHaveBeenCalledOnce();
+        expect(terminalInputBoxSubmitMock).toHaveBeenCalledWith(101, {
+            value: '', variables: { text: '', count: 0, enabled: false, mode: 'second' },
+            images: [{ mimeType: 'image/png', base64: imageBase64 }], saveDraft: true,
+        }, false);
+    });
+
+    it('waits for draft persistence before closing and prevents duplicate saves', async () => {
+        let complete;
+        terminalInputBoxSubmitMock.mockReturnValue(new Promise((resolve) => { complete = resolve; }));
+        await openImageInputbox({ canSaveDraft: true, defaultValue: 'Work in progress' });
+        document.getElementById('inputbox-draft').click();
+        expect(document.getElementById('terminal-inputbox').style.display).toBe('flex');
+        expect(document.getElementById('inputbox-draft').disabled).toBe(true);
+        expect(document.getElementById('inputbox-ok').disabled).toBe(true);
+        expect(document.getElementById('inputbox-cancel').disabled).toBe(true);
+        document.getElementById('inputbox-draft').click();
+        expect(terminalInputBoxSubmitMock).toHaveBeenCalledOnce();
+        complete();
+        await vi.waitFor(() => expect(document.getElementById('terminal-inputbox').style.display).toBe('none'));
+    });
+
+    it('keeps edited fields open when saving a draft fails and leaves Cancel unchanged', async () => {
+        terminalInputBoxSubmitMock.mockRejectedValueOnce(new Error('Bridge unavailable'));
+        await openImageInputbox({ canSaveDraft: true });
+        document.querySelector('.inputbox-input').value = 'Unsaved work';
+        document.getElementById('inputbox-draft').click();
+        await vi.waitFor(() => expect(document.getElementById('inputbox-image-error').textContent).toContain('Could not save draft'));
+        expect(document.getElementById('terminal-inputbox').style.display).toBe('flex');
+        expect(document.querySelector('.inputbox-input').value).toBe('Unsaved work');
+        expect(document.getElementById('inputbox-draft').disabled).toBe(false);
+        document.getElementById('inputbox-cancel').click();
+        expect(terminalInputBoxSubmitMock).toHaveBeenLastCalledWith(101, { value: 'Unsaved work', variables: {} }, false);
+    });
+
+    it('does not offer draft saving for confirmation dialogs', async () => {
+        await openImageInputbox({ canSaveDraft: true, confirmation: true });
+        const draftButton = document.getElementById('inputbox-draft');
+        expect(draftButton.hidden).toBe(true);
+        draftButton.click();
+        expect(terminalInputBoxSubmitMock).not.toHaveBeenCalled();
+    });
+
+    it('does not intercept image paste without the opt-in flag', async () => {
+        await openImageInputbox();
+        const event = pasteImage(new File([imageBytes], 'image.png', { type: 'image/png' }));
+        expect(event.defaultPrevented).toBe(false);
+        expect(getClipboardDataMock).not.toHaveBeenCalled();
+        expect(document.getElementById('inputbox-images').hidden).toBe(true);
+        document.getElementById('inputbox-ok').click();
+        expect(terminalInputBoxSubmitMock).toHaveBeenCalledWith(101, { value: '', variables: {} }, true);
+    });
+
+    it('previews and submits pasted browser image files alongside text and variables', async () => {
+        await openImageInputbox({ allowImagePaste: true, defaultValue: 'Describe this', variables: [
+            { name: 'model', label: 'Model', type: 'string', default: 'vision' },
+        ] });
+        const file = new File([imageBytes], 'image.png', { type: 'image/png' });
+        expect(pasteImage(file).defaultPrevented).toBe(true);
+        expect(document.getElementById('inputbox-ok').disabled).toBe(true);
+        await vi.waitFor(() => expect(document.querySelectorAll('.inputbox-image img')).toHaveLength(1));
+        expect(document.getElementById('inputbox-ok').disabled).toBe(false);
+        document.getElementById('inputbox-ok').click();
+        expect(terminalInputBoxSubmitMock).toHaveBeenCalledWith(101, {
+            value: 'Describe this', variables: { model: 'vision' },
+            images: [{ mimeType: 'image/png', base64: imageBase64 }],
+        }, true);
+    });
+
+    it('uses the native clipboard fallback and lets an attachment be removed', async () => {
+        getClipboardDataMock.mockResolvedValue({ text: '', image: imageBase64 });
+        await openImageInputbox({ allowImagePaste: true });
+        pasteImage();
+        await vi.waitFor(() => expect(document.querySelectorAll('.inputbox-image img')).toHaveLength(1));
+        expect(getClipboardDataMock).toHaveBeenCalledOnce();
+        document.querySelector('.inputbox-image-remove').click();
+        expect(document.querySelectorAll('.inputbox-image')).toHaveLength(0);
+        document.getElementById('inputbox-ok').click();
+        expect(terminalInputBoxSubmitMock.mock.calls[0][1].images).toBeUndefined();
+    });
+
+    it('ignores clipboard results from a closed inputbox and discards cancelled attachments', async () => {
+        let complete;
+        getClipboardDataMock.mockReturnValue(new Promise((resolve) => { complete = resolve; }));
+        const open = await openImageInputbox({ allowImagePaste: true });
+        pasteImage();
+        document.getElementById('inputbox-cancel').click();
+        expect(terminalInputBoxSubmitMock).toHaveBeenCalledWith(101, { value: '', variables: {} }, false);
+        open({ id: 102, title: 'Another query', multiline: true, allowImagePaste: true });
+        complete({ image: imageBase64 });
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(document.querySelectorAll('.inputbox-image')).toHaveLength(0);
+        expect(document.getElementById('inputbox-ok').disabled).toBe(false);
+    });
+
+    it('limits pasted image count and keeps text-only paste native', async () => {
+        getClipboardDataMock.mockResolvedValue({ image: imageBase64 });
+        await openImageInputbox({ allowImagePaste: true });
+        for (let index = 0; index < 7; index++) pasteImage();
+        await vi.waitFor(() => expect(document.querySelectorAll('.inputbox-image')).toHaveLength(6));
+        expect(document.getElementById('inputbox-image-error').textContent).toContain('at most 6');
+        const textPaste = new Event('paste', { bubbles: true, cancelable: true });
+        Object.defineProperty(textPaste, 'clipboardData', { value: { items: [], getData: () => 'ordinary text' } });
+        document.querySelector('.inputbox-input').dispatchEvent(textPaste);
+        expect(textPaste.defaultPrevented).toBe(false);
+    });
+
+    it.each([
+        ['image/svg+xml', 10, 'PNG, JPEG, GIF, or WebP'],
+        ['image/png', 8 * 1024 * 1024 + 1, 'at most 8 MiB'],
+    ])('rejects unsupported or oversized pasted files (%s)', async (type, size, message) => {
+        await openImageInputbox({ allowImagePaste: true });
+        pasteImage(new File([new Uint8Array(size)], 'image', { type }));
+        await vi.waitFor(() => expect(document.getElementById('inputbox-image-error').textContent).toContain(message));
+        expect(document.querySelectorAll('.inputbox-image')).toHaveLength(0);
+        expect(document.getElementById('inputbox-ok').disabled).toBe(false);
+    });
+
+    it('restores history images lazily and includes their bytes on submission', async () => {
+        const attachment = { mimeType: 'image/png', base64: imageBase64 };
+        terminalInputBoxHistoryImagesMock.mockResolvedValue([attachment]);
+        await openImageInputbox({ allowImagePaste: true,
+            historyEntries: [{ value: 'With image', variables: {}, images: [{ path: '/saved/image.png' }] }],
+        });
+        expect(terminalInputBoxHistoryImagesMock).not.toHaveBeenCalled();
+        document.getElementById('inputbox-history-btn').click();
+        const menu = showLocalMenuMock.mock.calls.at(-1)[0];
+        expect(menu.options[0]).toContain('1 image');
+        menu.onSelect(0);
+        expect(document.getElementById('inputbox-ok').disabled).toBe(true);
+        expect(terminalInputBoxHistoryImagesMock).toHaveBeenCalledWith(101, 0);
+        await vi.waitFor(() => expect(document.querySelectorAll('.inputbox-image img')).toHaveLength(1));
+        expect(document.querySelector('.inputbox-image img').src).toBe(`data:image/png;base64,${imageBase64}`);
+        document.getElementById('inputbox-ok').click();
+        expect(terminalInputBoxSubmitMock).toHaveBeenCalledWith(101, { value: 'With image', variables: {}, images: [attachment] }, true);
+    });
+
+    it('clears history images for text-only selections but preserves them on field-only recall', async () => {
+        const attachment = { mimeType: 'image/png', base64: imageBase64 };
+        await openImageInputbox({ allowImagePaste: true, canSaveDraft: true,
+            draft: { value: '', variables: {}, images: [attachment] },
+            historyEntries: [{ value: 'Text only', variables: {} }],
+        });
+        document.querySelector('textarea').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }));
+        showLocalMenuMock.mock.calls.at(-1)[0].onSelect(0);
+        expect(document.querySelectorAll('.inputbox-image')).toHaveLength(1);
+        document.getElementById('inputbox-history-btn').click();
+        showLocalMenuMock.mock.calls.at(-1)[0].onSelect(0);
+        expect(document.querySelectorAll('.inputbox-image')).toHaveLength(0);
+        expect(terminalInputBoxHistoryImagesMock).not.toHaveBeenCalled();
+    });
+
+    it('ignores late history image results after another selection and prevents concurrent paste', async () => {
+        let complete;
+        terminalInputBoxHistoryImagesMock.mockReturnValue(new Promise((resolve) => { complete = resolve; }));
+        await openImageInputbox({ allowImagePaste: true, historyEntries: [
+            { value: 'With image', images: [{ path: '/saved/image.png' }] }, { value: 'Text only' },
+        ] });
+        document.getElementById('inputbox-history-btn').click();
+        showLocalMenuMock.mock.calls.at(-1)[0].onSelect(0);
+        pasteImage(new File([imageBytes], 'image.png', { type: 'image/png' }));
+        expect(document.getElementById('inputbox-image-error').textContent).toContain('finish loading');
+        document.getElementById('inputbox-history-btn').click();
+        showLocalMenuMock.mock.calls.at(-1)[0].onSelect(1);
+        complete([{ mimeType: 'image/png', base64: imageBase64 }]);
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(document.querySelector('textarea').value).toBe('Text only');
+        expect(document.querySelectorAll('.inputbox-image')).toHaveLength(0);
+        expect(document.getElementById('inputbox-ok').disabled).toBe(false);
+    });
+
+    it('ignores history image results after cancelling and reopening the dialog', async () => {
+        let complete;
+        terminalInputBoxHistoryImagesMock.mockReturnValue(new Promise((resolve) => { complete = resolve; }));
+        const open = await openImageInputbox({ allowImagePaste: true,
+            historyEntries: [{ value: 'With image', images: [{ path: '/saved/image.png' }] }],
+        });
+        document.getElementById('inputbox-history-btn').click();
+        showLocalMenuMock.mock.calls.at(-1)[0].onSelect(0);
+        document.getElementById('inputbox-cancel').click();
+        open({ id: 102, title: 'Another dialog', multiline: true, allowImagePaste: true });
+        complete([{ mimeType: 'image/png', base64: imageBase64 }]);
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(document.querySelectorAll('.inputbox-image')).toHaveLength(0);
+        expect(document.getElementById('inputbox-ok').disabled).toBe(false);
+    });
+
+    it('shows an error for missing history images without blocking the restored text', async () => {
+        terminalInputBoxHistoryImagesMock.mockRejectedValue(new Error('Saved image is missing'));
+        await openImageInputbox({ allowImagePaste: true,
+            historyEntries: [{ value: 'With image', images: [{ path: '/missing.png' }] }],
+        });
+        document.getElementById('inputbox-history-btn').click();
+        showLocalMenuMock.mock.calls.at(-1)[0].onSelect(0);
+        await vi.waitFor(() => expect(document.getElementById('inputbox-image-error').textContent).toContain('missing'));
+        expect(document.querySelector('textarea').value).toBe('With image');
+        expect(document.getElementById('inputbox-ok').disabled).toBe(false);
+    });
+
+    it('does not restore history images into image-disabled dialogs', async () => {
+        await openImageInputbox({ historyEntries: [{ value: 'With image', images: [{ path: '/saved/image.png' }] }] });
+        document.getElementById('inputbox-history-btn').click();
+        showLocalMenuMock.mock.calls.at(-1)[0].onSelect(0);
+        expect(terminalInputBoxHistoryImagesMock).not.toHaveBeenCalled();
+        expect(document.querySelectorAll('.inputbox-image')).toHaveLength(0);
+    });
+
+    it('restores all typed fields from a selected full-history entry', async () => {
+        await openImageInputbox({ defaultValue: 'Current prompt',
+            variables: [
+                { name: 'text', type: 'string', default: 'Default text' },
+                { name: 'count', type: 'integer', default: '9' },
+                { name: 'enabled', type: 'boolean', default: 'true' },
+                { name: 'model', type: 'list', options: ['first', 'second'], default: 'first' },
+                { name: 'newField', type: 'string', default: 'New default' },
+            ],
+            historyEntries: [
+                { value: 'Same prompt', variables: { text: 'older', count: 4, enabled: true, model: 'first' } },
+                { value: 'Same prompt', variables: { text: '', count: 0, enabled: false, model: 'second' } },
+            ],
+        });
+        const rows = document.querySelectorAll('.inputbox-variable-row');
+        rows[4].querySelector('input').value = 'Do not retain this';
+        document.getElementById('inputbox-history-btn').click();
+        const menu = showLocalMenuMock.mock.calls.at(-1)[0];
+        expect(menu.options).toHaveLength(2);
+        expect(menu.options[0]).not.toBe(menu.options[1]);
+        expect(menu.options[1]).toContain('model: second');
+        menu.onSelect(1);
+        expect(document.querySelector('textarea').value).toBe('Same prompt');
+        expect(rows[0].querySelector('input').value).toBe('');
+        expect(rows[1].querySelector('input').value).toBe('0');
+        expect(rows[2].querySelector('input').checked).toBe(false);
+        expect(rows[3].querySelector('button').textContent).toBe('second');
+        expect(rows[4].querySelector('input').value).toBe('New default');
+        document.getElementById('inputbox-ok').click();
+        expect(terminalInputBoxSubmitMock).toHaveBeenCalledWith(101, {
+            value: 'Same prompt', variables: { text: '', count: 0, enabled: false, model: 'second', newField: 'New default' },
+        }, true);
+    });
+
+    it('uses distinct field-only history for Up Arrow in a variable text field', async () => {
+        await openImageInputbox({ defaultValue: 'Keep this prompt',
+            variables: [
+                { name: 'text', type: 'string', default: '' },
+                { name: 'other', type: 'string', default: 'Keep this field' },
+            ],
+            historyEntries: [
+                { value: 'New prompt', variables: { text: 'new value', other: 'new other' } },
+                { value: 'Middle prompt', variables: { text: 'new value', other: 'middle other' } },
+                { value: 'Old prompt', variables: { text: 'old value', other: 'old other' } },
+                { value: 'Legacy prompt' },
+            ],
+        });
+        const rows = document.querySelectorAll('.inputbox-variable-row');
+        const field = rows[0].querySelector('input');
+        const event = new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true });
+        field.dispatchEvent(event);
+        expect(event.defaultPrevented).toBe(true);
+        const menu = showLocalMenuMock.mock.calls.at(-1)[0];
+        expect(menu.options).toEqual(['new value', 'old value']);
+        menu.onSelect(1);
+        expect(field.value).toBe('old value');
+        expect(rows[1].querySelector('input').value).toBe('Keep this field');
+        expect(document.querySelector('textarea').value).toBe('Keep this prompt');
+    });
+
+    it('uses distinct prompt-only history for Up Arrow in the main input', async () => {
+        await openImageInputbox({
+            variables: [{ name: 'text', type: 'string', default: 'Keep variable' }],
+            historyEntries: [
+                { value: 'Same prompt', variables: { text: 'one' } },
+                { value: 'Same prompt', variables: { text: 'two' } },
+                { value: 'Other prompt', variables: { text: 'three' } },
+            ],
+        });
+        document.querySelector('textarea').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }));
+        const menu = showLocalMenuMock.mock.calls.at(-1)[0];
+        expect(menu.options).toEqual(['Same prompt', 'Other prompt']);
+        menu.onSelect(1);
+        expect(document.querySelector('textarea').value).toBe('Other prompt');
+        expect(document.querySelector('.inputbox-variable-row input').value).toBe('Keep variable');
+    });
+
+    it('restores empty prompt history and preserves fields for legacy text-only entries', async () => {
+        await openImageInputbox({ defaultValue: 'Current prompt',
+            variables: [{ name: 'text', type: 'string', default: 'Keep variable' }],
+            historyEntries: [{ value: '' }, { value: 'Legacy prompt' }],
+        });
+        document.getElementById('inputbox-history-btn').click();
+        const menu = showLocalMenuMock.mock.calls.at(-1)[0];
+        menu.onSelect(0);
+        expect(document.querySelector('textarea').value).toBe('');
+        expect(document.querySelector('.inputbox-variable-row input').value).toBe('Keep variable');
+        document.getElementById('inputbox-history-btn').click();
+        showLocalMenuMock.mock.calls.at(-1)[0].onSelect(1);
+        expect(document.querySelector('textarea').value).toBe('Legacy prompt');
     });
 
     it('shows a history popup button and writes the selected item into the input', async () => {

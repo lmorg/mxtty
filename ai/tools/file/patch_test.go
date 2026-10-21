@@ -23,6 +23,47 @@ func (a *pathTestAgent) RequestWritePermission(context.Context, string) error { 
 func (a *pathTestAgent) EnvironmentValue(string) string                       { return "" }
 func (a *pathTestAgent) ImageGenerationEnvironmentValue(string) string        { return "" }
 
+type dynamicPathTestAgent struct {
+	directoryTestAgent
+	meta aitypes.Meta
+}
+
+func (agent *dynamicPathTestAgent) GetMeta() *aitypes.Meta { return &agent.meta }
+
+func TestFilesystemToolsUseCurrentRootAfterDirectoryChanges(t *testing.T) {
+	firstRoot, secondRoot := t.TempDir(), t.TempDir()
+	previousDirectory := filepath.Join(firstRoot, "a-long-nested-directory-from-the-original-terminal-pane")
+	if err := os.MkdirAll(previousDirectory, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	agent := &dynamicPathTestAgent{
+		directoryTestAgent: directoryTestAgent{
+			pathTestAgent: pathTestAgent{projectRoot: firstRoot}, renderer: directoryTestRenderer{},
+		},
+		meta: aitypes.Meta{Pwd: previousDirectory},
+	}
+	writer := &Write{agent: agent}
+	reader := &ReadFiles{agent: agent}
+	for _, root := range []string{firstRoot, secondRoot} {
+		agent.projectRoot = root
+		result, err := writer.writeFiles(context.Background(), "-- note.md --\n"+root+"\n")
+		if err != nil || strings.Contains(result, "ERROR") {
+			t.Fatalf("write in current root failed: %q, %v", result, err)
+		}
+		data, err := os.ReadFile(filepath.Join(root, "note.md"))
+		if err != nil || strings.TrimSpace(string(data)) != root {
+			t.Fatalf("file not written in current root %q: %q, %v", root, data, err)
+		}
+		result, err = reader.callFiles(context.Background(), []string{"note.md"})
+		if err != nil || !strings.Contains(result, root) {
+			t.Fatalf("read did not use current root %q: %q, %v", root, result, err)
+		}
+		if _, err := resolveWorkspacePath(agent, filepath.Join(firstRoot, "note.md")); root != firstRoot && err == nil {
+			t.Fatal("old project root remained inside the write sandbox after changing roots")
+		}
+	}
+}
+
 func TestApplyPatchEdits(t *testing.T) {
 	tests := []struct {
 		name    string

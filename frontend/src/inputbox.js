@@ -1,4 +1,4 @@
-import { TerminalInputBoxSubmit } from '../wailsjs/go/main/WApp';
+import { GetClipboardData, TerminalInputBoxHistoryImages, TerminalInputBoxSubmit } from '../wailsjs/go/main/WApp';
 import { EventsOn } from '../wailsjs/runtime/runtime';
 import { showLocalMenu } from './popup_menu';
 import { initLineNavigationKeys } from './line-navigation.js';
@@ -24,6 +24,8 @@ function ensureInputBoxDom() {
             <div class="inputbox-dialog">
                 <div class="inputbox-title markdown-body" id="inputbox-title"><h3></h3></div>
                 <div id="inputbox-input-container"></div>
+                <div id="inputbox-images" class="inputbox-images" hidden></div>
+                <div id="inputbox-image-error" class="inputbox-image-error" role="alert" hidden></div>
                 <div class="inputbox-hint" id="inputbox-hint">
                     <span id="inputbox-confirm-hint">Return to confirm</span>
                     <span id="inputbox-vim-hint">Escape for Vim keys</span>
@@ -31,6 +33,7 @@ function ensureInputBoxDom() {
                 </div>
                 <div class="inputbox-buttons">
                     <button class="inputbox-btn inputbox-ok" id="inputbox-ok">OK</button>
+                    <button class="inputbox-btn inputbox-draft" id="inputbox-draft" hidden>Draft</button>
                     <button class="inputbox-btn inputbox-cancel" id="inputbox-cancel">Cancel</button>
                     <button class="inputbox-btn inputbox-history-btn" id="inputbox-history-btn" title="History" aria-label="History" style="display:none">&#xf141;</button>
                 </div>
@@ -54,6 +57,9 @@ export function initInputBox(canvas) {
     const inputboxEscapeHint = document.getElementById('inputbox-escape-hint');
     const inputboxOkBtn = document.getElementById('inputbox-ok');
     const inputboxCancel = document.getElementById('inputbox-cancel');
+    const inputboxDraftBtn = document.getElementById('inputbox-draft');
+    const inputboxImagesContainer = document.getElementById('inputbox-images');
+    const inputboxImageError = document.getElementById('inputbox-image-error');
 
     if (!inputboxOverlay || !inputboxInputContainer || !inputboxHistoryBtn || !inputboxTitle || !inputboxConfirmHint || !inputboxOkBtn || !inputboxCancel) {
         return;
@@ -68,6 +74,135 @@ export function initInputBox(canvas) {
     let inputboxVimHandle = null;
     let inputboxSpellCheckHandle = null;
     let inputboxConfirmation = false;
+    let inputboxCanSaveDraft = false;
+    let inputboxSavingDraft = false;
+    let inputboxAllowImagePaste = false;
+    let inputboxImages = [];
+    let inputboxPendingImages = 0;
+    let inputboxRestoringHistoryImages = false;
+    let inputboxGeneration = 0;
+    const maxImages = 6;
+    const maxImageBytes = 8 * 1024 * 1024;
+    const imageTypes = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
+
+    function setImageError(message = '') {
+        inputboxImageError.textContent = message;
+        inputboxImageError.hidden = !message;
+    }
+
+    function renderInputboxImages() {
+        inputboxImagesContainer.replaceChildren();
+        inputboxImagesContainer.hidden = inputboxImages.length === 0 && inputboxPendingImages === 0;
+        inputboxImagesContainer.setAttribute('aria-busy', String(inputboxPendingImages > 0));
+        inputboxOkBtn.disabled = inputboxPendingImages > 0 || inputboxSavingDraft;
+        inputboxDraftBtn.disabled = inputboxPendingImages > 0 || inputboxSavingDraft;
+        inputboxCancel.disabled = inputboxSavingDraft;
+        inputboxImages.forEach((attachment, index) => {
+            const item = document.createElement('div');
+            item.className = 'inputbox-image';
+            const image = document.createElement('img');
+            image.src = `data:${attachment.mimeType};base64,${attachment.base64}`;
+            image.alt = `Attached image ${index + 1}`;
+            const remove = document.createElement('button');
+            remove.type = 'button';
+            remove.className = 'inputbox-image-remove';
+            remove.innerHTML = '&#xf00d;';
+            remove.title = `Remove image ${index + 1}`;
+            remove.setAttribute('aria-label', remove.title);
+            remove.addEventListener('click', () => {
+                inputboxImages.splice(index, 1);
+                setImageError();
+                renderInputboxImages();
+                inputboxInput?.focus();
+            });
+            remove.addEventListener('keydown', (event) => event.stopPropagation());
+            item.append(image, remove);
+            inputboxImagesContainer.appendChild(item);
+        });
+        if (inputboxPendingImages > 0) {
+            const loading = document.createElement('span');
+            loading.className = 'inputbox-image-loading';
+            loading.innerHTML = '&#xf110;';
+            loading.setAttribute('role', 'status');
+            loading.setAttribute('aria-label', 'Loading image');
+            inputboxImagesContainer.appendChild(loading);
+        }
+    }
+
+    function readImageFile(file) {
+        if (!imageTypes.has(file.type)) {
+            return Promise.reject(new Error('Use a PNG, JPEG, GIF, or WebP image.'));
+        }
+        if (file.size > maxImageBytes) {
+            return Promise.reject(new Error('Each image must be at most 8 MiB.'));
+        }
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve({ mimeType: file.type, base64: String(reader.result).split(',')[1] });
+            reader.onerror = () => reject(new Error('Could not read the pasted image.'));
+            reader.onabort = () => reject(new Error('Image read was cancelled.'));
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async function pasteInputboxImage(readImage, target = inputboxInput) {
+        if (inputboxRestoringHistoryImages) {
+            setImageError('Wait for saved images to finish loading.');
+            return;
+        }
+        if (inputboxImages.length + inputboxPendingImages >= maxImages) {
+            setImageError('Attach at most 6 images.');
+            return;
+        }
+        const generation = inputboxGeneration;
+        inputboxPendingImages++;
+        setImageError();
+        renderInputboxImages();
+        try {
+            const result = await readImage();
+            if (generation !== inputboxGeneration || !isInputboxVisible()) return;
+            if (result?.text != null && !result.image && !result.base64) {
+                if (target.selectionStart != null) {
+                    target.setRangeText(result.text, target.selectionStart, target.selectionEnd, 'end');
+                } else {
+                    target.value = result.text;
+                }
+                target.dispatchEvent(new Event('input', { bubbles: true }));
+                return;
+            }
+            const attachment = result?.image ? { mimeType: 'image/png', base64: result.image } : result;
+            if (!attachment?.base64) return;
+            if (!imageTypes.has(attachment.mimeType) || attachment.base64.length > Math.ceil(maxImageBytes / 3) * 4) {
+                throw new Error('Use a PNG, JPEG, GIF, or WebP image of at most 8 MiB.');
+            }
+            inputboxImages.push(attachment);
+        } catch (error) {
+            if (generation === inputboxGeneration) setImageError(error.message || 'Could not paste image.');
+        } finally {
+            if (generation === inputboxGeneration) {
+                inputboxPendingImages--;
+                renderInputboxImages();
+            }
+        }
+    }
+
+    inputboxOverlay.addEventListener('paste', (event) => {
+        if (!isInputboxVisible() || !inputboxAllowImagePaste) return;
+        const items = Array.from(event.clipboardData?.items || []);
+        const files = items.filter((item) => item.kind === 'file' && item.type.startsWith('image/'))
+            .map((item) => item.getAsFile()).filter(Boolean);
+        if (files.length > 0) {
+            event.preventDefault();
+            event.stopPropagation();
+            for (const file of files) void pasteInputboxImage(() => readImageFile(file));
+        } else if (items.length === 0 && !event.clipboardData?.getData('text/plain')) {
+            event.preventDefault();
+            event.stopPropagation();
+            const target = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement
+                ? event.target : inputboxInput;
+            void pasteInputboxImage(() => GetClipboardData(), target);
+        }
+    });
 
     function setSharedTerminalFocusState(focused, options = {}) {
         if (typeof window.ttyphoonSetTerminalFocusState === 'function') {
@@ -125,24 +260,74 @@ export function initInputBox(canvas) {
             .filter((item) => item.length > 0);
     }
 
+    async function restoreHistoryImages(index, entry) {
+        const generation = ++inputboxGeneration;
+        inputboxRestoringHistoryImages = false;
+        inputboxImages = [];
+        inputboxPendingImages = 0;
+        setImageError();
+        renderInputboxImages();
+        if (!inputboxAllowImagePaste || !Array.isArray(entry.images) || entry.images.length === 0) return;
+        inputboxRestoringHistoryImages = true;
+        inputboxPendingImages = 1;
+        renderInputboxImages();
+        try {
+            const images = await TerminalInputBoxHistoryImages(inputboxId, index);
+            if (generation !== inputboxGeneration || !isInputboxVisible()) return;
+            if (!Array.isArray(images) || images.length > maxImages || images.some((image) =>
+                !imageTypes.has(image.mimeType) || !image.base64 || image.base64.length > Math.ceil(maxImageBytes / 3) * 4)) {
+                throw new Error('Saved images are invalid or exceed the attachment limits.');
+            }
+            inputboxImages = images;
+        } catch (error) {
+            if (generation === inputboxGeneration) {
+                setImageError(`Could not restore saved images: ${error.message || error}`);
+            }
+        } finally {
+            if (generation === inputboxGeneration) {
+                inputboxRestoringHistoryImages = false;
+                inputboxPendingImages = 0;
+                renderInputboxImages();
+            }
+        }
+    }
+
     function openInputboxHistoryMenu(x, y) {
         if (!inputboxInput || inputboxHistoryItems.length === 0) {
             return;
         }
 
+        const generation = inputboxGeneration;
         showLocalMenu({
             title: 'History',
-            options: inputboxHistoryItems,
+            options: inputboxHistoryItems.map((entry) => {
+                const variables = Object.entries(entry.variables || {})
+                    .map(([name, value]) => `${name}: ${value === '' ? '""' : String(value)}`).join(', ');
+                const text = entry.value || '(empty)';
+                const label = variables ? `${text} | ${variables}` : text;
+                return entry.images?.length ? `${label} | ${entry.images.length} image(s)` : label;
+            }),
             x,
             y,
             showNextToMouseCursor: true,
             onSelect: (index) => {
-                const value = inputboxHistoryItems[index];
-                if (!value || !inputboxInput) {
+                const entry = inputboxHistoryItems[index];
+                if (!entry || !inputboxInput || generation !== inputboxGeneration || !isInputboxVisible()) {
                     return;
                 }
 
-                inputboxInput.value = value;
+                inputboxInput.value = entry.value;
+                void restoreHistoryImages(index, entry);
+                if (entry.variables) {
+                    for (const field of inputboxVariableGetters) {
+                        if (Object.prototype.hasOwnProperty.call(entry.variables, field.name)) {
+                            field.setter(entry.variables[field.name]);
+                        } else {
+                            field.reset();
+                        }
+                    }
+                }
+                inputboxInput.dispatchEvent(new Event('input', { bubbles: true }));
                 inputboxInput.focus();
 
                 if (inputboxInput.tagName === 'TEXTAREA') {
@@ -152,6 +337,34 @@ export function initInputBox(canvas) {
                 }
             },
         });
+    }
+
+    function openFieldHistoryMenu(control, name = null, setter = (value) => { control.value = value; }) {
+        const values = [];
+        const seen = new Set();
+        for (const entry of inputboxHistoryItems) {
+            if (name !== null && !Object.prototype.hasOwnProperty.call(entry.variables || {}, name)) continue;
+            const value = String(name === null ? entry.value : entry.variables[name]);
+            if (!seen.has(value)) {
+                seen.add(value);
+                values.push(value);
+            }
+        }
+        if (values.length === 0) return false;
+        const rect = control.getBoundingClientRect();
+        showLocalMenu({
+            title: 'History', options: values.map((value) => value || '(empty)'),
+            x: rect.left, y: rect.bottom, showNextToMouseCursor: true,
+            onSelect: (index) => {
+                if (index < 0 || index >= values.length) return;
+                setter(values[index]);
+                control.dispatchEvent(new Event('input', { bubbles: true }));
+                control.focus();
+                if (control.tagName === 'TEXTAREA') autoGrowTextarea(control);
+                else control.select?.();
+            },
+        });
+        return true;
     }
 
     function shouldOpenHistoryHotkey(e) {
@@ -171,7 +384,11 @@ export function initInputBox(canvas) {
             return false;
         }
 
-        if (shouldOpenHistoryHotkey(e) || shouldOpenHistoryUpArrow(e)) {
+        if (shouldOpenHistoryUpArrow(e) && openFieldHistoryMenu(inputboxInput)) {
+            e.preventDefault();
+            return true;
+        }
+        if (shouldOpenHistoryHotkey(e)) {
             e.preventDefault();
             const rect = inputboxInput.getBoundingClientRect();
             openInputboxHistoryMenu(rect.left, rect.bottom);
@@ -219,13 +436,14 @@ export function initInputBox(canvas) {
             'input:not([type="hidden"])',
             'textarea',
             'select',
+            'button.inputbox-image-remove',
             '[tabindex]:not([tabindex="-1"])',
         ];
 
         return Array.from(inputboxOverlay.querySelectorAll(selectors.join(', ')))
             .filter((el) => {
                 // Exclude buttons (they have hotkeys, not part of tab cycle)
-                if (el.tagName === 'BUTTON') {
+                if (el.tagName === 'BUTTON' && !el.classList.contains('inputbox-image-remove')) {
                     return false;
                 }
                 if (el.disabled || el.getAttribute('aria-hidden') === 'true') {
@@ -274,12 +492,14 @@ export function initInputBox(canvas) {
         focusables[0].focus();
     }
 
-    function addVariableField(definition) {
+    function addVariableField(definition, draftVariables = {}) {
         if (!definition || !definition.name) {
             return;
         }
 
         const fieldName = String(definition.name);
+        const initialValue = Object.prototype.hasOwnProperty.call(draftVariables, fieldName)
+            ? draftVariables[fieldName] : definition.default;
         const fieldType = normalizeVariableType(definition.type);
         const row = document.createElement('div');
         row.className = 'inputbox-variable-row';
@@ -305,6 +525,7 @@ export function initInputBox(canvas) {
 
         let control = null;
         let getter = () => '';
+        let setter = () => {};
 
         if (fieldType === 'boolean') {
             const checkboxWrap = document.createElement('label');
@@ -312,17 +533,18 @@ export function initInputBox(canvas) {
             control = document.createElement('input');
             control.type = 'checkbox';
             control.className = 'inputbox-variable-checkbox';
-            control.checked = parseBooleanDefault(definition.default);
+            control.checked = parseBooleanDefault(initialValue);
             checkboxWrap.appendChild(control);
             line.appendChild(checkboxWrap);
 
             getter = () => Boolean(control.checked);
+            setter = (value) => { control.checked = parseBooleanDefault(value); };
         } else if (fieldType === 'integer') {
             control = document.createElement('input');
             control.type = 'number';
             control.step = '1';
             control.className = 'inputbox-input';
-            const defaultValue = String(definition.default ?? '').trim();
+            const defaultValue = String(initialValue ?? '').trim();
             control.value = defaultValue;
             const placeholderOptions = parseDefinitionOptions(definition);
             if (placeholderOptions.length > 0) {
@@ -334,6 +556,7 @@ export function initInputBox(canvas) {
                 const parsed = Number.parseInt(String(control.value || '').trim(), 10);
                 return Number.isFinite(parsed) ? parsed : 0;
             };
+            setter = (value) => { control.value = String(value ?? ''); };
         } else if (fieldType === 'list') {
             let options = parseDefinitionOptions(definition);
             if (options.length === 0) {
@@ -343,7 +566,7 @@ export function initInputBox(canvas) {
             }
 
             let selected = options[0];
-            const defaultValue = String(definition.default ?? '').trim();
+            const defaultValue = String(initialValue ?? '').trim();
             if (defaultValue.length > 0 && options.includes(defaultValue)) {
                 selected = defaultValue;
             }
@@ -374,11 +597,15 @@ export function initInputBox(canvas) {
             line.appendChild(control);
 
             getter = () => selected;
+            setter = (value) => {
+                selected = options.includes(String(value)) ? String(value) : options[0];
+                control.textContent = selected;
+            };
         } else {
             control = document.createElement('input');
             control.type = 'text';
             control.className = 'inputbox-input';
-            control.value = String(definition.default ?? '');
+            control.value = String(initialValue ?? '');
             const placeholderOptions = parseDefinitionOptions(definition);
             if (placeholderOptions.length > 0) {
                 control.placeholder = placeholderOptions[0];
@@ -390,10 +617,17 @@ export function initInputBox(canvas) {
             line.appendChild(control);
 
             getter = () => String(control.value || '');
+            setter = (value) => { control.value = String(value ?? ''); };
         }
 
         if (control && typeof control.addEventListener === 'function') {
             control.addEventListener('keydown', (e) => {
+                if (fieldType === 'string' && e.key === 'ArrowUp' && control.value.length === 0 &&
+                    openFieldHistoryMenu(control, fieldName, setter)) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return;
+                }
                 if (e.key === 'Escape') {
                     e.preventDefault();
                     inputboxSubmit(false);
@@ -412,11 +646,14 @@ export function initInputBox(canvas) {
         }
 
         inputboxInputContainer.appendChild(row);
-        inputboxVariableGetters.push({ name: fieldName, getter });
+        inputboxVariableGetters.push({ name: fieldName, getter, setter, reset: () => setter(definition.default) });
     }
 
-    function inputboxSubmit(isOk) {
-        if (inputboxId === null) {
+    async function inputboxSubmit(isOk, saveDraft = false) {
+        if (inputboxId === null || inputboxSavingDraft || ((isOk || saveDraft) && inputboxPendingImages > 0)) {
+            return;
+        }
+        if (saveDraft && !inputboxCanSaveDraft) {
             return;
         }
 
@@ -430,8 +667,35 @@ export function initInputBox(canvas) {
         }
 
         const id = inputboxId;
+        const images = (isOk || saveDraft) && inputboxAllowImagePaste ? inputboxImages : [];
+        const result = { value, variables };
+        if (images.length > 0) result.images = images;
+        if (saveDraft) {
+            result.saveDraft = true;
+            const generation = inputboxGeneration;
+            inputboxSavingDraft = true;
+            renderInputboxImages();
+            try {
+                await TerminalInputBoxSubmit(id, result, false);
+            } catch {
+                if (generation === inputboxGeneration) {
+                    inputboxSavingDraft = false;
+                    renderInputboxImages();
+                    setImageError('Could not save draft. Please try again.');
+                }
+                return;
+            }
+            if (generation !== inputboxGeneration) return;
+        }
+        inputboxSavingDraft = false;
+        inputboxGeneration++;
         inputboxId = null;
         inputboxVariableGetters = [];
+        inputboxImages = [];
+        inputboxPendingImages = 0;
+        inputboxRestoringHistoryImages = false;
+        renderInputboxImages();
+        setImageError();
 
         inputboxVimHandle?.detach();
         inputboxVimHandle = null;
@@ -445,9 +709,10 @@ export function initInputBox(canvas) {
             force: true,
         });
 
-        TerminalInputBoxSubmit(id, { value, variables }, isOk).catch(() => {});
+        if (!saveDraft) TerminalInputBoxSubmit(id, result, isOk).catch(() => {});
     }
 
+    inputboxDraftBtn.addEventListener('click', () => inputboxSubmit(false, true));
     inputboxOkBtn.addEventListener('click', () => inputboxSubmit(true));
     inputboxCancel.addEventListener('click', () => inputboxSubmit(false));
 
@@ -542,6 +807,19 @@ export function initInputBox(canvas) {
         setSharedTerminalFocusState(false, { focusVisible: false, force: true });
         inputboxTitle.querySelector('h3').textContent = p.title ?? '';
         inputboxConfirmation = p.confirmation === true;
+        inputboxCanSaveDraft = p.canSaveDraft === true && !inputboxConfirmation;
+        inputboxSavingDraft = false;
+        inputboxDraftBtn.hidden = !inputboxCanSaveDraft;
+        inputboxDraftBtn.style.display = inputboxCanSaveDraft ? '' : 'none';
+        const draft = inputboxCanSaveDraft ? p.draft : null;
+        const initialValue = draft?.value ?? p.defaultValue ?? '';
+        inputboxGeneration++;
+        inputboxAllowImagePaste = p.allowImagePaste === true && !inputboxConfirmation;
+        inputboxImages = inputboxAllowImagePaste && Array.isArray(draft?.images) ? draft.images.slice(0, maxImages) : [];
+        inputboxPendingImages = 0;
+        inputboxRestoringHistoryImages = false;
+        renderInputboxImages();
+        setImageError();
         inputboxConfirmHint.hidden = inputboxConfirmation;
         inputboxConfirmHint.textContent = p.multiline
             ? 'Ctrl+Return to confirm' : 'Return to confirm';
@@ -573,7 +851,7 @@ export function initInputBox(canvas) {
             inputboxInput = document.createElement('textarea');
             inputboxInput.className = 'inputbox-input';
             inputboxInput.rows = 2;
-            inputboxInput.value = p.defaultValue ?? '';
+            inputboxInput.value = initialValue;
             inputboxInput.placeholder = p.placeholder ?? '';
             inputboxInput.setAttribute('autocomplete', 'off');
             inputboxInput.setAttribute('autocorrect', 'off');
@@ -607,7 +885,7 @@ export function initInputBox(canvas) {
             inputboxInput = document.createElement('input');
             inputboxInput.className = 'inputbox-input';
             inputboxInput.type = 'text';
-            inputboxInput.value = p.defaultValue ?? '';
+            inputboxInput.value = initialValue;
             inputboxInput.placeholder = p.placeholder ?? '';
             inputboxInput.setAttribute('autocomplete', 'off');
             inputboxInput.setAttribute('autocorrect', 'off');
@@ -631,7 +909,9 @@ export function initInputBox(canvas) {
             });
         }
 
-        inputboxHistoryItems = Array.isArray(p.history) ? p.history : [];
+        const history = Array.isArray(p.historyEntries) ? p.historyEntries : (Array.isArray(p.history) ? p.history : []);
+        inputboxHistoryItems = history.map((entry) => typeof entry === 'string' ? { value: entry } : entry)
+            .filter((entry) => entry && typeof entry.value === 'string');
         inputboxHistoryBtn.style.display = inputboxHistoryItems.length > 0 ? 'inline-flex' : 'none';
 
         inputboxInputContainer.appendChild(inputboxInput);
@@ -641,7 +921,7 @@ export function initInputBox(canvas) {
 
         const variables = Array.isArray(p.variables) ? p.variables : [];
         for (const variable of variables) {
-            addVariableField(variable);
+            addVariableField(variable, draft?.variables || {});
         }
 
         inputboxOverlay.style.display = 'flex';

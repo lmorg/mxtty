@@ -536,6 +536,24 @@ body {
     background-color: rgba(var(--red-rgb), 0.2);
 }
 
+.notes-ai-settings-filter {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 6px 8px;
+    border: 1px solid rgba(var(--fg-rgb), 0.3);
+    border-radius: 4px;
+    background: var(--darken-background-overlay);
+    color: var(--fg);
+    font: inherit;
+}
+
+.notes-ai-settings-filter:focus-visible {
+    outline: 1px solid var(--accent);
+    outline-offset: 1px;
+}
+
 .notes-ai-settings-tools-list {
     display: grid;
     grid-template-columns: repeat(2, 1fr);

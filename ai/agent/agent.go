@@ -18,7 +18,6 @@ type Agent struct {
 	runtime          agentRuntime
 	serviceName      string
 	modelName        string
-	projectRoot      string
 	maxIterations    int
 	toolMu           sync.RWMutex
 	toolPermissionMu sync.Mutex
@@ -71,7 +70,6 @@ func New(renderer types.Renderer, tile types.Tile) {
 		maxIterations:     config.Config.Ai.MaxIterations,
 		term:              tile.GetTerm(),
 		renderer:          renderer,
-		projectRoot:       notes.DirProjectRoot(tile.Pwd()),
 		toolStates:        make(map[string]string),
 		subagentTools:     make(map[string]bool),
 		toolPermissions:   make(map[string]*toolPermissionState),
@@ -132,7 +130,7 @@ func (agt *Agent) McpServerRemove(server string) {
 
 func (agt *Agent) Renderer() types.Renderer { return agt.renderer }
 func (agt *Agent) Term() types.Term         { return agt.term }
-func (agt *Agent) ProjectRoot() string      { return agt.projectRoot }
+func (agt *Agent) ProjectRoot() string      { return notes.DirProjectRoot(agt.term.Tile().Pwd()) }
 
 type toolPermission uint8
 

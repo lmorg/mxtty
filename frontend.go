@@ -617,6 +617,14 @@ func (a *WApp) TerminalInputBoxSubmit(id int64, v *types.InputBoxCallbackResultT
 	renderer.InputBoxSubmit(id, v, isOk)
 }
 
+func (a *WApp) TerminalInputBoxHistoryImages(id int64, index int) ([]types.ImageAttachment, error) {
+	renderer, ok := renderwebkit.CurrentRenderer()
+	if !ok {
+		return nil, errors.New("terminal renderer is unavailable")
+	}
+	return renderer.InputBoxHistoryImages(id, index)
+}
+
 func (a *WApp) startTerminalWindow() {
 	err := startBackend(a)
 	if err != nil {

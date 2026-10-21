@@ -76,6 +76,8 @@ const renameAISessionMock = vi.fn(() => Promise.resolve({ activeSessionId: 1, se
 const deleteAIHistoryEntryMock = vi.fn(() => Promise.resolve({ activeSessionId: 1, sessions: [], history: [] }));
 const getAIToolsListMock = vi.fn(() => Promise.resolve([]));
 const getAIMcpServersMock = vi.fn(() => Promise.resolve([]));
+const setAIMcpServerEnabledMock = vi.fn(() => Promise.resolve());
+const showAIToolStateMenuMock = vi.fn(() => Promise.resolve());
 const listAIModelSelectionsMock = vi.fn(() => Promise.resolve(['OpenAI: gpt-4.1']));
 const getCurrentAIModelSelectionMock = vi.fn(() => Promise.resolve('OpenAI: gpt-4.1'));
 const getAIExecutionLimitsMock = vi.fn(() => Promise.resolve({ agentSteps: 10, requestTimeout: '5m' }));
@@ -279,6 +281,8 @@ vi.mock('../wailsjs/go/main/WApp', () => ({
     DeleteAIHistoryEntry: deleteAIHistoryEntryMock,
     GetAIToolsList: getAIToolsListMock,
     GetAIMcpServers: getAIMcpServersMock,
+    SetAIMcpServerEnabled: setAIMcpServerEnabledMock,
+    ShowAIToolStateMenu: showAIToolStateMenuMock,
     ListAIModelSelections: listAIModelSelectionsMock,
     GetCurrentAIModelSelection: getCurrentAIModelSelectionMock,
     GetAIExecutionLimits: getAIExecutionLimitsMock,
@@ -636,6 +640,12 @@ describe('notes rendering', () => {
         getAIStreamBlockContentMock.mockResolvedValue('');
         getAISessionManagementMock.mockReset();
         getAISessionManagementMock.mockResolvedValue({ activeSessionId: 0, sessions: [], history: [] });
+        getAIToolsListMock.mockReset();
+        getAIToolsListMock.mockResolvedValue([]);
+        getAIMcpServersMock.mockReset();
+        getAIMcpServersMock.mockResolvedValue([]);
+        setAIMcpServerEnabledMock.mockClear();
+        showAIToolStateMenuMock.mockClear();
         createAISessionMock.mockReset();
         createAISessionMock.mockResolvedValue({ activeSessionId: 1, sessions: [], history: [] });
         setActiveAISessionMock.mockReset();
@@ -726,6 +736,62 @@ describe('notes rendering', () => {
         vi.mocked(swaggerUtils.extractPaths).mockReturnValue([]);
         clipboardSetTextMock.mockResolvedValue();
         runHyperlinkMenuActionMock.mockResolvedValue();
+    });
+
+    it('filters AI tools and MCP servers independently without changing their original indices', async () => {
+        getAIToolsListMock.mockResolvedValue([
+            { name: 'writeFile', description: 'Create files', state: 'always' },
+            { name: 'readFiles', description: 'Inspect source files', state: 'approval' },
+        ]);
+        getAIMcpServersMock.mockResolvedValue([
+            { name: 'alpha', key: 'alpha-key', source: '/personal/config.json', loaded: false },
+            { name: 'beta', key: 'beta-key', source: '/team/config.json', loaded: true },
+        ]);
+        await importNotesModule();
+        document.getElementById('notes-tools-ai-settings').click();
+        await flushPromises();
+        await flushPromises();
+        const tools = document.getElementById('notes-ai-settings-tools-list');
+        const servers = document.getElementById('notes-ai-settings-mcp-list');
+        const toolsFilter = document.getElementById('notes-ai-settings-tools-filter');
+        const mcpFilter = document.getElementById('notes-ai-settings-mcp-filter');
+        const filter = (input, value) => {
+            input.value = value;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        };
+        filter(toolsFilter, ' READ ');
+        expect(tools.querySelectorAll('[data-tool-index]')).toHaveLength(1);
+        expect(tools.querySelector('[data-tool-index]').dataset.toolIndex).toBe('1');
+        expect(tools.textContent).toContain('readFiles');
+        expect(servers.querySelectorAll('[data-mcp-index]')).toHaveLength(2);
+        filter(mcpFilter, '/TEAM/');
+        expect(servers.querySelectorAll('[data-mcp-index]')).toHaveLength(1);
+        expect(servers.querySelector('[data-mcp-index]').dataset.mcpIndex).toBe('1');
+        expect(servers.querySelector('input').dataset.mcpKey).toBe('beta-key');
+        expect(tools.querySelectorAll('[data-tool-index]')).toHaveLength(1);
+        filter(toolsFilter, 'unmatched');
+        expect(tools.textContent).toBe('No tools match this filter.');
+        filter(mcpFilter, 'unmatched');
+        expect(servers.textContent).toBe('No MCP servers match this filter.');
+        filter(toolsFilter, '');
+        filter(mcpFilter, '');
+        expect(tools.querySelectorAll('[data-tool-index]')).toHaveLength(2);
+        expect(servers.querySelectorAll('[data-mcp-index]')).toHaveLength(2);
+        filter(toolsFilter, 'INSPECT');
+        expect(tools.querySelector('[data-tool-index]').dataset.toolIndex).toBe('1');
+        tools.querySelector('.notes-ai-settings-tool-state').click();
+        expect(showAIToolStateMenuMock).toHaveBeenCalledWith('readFiles', expect.any(Number), expect.any(Number));
+        filter(mcpFilter, 'beta');
+        const checkbox = servers.querySelector('input');
+        checkbox.checked = false;
+        checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+        await flushPromises();
+        await flushPromises();
+        expect(setAIMcpServerEnabledMock).toHaveBeenCalledWith('beta-key', false);
+        expect(toolsFilter.value).toBe('INSPECT');
+        expect(mcpFilter.value).toBe('beta');
+        expect(tools.querySelectorAll('[data-tool-index]')).toHaveLength(1);
+        expect(servers.querySelectorAll('[data-mcp-index]')).toHaveLength(1);
     });
 
     it('renders grouped note categories and nested files from the Wails file list', async () => {
