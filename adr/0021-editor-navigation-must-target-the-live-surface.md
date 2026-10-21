@@ -69,7 +69,9 @@ fails.
 
 ### Line-aware history and rendered Find
 
-Notes navigation history persists `(filename, line)` entries. Same-document
+Notes navigation history persists `(filename, line)` entries. Updated 2026-10-21:
+history is scoped to tmux window names and supports files outside the active
+root; recent files are derived from history (ADR 0074). Same-document
 positions at least 20 lines apart create separate entries; nearby positions do
 not append another item. Legacy filename-only cache entries migrate to line 1.
 Monaco reports its active cursor offset, including reverse selections, and the
@@ -85,6 +87,12 @@ does not itself request Edit mode. Restore that line only when the restored
 tab is the file type's Edit mode; explicit Previous/Next navigation continues
 to select Edit. This prevents terminal pane context changes, including clone
 closure, from overriding the document's cached View or Run tab.
+
+Updated 2026-10-21: successful Markdown saves, including autosave, refresh the
+Tools ToC and Frontmatter while Edit mode remains selected. Both helpers read
+the live editor value rather than the hidden textarea. This refresh does not
+regenerate the Markdown preview or Jupyter view; those retain their deferred
+rendering behavior. Adding or removing Frontmatter also updates tab visibility.
 
 Rendered Find must likewise target the visible surface: CSV View and CSV Run
 search `elements.csvView`, not the hidden Markdown preview. Highlight cleanup

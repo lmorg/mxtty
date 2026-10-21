@@ -14,6 +14,34 @@ import (
 	"golang.design/x/clipboard"
 )
 
+func TestNotesHistoryUsesWindowNameAcrossProjectRoots(t *testing.T) {
+	firstRoot, secondRoot := t.TempDir(), t.TempDir()
+	workspace := t.Name() + firstRoot
+	app := &WApp{projRoot: firstRoot, groupName: workspace, homeDir: t.TempDir()}
+	app.NotesHistoryAddPosition("$PROJECT/README.md", 4)
+	app.projRoot = secondRoot
+	app.NotesHistoryAddPosition("$PROJECT/README.md", 30)
+	firstFile := filepath.Join(firstRoot, "README.md")
+	if got, err := app.NotesHistoryPreviousPosition(); err != nil || got != (NotesHistoryPosition{File: firstFile, Line: 4}) {
+		t.Fatalf("cross-root previous = %+v, %v", got, err)
+	}
+	if got := app.NotesRecentFiles(); !reflect.DeepEqual(got, []string{"$PROJECT/README.md", firstFile}) {
+		t.Fatalf("cross-root recent files = %v", got)
+	}
+	app.groupName = workspace + "-other"
+	if got := app.NotesHistoryCurrentPosition(); got.File != "" {
+		t.Fatalf("another window inherited history: %+v", got)
+	}
+	if _, err := app.NotesHistoryNextPosition(); err == nil {
+		t.Fatal("empty workspace accepted Next navigation")
+	}
+	app.NotesHistoryAddPosition("$PROJECT/other.md", 8)
+	app.groupName = workspace
+	if got := app.NotesHistoryCurrentPosition(); got != (NotesHistoryPosition{File: firstFile, Line: 4}) {
+		t.Fatalf("switching windows changed the original history: %+v", got)
+	}
+}
+
 func TestNotesReservedWordsResolveFenceAliasesAndRuntimeDescriptions(t *testing.T) {
 	app := &WApp{}
 	for _, test := range []struct{ language, word string }{

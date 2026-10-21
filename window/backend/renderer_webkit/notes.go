@@ -75,13 +75,9 @@ func (wr *webkitRender) NotesCreateAndOpen(filename, content string) {
 }
 
 func (wr *webkitRender) NotesRecentFiles() {
-	tile := wr.ActiveTile()
-	if tile == nil {
-		return
-	}
-
-	project := notes.DirProjectRoot(tile.Pwd())
-	recent := notes.GetRecentList(project)
+	context := wr.NotesFileContext()
+	notes.MigrateWorkspaceHistory(context.GroupName, context.PathProjectRoot)
+	recent := notes.HistoryRecentFiles(context.GroupName)
 
 	okFn := func(i int) {
 		runtime.EventsEmit(wr.wapp, "viewFileInNotesOpen", recent[i])

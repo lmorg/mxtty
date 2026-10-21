@@ -127,8 +127,6 @@ Notes:
   # Maximum file size for the JSON/YAML structured view
   StructViewMaxSizeKB: 1024
 
-  MaxRecentFiles: 10
-
   MaxLogLines: 1000
 
   ExcludeDirectories:

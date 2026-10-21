@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"sync"
 
 	"github.com/lmorg/murex/utils/lists"
 	"github.com/lmorg/ttyphoon/utils/cache"
@@ -40,24 +41,52 @@ func (entry *HistoryEntryT) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func getHistoryList(projectRoot string) *HistoryListT {
+var historyMigrationMu sync.Mutex
+
+func MigrateWorkspaceHistory(workspace, projectRoot string) {
+	historyMigrationMu.Lock()
+	defer historyMigrationMu.Unlock()
+	var history HistoryListT
+	if cache.Read(cache.NS_NOTESW_HISTORY, "workspace:"+workspace, &history) {
+		return
+	}
+	cache.Read(cache.NS_NOTESW_HISTORY, projectRoot, &history)
+	setHistoryList(workspace, &history)
+}
+
+func getHistoryList(workspace string) *HistoryListT {
 	h := &HistoryListT{}
 
-	cache.Read(cache.NS_NOTESW_HISTORY, projectRoot, h)
+	cache.Read(cache.NS_NOTESW_HISTORY, "workspace:"+workspace, h)
 
 	return h
 }
 
-func setHistoryList(projectRoot string, h *HistoryListT) {
-	cache.Write(cache.NS_NOTESW_HISTORY, projectRoot, h, cache.Days(30))
+func setHistoryList(workspace string, h *HistoryListT) {
+	cache.Write(cache.NS_NOTESW_HISTORY, "workspace:"+workspace, h, cache.Days(30))
 }
 
-func HistoryListCurrent(projectRoot string) string {
-	return HistoryListCurrentEntry(projectRoot).Filename
+func HistoryRecentFiles(workspace string) []string {
+	history := getHistoryList(workspace)
+	recent := make([]string, 0, 10)
+	seen := make(map[string]bool)
+	for index := len(history.History) - 1; index >= 0 && len(recent) < 10; index-- {
+		filename := history.History[index].Filename
+		if filename == "" || seen[filename] {
+			continue
+		}
+		seen[filename] = true
+		recent = append(recent, filename)
+	}
+	return recent
 }
 
-func HistoryListCurrentEntry(projectRoot string) HistoryEntryT {
-	h := getHistoryList(projectRoot)
+func HistoryListCurrent(workspace string) string {
+	return HistoryListCurrentEntry(workspace).Filename
+}
+
+func HistoryListCurrentEntry(workspace string) HistoryEntryT {
+	h := getHistoryList(workspace)
 	if len(h.History) == 0 {
 		return HistoryEntryT{}
 	}
@@ -68,13 +97,13 @@ func HistoryListCurrentEntry(projectRoot string) HistoryEntryT {
 	return h.History[h.Index]
 }
 
-func HistoryListAdd(projectRoot, filename string) error {
-	return HistoryListAddAt(projectRoot, filename, 1)
+func HistoryListAdd(workspace, filename string) error {
+	return HistoryListAddAt(workspace, filename, 1)
 }
 
-func HistoryListAddAt(projectRoot, filename string, line int) error {
+func HistoryListAddAt(workspace, filename string, line int) error {
 	if filename == "" {
-		return errors.New("no filename to add to recent list")
+		return errors.New("no filename to add to history")
 	}
 
 	filename = filepath.Clean(filename)
@@ -82,7 +111,7 @@ func HistoryListAddAt(projectRoot, filename string, line int) error {
 		line = 1
 	}
 
-	h := getHistoryList(projectRoot)
+	h := getHistoryList(workspace)
 	if h.Index >= 0 && h.Index < len(h.History) {
 		current := h.History[h.Index]
 		if filepath.Clean(current.Filename) == filename && abs(current.Line-line) < 20 {
@@ -106,19 +135,19 @@ func HistoryListAddAt(projectRoot, filename string, line int) error {
 	}
 
 	h.Index = len(h.History) - 1
-	setHistoryList(projectRoot, h)
+	setHistoryList(workspace, h)
 	return nil
 }
 
-func HistoryListRename(projectRoot, oldFile, newFile string) error {
+func HistoryListRename(workspace, oldFile, newFile string) error {
 	if oldFile == "" || newFile == "" || oldFile == newFile {
-		return fmt.Errorf("cannot update recent list: from '%s' to '%s'", oldFile, newFile)
+		return fmt.Errorf("cannot update history: from '%s' to '%s'", oldFile, newFile)
 	}
 
 	oldFile = filepath.Clean(oldFile)
 	newFile = filepath.Clean(newFile)
 
-	h := getHistoryList(projectRoot)
+	h := getHistoryList(workspace)
 
 	for i := range h.History {
 		if filepath.Clean(h.History[i].Filename) == oldFile {
@@ -126,18 +155,18 @@ func HistoryListRename(projectRoot, oldFile, newFile string) error {
 		}
 	}
 
-	setHistoryList(projectRoot, h)
+	setHistoryList(workspace, h)
 	return nil
 }
 
-func HistoryListDelete(projectRoot, filename string) error {
+func HistoryListDelete(workspace, filename string) error {
 	if filename == "" {
-		return errors.New("no filename to delete from recent list")
+		return errors.New("no filename to delete from history")
 	}
 
 	filename = filepath.Clean(filename)
 
-	h := getHistoryList(projectRoot)
+	h := getHistoryList(workspace)
 
 	var err error
 	for {
@@ -156,7 +185,7 @@ func HistoryListDelete(projectRoot, filename string) error {
 			} else if h.Index < 0 {
 				h.Index = 0
 			}
-			setHistoryList(projectRoot, h)
+			setHistoryList(workspace, h)
 			return nil
 		}
 
@@ -172,38 +201,38 @@ func HistoryListDelete(projectRoot, filename string) error {
 }
 
 // Previous returns a filename or error
-func HistoryListPrevious(projectRoot string) (string, error) {
-	entry, err := HistoryListPreviousEntry(projectRoot)
+func HistoryListPrevious(workspace string) (string, error) {
+	entry, err := HistoryListPreviousEntry(workspace)
 	return entry.Filename, err
 }
 
-func HistoryListPreviousEntry(projectRoot string) (HistoryEntryT, error) {
-	h := getHistoryList(projectRoot)
+func HistoryListPreviousEntry(workspace string) (HistoryEntryT, error) {
+	h := getHistoryList(workspace)
 
-	if h.Index == 0 {
+	if h.Index <= 0 || h.Index >= len(h.History) {
 		return HistoryEntryT{}, errors.New("You already have the first history item open")
 	}
 
 	h.Index--
-	setHistoryList(projectRoot, h)
+	setHistoryList(workspace, h)
 	return h.History[h.Index], nil
 }
 
 // HistoryListNext returns a filename or error
-func HistoryListNext(projectRoot string) (string, error) {
-	entry, err := HistoryListNextEntry(projectRoot)
+func HistoryListNext(workspace string) (string, error) {
+	entry, err := HistoryListNextEntry(workspace)
 	return entry.Filename, err
 }
 
-func HistoryListNextEntry(projectRoot string) (HistoryEntryT, error) {
-	h := getHistoryList(projectRoot)
+func HistoryListNextEntry(workspace string) (HistoryEntryT, error) {
+	h := getHistoryList(workspace)
 
-	if h.Index+1 == len(h.History) {
+	if h.Index < 0 || h.Index+1 >= len(h.History) {
 		return HistoryEntryT{}, errors.New("You already have the last history item open")
 	}
 
 	h.Index++
-	setHistoryList(projectRoot, h)
+	setHistoryList(workspace, h)
 	return h.History[h.Index], nil
 }
 

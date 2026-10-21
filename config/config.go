@@ -186,7 +186,6 @@ type configT struct {
 	Notes struct {
 		MaxFileSize       int64 `yaml:"MaxFileSizeMB"`
 		StructViewMaxSize int64 `yaml:"StructViewMaxSizeKB"`
-		MaxRecentFiles    int   `yaml:"MaxRecentFiles"`
 		MaxLogLines       int   `yaml:"MaxLogLines"`
 
 		ExcludeDirectories map[string]bool `yaml:"ExcludeDirectories"`

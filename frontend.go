@@ -891,7 +891,6 @@ type NotesGrepReturnT = grep.ReturnValue
 type NotesGrepOptionsT = grep.Options
 
 func (a *WApp) GetFile(filename string) GetFileReturnT {
-	requestedFilename := strings.TrimSpace(filename)
 	filename = a.filePath(filename)
 
 	stat, err := os.Stat(filename)
@@ -920,11 +919,6 @@ func (a *WApp) GetFile(filename string) GetFileReturnT {
 
 	a.setMarkdownBaseDir(filepath.Dir(filename))
 	watcher.Watch(filename)
-	err = notes.RecentListAdd(a.GetCurrentProject(), requestedFilename)
-	if err != nil {
-		//log.Println(err)
-		return GetFileReturnT{Error: err.Error()}
-	}
 
 	if bytes.Contains(b[:min(1024, len(b))], []byte{0}) {
 		return GetFileReturnT{Contents: base64.StdEncoding.EncodeToString(b), Binary: true}
@@ -1066,10 +1060,6 @@ func (a *WApp) GetImage(path string) string {
 	if err != nil {
 		return fmt.Sprintf("error: %v", err)
 	}
-
-	/*if recentFile := a.notesFileForAbsolutePath(resolvedPath); recentFile != "" {
-		notes.RecentListAdd(a.GetCurrentProject(), recentFile)
-	}*/
 
 	base64 := base64.StdEncoding.EncodeToString(b)
 
@@ -2596,9 +2586,6 @@ func (a *WApp) GetGitDiff(projectRoot, filePath, originalPath string) (gitutils.
 	if err != nil {
 		return gitutils.Diff{}, err
 	}
-	if err := notes.RecentListAdd(projectRoot, "$PROJECT/"+filepath.ToSlash(filePath)); err != nil {
-		log.Printf("cannot add Git file %q to recent Notes files: %v", filePath, err)
-	}
 	return diff, nil
 }
 
@@ -2606,9 +2593,6 @@ func (a *WApp) GetGitDiffAgainstBranch(projectRoot, filePath, originalPath, bran
 	diff, err := gitutils.ReadDiff(projectRoot, filePath, originalPath, branch)
 	if err != nil {
 		return gitutils.Diff{}, err
-	}
-	if err := notes.RecentListAdd(projectRoot, "$PROJECT/"+filepath.ToSlash(filePath)); err != nil {
-		log.Printf("cannot add Git file %q to recent Notes files: %v", filePath, err)
 	}
 	return diff, nil
 }
@@ -2835,7 +2819,17 @@ func canonicalGitPath(path string) (string, error) {
 }
 
 func (a *WApp) NotesRecentFiles() []string {
-	return notes.GetRecentList(a.GetCurrentProject())
+	files := notes.HistoryRecentFiles(a.notesHistoryWorkspace())
+	for index, filename := range files {
+		files[index] = a.notesPathForHistory(filename)
+	}
+	return files
+}
+
+func (a *WApp) notesHistoryWorkspace() string {
+	context := a.currentNotesContext()
+	notes.MigrateWorkspaceHistory(context.GroupName, context.PathProjectRoot)
+	return context.GroupName
 }
 
 func (a *WApp) GetNotesFindFieldValues(fieldName string) []string {
@@ -2852,7 +2846,7 @@ func (a *WApp) NotesHistoryAdd(filename string) {
 
 func (a *WApp) NotesHistoryAddPosition(filename string, line int) {
 	expanded := a.filePath(filename)
-	if err := notes.HistoryListAddAt(a.GetCurrentProject(), expanded, line); err != nil {
+	if err := notes.HistoryListAddAt(a.notesHistoryWorkspace(), expanded, line); err != nil {
 		if renderer, ok := renderwebkit.CurrentRenderer(); ok {
 			renderer.DisplayNotification(types.NOTIFY_ERROR, err.Error())
 		} else {
@@ -2889,11 +2883,11 @@ type NotesHistoryPosition struct {
 }
 
 func (a *WApp) NotesHistoryCurrentPosition() NotesHistoryPosition {
-	return a.notesHistoryPosition(notes.HistoryListCurrentEntry(a.GetCurrentProject()))
+	return a.notesHistoryPosition(notes.HistoryListCurrentEntry(a.notesHistoryWorkspace()))
 }
 
 func (a *WApp) NotesHistoryPreviousPosition() (NotesHistoryPosition, error) {
-	entry, err := notes.HistoryListPreviousEntry(a.GetCurrentProject())
+	entry, err := notes.HistoryListPreviousEntry(a.notesHistoryWorkspace())
 	if err != nil {
 		return NotesHistoryPosition{}, err
 	}
@@ -2901,7 +2895,7 @@ func (a *WApp) NotesHistoryPreviousPosition() (NotesHistoryPosition, error) {
 }
 
 func (a *WApp) NotesHistoryNextPosition() (NotesHistoryPosition, error) {
-	entry, err := notes.HistoryListNextEntry(a.GetCurrentProject())
+	entry, err := notes.HistoryListNextEntry(a.notesHistoryWorkspace())
 	if err != nil {
 		return NotesHistoryPosition{}, err
 	}
@@ -3262,11 +3256,7 @@ func (a *WApp) RenameFile(oldPath, newPath string) error {
 	}
 	notes.NotifyFileChanges(oldAbsPath, newAbsPath)
 
-	err = notes.RecentListRename(a.GetCurrentProject(), oldPath, newPath)
-	if err != nil {
-		return err
-	}
-	err = notes.HistoryListRename(a.GetCurrentProject(), oldAbsPath, newAbsPath)
+	err = notes.HistoryListRename(a.notesHistoryWorkspace(), oldAbsPath, newAbsPath)
 	if err != nil {
 		return err
 	}
@@ -3286,11 +3276,7 @@ func (a *WApp) DeleteFile(filename string) error {
 	}
 	notes.NotifyFileChanges(absPath)
 
-	err = notes.RecentListDelete(a.GetCurrentProject(), filename)
-	if err != nil {
-		return err
-	}
-	err = notes.HistoryListDelete(a.GetCurrentProject(), absPath)
+	err = notes.HistoryListDelete(a.notesHistoryWorkspace(), absPath)
 	if err != nil {
 		return err
 	}

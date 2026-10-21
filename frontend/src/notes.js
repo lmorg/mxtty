@@ -677,7 +677,6 @@ const state = {
     },
     expandedFolders: {},
     currentProjectRoot: '',      // current project root, used to index FileListCollapsed map
-    lastRestoredDocument: null,  // sentinel: LastDocument value at the time it was last restored; null means never restored
     jupyterCodeBlocks: {},
     jupyterBlockCounter: 0,
     lspActiveBlockId: null,
@@ -2178,7 +2177,7 @@ function parseFrontmatter(markdown) {
 // Parses the current document's frontmatter, updates state, refreshes the
 // Frontmatter tab, and returns the markdown body with the frontmatter stripped.
 function applyDocumentFrontmatter() {
-    const raw = elements.editor?.value || '';
+    const raw = getMainEditorValue();
     if (state.currentFileType !== 'markdown') {
         state.frontmatter = null;
         syncFrontmatterTab();
@@ -2491,9 +2490,7 @@ function refreshToolsToC() {
         return;
     }
 
-    const markdown = state.viewMode === 'editor'
-        ? String(elements.editor?.value || '')
-        : getMainEditorValue();
+    const markdown = getMainEditorValue();
     const descriptors = state.viewMode === 'editor'
         ? getMarkdownHeadingSourceDescriptors(markdown).map((entry, index, all) => ({
             ...entry,
@@ -5320,6 +5317,7 @@ async function requestLspDefinition() {
             return;
         }
 
+        addHistoryPosition(targetNotesFile, Math.max(0, Number(target.line) || 0) + 1);
         await loadFile(targetNotesFile);
 
         const targetLine = Math.max(0, Number(target.line) || 0);
@@ -5572,6 +5570,7 @@ async function goToWorkspaceLspSymbol() {
                     return;
                 }
 
+                addHistoryPosition(targetNotesFile, Math.max(0, Number(picked.line) || 0) + 1);
                 await loadFile(targetNotesFile);
 
                 const line = Math.max(0, Number(picked.line) || 0);
@@ -7906,6 +7905,8 @@ async function refreshFiles(options = {}) {
         const workspaceScopedRefresh = previousWorkspaceKey === '' || workspaceChanged;
 
         if (workspaceChanged) {
+            clearTimeout(state.historyPositionTimer);
+            state.historyPositionTimer = null;
             notesGitPanel?.setCommitsActive(false);
         }
 
@@ -7989,45 +7990,45 @@ async function loadProjectCache(options = {}) {
         const historyPosition = await NotesHistoryCurrentPosition();
         if (options.isCurrent && !options.isCurrent()) return;
         const historyDoc = historyPosition?.file || '';
-        const hasHistoryDoc = historyDoc && state.files.includes(historyDoc);
-        if (hasHistoryDoc && historyDoc !== state.lastRestoredDocument) {
-            state.lastRestoredDocument = historyDoc;
+        if (historyDoc) {
             await loadFile(historyDoc);
+            if (options.isCurrent && !options.isCurrent()) return;
             if (historyPosition.line > 1 && state.viewMode === editViewModeForCurrentFileType()) {
                 await ensureMonacoVisibleAndLaidOut();
                 jumpEditorToLine(historyPosition.line);
             }
-        } else if (!hasHistoryDoc) {
-            state.lastRestoredDocument = '';
+        } else if (state.currentFile) {
+            await closeOpenLspDocument();
+            await closeCurrentTyposDocument();
+            if (options.isCurrent && !options.isCurrent()) return;
+            state.currentFile = '';
+            state.currentFileUri = '';
+            state.currentFileProject = '';
+            state.currentFileType = 'markdown';
+            state.swaggerSpec = null;
+            state.swaggerRunAvailable = false;
+            emitCurrentFileName();
+            setMainEditorValue('');
+            clearHexSource();
+            clearVisibleLspDiagnostics();
+            hideLspHoverTooltip();
+            updateTabVisibility('markdown');
+            setViewMode('viewer');
+            await renderMarkdown();
+            await renderJupyterView();
+            setDirty(false);
         }
     } catch (err) {
         console.error('Failed to load project cache:', err);
     }
 }
 
-async function restoreDocumentCache(file) {
-    const documentCache = await GetDocumentCache(file);
-    if (!documentCache) {
-        return;
-    }
-
-    if (typeof documentCache.WordWrap === 'boolean') {
+function applyDocumentCache(documentCache, defaultMode) {
+    if (typeof documentCache?.WordWrap === 'boolean') {
         setEditorWrapMode(documentCache.WordWrap === true);
     }
 
-    if (documentCache.DocumentTab) {
-        setViewMode(documentCache.DocumentTab);
-
-        if (documentCache.DocumentTab === 'jupyter') {
-            await renderJupyterView();
-        } else if (documentCache.DocumentTab === 'swagger-view') {
-            renderSwaggerJsonViewLazy();
-        } else if (documentCache.DocumentTab === 'swagger-run') {
-            updateSwaggerLayoutMode();
-            renderSwaggerUI();
-        }
-    }
-
+    setViewMode(documentCache?.DocumentTab || defaultMode);
     // The Tools panel open/closed state and selected tab are intentionally not
     // restored from cache. The panel keeps whatever state it already had; if the
     // active tab isn't available for the newly loaded document, the panel is
@@ -9696,6 +9697,12 @@ async function loadFile(file, options = {}) {
 
         // Capture the current project context to prevent autosave issues if user switches projects
         state.currentFileProject = await GetCurrentProject();
+        const documentCachePromise = skipDocumentCacheRestore
+            ? Promise.resolve(null)
+            : GetDocumentCache(file).catch((error) => {
+                console.error('Failed to load document cache:', error);
+                return null;
+            });
 
         const loadingJsonByExtension = isStructuredDataFile(file);
         const loadingMarkdown = isMarkdownNotesFile(file);
@@ -9710,6 +9717,7 @@ async function loadFile(file, options = {}) {
         }
 
         if (loadingImage) {
+            const documentCache = await documentCachePromise;
             state.currentFile = file;
             emitCurrentFileName();
             await refreshFileMetaMarkdown(file);
@@ -9719,6 +9727,7 @@ async function loadFile(file, options = {}) {
             state.swaggerSpec = null;
             state.swaggerRunAvailable = false;
             updateTabVisibility('image');
+            applyDocumentCache(documentCache, 'image-view');
 
             // ResolveFilePath expands $NOTES/$PROJECT/etc variables the same way
             // GetFile does. The asset handler then streams the file to the webview
@@ -9733,10 +9742,6 @@ async function loadFile(file, options = {}) {
             enableFullscreenImages(elements.imageViewWrap);
             enableImageContextMenus(elements.imageViewWrap);
 
-            setViewMode('image-view');
-            if (!skipDocumentCacheRestore) {
-                await restoreDocumentCache(file);
-            }
             state.suspendDocumentCacheSave = false;
             saveDocumentCache();
             setDirty(false);
@@ -9752,6 +9757,7 @@ async function loadFile(file, options = {}) {
         }*/
 
         const result = await GetFile(file);
+    const documentCache = await documentCachePromise;
 
         state.currentFile = file;
         state.currentFileUri = await resolveNotesFileUri(file);
@@ -9787,7 +9793,7 @@ async function loadFile(file, options = {}) {
                 fontSize: result.fontSize,
                 adjustCellHeight: result.adjustCellHeight,
             });
-            setViewMode('hex');
+            applyDocumentCache(documentCache, 'hex');
 
             if (stickyId) {
                 closeStickyProgress(stickyId);
@@ -9834,6 +9840,7 @@ async function loadFile(file, options = {}) {
             // Set editor content (use regular editor with line numbers for JSON/YAML)
             setMainEditorValue(doc || '');
             refreshEditorLanguage(file, doc || '');
+            applyDocumentCache(documentCache, 'swagger-edit');
 
             // Render JSON tree view
             updateStickyProgress(stickyId, `Loading ${fileName}… rendering viewer`);
@@ -9851,9 +9858,9 @@ async function loadFile(file, options = {}) {
                 elements.swaggerRequestBuilder.innerHTML = '';
                 elements.swaggerEndpoints.innerHTML = '';
             }
-            
-            // Set default view mode to editor for JSON/YAML files
-            setViewMode('swagger-edit');
+            if (state.viewMode === 'swagger-view') {
+                renderSwaggerJsonViewLazy();
+            }
             closeStickyProgress(stickyId);
         } else if (loadingMarkdown) {
             state.currentFileType = 'markdown';
@@ -9870,13 +9877,11 @@ async function loadFile(file, options = {}) {
             // Set editor content
             setMainEditorValue(doc || '');
             refreshEditorLanguage(file, doc || '');
+            applyDocumentCache(documentCache, 'viewer');
 
             // Render markdown views
             await renderMarkdown();
             await renderJupyterView();
-
-            // Set default view mode to viewer
-            setViewMode('viewer');
         } else if (loadingHtml) {
             state.currentFileType = 'html';
             setCodeEditorMode(true);
@@ -9890,10 +9895,9 @@ async function loadFile(file, options = {}) {
             // Set editor content
             setMainEditorValue(doc || '');
             refreshEditorLanguage(file, doc || '');
+            applyDocumentCache(documentCache, 'viewer');
 
-            // Render sandboxed preview and default to View first.
-            renderHtmlView();
-            setViewMode('viewer');
+            // Selecting the cached/default view mode renders the sandboxed preview.
         } else if (loadingCsv) {
             state.currentFileType = 'csv';
             setCodeEditorMode(false);
@@ -9906,12 +9910,7 @@ async function loadFile(file, options = {}) {
 
             // Set editor content (raw text for Edit tab)
             setMainEditorValue(doc || '');
-
-            // Render table view
-            renderCsvView(doc || '');
-
-            // Default to the table view
-            setViewMode('csv-view');
+            applyDocumentCache(documentCache, 'csv-view');
         } else {
             state.currentFileType = 'code';
             setCodeEditorMode(true);
@@ -9925,9 +9924,7 @@ async function loadFile(file, options = {}) {
             // Set editor content
             setMainEditorValue(doc || '');
             refreshEditorLanguage(file, doc || '');
-            
-            // Set default view mode to editor
-            setViewMode('editor');
+            applyDocumentCache(documentCache, 'editor');
         }
         
         setDirty(false);
@@ -9947,10 +9944,6 @@ async function loadFile(file, options = {}) {
 
         // Spellcheck via typos-lsp for eligible files (falls back to aspell).
         await openCurrentTyposDocument(elements.editor.value || '');
-
-        if (!skipDocumentCacheRestore) {
-            await restoreDocumentCache(file);
-        }
 
         notesSpellCheckHandle?.check();
         state.suspendDocumentCacheSave = false;
@@ -9974,12 +9967,17 @@ async function saveFile() {
     }
 
     try {
+        const file = state.currentFile;
         const content = getMainEditorValue();
         
         // Use the saved project context to prevent overwrites if user switched projects
-        await SaveFile(state.currentFile, content, state.currentFileProject || '');
+        await SaveFile(file, content, state.currentFileProject || '');
         if (state.lspOpenFile === state.currentFile && isCurrentFileLspEligible()) {
             await NotesLspSaveDocument(state.currentFile);
+        }
+        if (state.currentFile === file && state.currentFileType === 'markdown' && state.viewMode === 'editor') {
+            applyDocumentFrontmatter();
+            refreshToolsToC();
         }
         setDirty(false);
         maybeRefreshProjectFindAfterSave();
@@ -13662,6 +13660,7 @@ async function createNewFile() {
     if (exists) {
         closeNewFilePrompt();
         await loadFile(fileName);
+        addHistoryPosition(fileName);
         notifyTerminal(`${fileName} already exists`, 'warn');
         return;
     }
@@ -13675,6 +13674,7 @@ async function createNewFile() {
         }
         await refreshFiles();
         await loadFile(fileName);
+        addHistoryPosition(fileName);
         setViewMode('editor');
         closeNewFilePrompt();
         setStatus(`Created ${fileName}`, false);
@@ -13695,6 +13695,7 @@ async function createAndOpenFile(filename, contents) {
         await SaveFile(fileName, contents || '', '');
         await refreshFiles();
         await loadFile(fileName);
+        addHistoryPosition(fileName);
         //setViewMode('editor');
         setViewMode('viewer');
         setStatus(`Created ${fileName}`, false);

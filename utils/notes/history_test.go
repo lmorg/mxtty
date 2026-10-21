@@ -3,8 +3,67 @@ package notes
 import (
 	"encoding/json"
 	"fmt"
+	"path/filepath"
+	"reflect"
 	"testing"
+
+	"github.com/lmorg/ttyphoon/utils/cache"
 )
+
+func TestWorkspaceHistoryMigrationPreservesPositionsAndDoesNotReplaceHistory(t *testing.T) {
+	root := t.TempDir()
+	workspace := t.Name() + root
+	legacy := HistoryListT{History: []HistoryEntryT{
+		{Filename: filepath.Join(root, "a.md"), Line: 12},
+		{Filename: filepath.Join(root, "b.md"), Line: 30},
+	}, Index: 0}
+	var existing HistoryListT
+	cache.Read(cache.NS_NOTESW_HISTORY, root, &existing)
+	cache.Write(cache.NS_NOTESW_HISTORY, root, &legacy, cache.Days(30))
+	MigrateWorkspaceHistory(workspace, root)
+	if got := getHistoryList(workspace); !reflect.DeepEqual(*got, legacy) {
+		t.Fatalf("migrated history = %+v, want %+v", got, legacy)
+	}
+	otherRoot := t.TempDir()
+	outsideFile := filepath.Join(otherRoot, "outside.md")
+	if err := HistoryListAddAt(workspace, outsideFile, 9); err != nil {
+		t.Fatal(err)
+	}
+	MigrateWorkspaceHistory(workspace, otherRoot)
+	if got := HistoryListCurrentEntry(workspace); got != (HistoryEntryT{Filename: outsideFile, Line: 9}) {
+		t.Fatalf("root switch replaced workspace history: %+v", got)
+	}
+	MigrateWorkspaceHistory(workspace+"-other", root)
+	if got := HistoryListCurrentEntry(workspace + "-other"); got != legacy.History[0] {
+		t.Fatalf("workspace histories are not independent: %+v", got)
+	}
+}
+
+func TestHistoryRecentFilesReturnsNewestTenDistinctFilesAcrossRoots(t *testing.T) {
+	root := t.TempDir()
+	workspace := t.Name() + root
+	for index := 0; index < 12; index++ {
+		if err := HistoryListAddAt(workspace, filepath.Join(root, fmt.Sprintf("file-%02d.md", index)), 1); err != nil {
+			t.Fatal(err)
+		}
+	}
+	outsideFile := filepath.Join(t.TempDir(), "outside.md")
+	for _, line := range []int{1, 30, 60} {
+		if err := HistoryListAddAt(workspace, outsideFile, line); err != nil {
+			t.Fatal(err)
+		}
+	}
+	want := []string{outsideFile}
+	for index := 11; index >= 3; index-- {
+		want = append(want, filepath.Join(root, fmt.Sprintf("file-%02d.md", index)))
+	}
+	if got := HistoryRecentFiles(workspace); !reflect.DeepEqual(got, want) {
+		t.Fatalf("recent = %v, want %v", got, want)
+	}
+	if got := HistoryRecentFiles(workspace + "-other"); len(got) != 0 {
+		t.Fatalf("another workspace leaked recent files: %v", got)
+	}
+}
 
 func TestHistoryListDelete_SelectsSurvivingDocument(t *testing.T) {
 	for _, test := range []struct {

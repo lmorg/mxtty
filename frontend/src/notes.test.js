@@ -1224,6 +1224,67 @@ describe('notes rendering', () => {
         expect(renderJsonViewer).toHaveBeenCalledWith(pane, { title: 'My Post', draft: true });
     });
 
+    it.each([
+        ['changed', '---\ntitle: Old\n---\n# Old heading', '---\ntitle: Updated\n---\n# Updated heading', { title: 'Updated' }],
+        ['added', '# Old heading', '---\ntitle: Added\n---\n# Updated heading', { title: 'Added' }],
+        ['removed', '---\ntitle: Old\n---\n# Old heading', '# Updated heading', null],
+    ])('refreshes ToC and %s Frontmatter on Monaco autosave without rendering the preview', async (_label, initial, updated, frontmatter) => {
+        const userAgent = vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Monaco regression test');
+        let value = initial;
+        const adapter = {
+            getValue: () => value,
+            setValue: (next) => { value = next; },
+            getSelectionOffsets: () => ({ start: 0, end: 0 }),
+            setSelectionOffsets: vi.fn(),
+            revealOffset: vi.fn(), focus: vi.fn(), layout: vi.fn(),
+            setLanguage: vi.fn(), setWordWrap: vi.fn(), setTypography: vi.fn(),
+            applyTheme: vi.fn(), configureLsp: vi.fn(), setDiagnostics: vi.fn(),
+            setTyposMisspellings: vi.fn(),
+        };
+        createMonacoAdapterMock.mockResolvedValue(adapter);
+        listFilesMock.mockResolvedValue(['$NOTES/post.md']);
+        getFileMock.mockResolvedValue({ contents: initial, text: '', error: '' });
+        try {
+            await importNotesModule();
+            document.querySelector('[data-file="$NOTES/post.md"]').click();
+            await flushPromises();
+            await flushPromises();
+            document.getElementById('notes-tab-editor').click();
+            await flushPromises();
+            await flushPromises();
+            expect(createMonacoAdapterMock).toHaveBeenCalled();
+            const preview = document.getElementById('notes-preview');
+            const originalPreview = preview.innerHTML;
+            const editor = document.getElementById('notes-editor');
+            renderJsonViewer.mockClear();
+
+            vi.useFakeTimers();
+            value = updated;
+            editor.value = updated;
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            editor.value = '# Stale hidden textarea';
+            await vi.advanceTimersByTimeAsync(1100);
+
+            expect(saveFileMock).toHaveBeenCalledWith('$NOTES/post.md', updated, '');
+            expect(document.getElementById('notes-tools-toc').textContent).toContain('Updated heading');
+            expect(document.getElementById('notes-tools-toc').textContent).not.toContain('Old heading');
+            const frontmatterTab = document.getElementById('notes-tools-tab-frontmatter');
+            const pane = document.getElementById('notes-tools-frontmatter');
+            if (frontmatter) {
+                expect(frontmatterTab.style.display).not.toBe('none');
+                expect(renderJsonViewer).toHaveBeenCalledWith(pane, frontmatter);
+            } else {
+                expect(frontmatterTab.style.display).toBe('none');
+                expect(pane.innerHTML).toBe('');
+            }
+            expect(document.getElementById('notes-tab-editor').getAttribute('aria-selected')).toBe('true');
+            expect(preview.innerHTML).toBe(originalPreview);
+        } finally {
+            vi.useRealTimers();
+            userAgent.mockRestore();
+        }
+    });
+
     it('hides the Frontmatter tab for documents without frontmatter', async () => {
         listFilesMock.mockResolvedValue(['$NOTES/plain.md']);
         getFileMock.mockResolvedValue({ contents: '# Just a heading', text: '', error: '' });
@@ -2813,6 +2874,7 @@ describe('notes rendering', () => {
 
         const notesUpdateHandler = getEventHandler('notesContextChanged');
         expect(typeof notesUpdateHandler).toBe('function');
+        notesHistoryCurrentPositionMock.mockResolvedValue({ file: '$NOTES/guide.md', line: 1 });
         getCurrentProjectMock.mockResolvedValue('/tmp/project-two');
         notesUpdateHandler({ projectRoot: '/tmp/project-two', groupName: 'Workspace Two' });
         await flushPromises();
@@ -2855,6 +2917,52 @@ describe('notes rendering', () => {
         if (mode === 'editor') {
             expect(document.getElementById('notes-editor').selectionStart).toBe('one\ntwo\n'.length);
         }
+    });
+
+    it.each(['/project-one', '/project-two'])('restores workspace history for matching paths and external files with root %s', async (otherRoot) => {
+        const file = '$PROJECT/README.md';
+        let workspace = 'One';
+        listFilesMock.mockResolvedValue([file]);
+        getCurrentProjectMock.mockResolvedValue('/project-one');
+        getCurrentGroupNameMock.mockResolvedValue(workspace);
+        notesHistoryCurrentPositionMock.mockResolvedValue({ file, line: 1 });
+        getFileMock.mockImplementation(async () => ({ contents: `# ${workspace}`, text: '', error: '' }));
+        await importNotesModule();
+        expect(document.getElementById('notes-editor').value).toBe('# One');
+
+        const contextChanged = getEventHandler('notesContextChanged');
+        workspace = 'Two';
+        getCurrentProjectMock.mockResolvedValue(otherRoot);
+        getCurrentGroupNameMock.mockResolvedValue(workspace);
+        contextChanged({ projectRoot: otherRoot, groupName: workspace });
+        await flushPromises();
+        await flushPromises();
+        expect(document.getElementById('notes-editor').value).toBe('# Two');
+        expect(getFileMock).toHaveBeenCalledTimes(2);
+
+        const externalFile = '/another-project/outside.md';
+        notesHistoryCurrentPositionMock.mockResolvedValue({ file: externalFile, line: 1 });
+        getCurrentProjectMock.mockResolvedValue('/another-active-root');
+        contextChanged({ projectRoot: '/another-active-root', groupName: workspace });
+        await flushPromises();
+        await flushPromises();
+        expect(getFileMock).toHaveBeenLastCalledWith(externalFile);
+        expect(document.querySelector(`[data-file="${externalFile}"]`)).toBeNull();
+    });
+
+    it('clears the previous workspace document when the new workspace has no history', async () => {
+        listFilesMock.mockResolvedValue(['$PROJECT/README.md']);
+        notesHistoryCurrentPositionMock.mockResolvedValue({ file: '$PROJECT/README.md', line: 1 });
+        getFileMock.mockResolvedValue({ contents: '# Previous workspace', text: '', error: '' });
+        await importNotesModule();
+        expect(document.getElementById('notes-editor').value).toBe('# Previous workspace');
+
+        notesHistoryCurrentPositionMock.mockResolvedValue({ file: '', line: 1 });
+        getEventHandler('notesContextChanged')({ projectRoot: '/new', groupName: 'Empty workspace' });
+        await flushPromises();
+        await flushPromises();
+        expect(document.getElementById('notes-editor').value).toBe('');
+        expect(document.getElementById('notes-preview').textContent).not.toContain('Previous workspace');
     });
 
     it('ignores old workspace scans and does not rescan unchanged contexts', async () => {
@@ -3504,6 +3612,34 @@ describe('notes rendering', () => {
         expect(dockerHandle.setExclusions).not.toHaveBeenCalledWith(['STALE']);
         expect(pythonHandle.setExclusions).toHaveBeenCalledTimes(pythonCalls);
         expect(mainHandle.setExclusions).toHaveBeenCalledTimes(mainCalls);
+    });
+
+    it('selects the cached document tab before rendering Markdown', async () => {
+        const file = '$NOTES/cached-mode.md';
+        listFilesMock.mockResolvedValue([file]);
+        getFileMock.mockResolvedValue({ contents: '# Cached mode', text: '', error: '' });
+        getDocumentCacheMock.mockResolvedValue({ DocumentTab: 'editor' });
+
+        await importNotesModule();
+
+        const selectedDocumentTabs = [];
+        const originalSetAttribute = Element.prototype.setAttribute;
+        const setAttributeSpy = vi.spyOn(Element.prototype, 'setAttribute').mockImplementation(function (name, value) {
+            originalSetAttribute.call(this, name, value);
+            if (name === 'aria-selected' && value === 'true' && this.id.startsWith('notes-tab-')) {
+                selectedDocumentTabs.push(this.id);
+            }
+        });
+
+        try {
+            document.querySelector(`[data-file="${file}"]`).click();
+            await flushPromises();
+            await flushPromises();
+
+            expect(selectedDocumentTabs).toEqual(['notes-tab-editor']);
+        } finally {
+            setAttributeSpy.mockRestore();
+        }
     });
 
     it('loads Jupyter reserved words for the restored runtime', async () => {

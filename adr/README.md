@@ -85,6 +85,7 @@ Each record uses: **Status**, **Context**, **Decision**, **Consequences**,
 | [0071](0071-git-package-owns-action-execution-policy.md) | Git package owns action execution policy | Git |
 | [0072](0072-interactive-pane-actions-use-one-shot-uuid-callbacks.md) | Interactive pane actions use one-shot UUID callbacks | Terminal |
 | [0073](0073-configurable-web-search-backends.md) | Web search supports configurable DuckDuckGo and SearXNG backends | AI tools |
+| [0074](0074-notes-history-is-scoped-to-workspace-names.md) | Notes history follows tmux window names; recents derive from history | Notes |
 
 ## Recurring themes
 

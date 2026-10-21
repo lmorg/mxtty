@@ -6,6 +6,10 @@ Date: 2026-10-14
 
 Accepted.
 
+Updated 2026-10-21: rename/delete update history for the active tmux window name,
+not the project root. Recent files are a distinct projection of that history;
+there is no separate recent-file list to mutate (ADR 0074).
+
 ## Context
 
 The Go rename/delete bindings already update recent files, navigation history,
