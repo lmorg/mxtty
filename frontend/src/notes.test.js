@@ -794,6 +794,29 @@ describe('notes rendering', () => {
         expect(servers.querySelectorAll('[data-mcp-index]')).toHaveLength(1);
     });
 
+    it('shows MCP authorization failure details and refreshes state without restarting the session', async () => {
+        getAIMcpServersMock.mockResolvedValue([{ name: 'notion', key: 'notion-key', source: '/fixture/mcp.json', loaded: false }]);
+        setAIMcpServerEnabledMock.mockRejectedValueOnce(new Error('OAuth authorization was cancelled'));
+        await importNotesModule();
+        document.getElementById('notes-tools-ai-settings').click();
+        await flushPromises();
+        await flushPromises();
+        const checkbox = document.querySelector('#notes-ai-settings-mcp-list input');
+        checkbox.checked = true;
+        checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+        expect(checkbox.disabled).toBe(true);
+        checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+        expect(setAIMcpServerEnabledMock).toHaveBeenCalledOnce();
+        await flushPromises();
+        await flushPromises();
+        expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', {
+            level: 'error', message: 'Failed to load MCP server: OAuth authorization was cancelled',
+        });
+        const refreshed = document.querySelector('#notes-ai-settings-mcp-list input');
+        expect(refreshed.checked).toBe(false);
+        expect(refreshed.disabled).toBe(false);
+    });
+
     it('renders grouped note categories and nested files from the Wails file list', async () => {
         listFilesMock.mockResolvedValue([
             '$GLOBAL/docs/guide.md',

@@ -14733,7 +14733,7 @@ if (elements.aiSettingsToolsList) {
 if (elements.aiSettingsMcpList) {
     elements.aiSettingsMcpList.addEventListener('change', (event) => {
         const checkbox = event.target instanceof HTMLInputElement ? event.target : null;
-        if (!checkbox || checkbox.type !== 'checkbox') {
+        if (!checkbox || checkbox.type !== 'checkbox' || checkbox.disabled) {
             return;
         }
 
@@ -14743,15 +14743,17 @@ if (elements.aiSettingsMcpList) {
         }
 
         const enabled = checkbox.checked;
+        checkbox.disabled = true;
         SetAIMcpServerEnabled(serverKey, enabled).then(() => {
             void loadAISessionManagement().then(() => {
                 renderAISessionManagement();
             });
         }).catch((err) => {
-            notifyTerminal(`Failed to ${enabled ? 'load' : 'unload'} MCP server`, 'error');
+            notifyTerminal(`Failed to ${enabled ? 'load' : 'unload'} MCP server: ${err?.message || err}`, 'error');
             console.error(err);
             checkbox.checked = !enabled;
-        });
+            void loadAISessionManagement().then(renderAISessionManagement);
+        }).finally(() => { checkbox.disabled = false; });
     });
 
     elements.aiSettingsMcpList.addEventListener('click', (event) => {
@@ -14809,21 +14811,24 @@ if (elements.aiToolMetaContent) {
 
         const configType = String(checkbox.dataset.configType || '').trim();
         if (configType === 'mcp') {
+            if (checkbox.disabled) return;
             const serverKey = String(checkbox.dataset.mcpKey || '').trim();
             if (!serverKey) {
                 return;
             }
 
             const enabled = checkbox.checked;
+            checkbox.disabled = true;
             SetAIMcpServerEnabled(serverKey, enabled).then(() => {
                 void loadAISessionManagement().then(() => {
                     renderAISessionManagement();
                 });
             }).catch((err) => {
-                notifyTerminal(`Failed to ${enabled ? 'load' : 'unload'} MCP server`, 'error');
+                notifyTerminal(`Failed to ${enabled ? 'load' : 'unload'} MCP server: ${err?.message || err}`, 'error');
                 console.error(err);
                 checkbox.checked = !enabled;
-            });
+                void loadAISessionManagement().then(renderAISessionManagement);
+            }).finally(() => { checkbox.disabled = false; });
             return;
         }
 

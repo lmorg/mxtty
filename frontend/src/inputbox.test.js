@@ -88,7 +88,7 @@ describe('inputbox', () => {
             draft: { value: 'Prompt', variables: {}, images: [{ mimeType: 'image/png', base64: imageBase64 }] },
         });
         const controls = [
-            [document.getElementById('inputbox-draft'), 'Draft'],
+            [document.getElementById('inputbox-draft'), 'Close, but store draft'],
             [document.getElementById('inputbox-history-btn'), 'History'],
             [document.querySelector('.inputbox-variable-label'), 'Number of results'],
             [document.querySelector('.inputbox-image-remove'), 'Remove image 1'],
@@ -136,9 +136,9 @@ describe('inputbox', () => {
         expect(document.querySelectorAll('.inputbox-image')).toHaveLength(1);
         const draftButton = document.getElementById('inputbox-draft');
         expect(draftButton.previousElementSibling.id).toBe('inputbox-ok');
-        expect(draftButton.textContent.codePointAt(0)).toBe(0xf13a);
+        expect(draftButton.textContent.codePointAt(0)).toBe(0xe698);
         expect(draftButton.getAttribute('aria-label')).toBe('Draft');
-        expect(draftButton.dataset.tooltip).toBe('Draft');
+        expect(draftButton.dataset.tooltip).toBe('Close, but store draft');
         expect(draftButton.hasAttribute('title')).toBe(false);
         const historyButton = document.getElementById('inputbox-history-btn');
         expect(historyButton.textContent.codePointAt(0)).toBe(0xf1da);

@@ -2,6 +2,7 @@ package prompts
 
 import (
 	_ "embed"
+	"encoding/json"
 	"fmt"
 	"os"
 	"regexp"
@@ -76,12 +77,24 @@ func buildUserMessageWithImages(text string, images []aitypes.ImageAttachment) *
 		return schema.UserMessage(text)
 	}
 
-	parts := make([]schema.MessageInputPart, 0, len(images)+1)
+	parts := make([]schema.MessageInputPart, 0, 2*len(images)+1)
 	if text != "" {
 		parts = append(parts, schema.MessageInputPart{Type: schema.ChatMessagePartTypeText, Text: text})
 	}
-	for _, img := range images {
+	for index, img := range images {
 		img := img
+		if img.Path != "" {
+			reference, _ := json.Marshal(struct {
+				Attachment int    `json:"attachment"`
+				InputImage string `json:"inputImage"`
+			}{Attachment: index + 1, InputImage: img.Path})
+			parts = append(parts, schema.MessageInputPart{
+				Type: schema.ChatMessagePartTypeText,
+				Text: "Local file for the following attached image:\n" + string(reference) +
+					"\nTo edit or transform this image, pass the exact inputImage path directly to generateImage. " +
+					"The attachment is already saved in an allowed image location; no file search, bash command, or workspace copy is needed.",
+			})
+		}
 		parts = append(parts, schema.MessageInputPart{
 			Type: schema.ChatMessagePartTypeImageURL,
 			Image: &schema.MessageInputImage{

@@ -3,12 +3,16 @@ package prompts
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/json"
 	"image"
 	"image/png"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/cloudwego/eino/schema"
 	"github.com/lmorg/ttyphoon/ai/agent/aitypes"
+	"github.com/lmorg/ttyphoon/utils/imageattachment"
 )
 
 func TestImageAttachmentsBecomeMultimodalUserParts(t *testing.T) {
@@ -30,5 +34,49 @@ func TestImageAttachmentsBecomeMultimodalUserParts(t *testing.T) {
 	}
 	if plain := buildUserMessageWithImages("Text only", nil); plain.Content != "Text only" || len(plain.UserInputMultiContent) != 0 {
 		t.Fatal("text-only prompts changed")
+	}
+}
+
+func TestSavedImagePathsAreMappedToTheirMultimodalAttachments(t *testing.T) {
+	t.Setenv("HOME", filepath.Join(t.TempDir(), `home with "quotes" and spaces`))
+	var images []aitypes.ImageAttachment
+	for index := range 2 {
+		var buffer bytes.Buffer
+		if err := png.Encode(&buffer, image.NewRGBA(image.Rect(0, 0, index+2, 2))); err != nil {
+			t.Fatal(err)
+		}
+		images = append(images, aitypes.ImageAttachment{MIMEType: "image/png", Base64: base64.StdEncoding.EncodeToString(buffer.Bytes())})
+	}
+	stored, err := imageattachment.Store(images)
+	if err != nil {
+		t.Fatal(err)
+	}
+	message := buildUserMessageWithImages("Edit these images", stored)
+	parts := message.UserInputMultiContent
+	if len(parts) != 5 || parts[0].Text != "Edit these images" {
+		t.Fatalf("missing attachment path parts: %+v", parts)
+	}
+	for index, attachment := range stored {
+		label, picture := parts[1+index*2], parts[2+index*2]
+		if label.Type != schema.ChatMessagePartTypeText || !strings.Contains(label.Text, "generateImage") || !strings.Contains(label.Text, "inputImage") {
+			t.Fatalf("missing direct tool instructions: %q", label.Text)
+		}
+		lines := strings.Split(label.Text, "\n")
+		if len(lines) < 2 {
+			t.Fatalf("missing structured file reference: %q", label.Text)
+		}
+		var reference struct {
+			Attachment int    `json:"attachment"`
+			InputImage string `json:"inputImage"`
+		}
+		if err := json.Unmarshal([]byte(lines[1]), &reference); err != nil || reference.Attachment != index+1 || reference.InputImage != attachment.Path {
+			t.Fatalf("wrong attachment/path association: %+v, %v", reference, err)
+		}
+		if picture.Image == nil || picture.Image.Base64Data == nil || *picture.Image.Base64Data != attachment.Base64 {
+			t.Fatal("path label was not followed by its original image")
+		}
+		if strings.Contains(label.Text, attachment.Base64) {
+			t.Fatal("base64 leaked into attachment path text")
+		}
 	}
 }

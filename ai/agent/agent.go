@@ -34,6 +34,9 @@ type Agent struct {
 
 	_mcpServers       map[string]client
 	_mcpServerSources map[string]string
+	mcpMu             sync.RWMutex
+	mcpLoads          map[string]context.CancelFunc
+	mcpClosed         bool
 	_tools            []aitypes.Tool
 }
 
@@ -109,21 +112,39 @@ func (agt *Agent) Reload() {
 	agt.runtime = nil
 }
 
-func (agt *Agent) McpServerAdd(server, source string, client client) {
-	agt._mcpServers[server] = client
+func (agt *Agent) McpServerAdd(server, source string, connection client) {
+	agt.mcpMu.Lock()
+	defer agt.mcpMu.Unlock()
+	if agt.mcpClosed {
+		return
+	}
+	if agt._mcpServers == nil {
+		agt._mcpServers = make(map[string]client)
+		agt._mcpServerSources = make(map[string]string)
+	}
+	if _, exists := agt._mcpServers[server]; exists {
+		return
+	}
+	agt._mcpServers[server] = connection
 	agt._mcpServerSources[server] = source
 }
 
 func (agt *Agent) McpServerExists(server string) bool {
+	agt.mcpMu.RLock()
+	defer agt.mcpMu.RUnlock()
 	_, ok := agt._mcpServers[server]
 	return ok
 }
 
 func (agt *Agent) McpServerSource(server string) string {
+	agt.mcpMu.RLock()
+	defer agt.mcpMu.RUnlock()
 	return agt._mcpServerSources[server]
 }
 
 func (agt *Agent) McpServerRemove(server string) {
+	agt.mcpMu.Lock()
+	defer agt.mcpMu.Unlock()
 	delete(agt._mcpServers, server)
 	delete(agt._mcpServerSources, server)
 }
@@ -316,8 +337,26 @@ func Close(tileId string) {
 		return
 	}
 
-	for server, client := range agent._mcpServers {
-		err := client.Close()
+	agent.mcpMu.Lock()
+	agent.mcpClosed = true
+	for _, cancel := range agent.mcpLoads {
+		cancel()
+	}
+	connections := agent._mcpServers
+	agent._mcpServers = make(map[string]client)
+	agent._mcpServerSources = make(map[string]string)
+	agent.toolMu.Lock()
+	nativeTools := agent._tools[:0]
+	for _, tool := range agent._tools {
+		if _, isMcp := tool.(*mcpTool); !isMcp {
+			nativeTools = append(nativeTools, tool)
+		}
+	}
+	agent._tools = nativeTools
+	agent.toolMu.Unlock()
+	agent.mcpMu.Unlock()
+	for server, connection := range connections {
+		err := connection.Close()
 		if err != nil {
 			if agent.renderer != nil {
 				agent.renderer.DisplayNotification(types.NOTIFY_ERROR, fmt.Sprintf("Error closing MCP Server '%s': %v", server, err))
