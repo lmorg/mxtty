@@ -42,7 +42,7 @@ run-webkit:
 # Test
 .PHONY: test
 test: generate
-	npm --prefix frontend run test:run
+	npm --prefix frontend run test:run -- --reporter=dot
 	go test ./... -count 1 -race -covermode=atomic
 
 # Benchmark

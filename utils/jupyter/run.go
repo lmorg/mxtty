@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -231,6 +232,13 @@ func execute(ctx context.Context, codeId, pwd string, argv []string, ch chan *Ou
 var _LOG_TYPE = map[bool]string{true: "warn", false: "info"}
 
 func readAndEmit(id string, ch chan *OutputT, reader io.Reader, isStderr bool) {
+	defer func() {
+		if recover := recover(); recover != nil {
+			log.Printf("[error] panic caught in jupyter/readAndEmit(): %v", recover)
+			_, _ = os.Stderr.Write(debug.Stack())
+		}
+	}()
+
 	if ch == nil {
 		ch = make(chan *OutputT)
 

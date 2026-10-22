@@ -42,6 +42,15 @@ would overwrite the user's normal split with temporary dimensions.
 - Keep normal-layout sizing independent of fullscreen, maximized, hidden, and
   collapsed geometry. Such transitions must not overwrite cached preferences
   or persist panel open/closed state as a side effect of dimension caching.
+- Updated 2026-10-22: preserve the selected Tools tab across document, project
+  root and workspace changes while that tab remains available. Do not force
+  Find on document load or AI on background job events; opening the document
+  Diff surface also preserves Tools selection and collapsed state. When ToC,
+  Frontmatter or Git genuinely becomes unavailable, select Find without
+  closing the Tools panel. Git availability callbacks run before clearing the
+  old selection so this fallback can identify the previously active tab.
+  Explicit tab clicks and dedicated Find/Ask commands remain user navigation.
+  Startup still defaults to Find; selection is not restored per document.
 - Ensure the Tools-panel resize handle does not interfere with its tabs,
   scrolling, collapse controls, or AI/Log maximization. Use the existing
   splitter interaction conventions where applicable.

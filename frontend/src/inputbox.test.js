@@ -12,6 +12,8 @@ const terminalTextInputMock = vi.fn(() => Promise.resolve());
 const terminalKeyPressMock = vi.fn(() => Promise.resolve());
 const eventsOnMock = vi.fn();
 const showLocalMenuMock = vi.fn();
+const showSharedTooltipMock = vi.fn(() => Promise.resolve());
+const closeSharedTooltipMock = vi.fn();
 
 vi.mock('../wailsjs/go/main/WApp', () => ({
     TerminalInputBoxSubmit: terminalInputBoxSubmitMock,
@@ -29,6 +31,12 @@ vi.mock('./popup_menu', () => ({
     showLocalMenu: showLocalMenuMock,
 }));
 
+vi.mock('./shared_tooltip', () => ({
+    bindSharedTooltipMouseTracking: vi.fn(),
+    showSharedTooltip: showSharedTooltipMock,
+    closeSharedTooltip: closeSharedTooltipMock,
+}));
+
 vi.mock('./vim-mode', () => ({
     attachVimMode: vi.fn(() => ({ detach: vi.fn(), getMode: vi.fn(() => 'insert') })),
 }));
@@ -43,6 +51,8 @@ describe('inputbox', () => {
         vi.resetModules();
         eventsOnMock.mockReset();
         showLocalMenuMock.mockReset();
+        showSharedTooltipMock.mockClear();
+        closeSharedTooltipMock.mockClear();
         terminalInputBoxSubmitMock.mockReset();
         terminalInputBoxSubmitMock.mockResolvedValue();
         terminalInputBoxHistoryImagesMock.mockReset();
@@ -71,6 +81,38 @@ describe('inputbox', () => {
         return event;
     }
 
+    it('uses shared tooltips for actions, variable descriptions and image removal', async () => {
+        await openImageInputbox({
+            canSaveDraft: true, allowImagePaste: true, history: ['Previous query'],
+            variables: [{ name: 'count', label: 'Count', type: 'integer', description: 'Number of results', default: '1' }],
+            draft: { value: 'Prompt', variables: {}, images: [{ mimeType: 'image/png', base64: imageBase64 }] },
+        });
+        const controls = [
+            [document.getElementById('inputbox-draft'), 'Draft'],
+            [document.getElementById('inputbox-history-btn'), 'History'],
+            [document.querySelector('.inputbox-variable-label'), 'Number of results'],
+            [document.querySelector('.inputbox-image-remove'), 'Remove image 1'],
+        ];
+        for (const [control, text] of controls) {
+            expect(control.hasAttribute('title')).toBe(false);
+            control.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+            expect(showSharedTooltipMock).toHaveBeenLastCalledWith(text);
+            closeSharedTooltipMock.mockClear();
+            control.dispatchEvent(new MouseEvent('mouseout', { bubbles: true }));
+            expect(closeSharedTooltipMock).toHaveBeenCalled();
+        }
+        const historyButton = document.getElementById('inputbox-history-btn');
+        historyButton.focus();
+        expect(showSharedTooltipMock).toHaveBeenLastCalledWith('History');
+        closeSharedTooltipMock.mockClear();
+        historyButton.blur();
+        expect(closeSharedTooltipMock).toHaveBeenCalled();
+        closeSharedTooltipMock.mockClear();
+        document.getElementById('inputbox-cancel').click();
+        expect(closeSharedTooltipMock).toHaveBeenCalled();
+        expect(document.querySelector('.inputbox-variable-tooltip')).toBeNull();
+    });
+
     it('restores and saves a complete draft with false, zero, empty, list and image values', async () => {
         await openImageInputbox({
             canSaveDraft: true, allowImagePaste: true, defaultValue: 'Default prompt',
@@ -94,7 +136,17 @@ describe('inputbox', () => {
         expect(document.querySelectorAll('.inputbox-image')).toHaveLength(1);
         const draftButton = document.getElementById('inputbox-draft');
         expect(draftButton.previousElementSibling.id).toBe('inputbox-ok');
-        expect(draftButton.textContent).toBe('Draft');
+        expect(draftButton.textContent.codePointAt(0)).toBe(0xf13a);
+        expect(draftButton.getAttribute('aria-label')).toBe('Draft');
+        expect(draftButton.dataset.tooltip).toBe('Draft');
+        expect(draftButton.hasAttribute('title')).toBe(false);
+        const historyButton = document.getElementById('inputbox-history-btn');
+        expect(historyButton.textContent.codePointAt(0)).toBe(0xf1da);
+        expect(historyButton.getAttribute('aria-label')).toBe('History');
+        expect(historyButton.dataset.tooltip).toBe('History');
+        expect(historyButton.hasAttribute('title')).toBe(false);
+        expect(Array.from(document.querySelectorAll('.inputbox-buttons button')).map((button) => button.id))
+            .toEqual(['inputbox-ok', 'inputbox-draft', 'inputbox-history-btn', 'inputbox-cancel']);
         expect(draftButton.children).toHaveLength(0);
         document.getElementById('inputbox-draft').click();
         await vi.waitFor(() => expect(document.getElementById('terminal-inputbox').style.display).toBe('none'));

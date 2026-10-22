@@ -3964,7 +3964,7 @@ describe('notes rendering', () => {
         expect(separator.nextElementSibling).toBe(commits);
         expect(document.querySelector('.notes-git-actions').firstElementChild).toBe(commitToggle);
         expect(commitToggle.textContent.codePointAt(0)).toBe(0xf386);
-        expect(commits.textContent.codePointAt(0)).toBe(0xf022);
+        expect(commits.textContent.codePointAt(0)).toBe(0xf0ca);
         expect(document.getElementById('notes-tools-git-commit-row').hidden).toBe(true);
         expect(document.getElementById('notes-tools-git-commit-message').placeholder).toBe('Commit message');
         expect(document.getElementById('notes-tools-git-stage-all').classList.contains('notes-git-action')).toBe(true);
@@ -4181,11 +4181,104 @@ describe('notes rendering', () => {
         expect(showLocalMenuMock.mock.calls[0][0].options).toContain('Save code...');
     });
 
-    it('switches to AI tools tab when AI response stream starts', async () => {
+    it.each(['ai', 'log', 'toc', 'frontmatter', 'find', 'git'])('preserves the %s Tools tab across document and workspace changes when available', async (tab) => {
+        const files = ['$NOTES/first.md', '$NOTES/second.md'];
+        listFilesMock.mockResolvedValue(files);
+        getCurrentProjectMock.mockResolvedValue('/first-project');
+        getCurrentGroupNameMock.mockResolvedValue('First');
+        getGitStatusMock.mockImplementation(async (root) => ({ root, branch: 'main', clean: true, files: [] }));
+        getFileMock.mockResolvedValue({ contents: '---\ntitle: Note\n---\n# Heading', text: '', error: '' });
+        await importNotesModule();
+        document.querySelector(`[data-file="${files[0]}"]`).click();
+        await flushPromises();
+        await flushPromises();
+        const button = document.getElementById(`notes-tools-tab-${tab}`);
+        const panel = document.getElementById('notes-tools-panel');
+        button.click();
+        panel.dataset.collapsed = 'false';
+        document.querySelector(`[data-file="${files[1]}"]`).click();
+        await flushPromises();
+        await flushPromises();
+        expect(button.getAttribute('aria-selected')).toBe('true');
+        expect(panel.querySelector('.notes-tools-pane[data-active="true"]').dataset.tab).toBe(tab);
+        notesHistoryCurrentPositionMock.mockResolvedValue({ file: files[0], line: 1 });
+        getCurrentProjectMock.mockResolvedValue('/second-project');
+        getCurrentGroupNameMock.mockResolvedValue('Second');
+        for (const [event, handler] of eventsOnMock.mock.calls) {
+            if (event === 'notesContextChanged') handler({ projectRoot: '/second-project', groupName: 'Second' });
+        }
+        await flushPromises();
+        await flushPromises();
+        expect(button.getAttribute('aria-selected')).toBe('true');
+        expect(panel.querySelector('.notes-tools-pane[data-active="true"]').dataset.tab).toBe(tab);
+        expect(panel.dataset.collapsed).toBe('false');
+    });
+
+    it.each([
+        ['toc', '$NOTES/code.go', 'package main'],
+        ['frontmatter', '$NOTES/plain.md', '# Plain Markdown'],
+    ])('falls back from unavailable %s without closing the Tools panel', async (tab, nextFile, contents) => {
+        listFilesMock.mockResolvedValue(['$NOTES/first.md', nextFile]);
+        getFileMock.mockImplementation(async (file) => ({ contents: file === nextFile ? contents : '---\ntitle: Note\n---\n# Heading', text: '', error: '' }));
+        await importNotesModule();
+        document.querySelector('[data-file="$NOTES/first.md"]').click();
+        await flushPromises();
+        await flushPromises();
+        document.getElementById(`notes-tools-tab-${tab}`).click();
+        document.getElementById('notes-tools-panel').dataset.collapsed = 'false';
+        document.querySelector(`[data-file="${nextFile}"]`).click();
+        await flushPromises();
+        await flushPromises();
+        expect(document.getElementById(`notes-tools-tab-${tab}`).style.display).toBe('none');
+        expect(document.getElementById('notes-tools-tab-find').getAttribute('aria-selected')).toBe('true');
+        expect(document.getElementById('notes-tools-panel').dataset.collapsed).toBe('false');
+    });
+
+    it('does not change the selected Tools tab when opening the document Diff tab', async () => {
+        getCurrentProjectMock.mockResolvedValue('/repo');
+        getGitStatusMock.mockResolvedValue({ root: '/repo', branch: 'main', clean: false,
+            files: [{ path: 'src/main.go', code: ' M', unstaged: true }],
+        });
+        getGitDiffMock.mockResolvedValue({ path: 'src/main.go', original: 'old', working: 'new', binary: false, deleted: false });
+        listFilesMock.mockResolvedValue(['$PROJECT/src/main.go']);
+        getFileMock.mockResolvedValue({ contents: 'package main', text: '', error: '' });
+        await importNotesModule();
+        document.querySelector('[data-file="$PROJECT/src/main.go"]').click();
+        await flushPromises();
+        await flushPromises();
+        document.getElementById('notes-tools-tab-log').click();
+        document.getElementById('notes-tab-diff').click();
+        await flushPromises();
+        await flushPromises();
+        expect(getGitDiffMock).toHaveBeenCalledWith('/repo', 'src/main.go', '');
+        expect(document.getElementById('notes-tools-tab-log').getAttribute('aria-selected')).toBe('true');
+    });
+
+    it('falls back from Git only when the next project has no Git tab', async () => {
+        getCurrentProjectMock.mockResolvedValue('/repo');
+        getGitStatusMock.mockResolvedValue({ root: '/repo', branch: 'main', clean: true, files: [] });
+        await importNotesModule();
+        await flushPromises();
+        document.getElementById('notes-tools-tab-git').click();
+        getGitStatusMock.mockRejectedValue(new Error('Not a Git repository'));
+        for (const [event, handler] of eventsOnMock.mock.calls) {
+            if (event === 'notesContextChanged') handler({ projectRoot: '/not-a-repo', groupName: 'Other' });
+        }
+        await flushPromises();
+        await flushPromises();
+        expect(document.getElementById('notes-tools-tab-git').style.display).toBe('none');
+        expect(document.getElementById('notes-tools-tab-find').getAttribute('aria-selected')).toBe('true');
+    });
+
+    it('preserves the selected Tools tab and collapsed state when AI response streaming starts', async () => {
         listFilesMock.mockResolvedValue(['$NOTES/guide.md']);
         getFileMock.mockResolvedValue({ contents: '# Guide', text: '', error: '' });
 
         await importNotesModule();
+
+        document.querySelector('[data-file="$NOTES/guide.md"]').click();
+        await flushPromises();
+        await flushPromises();
 
         const toolsPanel = document.getElementById('notes-tools-panel');
         const tabAI = document.getElementById('notes-tools-tab-ai');
@@ -4206,11 +4299,11 @@ describe('notes rendering', () => {
         aiJobStartHandler();
         await flushPromises();
 
-        expect(tabAI.getAttribute('aria-selected')).toBe('true');
-        expect(tabToC.getAttribute('aria-selected')).toBe('false');
-        expect(paneAI.dataset.active).toBe('true');
-        expect(paneToC.dataset.active).toBe('false');
-        expect(toolsPanel.dataset.collapsed).toBe('false');
+        expect(tabAI.getAttribute('aria-selected')).toBe('false');
+        expect(tabToC.getAttribute('aria-selected')).toBe('true');
+        expect(paneAI.dataset.active).toBe('false');
+        expect(paneToC.dataset.active).toBe('true');
+        expect(toolsPanel.dataset.collapsed).toBe('true');
     });
 
     it('jumps from the ToC to a heading source line in Markdown Edit mode', async () => {
@@ -5469,7 +5562,7 @@ describe('notes rendering', () => {
         expect(gitToolbarItems[5].getAttribute('aria-hidden')).toBe('true');
         expect(gitToolbarItems[1].className).toBe(gitToolbarItems[5].className);
         for (const [id, glyph, label] of [
-            ['notes-tools-git-commits', 0xf022, 'View commit log'],
+            ['notes-tools-git-commits', 0xf0ca, 'View commit log'],
             ['notes-tools-git-branches', 0xf126, 'Manage branches'],
             ['notes-tools-git-tags', 0xf02c, 'Manage tags'],
             ['notes-tools-git-workspace', 0xf802, 'Worktrees'],

@@ -16,6 +16,10 @@ contain typed values such as false, zero, empty strings, and list selections.
 ## Decision
 
 - Ordinary inputboxes offer Save Draft. Confirmation dialogs never do.
+- Updated 2026-10-22: the action row is OK, Draft, History, Cancel. Draft uses
+  the icon `0xf13a` and History uses `0xf1da`, with accessible labels and shared
+  application tooltips rather than native `title` tooltips.
+  OK and Cancel retain their text and behavior.
 - Save Draft sends an explicit `saveDraft` result with `isOk=false`. The backend
   retains the dialog's draft key with its callback and invokes Cancel, not OK,
   after storing the draft. No action or submission-history entry is created.

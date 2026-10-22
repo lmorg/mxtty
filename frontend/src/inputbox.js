@@ -4,6 +4,7 @@ import { showLocalMenu } from './popup_menu';
 import { initLineNavigationKeys } from './line-navigation.js';
 import { attachVimMode } from './vim-mode';
 import { attachSpellCheck } from './spellcheck';
+import { bindSharedTooltipMouseTracking, closeSharedTooltip, showSharedTooltip } from './shared_tooltip';
 import './inputbox.css';
 
 initLineNavigationKeys(document);
@@ -33,9 +34,9 @@ function ensureInputBoxDom() {
                 </div>
                 <div class="inputbox-buttons">
                     <button class="inputbox-btn inputbox-ok" id="inputbox-ok">OK</button>
-                    <button class="inputbox-btn inputbox-draft" id="inputbox-draft" hidden>Draft</button>
+                    <button class="inputbox-btn inputbox-draft" id="inputbox-draft" data-tooltip="Close, but store draft" aria-label="Draft" hidden>&#xe698;</button>
+                    <button class="inputbox-btn inputbox-history-btn" id="inputbox-history-btn" data-tooltip="History" aria-label="History" style="display:none">&#xf1da;</button>
                     <button class="inputbox-btn inputbox-cancel" id="inputbox-cancel">Cancel</button>
-                    <button class="inputbox-btn inputbox-history-btn" id="inputbox-history-btn" title="History" aria-label="History" style="display:none">&#xf141;</button>
                 </div>
             </div>
         </div>
@@ -45,6 +46,7 @@ function ensureInputBoxDom() {
 
 export function initInputBox(canvas) {
     ensureInputBoxDom();
+    bindSharedTooltipMouseTracking();
 
     window.ttyphoonInputboxOpen = false;
 
@@ -85,6 +87,29 @@ export function initInputBox(canvas) {
     const maxImageBytes = 8 * 1024 * 1024;
     const imageTypes = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
 
+    function showInputboxTooltip(event) {
+        if (!isInputboxVisible()) return;
+        const target = event.target instanceof Element ? event.target.closest('[data-tooltip]') : null;
+        if (target && inputboxOverlay.contains(target)) {
+            void showSharedTooltip(target.dataset.tooltip);
+        }
+    }
+
+    function hideInputboxTooltip(event) {
+        if (!isInputboxVisible()) return;
+        const target = event.target instanceof Element ? event.target.closest('[data-tooltip]') : null;
+        if (target && !(event.relatedTarget instanceof Node && target.contains(event.relatedTarget))) {
+            closeSharedTooltip();
+        }
+    }
+
+    inputboxOverlay.addEventListener('mouseover', showInputboxTooltip);
+    inputboxOverlay.addEventListener('focusin', showInputboxTooltip);
+    inputboxOverlay.addEventListener('mouseout', hideInputboxTooltip);
+    inputboxOverlay.addEventListener('focusout', hideInputboxTooltip);
+    inputboxOverlay.addEventListener('mouseleave', () => { if (isInputboxVisible()) closeSharedTooltip(); });
+    inputboxOverlay.addEventListener('click', () => { if (isInputboxVisible()) closeSharedTooltip(); });
+
     function setImageError(message = '') {
         inputboxImageError.textContent = message;
         inputboxImageError.hidden = !message;
@@ -107,8 +132,8 @@ export function initInputBox(canvas) {
             remove.type = 'button';
             remove.className = 'inputbox-image-remove';
             remove.innerHTML = '&#xf00d;';
-            remove.title = `Remove image ${index + 1}`;
-            remove.setAttribute('aria-label', remove.title);
+            remove.dataset.tooltip = `Remove image ${index + 1}`;
+            remove.setAttribute('aria-label', remove.dataset.tooltip);
             remove.addEventListener('click', () => {
                 inputboxImages.splice(index, 1);
                 setImageError();
@@ -514,12 +539,7 @@ export function initInputBox(canvas) {
         if (definition.description) {
             const tooltip = String(definition.description);
             label.setAttribute('aria-label', `${label.textContent}: ${tooltip}`);
-
-            const tooltipEl = document.createElement('span');
-            tooltipEl.className = 'inputbox-variable-tooltip';
-            tooltipEl.textContent = tooltip;
-            tooltipEl.setAttribute('role', 'tooltip');
-            label.appendChild(tooltipEl);
+            label.dataset.tooltip = tooltip;
         }
         line.appendChild(label);
 
@@ -703,6 +723,7 @@ export function initInputBox(canvas) {
         inputboxSpellCheckHandle = null;
 
         inputboxOverlay.style.display = 'none';
+        closeSharedTooltip();
         window.ttyphoonInputboxOpen = false;
         setSharedTerminalFocusState(inputboxPreviousTerminalFocusedState, {
             focusVisible: false,
@@ -801,6 +822,7 @@ export function initInputBox(canvas) {
         }
 
         inputboxId = p.id;
+        closeSharedTooltip();
         backdropPointerDown = false;
         window.ttyphoonInputboxOpen = true;
         inputboxPreviousTerminalFocusedState = window.terminalFocusedState === true;

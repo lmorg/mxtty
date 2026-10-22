@@ -2211,10 +2211,9 @@ function syncFrontmatterTab() {
         elements.toolsFrontmatter.innerHTML = '';
     }
 
-    // If the Frontmatter tab was the active tab but is no longer available,
-    // close the Tools panel rather than silently switching tabs.
+    // Fall back only when the selected tab is unavailable in this document.
     if (elements.toolsTabFrontmatter?.getAttribute('aria-selected') === 'true') {
-        setToolsPanelCollapsed(true);
+        setToolsTab('find');
     }
 }
 
@@ -2585,13 +2584,11 @@ function updateToolsTabVisibility(fileType) {
         }
     }
 
-    // If the previously-selected tab is no longer available for this document
-    // type, close the Tools panel rather than silently switching tabs. The ToC
-    // and Frontmatter tabs are the only document-type-specific tabs.
+    // Preserve selection unless its document-specific tab is no longer available.
     const tocActive = elements.toolsTabToC?.getAttribute('aria-selected') === 'true';
     const frontmatterActive = elements.toolsTabFrontmatter?.getAttribute('aria-selected') === 'true';
     if (!showToC && (tocActive || frontmatterActive)) {
-        setToolsPanelCollapsed(true);
+        setToolsTab('find');
     }
 
     if (showToC) {
@@ -8033,8 +8030,8 @@ function applyDocumentCache(documentCache, defaultMode) {
     setViewMode(documentCache?.DocumentTab || defaultMode);
     // The Tools panel open/closed state and selected tab are intentionally not
     // restored from cache. The panel keeps whatever state it already had; if the
-    // active tab isn't available for the newly loaded document, the panel is
-    // closed (handled by updateToolsTabVisibility).
+    // active tab isn't available for the newly loaded document, select Find
+    // without changing the panel's collapsed state.
 }
 
 function saveProjectCache() {
@@ -9671,7 +9668,6 @@ async function loadFile(file, options = {}) {
 
     const skipDocumentCacheRestore = Boolean(options?.skipDocumentCacheRestore);
     const keepFindTabOpen = Boolean(options?.keepFindTabOpen);
-    const switchingDocument = Boolean(state.currentFile && state.currentFile !== file);
 
     state.suspendDocumentCacheSave = true;
 
@@ -9685,10 +9681,6 @@ async function loadFile(file, options = {}) {
         // Clear rendered diagnostics immediately while the new file loads.
         state.currentFileUri = '';
         clearVisibleLspDiagnostics();
-    }
-
-    if (switchingDocument && !keepFindTabOpen) {
-        setToolsTab('find');
     }
 
     const fileName = file ? getPathFileName(file) : 'json file';
@@ -14340,10 +14332,6 @@ const aiPipelineFormatter = createAIPipelineFormatter(elements.aiOutput, {
 // Event emitted by Go when an AI job begins (before first chunk)
 EventsOn("aiJobStart", (title) => {
     startAIStreamJob(title);
-    setToolsTab('ai');
-    if (elements.toolsPanel.dataset.collapsed === 'true') {
-        toggleToolsPanel();
-    }
 });
 
 // Event emitted by Go when an AI job finishes
@@ -15003,8 +14991,6 @@ async function openNotesGitDiff({ root, file, diff }) {
     await NotesHistoryAddPosition(notesFilePath, 1);
 
     if (!state.useMonacoEditor) {
-        setToolsPanelCollapsed(false);
-        setToolsTab('git');
         notifyTerminal('The selected file is open; side-by-side Git diff requires Monaco.', 'warn');
         return;
     }
@@ -15029,8 +15015,6 @@ async function openNotesGitDiff({ root, file, diff }) {
         editor.focus();
     }
 
-    setToolsPanelCollapsed(false);
-    setToolsTab('git');
     requestAnimationFrame(() => notesGitDiffAdapter?.layout());
 }
 

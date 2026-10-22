@@ -96,6 +96,43 @@ function createApi(overrides = {}) {
 }
 
 describe('Notes Git panel', () => {
+    it.each(['read', 'open', 'comparison'])('notifies diff %s errors without replacing the Git file list', async (failure) => {
+        const elements = createElements();
+        const notify = vi.fn();
+        const api = createApi();
+        const onOpenDiff = vi.fn(() => Promise.resolve());
+        if (failure === 'read') api.getDiff.mockRejectedValueOnce(new Error('Diff failed'));
+        else if (failure === 'comparison') api.getDiffAgainstBranch.mockRejectedValueOnce(new Error('Diff failed'));
+        else onOpenDiff.mockRejectedValueOnce(new Error('Diff failed'));
+        const panel = initNotesGitPanel(elements, api, { notify, onOpenDiff });
+        await flushPromises();
+        if (failure === 'comparison') await panel.setCompareBranch('feature');
+        const button = elements.gitFileList.querySelector('.notes-git-file');
+        const originalList = elements.gitFileList.innerHTML;
+        button.click();
+        await flushPromises();
+        expect(notify).toHaveBeenCalledWith('Diff failed', 'error');
+        expect(elements.gitFileList.innerHTML).toBe(originalList);
+        expect(button.disabled).toBe(false);
+    });
+
+    it.each(['stage', 'unstage', 'stageAll'])('notifies %s errors without replacing the Git file list', async (action) => {
+        const elements = createElements();
+        const notify = vi.fn();
+        const api = createApi();
+        const method = { stage: 'stageFile', unstage: 'unstageFile', stageAll: 'stageAll' }[action];
+        api[method].mockRejectedValueOnce(new Error('Git index is locked'));
+        initNotesGitPanel(elements, api, { notify });
+        await flushPromises();
+        const button = action === 'stageAll' ? elements.gitStageAll : elements.gitFileList.querySelector(`[data-git-action="${action}"]`);
+        const originalList = elements.gitFileList.innerHTML;
+        button.click();
+        await flushPromises();
+        expect(notify).toHaveBeenCalledWith('Git index is locked', 'error');
+        expect(elements.gitFileList.innerHTML).toBe(originalList);
+        expect(button.disabled).toBe(false);
+    });
+
     it('sorts untracked, unstaged, then staged files alphabetically within each group', async () => {
         const elements = createElements();
         const files = Object.freeze([

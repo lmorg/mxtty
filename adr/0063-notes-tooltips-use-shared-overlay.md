@@ -4,6 +4,9 @@
 
 Accepted on 2026-10-09; migration of existing Notes controls is incremental.
 
+Updated 2026-10-22: this is the preferred tooltip policy throughout the
+application, including terminal controls and inputbox dialogs, not just Notes.
+
 ## Context
 
 Native HTML `title` tooltips are rendered by the host webview, so their timing,
@@ -13,7 +16,8 @@ styling, and can render Markdown.
 
 ## Decision
 
-- Use the shared Notes tooltip for visual hover help. Do not rely on native
+- Use the shared application tooltip API (`showSharedTooltip` and
+  `closeSharedTooltip`) for visual hover and keyboard-focus help. Do not rely on native
   webview tooltips from `title` attributes for that help.
 - For dynamically rendered Notes content, expose tooltip text through
   `data-tooltip` and use delegated event handling rather than attaching
@@ -26,6 +30,10 @@ styling, and can render Markdown.
   only way to understand an essential action.
 - Migrate existing Notes `title` attributes when those controls are next
   changed. Retain `title` only where it is not being used as hover help.
+- Inputboxes delegate `data-tooltip` hover/focus events for action buttons,
+  variable descriptions and dynamic attachment-removal controls. Close the
+  shared tooltip on mouse leave, blur, clicks, and dialog open/close; retain
+  accessible names independently of the tooltip.
 
 ## Consequences
 

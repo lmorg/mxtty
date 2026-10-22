@@ -66,13 +66,13 @@ export function initNotesGitPanel(elements, api, options = {}) {
 
     const setAvailable = (available) => {
         elements.gitTab.style.display = available ? '' : 'none';
+        options.onAvailabilityChange?.(available);
         if (!available) {
             elements.gitStageAll.disabled = true;
             historyRequest++;
             elements.gitPane.dataset.active = 'false';
             elements.gitTab.setAttribute('aria-selected', 'false');
         }
-        options.onAvailabilityChange?.(available);
     };
 
     const showMessage = (message, kind = 'info', target = elements.gitFileList) => {
@@ -582,7 +582,7 @@ export function initNotesGitPanel(elements, api, options = {}) {
             await options.onOpenDiff?.({ root, file, diff });
             return true;
         } catch (error) {
-            showMessage(String(error?.message || error || `Could not read ${file.path}`), 'error');
+            options.notify?.(String(error?.message || error || `Could not read ${file.path}`), 'error');
             return false;
         }
     };
@@ -603,7 +603,7 @@ export function initNotesGitPanel(elements, api, options = {}) {
                 await operation(projectRoot, path);
                 await refresh();
             } catch (error) {
-                showMessage(String(error?.message || error || 'Git operation failed'), 'error');
+                options.notify?.(String(error?.message || error || 'Git operation failed'), 'error');
             } finally {
                 action.disabled = false;
             }

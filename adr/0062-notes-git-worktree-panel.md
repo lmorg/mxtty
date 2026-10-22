@@ -69,10 +69,15 @@ Git is unavailable.
   completion/error notifications are mutually exclusive, and failures without
   stderr fall back to the command error. Output streams remain unchanged in
   the Go response.
-- Git toolbar controls use Font Awesome icons: Commits `0xf386` with tooltip
+- Git toolbar controls use Font Awesome icons: Commits `0xf0ca` with tooltip
   `View commit log`, Branches `0xf126` with tooltip `Manage branches`, and
   Worktrees `0xf802` retaining its existing tooltip. Keep accessible labels and
   the Commits toggle's pressed state independent of the visible glyph.
+- Diff-file loading/opening and stage/unstage failures use the application
+  notification system at error severity, including branch-comparison diffs and
+  Stage all. Keep the Git file list intact and restore failed action controls
+  instead of replacing the panel with an inline operation error. Repository
+  status/unavailability messages retain their existing panel presentation.
 - Provide a worktree creation modal with a branch picker listing local branches
   alphabetically and an option to create a branch. Default the destination to
   `$HOME/Documents/ttyphoon/.git_worktrees/<sha256>/<branch>`, hashing the
