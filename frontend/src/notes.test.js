@@ -4277,7 +4277,7 @@ describe('notes rendering', () => {
         expect(document.getElementById('notes-tools-tab-log').getAttribute('aria-selected')).toBe('true');
     });
 
-    it('falls back from Git only when the next project has no Git tab', async () => {
+    it('keeps Git selected and explains unavailable operations for a non-Git project', async () => {
         getCurrentProjectMock.mockResolvedValue('/repo');
         getGitStatusMock.mockResolvedValue({ root: '/repo', branch: 'main', clean: true, files: [] });
         await importNotesModule();
@@ -4289,8 +4289,11 @@ describe('notes rendering', () => {
         }
         await flushPromises();
         await flushPromises();
-        expect(document.getElementById('notes-tools-tab-git').style.display).toBe('none');
-        expect(document.getElementById('notes-tools-tab-find').getAttribute('aria-selected')).toBe('true');
+        expect(document.getElementById('notes-tools-tab-git').style.display).toBe('');
+        expect(document.getElementById('notes-tools-tab-git').getAttribute('aria-selected')).toBe('true');
+        expect(document.getElementById('notes-tools-git-pane').dataset.active).toBe('true');
+        expect(document.getElementById('notes-tools-git-toolbar').hidden).toBe(true);
+        expect(document.getElementById('notes-tools-git-files').textContent).toContain('Not a Git repository');
     });
 
     it('preserves the selected Tools tab and collapsed state when AI response streaming starts', async () => {

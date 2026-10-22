@@ -6,6 +6,8 @@ function createElements() {
     const gitTab = document.createElement('button');
     gitTab.style.display = 'none';
     const gitPane = document.createElement('div');
+    const gitToolbar = document.createElement('div');
+    gitToolbar.hidden = true;
     const gitWorkspace = document.createElement('button');
     const gitCompare = document.createElement('button');
     const gitCommits = document.createElement('button');
@@ -20,10 +22,13 @@ function createElements() {
     const gitRefresh = document.createElement('button');
     const gitFileList = document.createElement('div');
     const gitCommitList = document.createElement('div');
-    gitPane.append(gitWorkspace, gitCompare, gitCommitToggle, gitCommitRow, gitCommitMessage, gitCommitSubmit, gitStageAll, gitRemote, gitBranch, gitAheadBehind, gitRefresh, gitFileList);
+    gitToolbar.append(gitWorkspace, gitCompare, gitCommits, gitCommitToggle, gitRemote, gitBranch, gitAheadBehind, gitRefresh);
+    gitCommitRow.append(gitCommitMessage, gitCommitSubmit, gitStageAll);
+    gitPane.append(gitToolbar, gitCommitRow, gitFileList);
     return {
         gitTab,
         gitPane,
+        gitToolbar,
         gitWorkspace,
         gitCompare,
         gitCommits,
@@ -668,17 +673,58 @@ describe('Notes Git panel', () => {
         expect(elements.gitFileList.textContent).toContain('Could not compare with deleted-branch');
     });
 
-    it('hides the Git tab when the project root is not a usable Git root', async () => {
+    it.each(['project root is not a Git working tree', 'git executable was not found'])('keeps Git selected for %s and recovers for a valid root', async (reason) => {
         const elements = createElements();
         const api = createApi({
-            getStatus: vi.fn(() => Promise.reject(new Error('project root is not a Git working tree'))),
+            getStatus: vi.fn(() => Promise.reject(new Error(reason))),
         });
 
-        initNotesGitPanel(elements, api);
+        elements.gitTab.setAttribute('aria-selected', 'true');
+        elements.gitPane.dataset.active = 'true';
+        const panel = initNotesGitPanel(elements, api);
         await flushPromises();
 
-        expect(elements.gitTab.style.display).toBe('none');
-        expect(elements.gitFileList.textContent).toContain('project root is not a Git working tree');
+        expect(elements.gitTab.style.display).toBe('');
+        expect(elements.gitTab.getAttribute('aria-selected')).toBe('true');
+        expect(elements.gitPane.dataset.active).toBe('true');
+        expect(elements.gitToolbar.hidden).toBe(true);
+        expect(elements.gitCommitRow.hidden).toBe(true);
+        expect(elements.gitFileList.textContent).toContain(reason);
+        api.getStatus.mockResolvedValue({ root: '/valid/repo', branch: 'main', clean: true, files: [] });
+        await panel.setProjectRoot('/valid/repo');
+        expect(elements.gitToolbar.hidden).toBe(false);
+        expect(elements.gitTab.getAttribute('aria-selected')).toBe('true');
+        expect(elements.gitFileList.textContent).toContain('Working tree clean');
+    });
+
+    it('hides all operation controls on watcher failure without deselecting Git', async () => {
+        const elements = createElements();
+        const api = createApi();
+        initNotesGitPanel(elements, api);
+        await flushPromises();
+        elements.gitTab.setAttribute('aria-selected', 'true');
+        elements.gitPane.dataset.active = 'true';
+        elements.gitCommitToggle.click();
+        expect(elements.gitToolbar.hidden).toBe(false);
+        expect(elements.gitCommitRow.hidden).toBe(false);
+        const changed = api.eventsOn.mock.calls.find(([name]) => name === 'notesGitStatusChanged')[1];
+        changed({ root: '/work/repo', error: 'Repository no longer exists' });
+        expect(elements.gitToolbar.hidden).toBe(true);
+        expect(elements.gitCommitRow.hidden).toBe(true);
+        expect(elements.gitTab.getAttribute('aria-selected')).toBe('true');
+        expect(elements.gitPane.dataset.active).toBe('true');
+        expect(elements.gitFileList.textContent).toContain('Repository no longer exists');
+    });
+
+    it('shows the reason when no project root is available without hiding Git', async () => {
+        const elements = createElements();
+        const api = createApi({ getCurrentProject: vi.fn(() => Promise.resolve('')) });
+        initNotesGitPanel(elements, api);
+        await flushPromises();
+        expect(elements.gitTab.style.display).toBe('');
+        expect(elements.gitToolbar.hidden).toBe(true);
+        expect(elements.gitFileList.textContent).toContain('No project root');
+        expect(api.getStatus).not.toHaveBeenCalled();
     });
 
     it('shows provider-specific brand glyphs and hides unsupported remotes', async () => {

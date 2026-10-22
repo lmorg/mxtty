@@ -34,7 +34,7 @@ const gitRemoteIcons = {
 };
 
 export function initNotesGitPanel(elements, api, options = {}) {
-    if (!elements?.gitTab || !elements?.gitPane || !elements?.gitFileList || !elements?.gitRemote || !elements?.gitCompare
+    if (!elements?.gitTab || !elements?.gitPane || !elements?.gitToolbar || !elements?.gitFileList || !elements?.gitRemote || !elements?.gitCompare
         || !elements?.gitCommitToggle || !elements?.gitCommitRow || !elements?.gitCommitMessage
         || !elements?.gitCommitSubmit || !elements?.gitStageAll) {
         return null;
@@ -65,13 +65,16 @@ export function initNotesGitPanel(elements, api, options = {}) {
     };
 
     const setAvailable = (available) => {
-        elements.gitTab.style.display = available ? '' : 'none';
+        elements.gitTab.style.display = '';
+        elements.gitToolbar.hidden = !available;
+        elements.gitPane.dataset.available = String(available);
         options.onAvailabilityChange?.(available);
         if (!available) {
             elements.gitStageAll.disabled = true;
+            elements.gitCommitRow.hidden = true;
+            elements.gitCommitToggle.setAttribute('aria-pressed', 'false');
             historyRequest++;
-            elements.gitPane.dataset.active = 'false';
-            elements.gitTab.setAttribute('aria-selected', 'false');
+            setCommitsActive(false);
         }
     };
 
@@ -350,6 +353,7 @@ export function initNotesGitPanel(elements, api, options = {}) {
         const generation = ++requestGeneration;
         if (!projectRoot) {
             currentStatus = null;
+            showMessage('Git operations are unavailable: No project root is selected.');
             setAvailable(false);
             return false;
         }
@@ -428,9 +432,11 @@ export function initNotesGitPanel(elements, api, options = {}) {
         compareLabel = '';
         elements.gitCompare.textContent = 'HEAD';
         currentStatus = null;
+        setAvailable(false);
         syncStatusWatch();
         void updateRemoteLink(null, nextRoot);
         elements.gitFileList.replaceChildren();
+        showMessage('Checking Git availability…');
         const cached = statusCache.get(rootKey(projectRoot));
         if (cached?.status) {
             renderStatus(cached.status);

@@ -9,8 +9,8 @@ Accepted and implemented on 2026-10-09.
 Notes needs Git status and file-level actions without making Git command
 execution or repository parsing part of the frontend. The active Notes project
 root may be a normal repository root, a linked worktree root, or a non-Git
-`project.ttyphoon` root. A Git panel should not appear for the latter or when
-Git is unavailable.
+`project.ttyphoon` root. Git remains a visible Tools tab even when operations
+are unavailable, so it can explain the current context's limitations.
 
 ## Decision
 
@@ -30,9 +30,14 @@ Git is unavailable.
 - Run panel status reads with `git --no-optional-locks status` so Git does not
   persist optional index refreshes and retrigger its own metadata watcher.
   Stage/unstage and worktree mutations retain their normal locking behavior.
-- Enable the Tools Git tab only when the current project root is exactly a Git
-  working-tree root and the host has a `git` executable. Accept both `.git`
-  directories and worktree `.git` files. The Worktree menu lists all worktrees
+- Updated 2026-10-22: always show the Tools Git tab, preserving its selection
+  across project changes even when Git is unavailable. Show the unavailable
+  reason in the panel, including missing project roots and backend Git/status
+  failures. Hide the entire Git toolbar and commit controls while unavailable
+  or checking a new root, then restore the toolbar after a successful status
+  read. Only enable operations when the project root is a usable Git root and
+  the host has Git. Accept both `.git` directories and worktree `.git` files.
+  The Worktree menu lists all worktrees
   registered with the current repository, sorted by path, and marks the active
   worktree. Selecting one switches Notes' project context while preserving the
   active terminal pane and its other Notes context roots.

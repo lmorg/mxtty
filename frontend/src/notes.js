@@ -553,6 +553,7 @@ const elements = {
     toolsTabGit: document.getElementById('notes-tools-tab-git'),
     gitTab: document.getElementById('notes-tools-tab-git'),
     gitPane: document.getElementById('notes-tools-git-pane'),
+    gitToolbar: document.getElementById('notes-tools-git-toolbar'),
     gitWorkspace: document.getElementById('notes-tools-git-workspace'),
     gitRemote: document.getElementById('notes-tools-git-remote'),
     gitBranch: document.getElementById('notes-tools-git-branch'),
@@ -15339,11 +15340,6 @@ notesGitPanel = initNotesGitPanel(elements, {
             return true;
         }
         return saveActiveGitDiff();
-    },
-    onAvailabilityChange: (available) => {
-        if (!available && elements.toolsTabGit.getAttribute('aria-selected') === 'true') {
-            setToolsTab('find');
-        }
     },
     onStatusChange: (status, root) => {
         updateGitDiffTabForCurrentFile(status, root);
