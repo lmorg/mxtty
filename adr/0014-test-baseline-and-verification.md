@@ -4,8 +4,8 @@ Date: 2026-09-06
 
 ## Status
 
-Accepted. Updated 2026-10-16: record the current frontend startup timeouts,
-previously verified Go passes, and historical Go failures separately.
+Accepted. Updated 2026-10-23: the full frontend suite passes; preserve earlier
+verification records and historical Go failures separately.
 
 ## Context
 
@@ -20,6 +20,20 @@ Record the baseline and the verification commands, and keep this record current 
 failures are fixed.
 
 ### Latest verification
+
+On 2026-10-23, `npm run test:run -- --reporter=dot` passed all 605 tests across
+23 files. `npm run build` succeeded and `npm ls --depth=0` reported a valid
+dependency tree. The bundle-size notices are warnings, not build failures.
+
+The investigation initially reproduced seven failures in `src/notes.test.js`.
+Fixes were test-only: close the Markdown modal after its print test so its
+capture-phase Escape listener cannot interfere with later tests; inspect CSS
+declarations and normalize child-combinator whitespace instead of matching
+single-line formatting; await XML fixture persistence; and scope the print
+test's no-save assertion to the printed document rather than deferred saves
+of other documents. Production code and user stylesheet changes were preserved.
+
+### Previous Verification (2026-10-16)
 
 On 2026-10-16, `npm run test:run -- --reporter=dot` ran 508 tests across 20 files:
 506 passed and two exceeded Vitest's 5000 ms timeout:

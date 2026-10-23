@@ -90,6 +90,7 @@ Each record uses: **Status**, **Context**, **Decision**, **Consequences**,
 | [0076](0076-inputbox-history-restores-complete-submissions.md) | Inputbox history restores complete submissions or individual text fields | Inputboxes |
 | [0077](0077-ai-filesystem-tools-use-the-live-project-root.md) | AI filesystem tools resolve the owning pane's live project root | AI tools |
 | [0078](0078-mcp-oauth-failures-must-be-retryable.md) | MCP OAuth cancellation, registration and retries preserve usable state | MCP |
+| [0079](0079-document-printing-uses-isolated-snapshots.md) | Document printing uses isolated snapshots and platform backends | Printing |
 
 ## Recurring themes
 

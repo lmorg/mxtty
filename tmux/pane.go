@@ -135,7 +135,7 @@ func (tmux *Tmux) newPane(info *paneInfo) *PaneT {
 		id:   info.Id,
 		tmux: tmux,
 		buf:  runebuf.New(),
-		pwd:  info.Path,
+		pwd:  info.workingDirectory("", true),
 	}
 
 	virtualterm.NewTerminal(
@@ -167,6 +167,19 @@ type paneInfo struct {
 	Path      string `tmux:"pane_current_path"`
 	PathStart string `tmux:"pane_start_path"`
 	Zoomed    bool   `tmux:"?pane_zoomed_flag,true,false"`
+}
+
+func (info *paneInfo) workingDirectory(previous string, isNew bool) string {
+	if !isNew && !info.Dead && info.Path != "" {
+		return info.Path
+	}
+	if previous != "" {
+		return previous
+	}
+	if info.PathStart != "" {
+		return info.PathStart
+	}
+	return info.Path
 }
 
 // updatePaneInfo, paneId is optional. Leave blank to update all panes
@@ -230,11 +243,7 @@ func (info *paneInfo) updatePane(tmux *Tmux) *PaneT {
 	pane.bottom = int32(info.PosBottom)
 	pane.atBottom = info.AtBottom
 	pane.zoomed = info.Zoomed
-	if isNew {
-		pane.pwd = info.PathStart
-	} else {
-		pane.pwd = info.Path
-	}
+	pane.pwd = info.workingDirectory(pane.pwd, isNew)
 	if pane.dead.Swap(info.Dead) && !info.Dead {
 		pane.actionResult.Store(0)
 		pane.autoCloseAt.Store(0)

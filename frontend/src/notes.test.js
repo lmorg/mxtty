@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
+import postcss from 'postcss';
 import * as swaggerUtils from './swagger-utils.js';
 import { attachJsonViewerEditHandler, renderJsonViewer } from './json-viewer.js';
 import { marked } from 'marked';
@@ -10,6 +11,16 @@ const notesCss = readFileSync('./src/notes.css', 'utf8');
 function getNotesRenderedStyles() {
     const inline = Array.from(document.querySelectorAll('style')).map((el) => String(el.textContent || ''));
     return inline.join('\n') + '\n' + notesCss;
+}
+
+function getNotesStyleProperties(selector) {
+    const properties = {};
+    const normalizeSelector = (value) => value.replace(/\s*>\s*/g, ' > ').trim();
+    postcss.parse(getNotesRenderedStyles()).walkRules((rule) => {
+        if (!rule.selectors.some((candidate) => normalizeSelector(candidate) === normalizeSelector(selector))) return;
+        rule.walkDecls((declaration) => { properties[declaration.prop] = declaration.value; });
+    });
+    return properties;
 }
 
 const getWindowStyleMock = vi.fn();
@@ -1234,6 +1245,10 @@ describe('notes rendering', () => {
         expect(editor.value).toContain('  <!-- keep this comment -->');
         expect(editor.value).toContain('  <name>Updated</name>');
         expect(editor.value).toContain('  <count>2</count>');
+        const updated = editor.value;
+        await vi.waitFor(() => {
+            expect(saveFileMock).toHaveBeenCalledWith(`$NOTES/${fileName}`, updated, '');
+        }, { timeout: 2000 });
     });
 
     it('prints the complete Markdown View without mutating the live preview', async () => {
@@ -1321,6 +1336,7 @@ describe('notes rendering', () => {
             expect(body.textContent).toBe('Filtered visible excerpt');
         } finally {
             window.dispatchEvent(new Event('afterprint'));
+            document.getElementById('markdown-modal-overlay')?.dispatchEvent(new Event('pointerdown', { bubbles: true }));
         }
     });
 
@@ -1362,7 +1378,7 @@ describe('notes rendering', () => {
             expect(document.querySelector('#notes-print-root code').textContent).toBe(value);
             expect(document.querySelector('#notes-print-root b')).toBeNull();
             expect(editor.value).toBe('Stale hidden textarea');
-            expect(saveFileMock).not.toHaveBeenCalled();
+            expect(saveFileMock.mock.calls.filter(([savedFilename]) => savedFilename === filename)).toHaveLength(0);
         } finally {
             window.dispatchEvent(new Event('afterprint'));
             userAgent.mockRestore();
@@ -1764,7 +1780,7 @@ describe('notes rendering', () => {
 
         const styles = getNotesRenderedStyles();
         expect(styles).toContain('#notes-lsp-tooltip {');
-        expect(styles).toContain('#notes-lsp-tooltip:hover { opacity: 1; }');
+        expect(getNotesStyleProperties('#notes-lsp-tooltip:hover').opacity).toBe('1');
     });
 
     it('closes visible LSP tooltips when Escape is pressed in editor', async () => {
@@ -1905,8 +1921,8 @@ describe('notes rendering', () => {
 
         const styles = getNotesRenderedStyles();
         expect(styles).toContain('#notes-lsp-hover-tooltip :where(p, ul, ol, pre, blockquote, table) {');
-        expect(styles).toContain('#notes-lsp-hover-tooltip > :first-child { margin-top: 0; }');
-        expect(styles).toContain('#notes-lsp-hover-tooltip > :last-child { margin-bottom: 0; }');
+        expect(getNotesStyleProperties('#notes-lsp-hover-tooltip > :first-child')['margin-top']).toBe('0');
+        expect(getNotesStyleProperties('#notes-lsp-hover-tooltip > :last-child')['margin-bottom']).toBe('0');
     });
 
     it('requests completion on trigger character and commits selected item by mouse', async () => {
@@ -2322,10 +2338,10 @@ describe('notes rendering', () => {
         expect(styles).toContain('#notes-lsp-completion {');
         expect(styles).toContain('--notes-lsp-completion-visible-rows: 12;');
         expect(styles).toContain('max-height: calc(var(--notes-lsp-completion-visible-rows) * var(--notes-lsp-completion-row-height) + 12px);');
-        expect(styles).toContain('#notes-lsp-completion:hover { opacity: 1; }');
+        expect(getNotesStyleProperties('#notes-lsp-completion:hover').opacity).toBe('1');
         expect(styles).toContain('.notes-lsp-completion-item.is-deprecated .notes-lsp-completion-label,');
         expect(styles).toContain('#notes-lsp-hover-tooltip {');
-        expect(styles).toContain('#notes-lsp-hover-tooltip:hover { opacity: 1; }');
+        expect(getNotesStyleProperties('#notes-lsp-hover-tooltip:hover').opacity).toBe('1');
     });
 
     it('formats current document via editor context menu action', async () => {

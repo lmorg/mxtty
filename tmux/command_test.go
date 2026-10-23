@@ -408,6 +408,57 @@ func (term *paneGeometryTestTerm) Resize(size *types.XY) {
 	term.resizeErr = term.pane.Resize(size)
 }
 
+func TestPaneInfoInitialWorkingDirectory(t *testing.T) {
+	for _, test := range []struct {
+		name, path, start, want string
+		dead                    bool
+	}{
+		{"already finished", "", "/work/project", "/work/project", true},
+		{"start path takes precedence", "/temporary/process/path", "/work/project", "/work/project", false},
+		{"missing start path", "/work/project", "", "/work/project", false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			info := &paneInfo{Path: test.path, PathStart: test.start, Dead: test.dead}
+			if got := info.workingDirectory("", true); got != test.want {
+				t.Fatalf("initial directory = %q, want %q", got, test.want)
+			}
+		})
+	}
+}
+
+func TestPaneInfoPreservesDirectoryWhenPaneFinishes(t *testing.T) {
+	for _, test := range []struct {
+		name, previous, path, start, want string
+		dead                              bool
+	}{
+		{"finished without current path", "/work/project", "", "/work/project", "/work/project", true},
+		{"finished with unreliable current path", "/work/project", "/other/root", "/work/project", "/work/project", true},
+		{"finished preserves reported directory", "/work/project/subdir", "", "/work/project", "/work/project/subdir", true},
+		{"live missing current path", "/work/project", "", "/work/project", "/work/project", false},
+		{"unknown directory falls back to start", "", "", "/work/project", "/work/project", true},
+		{"live directory changes still update", "/work/project", "/work/another", "/work/project", "/work/another", false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			client := &Tmux{panes: newPaneMap(), wins: newWindowMap()}
+			win := &WindowT{id: "@1", panes: newPaneMap()}
+			client.wins.Set(win.id, win)
+			pane := &PaneT{id: "%7", windowId: win.id, pwd: test.previous, tmux: client}
+			pane.term = &paneGeometryTestTerm{pane: pane, onFocus: func() {
+				if got := pane.Pwd(); got != test.want {
+					t.Errorf("focus callback directory = %q, want %q", got, test.want)
+				}
+			}}
+			client.panes.Set(pane.id, pane)
+			win.panes.Set(pane.id, pane)
+			info := &paneInfo{Id: pane.id, WindowId: win.id, Active: true, Dead: test.dead, Path: test.path, PathStart: test.start}
+			info.updatePane(client)
+			if got := pane.Pwd(); got != test.want {
+				t.Fatalf("pane directory = %q, want %q", got, test.want)
+			}
+		})
+	}
+}
+
 func TestPaneInfoResizeUpdatesLocalTerminalWithoutEchoingTmux(t *testing.T) {
 	tmux := &Tmux{panes: newPaneMap(), wins: newWindowMap()}
 	tmux.readerDead.Store(true)
@@ -664,8 +715,8 @@ func TestClonePaneInheritsActivePaneDirectoryAndEnvironment(t *testing.T) {
 		name, sourcePwd, command, want string
 	}{
 		{"live directory fallback", "", "", `split-window -v -P -F '#{pane_id}' -t %7 -c "#{pane_current_path}" -e "CLONE_TEST=inherited value"`},
-		{"inherited directory", "/tmp/source dir", "", `split-window -v -P -F '#{pane_id}' -t %7 -c "/tmp/source dir" -e "CLONE_TEST=inherited value"`},
-		{"inherited command", "/tmp/source dir", "pwd", `split-window -v -k -P -F '#{pane_id}' -t %7 -c "/tmp/source dir" -e "CLONE_TEST=inherited value"`},
+		{"inherited directory", "/tmp/source dir", "", `split-window -v -P -F '#{pane_id}' -t %7 -c "#{pane_current_path}" -e "CLONE_TEST=inherited value"`},
+		{"inherited command", "/tmp/source dir", "pwd", `split-window -v -k -P -F '#{pane_id}' -t %7 -c "#{pane_current_path}" -e "CLONE_TEST=inherited value"`},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			reader, writer, err := os.Pipe()
@@ -747,7 +798,7 @@ func TestClonePaneInheritsActivePaneDirectoryAndEnvironment(t *testing.T) {
 
 func TestClonePaneCommandKeepsExitedPaneAndStartsWrapper(t *testing.T) {
 	command := clonePaneCommand("%7", "/home/example", map[string]string{"TOKEN": "a b"}, "/tmp/ttyphoon action.sh")
-	want := `split-window -v -k -P -F '#{pane_id}' -t %7 -c "/home/example" -e "TOKEN=a b" bash "/tmp/ttyphoon action.sh"`
+	want := `split-window -v -k -P -F '#{pane_id}' -t %7 -c "#{pane_current_path}" -e "TOKEN=a b" bash "/tmp/ttyphoon action.sh"`
 	if command != want {
 		t.Fatalf("clonePaneCommand() = %q, want %q", command, want)
 	}

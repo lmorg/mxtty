@@ -173,6 +173,15 @@ terminal text; it must correspond to an outstanding invocation.
   command pipeline enters the project directory without changing clone setup.
 - Keep this terminal mechanism generic; Git-specific execution policy remains
   in `utils/git` (ADR 0071).
+- Retained finished panes must preserve their last known directory. An isolated
+  tmux check confirmed that a short-lived pane reports an empty
+  `pane_current_path` after exit while `pane_start_path` remains available.
+  Never replace a known directory with empty metadata, and ignore current-path
+  updates for dead panes. Initialize new panes from `pane_start_path`, falling
+  back to `pane_current_path`, before creating or starting the terminal. Apply
+  the retained directory before focus callbacks so Notes and Git do not resolve
+  a different project while a finished clone awaits autoclose. Valid live-pane
+  current-path changes still update normally.
 - Markdown code blocks and Jupyter's Send to terminal action share the
   `SendToTerminal(content, language)` Wails API. Jupyter passes its selected
   runtime; Markdown resolves the fenced language (or highlighting-based
