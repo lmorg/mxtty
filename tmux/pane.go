@@ -404,11 +404,11 @@ func clonePaneCommand(paneID string, pwd string, env map[string]string, scriptPa
 
 	environmentArgs := workspace.EnvsTmux(env)
 
-	if pwd == "" {
-		workingDirectory = `"#{pane_current_path}"`
-	} else {
-		workingDirectory = workspace.QuoteString(pwd)
-	}
+	//if pwd == "" {
+	workingDirectory = `"#{pane_current_path}"`
+	//} else {
+	//	workingDirectory = workspace.QuoteString(pwd)
+	//}
 
 	if scriptPath != "" {
 		keepExitedPane = " -k"
