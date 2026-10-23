@@ -694,7 +694,7 @@ func TestClonePaneWithoutCommandStartsNormalShell(t *testing.T) {
 	if err := client.ClonePane(source, "", nil); err != nil {
 		t.Fatal(err)
 	}
-	if got, want := <-commands, `split-window -v -P -F '#{pane_id}' -t %7 -c "#{pane_current_path}" -e CLONE_TEST="inherited value"`; got != want {
+	if got, want := <-commands, `split-window -v -P -F '#{pane_id}' -t %7 -c "#{pane_current_path}" -e "CLONE_TEST=inherited value"`; got != want {
 		t.Fatalf("shell clone command = %q, want %q", got, want)
 	}
 	if got := <-commands; !strings.HasPrefix(got, "list-panes ") {
@@ -708,8 +708,8 @@ func TestClonePaneWithoutCommandStartsNormalShell(t *testing.T) {
 }
 
 func TestClonePaneCommandKeepsExitedPaneAndStartsWrapper(t *testing.T) {
-	command := clonePaneCommand("%7", `-e "TOKEN=a b" `, "/tmp/ttyphoon action.sh")
-	want := `split-window -v -k -P -F '#{pane_id}' -t %7 -c "#{pane_current_path}" -e "TOKEN=a b" bash "/tmp/ttyphoon action.sh"`
+	command := clonePaneCommand("%7", "/home/example", map[string]string{"TOKEN": "a b"}, "/tmp/ttyphoon action.sh")
+	want := `split-window -v -k -P -F '#{pane_id}' -t %7 -c "/home/example" -e "TOKEN=a b" bash "/tmp/ttyphoon action.sh"`
 	if command != want {
 		t.Fatalf("clonePaneCommand() = %q, want %q", command, want)
 	}
@@ -888,6 +888,13 @@ func TestBashScriptEmitsCompletionAfterCommandFailure(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = os.Remove(path) })
 
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm()&0o111 != 0 {
+		t.Fatal("temporary wrapper should be read by Bash, not made executable")
+	}
 	output, err := exec.Command("bash", path).CombinedOutput()
 	if err != nil {
 		t.Fatalf("wrapper script exited unexpectedly: %v, output %q", err, output)

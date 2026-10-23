@@ -361,9 +361,10 @@ func (tmux *Tmux) ClonePane(pane *PaneT, commandLine string, callback interactiv
 		}
 	}()
 
-	envStr := workspace.EnvsTmux(pane.term.GetEnvVars())
+	env := pane.term.GetEnvVars()
+	pwd := pane.pwd
 
-	tmuxCommand := clonePaneCommand(pane.id, envStr, scriptPath)
+	tmuxCommand := clonePaneCommand(pane.id, pwd, env, scriptPath)
 	response, err := tmux.SendCommand([]byte(tmuxCommand))
 	if err != nil {
 		return err
@@ -393,15 +394,23 @@ func quoteShellArgument(value string) string {
 	return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'"
 }
 
-func clonePaneCommand(paneID, environmentArgs, scriptPath string) string {
-	environmentArgs = strings.TrimSpace(environmentArgs)
-	if environmentArgs != "" {
-		environmentArgs = " " + environmentArgs
+func clonePaneCommand(paneID string, pwd string, env map[string]string, scriptPath string) string {
+	keepExitedPane, command, workingDirectory := "", "", ""
+
+	environmentArgs := workspace.EnvsTmux(env)
+
+	if pwd == "" {
+		workingDirectory = `"#{pane_current_path}"`
+	} else {
+		workingDirectory = workspace.QuoteString(pwd)
 	}
-	if scriptPath == "" {
-		return fmt.Sprintf(`split-window -v -P -F '#{pane_id}' -t %s -c "#{pane_current_path}"%s`, paneID, environmentArgs)
+
+	if scriptPath != "" {
+		keepExitedPane = " -k"
+		command = " bash " + workspace.QuoteString(scriptPath)
 	}
-	return fmt.Sprintf(`split-window -v -k -P -F '#{pane_id}' -t %s -c "#{pane_current_path}"%s bash %s`, paneID, environmentArgs, workspace.QuoteString(scriptPath))
+
+	return fmt.Sprintf(`split-window -v%s -P -F '#{pane_id}' -t %s -c %s%s%s`, keepExitedPane, paneID, workingDirectory, environmentArgs, command)
 }
 
 func responsePaneID(response *tmuxResponseT) string {

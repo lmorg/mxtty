@@ -26,6 +26,11 @@ terminal text; it must correspond to an outstanding invocation.
   wrapper as the new pane's command with tmux `split-window -k`; the pane remains
   available after the command exits. The wrapper preserves the wrapped command's
   exit status even when the shell uses `errexit`.
+- Updated 2026-10-23: temporary wrappers remain private, non-executable files.
+  Launch them explicitly as `bash <quoted script path>`, not as a bare executable
+  path. Commandless clones instead start tmux's normal shell without a wrapper
+  or `-k`. Quote each inherited `NAME=value` assignment once; do not put literal
+  quote characters inside the environment assignment.
 - Store callbacks in a mutex-protected registry owned by the relevant `Tmux`
   instance, keyed by UUID. Do not use a package-global callback map.
 - Accept a completion APC only when its UUID matches a pending entry. Remove the

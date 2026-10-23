@@ -14,7 +14,8 @@ func EnvsTmux(envMap map[string]string) string {
 	var envStr strings.Builder
 
 	for key, value := range envMap {
-		envStr.WriteString(fmt.Sprintf("-e %s=%s ", key, QuoteString(value)))
+		envStr.WriteString(" -e ")
+		envStr.WriteString(QuoteString(fmt.Sprintf("%s=%s", key, value)))
 	}
 
 	return envStr.String()

@@ -108,7 +108,7 @@ would overwrite the user's normal split with temporary dimensions.
 
 ## Reference
 
-- `ai-docs/improvements.md` - requested sizing and caching features
+- [improvements.md](improvements.md) - requested sizing and caching features
 - `frontend/src/notes.js` - internal splitter and Tools-panel state
 - `frontend/src/ttyphoon.js` - Notes/terminal split and maximize/restore
 - `utils/notes/cache.go` - existing Notes cache infrastructure
