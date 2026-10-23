@@ -399,6 +399,23 @@ export function createAIPipelineFormatter(container, options = {}) {
             && !block.dataset.parentId && block.textContent.trim()).at(-1) || null;
     }
 
+    async function outputMarkdown() {
+        if (!streamBlocks.size) {
+            return parseSections(streamText, createSectionCache())
+                .filter((section) => section.label === 'Final Answer')
+                .map((section) => section.content.trim()).filter(Boolean).join('\n\n');
+        }
+        const entries = Array.from(streamBlocks.values())
+            .filter((entry) => entry.kind === 'text' && !entry.parentId);
+        const output = await Promise.all(entries.map(async (entry) => {
+            if (entry.loadPrintContent && !entry.text && entry.root.dataset.blockLoaded !== 'true') {
+                return String(await entry.loadPrintContent() || '');
+            }
+            return entry.text;
+        }));
+        return output.filter((text) => text.trim()).join('\n\n');
+    }
+
     function isRawBlock(kind) {
         return ['tool-call', 'tool-output', 'tool-error', 'tool-summary'].includes(String(kind || ''));
     }
@@ -1105,6 +1122,7 @@ export function createAIPipelineFormatter(container, options = {}) {
         const shells = entries.map((block) => {
             const entry = openBlock(block);
             if (entry) {
+                entry.loadPrintContent = () => loadContent(block);
                 entry.root.dataset.blockLoaded = 'false';
                 entry.root.textContent = '';
             }
@@ -1166,6 +1184,7 @@ export function createAIPipelineFormatter(container, options = {}) {
         startJob,
         finishJob,
         finalResponseElement,
+        outputMarkdown,
         appendChunk,
         openBlock,
         appendBlock,

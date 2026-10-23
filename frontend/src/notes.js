@@ -46,6 +46,7 @@ import {
     showLocalMenu,
 } from './popup_menu';
 import { initNotesLogPanel } from './notes-log-panel';
+import { discardPrintDocument, printDocument } from './notes-print.js';
 import { initNotesAIPanel } from './notes-ai-panel';
 import { bindSharedTooltipMouseTracking, closeSharedTooltip, showSharedTooltip, updateSharedTooltipPointer } from './shared_tooltip';
 import { attachVimMode } from './vim-mode';
@@ -12011,14 +12012,44 @@ function createFindMenuItem(title = 'Find text...') {
     };
 }
 
+function reportPrintError(error) {
+    console.error('Failed to print document', error);
+    notifyTerminal('Failed to print document', 'error');
+}
+
+async function renderPrintMarkdown(container, source) {
+    container.innerHTML = marked.parse(source);
+    await processMarkdownContainer(container);
+}
+
 function createPrintMenuItem(title = 'Print...') {
     return {
         title,
         icon: CONTEXT_ICON_PRINT,
         onSelect: () => {
-            WindowPrint();
+            void printCurrentDocument().catch(reportPrintError);
         },
     };
+}
+
+async function printCurrentDocument() {
+    const viewMode = state.viewMode;
+    const printMarkdown = viewMode === 'viewer' || viewMode === 'jupyter';
+    if (!printMarkdown && viewMode !== 'editor') {
+        discardPrintDocument();
+        closeSharedTooltip();
+        await WindowPrint();
+        return;
+    }
+    const file = splitCategoryPath(state.currentFile);
+    const filename = file.category === '$PROJECT' ? file.relativePath : getPathFileName(state.currentFile);
+    await printDocument({
+        source: printMarkdown ? parseFrontmatter(getMainEditorValue()).body : getMainEditorValue(),
+        filename: viewMode === 'editor' ? filename : '',
+        renderMarkdown: printMarkdown ? renderPrintMarkdown : null,
+        dismissMenu: closeSharedTooltip,
+        print: WindowPrint,
+    });
 }
 
 function getCurrentDocumentContentsForAI() {
@@ -13256,6 +13287,25 @@ function initAIOutputContextMenu(container) {
             ...codeSaveItems,
             ...tableItems,
             ...wordWrapItems,
+            {
+                title: 'Print...',
+                icon: CONTEXT_ICON_PRINT,
+                onSelect: () => {
+                    void (async () => {
+                        const source = await aiPipelineFormatter.outputMarkdown();
+                        if (!source.trim()) {
+                            notifyTerminal('No AI output to print', 'info');
+                            return;
+                        }
+                        await printDocument({
+                            source,
+                            renderMarkdown: renderPrintMarkdown,
+                            dismissMenu: closeSharedTooltip,
+                            print: WindowPrint,
+                        });
+                    })().catch(reportPrintError);
+                },
+            },
         ];
 
         showNotesLocalMenu(menuItems, e.clientX, e.clientY);
@@ -16472,6 +16522,14 @@ initAIOutputContextMenu(elements.aiOutput);
 
 // The caller's modal ID keys saved table state, as a file path does for documents.
 initMarkdownModal({
+    onPrint: (markdown) => {
+        void printDocument({
+            source: markdown,
+            renderMarkdown: renderPrintMarkdown,
+            dismissMenu: closeSharedTooltip,
+            print: WindowPrint,
+        }).catch(reportPrintError);
+    },
     onTablesRendered: (container, { id, wrapped }) => {
         void setupTableColumnResizing(container, wrapped, id, 'markdown-modal');
         setupNotesTableQueries(container, 'markdown-modal', id);

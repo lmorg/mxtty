@@ -73,6 +73,7 @@ type Commit struct {
 	Message  string   `json:"message"`
 	Date     string   `json:"date"`
 	Author   string   `json:"author"`
+	Tags     []string `json:"tags"`
 	Graph    []string `json:"graph"`
 }
 
@@ -90,7 +91,7 @@ func ListCommits(root string, limit int) ([]Commit, error) {
 		return []Commit{}, nil
 	}
 	headRef := strings.TrimSpace(string(head))
-	args := []string{"log", "--graph", "--topo-order", "--no-color", "--max-count=" + strconv.Itoa(limit), "--date=format:%Y-%m-%d %H:%M:%S", "--format=%x00%h%x00%s%x00%ad%x00%an%x00%H%x00", headRef, "--"}
+	args := []string{"log", "--graph", "--topo-order", "--no-color", "--decorate=short", "--decorate-refs=refs/tags/*", "--max-count=" + strconv.Itoa(limit), "--date=format:%Y-%m-%d %H:%M:%S", "--format=%x00%h%x00%s%x00%ad%x00%an%x00%H%x00%D%x00", headRef, "--"}
 	output, err := runGit(gitPath, repoRoot, args...)
 	if err != nil {
 		return nil, err
@@ -98,8 +99,15 @@ func ListCommits(root string, limit int) ([]Commit, error) {
 	commits := make([]Commit, 0)
 	for _, line := range strings.Split(strings.TrimRight(string(output), "\n"), "\n") {
 		fields := strings.Split(line, "\x00")
-		if len(fields) == 7 {
-			commits = append(commits, Commit{Hash: fields[1], FullHash: fields[5], Subject: fields[2], Date: fields[3], Author: fields[4], Graph: []string{fields[0]}})
+		if len(fields) == 8 {
+			tags := make([]string, 0)
+			for _, decoration := range strings.Split(fields[6], ", ") {
+				if tag, ok := strings.CutPrefix(decoration, "tag: "); ok {
+					tags = append(tags, tag)
+				}
+			}
+			sort.Strings(tags)
+			commits = append(commits, Commit{Hash: fields[1], FullHash: fields[5], Subject: fields[2], Date: fields[3], Author: fields[4], Tags: tags, Graph: []string{fields[0]}})
 		} else if len(commits) > 0 && strings.TrimSpace(line) != "" {
 			last := &commits[len(commits)-1]
 			last.Graph = append(last.Graph, line)

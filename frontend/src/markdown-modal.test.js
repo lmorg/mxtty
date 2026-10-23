@@ -73,6 +73,26 @@ describe('markdown modal', () => {
         expect(filterItem.onSelect).toHaveBeenCalled();
     });
 
+    it('prints the original Markdown from both body and table menus without changing the modal', async () => {
+        const onPrint = vi.fn();
+        initMarkdownModal({ onPrint });
+        const markdown = '# Full document\n\n' + tableMarkdown + '\n\nFinal paragraph';
+        await showMarkdownModal(markdown);
+        const body = document.getElementById('markdown-modal-body');
+        body.querySelector('p').remove();
+        const displayed = body.innerHTML;
+        for (const selector of ['h1', 'td']) {
+            body.querySelector(selector).dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+            const menu = showLocalMenuMock.mock.calls.at(-1)[0];
+            expect(menu.options).toContain('Print...');
+            menu.onSelect(menu.options.indexOf('Print...'));
+            expect(onPrint).toHaveBeenLastCalledWith(markdown);
+        }
+        expect(onPrint).toHaveBeenCalledTimes(2);
+        expect(body.innerHTML).toBe(displayed);
+        expect(document.getElementById('markdown-modal-overlay').style.display).toBe('flex');
+    });
+
     it('leaves Escape to an open Notes prompt before closing', async () => {
         initMarkdownModal();
         await showMarkdownModal(tableMarkdown);

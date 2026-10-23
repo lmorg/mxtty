@@ -25,7 +25,7 @@ type bashTestRenderer struct {
 	clone func(string, func([]byte, int, error)) error
 }
 
-func (renderer *bashTestRenderer) CloneActivePane(command string, callback func([]byte, int, error)) error {
+func (renderer *bashTestRenderer) ClonePane(command string, callback func([]byte, int, error)) error {
 	return renderer.clone(command, callback)
 }
 

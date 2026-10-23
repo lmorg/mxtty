@@ -14,6 +14,7 @@ configureMarked();
 
 let markdownModalTableWordWrapEnabled = true;
 let markdownModalHooks = {};
+let currentMarkdownContent = '';
 
 function applyTableWordWrapMode(container) {
     if (!container) {
@@ -122,6 +123,7 @@ function ensureMarkdownModalDom() {
 }
 
 function closeMarkdownModal() {
+    currentMarkdownContent = '';
     document.body.classList.remove('markdown-modal-open');
     const overlay = document.getElementById('markdown-modal-overlay');
     if (overlay) {
@@ -143,6 +145,7 @@ export async function showMarkdownModal(markdownContent, id = '') {
         return;
     }
 
+    currentMarkdownContent = markdownContent;
     body.innerHTML = marked.parse(markdownContent);
     await renderMermaidDiagrams(body);
     await applySyntaxHighlighting(body);
@@ -193,7 +196,7 @@ export function initMarkdownModal(hooks = {}) {
 
         const target = e.target instanceof Element ? e.target : null;
         const tableTarget = target?.closest?.('.markdown-modal-table-scroll-wrap, table, th, td');
-        if (!tableTarget) {
+        if (!tableTarget && !markdownModalHooks.onPrint) {
             return;
         }
 
@@ -201,18 +204,23 @@ export function initMarkdownModal(hooks = {}) {
         e.stopPropagation();
 
         const isWrapEnabled = !body.classList.contains('markdown-modal-table-wordwrap-off');
-        const table = tableTarget.closest('table') || tableTarget.querySelector('table');
-        const items = [{
+        const table = tableTarget?.closest('table') || tableTarget?.querySelector('table');
+        const items = tableTarget ? [{
             title: 'Word wrap',
             icon: isWrapEnabled ? 0xf00c : 0x20,
             onSelect: () => {
                 markdownModalTableWordWrapEnabled = !isWrapEnabled;
                 applyTableWordWrapMode(body);
             },
-        }];
+        }] : [];
         const tableItems = table ? markdownModalHooks.tableMenuItems?.(table) || [] : [];
         if (tableItems.length > 0) {
             items.push({ title: '-', icon: 0 }, ...tableItems);
+        }
+        if (markdownModalHooks.onPrint) {
+            const markdown = currentMarkdownContent;
+            if (items.length) items.push({ title: '-', icon: 0 });
+            items.push({ title: 'Print...', icon: 0xf02f, onSelect: () => markdownModalHooks.onPrint(markdown) });
         }
 
         showLocalMenu({

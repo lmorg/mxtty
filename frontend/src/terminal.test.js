@@ -274,7 +274,7 @@ describe('terminal compact redraw decoder', () => {
         expect(cloneButtons[0].dataset.hovered).toBe('true');
         cloneButtons[0].click();
         await flushPromises();
-        expect(terminalClonePaneMock).toHaveBeenCalledWith('%1');
+        expect(terminalClonePaneMock).toHaveBeenCalledWith();
         expect(terminalConfirmKillPaneMock).not.toHaveBeenCalled();
         const fullsizeToggle = vi.fn();
         window.addEventListener('ttyphoon-terminal-fullsize-toggle', fullsizeToggle);

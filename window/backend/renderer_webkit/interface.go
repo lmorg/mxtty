@@ -492,30 +492,11 @@ func (wr *webkitRender) ActiveTile() types.Tile {
 	return wr.termWin.Active
 }
 
-func (wr *webkitRender) ClonePane(paneID string) error {
-	if wr == nil || wr.tmux == nil || wr.termWin == nil {
-		return fmt.Errorf("terminal is unavailable")
-	}
-	for _, tile := range wr.termWin.Tiles {
-		if pane, ok := tile.(*tmux.PaneT); ok && pane != nil && pane.Id() == paneID {
-			return wr.tmux.ClonePane(pane, "", nil)
-		}
-	}
-	return fmt.Errorf("source terminal pane is unavailable")
-}
-
-func (wr *webkitRender) CloneActivePane(command string, callback func(output []byte, exitCode int, err error)) error {
+func (wr *webkitRender) ClonePane(command string, callback func(output []byte, exitCode int, err error)) error {
 	if wr == nil || wr.tmux == nil {
 		return fmt.Errorf("terminal is unavailable")
 	}
-	pane, err := wr.tmux.ActivePane()
-	if err != nil {
-		return err
-	}
-	if pane == nil {
-		return fmt.Errorf("active terminal pane is unavailable")
-	}
-	return wr.tmux.ClonePane(pane, command, callback)
+	return wr.tmux.ClonePane(command, callback)
 }
 
 func (wr *webkitRender) activeTerm() types.Term {

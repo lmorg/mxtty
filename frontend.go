@@ -41,6 +41,7 @@ import (
 	"github.com/lmorg/ttyphoon/utils/lsp"
 	menuhyperlink "github.com/lmorg/ttyphoon/utils/menu_hyperlink"
 	"github.com/lmorg/ttyphoon/utils/notes"
+	"github.com/lmorg/ttyphoon/utils/printing"
 	shellutils "github.com/lmorg/ttyphoon/utils/shell"
 	"github.com/lmorg/ttyphoon/utils/spellcheck"
 	"github.com/lmorg/ttyphoon/utils/swagger"
@@ -538,12 +539,12 @@ func (a *WApp) TerminalCancelPaneAutoClose(paneID string) error {
 	return renderer.CancelPaneAutoClose(paneID)
 }
 
-func (a *WApp) TerminalClonePane(paneID string) error {
+func (a *WApp) TerminalClonePane() error {
 	renderer, ok := renderwebkit.CurrentRenderer()
 	if !ok {
 		return fmt.Errorf("renderer not available")
 	}
-	return renderer.ClonePane(paneID)
+	return renderer.ClonePane("", nil)
 }
 
 func (a *WApp) TerminalClosePane(paneID string) error {
@@ -2622,7 +2623,7 @@ func (a *WApp) RunGitAction(projectRoot, actionName string, parameters map[strin
 		if !ok {
 			return errors.New("Notes renderer is unavailable")
 		}
-		return renderer.CloneActivePane(command, func(output []byte, exitCode int, err error) {
+		return renderer.ClonePane(command, func(output []byte, exitCode int, err error) {
 			complete(gitutils.InteractiveActionResult{
 				Output:   string(output),
 				ExitCode: exitCode,
@@ -3198,8 +3199,8 @@ func (a *WApp) SaveCodeDialog(defaultFilename string) (string, error) {
 	return path, nil
 }
 
-func (a *WApp) WindowPrint() {
-	runtime.WindowPrint(a.ctx)
+func (a *WApp) WindowPrint() error {
+	return printing.Print(a.ctx)
 }
 
 type ClipboardData struct {
@@ -3320,7 +3321,7 @@ func (a *WApp) SendToTerminal(content, language string) error {
 	if err != nil {
 		return err
 	}
-	err = renderer.CloneActivePane(command, func(_ []byte, _ int, err error) {
+	err = renderer.ClonePane(command, func(_ []byte, _ int, err error) {
 		cleanup()
 		if err != nil {
 			renderer.DisplayNotification(types.NOTIFY_ERROR, err.Error())

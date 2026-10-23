@@ -157,12 +157,20 @@ terminal text; it must correspond to an outstanding invocation.
   no configured directory, omit `-c` and preserve tmux's normal split behavior.
   Splitting does not reapply the workspace's command or environment settings.
 - A pane-local Clone control (icon `0xf24d`) appears before zoom with the same
-  hover/finished visibility rule. It calls `ClonePane` for the clicked source
-  pane with an empty command and no callback. This splits below the source and
+  hover/finished visibility rule. It calls `ClonePane` with an empty command
+  and no callback. `ClonePane` resolves the active source pane internally,
+  without requiring a pane ID or a separate `CloneActivePane` API. This splits
+  below the source and
   starts tmux's normal shell with the source working directory and reported
   environment. Shell-only clones omit the completion wrapper, retained-exit
   flag, callback registration, and auto-close timer; command clones keep their
   existing interactive-action lifecycle.
+- Clones always inherit the active source pane's directory and environment;
+  callers cannot override either. The recorded source directory is used for
+  both tmux `split-window -c` and the wrapper's OSC 7 directory report, with
+  tmux's live `pane_current_path` as the launch fallback when it is empty.
+  Git targets the project repository through `git -C`; Send to terminal's
+  command pipeline enters the project directory without changing clone setup.
 - Keep this terminal mechanism generic; Git-specific execution policy remains
   in `utils/git` (ADR 0071).
 - Markdown code blocks and Jupyter's Send to terminal action share the
@@ -174,7 +182,7 @@ terminal text; it must correspond to an outstanding invocation.
   configured formatter, both build commands, and execution command using
   absolute file paths. Generated files use a `Main` basename for templates that
   require it, such as Java's public Main class.
-- Execute those commands through `CloneActivePane`, not inside the Go process.
+- Execute those commands through `ClonePane`, not inside the Go process.
   The clone inherits the source pane's environment; the pipeline explicitly
   enters the current project directory, matching Jupyter's Run action. As in
   the existing runner, formatting failures are non-fatal, while either build

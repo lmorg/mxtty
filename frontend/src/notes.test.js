@@ -1236,6 +1236,139 @@ describe('notes rendering', () => {
         expect(editor.value).toContain('  <count>2</count>');
     });
 
+    it('prints the complete Markdown View without mutating the live preview', async () => {
+        const source = '---\ntitle: Metadata\n---\n# Entire document\n\n' + 'Paragraph below the viewport.\n\n'.repeat(100) + 'Last paragraph';
+        listFilesMock.mockResolvedValue(['$NOTES/print.md']);
+        getFileMock.mockResolvedValue({ contents: source, text: '', error: '' });
+        await importNotesModule();
+        document.querySelector('[data-file="$NOTES/print.md"]').click();
+        await flushPromises();
+        await flushPromises();
+        const preview = document.getElementById('notes-preview');
+        preview.innerHTML = '<h1>Visible excerpt</h1><section hidden>Collapsed live section</section>';
+        const livePreview = preview.innerHTML;
+        try {
+            const printed = new Promise((resolve) => windowPrintMock.mockImplementationOnce(async () => { resolve(); }));
+            preview.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+            const menu = showLocalMenuMock.mock.calls.at(-1)[0];
+            menu.onSelect(menu.options.indexOf('Print'));
+            await printed;
+            const printRoot = document.getElementById('notes-print-root');
+            expect(printRoot.querySelector('h1').textContent).toBe('Entire document');
+            expect(printRoot.textContent).toContain('Last paragraph');
+            expect(printRoot.textContent).not.toContain('title: Metadata');
+            expect(printRoot.querySelectorAll('p').length).toBeGreaterThan(100);
+            expect(preview.innerHTML).toBe(livePreview);
+            expect(printRoot.querySelector('#notes-sidebar, #notes-tools-panel, .tty-menu')).toBeNull();
+        } finally {
+            window.dispatchEvent(new Event('afterprint'));
+        }
+    });
+
+    it('prints Markdown View content from the Jupyter Run context menu without changing views', async () => {
+        getLanguageDescriptionsMock.mockResolvedValue(['Bash Shell Script']);
+        listFilesMock.mockResolvedValue(['$NOTES/print.md']);
+        getFileMock.mockResolvedValue({ contents: '# Commands\n\n```bash\nprintf hello\n```', text: '', error: '' });
+        await importNotesModule();
+        document.querySelector('[data-file="$NOTES/print.md"]').click();
+        await flushPromises();
+        await flushPromises();
+        document.getElementById('notes-preview').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+        expect(showLocalMenuMock.mock.calls.at(-1)[0].options).toContain('Print');
+        document.getElementById('notes-tab-jupyter').click();
+        await flushPromises();
+        const runView = document.getElementById('notes-jupyter');
+        const output = document.createElement('p');
+        output.textContent = 'Runtime output excluded from print';
+        runView.appendChild(output);
+        showLocalMenuMock.mockClear();
+        runView.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+        expect(showLocalMenuMock).toHaveBeenCalledOnce();
+        const menu = showLocalMenuMock.mock.calls[0][0];
+        expect(menu.options).toContain('Print');
+        try {
+            const printed = new Promise((resolve) => windowPrintMock.mockImplementationOnce(async () => { resolve(); }));
+            menu.onSelect(menu.options.indexOf('Print'));
+            await printed;
+            const root = document.getElementById('notes-print-root');
+            expect(root.querySelector('h1').textContent).toBe('Commands');
+            expect(root.querySelector('code').textContent).toContain('printf hello');
+            expect(root.textContent).not.toContain('Runtime output excluded from print');
+            expect(root.querySelector('.jupyter-code-editable, .jupyter-run-terminal, .notes-print-filename')).toBeNull();
+            expect(document.getElementById('notes-tab-jupyter').getAttribute('aria-selected')).toBe('true');
+            expect(runView.contains(output)).toBe(true);
+        } finally {
+            window.dispatchEvent(new Event('afterprint'));
+        }
+    });
+
+    it('prints the Markdown modal original content through the shared print pipeline', async () => {
+        await importNotesModule();
+        getEventHandler('showMarkdownModal')({ id: 'command-meta', markdown: '# Modal document\n\nFull original content' });
+        await flushPromises();
+        await flushPromises();
+        const body = document.getElementById('markdown-modal-body');
+        body.innerHTML = '<p>Filtered visible excerpt</p>';
+        try {
+            const printed = new Promise((resolve) => windowPrintMock.mockImplementationOnce(async () => { resolve(); }));
+            body.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+            const menu = showLocalMenuMock.mock.calls.at(-1)[0];
+            menu.onSelect(menu.options.indexOf('Print...'));
+            await printed;
+            expect(document.querySelector('#notes-print-root h1').textContent).toBe('Modal document');
+            expect(document.getElementById('notes-print-root').textContent).toContain('Full original content');
+            expect(document.getElementById('notes-print-root').textContent).not.toContain('Filtered visible excerpt');
+            expect(body.textContent).toBe('Filtered visible excerpt');
+        } finally {
+            window.dispatchEvent(new Event('afterprint'));
+        }
+    });
+
+    it.each([
+        ['$NOTES/print.md', 'print.md'],
+        ['$PROJECT/src/components/print.md', 'src/components/print.md'],
+    ])('prints the unsaved Monaco buffer with the correct filename for %s', async (filename, printedFilename) => {
+        const userAgent = vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Monaco print test');
+        let value = '# Saved';
+        const adapter = {
+            getValue: () => value, setValue: (next) => { value = next; },
+            getSelectionOffsets: () => ({ start: 0, end: 0 }), setSelectionOffsets: vi.fn(),
+            revealOffset: vi.fn(), focus: vi.fn(), layout: vi.fn(),
+            setLanguage: vi.fn(), setWordWrap: vi.fn(), setTypography: vi.fn(),
+            applyTheme: vi.fn(), configureLsp: vi.fn(), setDiagnostics: vi.fn(), setTyposMisspellings: vi.fn(),
+        };
+        createMonacoAdapterMock.mockResolvedValue(adapter);
+        listFilesMock.mockResolvedValue([filename]);
+        getFileMock.mockResolvedValue({ contents: value, text: '', error: '' });
+        try {
+            await importNotesModule();
+            document.querySelector(`[data-file="${filename}"]`).click();
+            await flushPromises();
+            await flushPromises();
+            document.getElementById('notes-tab-editor').click();
+            await flushPromises();
+            await flushPromises();
+            expect(createMonacoAdapterMock).toHaveBeenCalled();
+            value = '# Unsaved\n' + '<b>source text</b>\n'.repeat(300) + 'Last editor line';
+            const editor = document.getElementById('notes-editor');
+            editor.value = 'Stale hidden textarea';
+            const printed = new Promise((resolve) => windowPrintMock.mockImplementationOnce(async () => { resolve(); }));
+            editor.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+            const menu = showLocalMenuMock.mock.calls.at(-1)[0];
+            menu.onSelect(menu.options.indexOf('Print...'));
+            await printed;
+            expect(document.getElementById('notes-print-root').firstElementChild.textContent).toBe(printedFilename);
+            expect(document.querySelector('#notes-print-root .notes-print-filename').nextElementSibling.tagName).toBe('PRE');
+            expect(document.querySelector('#notes-print-root code').textContent).toBe(value);
+            expect(document.querySelector('#notes-print-root b')).toBeNull();
+            expect(editor.value).toBe('Stale hidden textarea');
+            expect(saveFileMock).not.toHaveBeenCalled();
+        } finally {
+            window.dispatchEvent(new Event('afterprint'));
+            userAgent.mockRestore();
+        }
+    });
+
     it('inserts clipboard images through the active editor surface', async () => {
         listFilesMock.mockResolvedValue(['$NOTES/todo list.md']);
         getFileMock.mockResolvedValue({ contents: '# Hello Notes', text: '', error: '' });
@@ -4181,6 +4314,54 @@ describe('notes rendering', () => {
         vi.mocked(markdown.processMarkdownContainer).mockResolvedValue();
     });
 
+    it('prints only top-level AI output without thinking, tools, or subagent content', async () => {
+        await importNotesModule();
+        getEventHandler('aiJobStart')({ runId: 990, title: 'User prompt excluded' });
+        const append = getEventHandler('aiStreamBlock');
+        for (const block of [
+            { blockId: 'thinking', kind: 'thinking', delta: 'Private reasoning excluded' },
+            { blockId: 'tool', kind: 'tool-call', delta: 'Tool arguments excluded' },
+            { blockId: 'tool-output', parentId: 'tool', kind: 'tool-output', delta: 'Tool output excluded' },
+            { blockId: 'tool-error', parentId: 'tool', kind: 'tool-error', delta: 'Tool error excluded' },
+            { blockId: 'summary', parentId: 'tool', kind: 'tool-summary', delta: 'Tool summary excluded' },
+            { blockId: 'subagent', kind: 'subagent', delta: 'Subagent excluded' },
+            { blockId: 'child', parentId: 'subagent', kind: 'text', delta: 'Nested output excluded' },
+            { blockId: 'answer', kind: 'text', delta: '# Assistant answer\n\n**Final output only**' },
+        ]) append({ runId: 990, status: 'closed', ...block });
+        await flushPromises();
+        const output = document.getElementById('notes-ai-output');
+        try {
+            const printed = new Promise((resolve) => windowPrintMock.mockImplementationOnce(async () => { resolve(); }));
+            output.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+            const menu = showLocalMenuMock.mock.calls.at(-1)[0];
+            expect(menu.options).toContain('Print...');
+            menu.onSelect(menu.options.indexOf('Print...'));
+            await printed;
+            const root = document.getElementById('notes-print-root');
+            expect(root.querySelector('h1').textContent).toBe('Assistant answer');
+            expect(root.querySelector('strong').textContent).toBe('Final output only');
+            expect(root.textContent).not.toContain('excluded');
+            expect(root.querySelector('[data-block-kind], .notes-ai-heading')).toBeNull();
+        } finally {
+            window.dispatchEvent(new Event('afterprint'));
+        }
+    });
+
+    it('does not open a print dialog when the AI panel contains only tools and thinking', async () => {
+        await importNotesModule();
+        getEventHandler('aiJobStart')({ runId: 991, title: '' });
+        getEventHandler('aiStreamBlock')({ runId: 991, blockId: 'reasoning', kind: 'thinking', delta: 'Not printable', status: 'closed' });
+        await flushPromises();
+        document.getElementById('notes-ai-output').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+        const menu = showLocalMenuMock.mock.calls.at(-1)[0];
+        menu.onSelect(menu.options.indexOf('Print...'));
+        await flushPromises();
+        await flushPromises();
+        expect(windowPrintMock).not.toHaveBeenCalled();
+        expect(document.getElementById('notes-print-root')).toBeNull();
+        expect(sendIpcMock).toHaveBeenCalledWith('terminal-notify', expect.objectContaining({ message: 'No AI output to print' }));
+    });
+
     it('offers code saving for final AI responses but not tool output', async () => {
         await importNotesModule();
 
@@ -4964,6 +5145,46 @@ describe('notes rendering', () => {
         expect(parent).not.toBeNull();
         expect(child).not.toBeNull();
         expect(parent.querySelector('.notes-ai-stream-block-children').contains(child)).toBe(true);
+    });
+
+    it('prints unloaded history output without fetching tool, thinking, or nested text blocks', async () => {
+        const { createAIPipelineFormatter } = await import('./ai_pipeline_formatter.js');
+        const originalObserver = globalThis.IntersectionObserver;
+        globalThis.IntersectionObserver = class {
+            observe() {}
+            unobserve() {}
+            disconnect() {}
+        };
+        try {
+            const wrapper = document.createElement('div');
+            const fmt = createAIPipelineFormatter(wrapper, { marked });
+            const loadContent = vi.fn((block) => Promise.resolve(block.blockId === 'answer' ? '# Stored final answer' : 'Excluded content'));
+            fmt.setBlocks([
+                { blockId: 'tool', kind: 'tool-call', status: 'closed' },
+                { blockId: 'thinking', kind: 'thinking', status: 'closed' },
+                { blockId: 'result', kind: 'tool-output', parentId: 'tool', status: 'closed' },
+                { blockId: 'answer', kind: 'text', status: 'closed' },
+                { blockId: 'nested-answer', kind: 'text', parentId: 'tool', status: 'closed' },
+            ], loadContent);
+            await flushPromises();
+            await flushPromises();
+            loadContent.mockClear();
+            expect(await fmt.outputMarkdown()).toBe('# Stored final answer');
+            expect(loadContent).toHaveBeenCalledOnce();
+            expect(loadContent).toHaveBeenCalledWith(expect.objectContaining({ blockId: 'answer' }));
+            expect(wrapper.querySelector('[data-block-id="answer"]').textContent).toBe('');
+        } finally {
+            globalThis.IntersectionObserver = originalObserver;
+        }
+    });
+
+    it('prints only final-answer sections from legacy AI transcripts', async () => {
+        const { createAIPipelineFormatter } = await import('./ai_pipeline_formatter.js');
+        const fmt = createAIPipelineFormatter(document.createElement('div'), { marked });
+        fmt.setText('Question: user prompt\nThought: private reasoning and tool use\nFinal Answer: # Safe response\n\nAnswer text', { legacy: true });
+        expect(await fmt.outputMarkdown()).toBe('# Safe response\n\nAnswer text');
+        fmt.setText('Unclassified transcript cannot be safely separated', { legacy: true });
+        expect(await fmt.outputMarkdown()).toBe('');
     });
 
     it('hydrates historical blocks lazily as they intersect the viewport', async () => {

@@ -323,13 +323,19 @@ func (tmux *Tmux) removeExitedPanes(livePanes map[string]struct{}) {
 	}
 }
 
-func (tmux *Tmux) ClonePane(pane *PaneT, commandLine string, callback interactiveActionCallback) error {
+func (tmux *Tmux) ClonePane(commandLine string, callback interactiveActionCallback) error {
+	pane, err := tmux.ActivePane()
+	if err != nil {
+		return err
+	}
 	if pane == nil || pane.closed || pane.term == nil {
 		return fmt.Errorf("source terminal pane is unavailable")
 	}
 	if commandLine != "" && callback == nil {
 		return fmt.Errorf("interactive action callback is required")
 	}
+
+	pwd := pane.pwd
 
 	var actionID, scriptPath string
 	if commandLine != "" {
@@ -338,7 +344,7 @@ func (tmux *Tmux) ClonePane(pane *PaneT, commandLine string, callback interactiv
 		if err != nil {
 			return err
 		}
-		scriptPath, err = writeBashScript(commandLine, actionID, pane.pwd)
+		scriptPath, err = writeBashScript(commandLine, actionID, pwd)
 		if err != nil {
 			return err
 		}
@@ -362,7 +368,6 @@ func (tmux *Tmux) ClonePane(pane *PaneT, commandLine string, callback interactiv
 	}()
 
 	env := pane.term.GetEnvVars()
-	pwd := pane.pwd
 
 	tmuxCommand := clonePaneCommand(pane.id, pwd, env, scriptPath)
 	response, err := tmux.SendCommand([]byte(tmuxCommand))

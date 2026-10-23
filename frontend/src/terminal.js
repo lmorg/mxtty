@@ -212,7 +212,7 @@ function renderPaneControls() {
             cloneButton.disabled = true;
             closeSharedTooltip();
             try {
-                await TerminalClonePane(pane.id);
+                await TerminalClonePane();
                 canvas.focus();
             } catch (error) {
                 console.error('Failed to clone pane', error);

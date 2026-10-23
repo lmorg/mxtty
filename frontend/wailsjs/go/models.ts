@@ -21,6 +21,7 @@ export namespace git {
 	    message: string;
 	    date: string;
 	    author: string;
+	    tags: string[];
 	    graph: string[];
 	
 	    static createFrom(source: any = {}) {
@@ -35,6 +36,7 @@ export namespace git {
 	        this.message = source["message"];
 	        this.date = source["date"];
 	        this.author = source["author"];
+	        this.tags = source["tags"];
 	        this.graph = source["graph"];
 	    }
 	}

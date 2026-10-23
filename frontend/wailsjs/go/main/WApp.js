@@ -718,8 +718,8 @@ export function TerminalCancelPaneAutoClose(arg1) {
   return window['go']['main']['WApp']['TerminalCancelPaneAutoClose'](arg1);
 }
 
-export function TerminalClonePane(arg1) {
-  return window['go']['main']['WApp']['TerminalClonePane'](arg1);
+export function TerminalClonePane() {
+  return window['go']['main']['WApp']['TerminalClonePane']();
 }
 
 export function TerminalClosePane(arg1) {

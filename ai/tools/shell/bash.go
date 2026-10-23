@@ -52,7 +52,7 @@ type bashResultT struct {
 }
 
 type bashPaneCloner interface {
-	CloneActivePane(string, func([]byte, int, error)) error
+	ClonePane(string, func([]byte, int, error)) error
 }
 
 func (t *Bash) InputType() reflect.Type { return reflect.TypeOf(bashInputT{}) }
@@ -100,7 +100,7 @@ func (t *Bash) run(ctx context.Context, script string) (bashResultT, error) {
 	}
 	completed := make(chan completion, 1)
 	command := "bash -c '" + strings.ReplaceAll(script, "'", "'\"'\"'") + "'"
-	if err := cloner.CloneActivePane(command, func(output []byte, exitCode int, err error) {
+	if err := cloner.ClonePane(command, func(output []byte, exitCode int, err error) {
 		result := bashResultT{Output: string(output)}
 		if err == nil {
 			result.ExitCode = &exitCode

@@ -410,6 +410,9 @@ func TestListCommitsIncludesMetadataAndGraph(t *testing.T) {
 		t.Fatal(err)
 	}
 	runGitTestCommand(t, gitPath, root, "commit", "--amend", "--quiet", "-m", "initial", "-m", "Body-only search phrase")
+	runGitTestCommand(t, gitPath, root, "tag", "release,stable")
+	runGitTestCommand(t, gitPath, root, "tag", "-a", "v1.0.0", "-m", "Release")
+	runGitTestCommand(t, gitPath, root, "branch", "not-a-tag")
 	commits, err := ListCommits(root, 100)
 	if err != nil {
 		t.Fatal(err)
@@ -426,6 +429,17 @@ func TestListCommitsIncludesMetadataAndGraph(t *testing.T) {
 	}
 	if commits[0].Message != "initial\n\nBody-only search phrase" {
 		t.Fatalf("commit message = %q", commits[0].Message)
+	}
+	if got := strings.Join(commits[0].Tags, "|"); got != "release,stable|v1.0.0" {
+		t.Fatalf("commit tags = %q, want lightweight and annotated tags only", got)
+	}
+	runGitTestCommand(t, gitPath, root, "commit", "--allow-empty", "--quiet", "-m", "untagged")
+	commits, err = ListCommits(root, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(commits) != 2 || len(commits[0].Tags) != 0 || len(commits[1].Tags) != 2 {
+		t.Fatalf("tags do not belong to the correct commits: %+v", commits)
 	}
 	if _, err := ListCommits(root, 0); err == nil {
 		t.Fatal("ListCommits accepted an invalid limit")

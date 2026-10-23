@@ -369,7 +369,7 @@ export function SyncNotesContext(arg1:notes.FileContext):Promise<void>;
 
 export function TerminalCancelPaneAutoClose(arg1:string):Promise<void>;
 
-export function TerminalClonePane(arg1:string):Promise<void>;
+export function TerminalClonePane():Promise<void>;
 
 export function TerminalClosePane(arg1:string):Promise<void>;
 

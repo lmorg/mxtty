@@ -43,7 +43,7 @@ require (
 	github.com/tree-sitter/tree-sitter-scala v0.26.3
 	github.com/tree-sitter/tree-sitter-typescript v0.23.2
 	github.com/tree-sitter/tree-sitter-verilog v1.0.3
-	github.com/wailsapp/wails/v2 v2.17.0
+	github.com/wailsapp/wails/v2 v2.16.0
 	golang.design/x/clipboard v0.11.0
 	golang.design/x/hotkey v0.6.4
 	golang.org/x/image v0.47.0
@@ -90,7 +90,6 @@ require (
 	github.com/eino-contrib/ollama v0.1.0 // indirect
 	github.com/evanphx/json-patch v0.5.2 // indirect
 	github.com/felixge/httpsnoop v1.1.0 // indirect
-	github.com/gabriel-vasile/mimetype v1.4.16 // indirect
 	github.com/go-analyze/bulk v0.1.6 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -144,6 +143,7 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	github.com/wailsapp/go-webview2 v1.0.23 // indirect
+	github.com/wailsapp/mimetype v1.4.1 // indirect
 	github.com/wk8/go-ordered-map/v2 v2.1.8 // indirect
 	github.com/yargevad/filepathx v1.0.0 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect

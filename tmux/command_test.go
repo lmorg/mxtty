@@ -659,52 +659,90 @@ func (*shellCloneTestTerm) GetEnvVars() map[string]string {
 	return map[string]string{"CLONE_TEST": "inherited value"}
 }
 
-func TestClonePaneWithoutCommandStartsNormalShell(t *testing.T) {
-	reader, writer, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = reader.Close(); _ = writer.Close() })
-	client := &Tmux{tty: writer, resp: make(chan *tmuxResponseT, 1), wins: newWindowMap(), panes: newPaneMap(), renderer: &paneCloseTestRenderer{}}
-	win := &WindowT{id: "@1", panes: newPaneMap()}
-	client.wins.Set(win.id, win)
-	source := &PaneT{id: "%7", windowId: win.id, tmux: client}
-	source.term = &shellCloneTestTerm{paneGeometryTestTerm{pane: source}}
-	cloned := &PaneT{id: "%8", windowId: win.id, tmux: client}
-	cloned.term = &paneGeometryTestTerm{pane: cloned}
-	client.panes.Set(source.id, source)
-	client.panes.Set(cloned.id, cloned)
-	commands := make(chan string, 2)
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		for scanner := bufio.NewScanner(reader); scanner.Scan(); {
-			command := scanner.Text()
-			commands <- command
-			switch {
-			case strings.HasPrefix(command, "split-window "):
-				client.resp <- &tmuxResponseT{Message: [][]byte{[]byte("%8")}}
-			case strings.HasPrefix(command, "list-panes "):
-				client.resp <- &tmuxResponseT{Message: [][]byte{[]byte("Id:%8|||WindowId:@1|||Width:80|||Height:12|||Active:true")}}
-			default:
-				client.resp <- &tmuxResponseT{IsErr: true}
+func TestClonePaneInheritsActivePaneDirectoryAndEnvironment(t *testing.T) {
+	for _, test := range []struct {
+		name, sourcePwd, command, want string
+	}{
+		{"live directory fallback", "", "", `split-window -v -P -F '#{pane_id}' -t %7 -c "#{pane_current_path}" -e "CLONE_TEST=inherited value"`},
+		{"inherited directory", "/tmp/source dir", "", `split-window -v -P -F '#{pane_id}' -t %7 -c "/tmp/source dir" -e "CLONE_TEST=inherited value"`},
+		{"inherited command", "/tmp/source dir", "pwd", `split-window -v -k -P -F '#{pane_id}' -t %7 -c "/tmp/source dir" -e "CLONE_TEST=inherited value"`},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			reader, writer, err := os.Pipe()
+			if err != nil {
+				t.Fatal(err)
 			}
-		}
-	}()
-	if err := client.ClonePane(source, "", nil); err != nil {
-		t.Fatal(err)
+			t.Cleanup(func() { _ = reader.Close(); _ = writer.Close() })
+			client := &Tmux{tty: writer, resp: make(chan *tmuxResponseT, 1), wins: newWindowMap(), panes: newPaneMap(), renderer: &paneCloseTestRenderer{}}
+			win := &WindowT{id: "@1", panes: newPaneMap()}
+			client.wins.Set(win.id, win)
+			source := &PaneT{id: "%7", windowId: win.id, tmux: client, pwd: test.sourcePwd, active: true}
+			source.term = &shellCloneTestTerm{paneGeometryTestTerm{pane: source}}
+			win.activePane = source
+			win.panes.Set(source.id, source)
+			cloned := &PaneT{id: "%8", windowId: win.id, tmux: client}
+			cloned.term = &paneGeometryTestTerm{pane: cloned}
+			client.panes.Set(source.id, source)
+			client.panes.Set(cloned.id, cloned)
+			commands := make(chan string, 2)
+			done := make(chan struct{})
+			go func() {
+				defer close(done)
+				for scanner := bufio.NewScanner(reader); scanner.Scan(); {
+					command := scanner.Text()
+					commands <- command
+					switch {
+					case strings.HasPrefix(command, "split-window "):
+						client.resp <- &tmuxResponseT{Message: [][]byte{[]byte("%8")}}
+					case strings.HasPrefix(command, "list-panes "):
+						client.resp <- &tmuxResponseT{Message: [][]byte{[]byte("Id:%8|||WindowId:@1|||Width:80|||Height:12|||Active:true")}}
+					default:
+						client.resp <- &tmuxResponseT{IsErr: true}
+					}
+				}
+			}()
+			var callback interactiveActionCallback
+			if test.command != "" {
+				callback = func([]byte, int, error) { t.Error("unexpected completion") }
+			}
+			if err := client.ClonePane(test.command, callback); err != nil {
+				t.Fatal(err)
+			}
+			want := test.want
+			if test.command != "" {
+				if len(client.interactiveActions) != 1 {
+					t.Fatal("command clone did not register completion")
+				}
+				for id, entry := range client.interactiveActions {
+					t.Cleanup(func() { client.discardInteractiveAction(id) })
+					if entry.paneID != cloned.id {
+						t.Fatalf("completion pane = %q, want %q", entry.paneID, cloned.id)
+					}
+					want += " bash " + workspace.QuoteString(entry.scriptPath)
+					script, err := os.ReadFile(entry.scriptPath)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if !strings.Contains(string(script), quoteShellArgument((&url.URL{Path: test.sourcePwd}).EscapedPath())) {
+						t.Fatalf("wrapper does not report source directory: %s", script)
+					}
+				}
+			} else if len(client.interactiveActions) != 0 {
+				t.Fatal("shell clone unexpectedly registered completion")
+			}
+			if got := <-commands; got != want {
+				t.Fatalf("clone command = %q, want %q", got, want)
+			}
+			if got := <-commands; !strings.HasPrefix(got, "list-panes ") {
+				t.Fatalf("clone did not refresh new pane metadata: %s", got)
+			}
+			if source.pwd != test.sourcePwd || cloned.CommandFinished() || cloned.AutoCloseAt() != 0 {
+				t.Fatal("clone changed source directory or initialized completion state prematurely")
+			}
+			_ = writer.Close()
+			<-done
+		})
 	}
-	if got, want := <-commands, `split-window -v -P -F '#{pane_id}' -t %7 -c "#{pane_current_path}" -e "CLONE_TEST=inherited value"`; got != want {
-		t.Fatalf("shell clone command = %q, want %q", got, want)
-	}
-	if got := <-commands; !strings.HasPrefix(got, "list-panes ") {
-		t.Fatalf("clone did not refresh new pane metadata: %s", got)
-	}
-	if len(client.interactiveActions) != 0 || cloned.CommandFinished() || cloned.AutoCloseAt() != 0 {
-		t.Fatal("shell clone unexpectedly registered completion or auto-close state")
-	}
-	_ = writer.Close()
-	<-done
 }
 
 func TestClonePaneCommandKeepsExitedPaneAndStartsWrapper(t *testing.T) {

@@ -235,7 +235,7 @@ export function initNotesGitPanel(elements, api, options = {}) {
                 showMessage('No commits', 'info', elements.gitCommitList);
                 return;
             }
-            const searchText = (commit) => `${commit.fullHash || commit.hash}\n${commit.message || commit.subject}`;
+            const searchText = (commit) => [commit.fullHash || commit.hash, commit.message || commit.subject, ...(commit.tags || [])].join('\n');
             let matches = null;
             if (query) {
                 const result = await api.filterStrings(query, commits.map(searchText));
@@ -278,8 +278,20 @@ export function initNotesGitPanel(elements, api, options = {}) {
                 row.appendChild(commitGraph(commit.graph, width, commits[commitIndex - 1]?.graph.at(-1), commits[commitIndex + 1]?.graph[0]));
                 const content = document.createElement('div');
                 content.className = 'notes-git-commit-content';
+                const header = document.createElement('div');
+                header.className = 'notes-git-commit-header';
+                const hash = document.createElement('span');
+                hash.className = 'notes-git-commit-hash';
+                hash.textContent = commit.hash;
+                header.appendChild(hash);
+                if (commit.tags?.length) {
+                    const tags = document.createElement('span');
+                    tags.className = 'notes-git-commit-tags';
+                    tags.textContent = commit.tags.join(', ');
+                    header.appendChild(tags);
+                }
+                content.appendChild(header);
                 for (const [className, text] of [
-                    ['notes-git-commit-hash', commit.hash],
                     ['notes-git-commit-subject', commit.subject],
                     ['notes-git-commit-meta', commit.date],
                     ['notes-git-commit-meta', `(${commit.author})`],

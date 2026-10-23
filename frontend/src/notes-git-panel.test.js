@@ -292,10 +292,10 @@ describe('Notes Git panel', () => {
         }
     });
 
-    it('filters full hashes and full messages with the shared filter without reloading Git per query', async () => {
+    it('renders tags after hashes and filters hashes, full messages, and tags without reloading Git per query', async () => {
         const elements = createElements();
         const commits = [
-            { hash: 'aaaaaaa', fullHash: 'a'.repeat(34) + 'ef0123', subject: 'First merge', message: 'First merge\n\nRollout ticket', date: '', author: 'Test User', graph: ['*'] },
+            { hash: 'aaaaaaa', fullHash: 'a'.repeat(34) + 'ef0123', subject: 'First merge', message: 'First merge\n\nRollout ticket', tags: ['v1.2.3', 'release/current'], date: '', author: 'Test User', graph: ['*'] },
             { hash: 'bbbbbbb', fullHash: 'b'.repeat(40), subject: 'Second commit', message: 'Second commit', date: '', author: 'Test User', graph: ['*'] },
         ];
         const api = createApi({ listCommits: vi.fn(() => Promise.resolve(commits)) });
@@ -303,14 +303,24 @@ describe('Notes Git panel', () => {
         await flushPromises();
         panel.setCommitsActive(true);
         await flushPromises();
+        const header = elements.gitCommitList.querySelector('.notes-git-commit-header');
+        expect(header.firstElementChild.className).toBe('notes-git-commit-hash');
+        expect(header.lastElementChild.className).toBe('notes-git-commit-tags');
+        expect(header.lastElementChild.textContent).toBe('v1.2.3, release/current');
+        expect(elements.gitCommitList.querySelectorAll('.notes-git-commit-tags')).toHaveLength(1);
         await panel.setCommitFilter('ef0123');
         expect(api.listCommits).toHaveBeenLastCalledWith('/work/repo', 10000);
         expect(elements.gitCommitList.querySelectorAll('.notes-git-commit')).toHaveLength(1);
         expect(elements.gitCommitList.querySelector('.notes-git-commit-hash').textContent).toBe('aaaaaaa');
         expect(elements.gitCommitList.querySelector('.notes-git-commit').classList.contains('notes-git-commit-filtered')).toBe(true);
-        expect(api.filterStrings).toHaveBeenCalledWith('ef0123', commits.map((commit) => `${commit.fullHash}\n${commit.message}`));
+        expect(api.filterStrings).toHaveBeenCalledWith('ef0123', commits.map((commit) => [commit.fullHash, commit.message, ...(commit.tags || [])].join('\n')));
         await panel.setCommitFilter('ROLLOUT');
         expect(elements.gitCommitList.querySelector('.notes-git-commit-subject').textContent).toBe('First merge');
+        await panel.setCommitFilter('V1.2.3');
+        expect(elements.gitCommitList.querySelectorAll('.notes-git-commit')).toHaveLength(1);
+        expect(elements.gitCommitList.querySelector('.notes-git-commit-hash').textContent).toBe('aaaaaaa');
+        await panel.setCommitFilter('release/current');
+        expect(elements.gitCommitList.querySelectorAll('.notes-git-commit')).toHaveLength(1);
         expect(api.listCommits).toHaveBeenCalledTimes(2);
         await panel.setCommitFilter('Test User');
         expect(elements.gitCommitList.textContent).toBe('No matching commits');
