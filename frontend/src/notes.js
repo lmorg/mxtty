@@ -51,6 +51,7 @@ import { initNotesAIPanel } from './notes-ai-panel';
 import { bindSharedTooltipMouseTracking, closeSharedTooltip, showSharedTooltip, updateSharedTooltipPointer } from './shared_tooltip';
 import { attachVimMode } from './vim-mode';
 import { attachSpellCheck } from './spellcheck';
+import { disableNativeTextAssistance, disableNativeTextAssistanceIn } from './text-input.js';
 import { createEditorUndoManager } from './editor_undo_manager';
 import { createEditorMutationAdapter } from './editor_mutation_adapter';
 import { createMonacoAdapter, createMonacoDiffAdapter } from './monaco_adapter';
@@ -638,6 +639,7 @@ const state = {
     textPromptHandler: null,
     graphPromptHandler: null,
     graphPromptSubmit: null,
+    graphPromptSpellCheck: null,
     gitWorktreePrompt: null,
     gitBranchPromptHandler: null,
     deletingFile: null,
@@ -1773,7 +1775,7 @@ function setupInteractiveTableCells(container, isEditable, resolveCommit, afterC
 
                 cell.dataset.tableEditing = 'true';
                 cell.setAttribute('contenteditable', 'true');
-                cell.setAttribute('spellcheck', 'false');
+                disableNativeTextAssistance(cell);
                 cell.style.outline = 'none';
                 cell.style.boxShadow = 'inset 0 0 0 1px var(--accent)';
 
@@ -4112,6 +4114,8 @@ function openNotesTableGraphPrompt(table) {
         });
     };
 
+    disableNativeTextAssistanceIn(form);
+    state.graphPromptSpellCheck = attachSpellCheck(titleInput);
     elements.modalCreate.textContent = graphActionLabel;
     setTimeout(() => typeButton.focus(), 0);
 }
@@ -4121,6 +4125,8 @@ function finishNotesTableGraphPrompt(spec) {
     const handler = state.graphPromptHandler;
     state.graphPromptHandler = null;
     state.graphPromptSubmit = null;
+    state.graphPromptSpellCheck?.detach();
+    state.graphPromptSpellCheck = null;
     elements.modalLocationRow.style.display = '';
     elements.modalBody.style.display = 'none';
     elements.modalBody.replaceChildren();
@@ -9362,8 +9368,11 @@ function renderSwaggerUI() {
         ${endpointListHtml}
     `;
     
+    disableNativeTextAssistanceIn(elements.swaggerEndpoints);
+
     // Render request builder and response
     elements.swaggerRequestBuilder.innerHTML = generateRequestBuilderHTML(state.swaggerSpec, state.swaggerSelectedEndpoint);
+    disableNativeTextAssistanceIn(elements.swaggerRequestBuilder);
     elements.swaggerResponse.innerHTML = generateResponseHTML(state.swaggerSpec, state.swaggerSelectedEndpoint);
 
     // Render parameter descriptions using the same markdown pipeline as preview/info.
@@ -11291,6 +11300,7 @@ async function openCreateGitWorktreePrompt(projectRoot) {
     const pathField = notesGraphField('Path');
     const pathInput = document.createElement('textarea');
     pathInput.className = 'notes-worktree-path-input';
+    disableNativeTextAssistance(pathInput);
     pathInput.rows = 2;
     pathInput.wrap = 'soft';
     pathInput.disabled = true;
@@ -15319,6 +15329,9 @@ elements.toolsTabGit.addEventListener('click', () => {
     setToolsPanelCollapsed(false);
     setToolsTab('git');
 });
+
+disableNativeTextAssistanceIn(document);
+attachSpellCheck(elements.gitCommitMessage);
 
 notesGitPanel = initNotesGitPanel(elements, {
     getStatus: GetGitStatus,

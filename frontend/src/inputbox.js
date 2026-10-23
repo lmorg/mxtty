@@ -4,6 +4,7 @@ import { showLocalMenu } from './popup_menu';
 import { initLineNavigationKeys } from './line-navigation.js';
 import { attachVimMode } from './vim-mode';
 import { attachSpellCheck } from './spellcheck';
+import { disableNativeTextAssistance, disableNativeTextAssistanceIn } from './text-input.js';
 import { bindSharedTooltipMouseTracking, closeSharedTooltip, showSharedTooltip } from './shared_tooltip';
 import './inputbox.css';
 
@@ -640,6 +641,7 @@ export function initInputBox(canvas) {
             setter = (value) => { control.value = String(value ?? ''); };
         }
 
+        disableNativeTextAssistanceIn(line);
         if (control && typeof control.addEventListener === 'function') {
             control.addEventListener('keydown', (e) => {
                 if (fieldType === 'string' && e.key === 'ArrowUp' && control.value.length === 0 &&
@@ -912,7 +914,6 @@ export function initInputBox(canvas) {
             inputboxInput.setAttribute('autocomplete', 'off');
             inputboxInput.setAttribute('autocorrect', 'off');
             inputboxInput.setAttribute('autocapitalize', 'off');
-            //inputboxInput.setAttribute('spellcheck', 'false');
             inputboxInput.addEventListener('keydown', (e) => {
                 if (handleInputboxHotkeys(e)) {
                     e.stopPropagation();
@@ -936,6 +937,7 @@ export function initInputBox(canvas) {
             .filter((entry) => entry && typeof entry.value === 'string');
         inputboxHistoryBtn.style.display = inputboxHistoryItems.length > 0 ? 'inline-flex' : 'none';
 
+        disableNativeTextAssistance(inputboxInput);
         inputboxInputContainer.appendChild(inputboxInput);
         if (p.multiline) {
             inputboxSpellCheckHandle = attachSpellCheck(inputboxInput);

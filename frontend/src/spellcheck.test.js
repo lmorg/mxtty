@@ -1,4 +1,5 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+import { disableNativeTextAssistanceIn } from './text-input.js';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -80,6 +81,41 @@ afterEach(() => {
 });
 
 describe('spellcheck — suggestion interaction', () => {
+    it('disables native text assistance on text controls without adding dictionary checking', () => {
+        document.body.innerHTML = '<input id="plain"><input id="filter" type="search"><textarea id="path"></textarea><div id="cell" contenteditable="true"></div><input id="checkbox" type="checkbox">';
+        disableNativeTextAssistanceIn(document.body);
+        for (const id of ['plain', 'filter', 'path', 'cell']) {
+            const control = document.getElementById(id);
+            for (const [attribute, value] of [
+                ['autocomplete', 'off'], ['autocorrect', 'off'], ['autocapitalize', 'off'],
+                ['spellcheck', 'false'], ['writingsuggestions', 'false'],
+            ]) expect(control.getAttribute(attribute)).toBe(value);
+        }
+        expect(document.getElementById('checkbox').hasAttribute('spellcheck')).toBe(false);
+        expect(document.querySelector('canvas')).toBeNull();
+        expect(notesSpellCheckMock).not.toHaveBeenCalled();
+    });
+
+    it('checks single-line inputs with native text assistance disabled', async () => {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = 'helo';
+        document.body.appendChild(input);
+        notesSpellCheckMock.mockResolvedValue([
+            { misspeltWord: 'helo', wordStart: 0, wordLength: 4, suggestions: ['hello'] },
+        ]);
+        const handle = attachSpellCheck(input);
+        await flush(900);
+        expect(notesSpellCheckMock).toHaveBeenCalledWith('helo');
+        for (const [attribute, value] of [
+            ['autocomplete', 'off'], ['autocorrect', 'off'], ['autocapitalize', 'off'],
+            ['spellcheck', 'false'], ['writingsuggestions', 'false'],
+        ]) expect(input.getAttribute(attribute)).toBe(value);
+        expect(document.querySelector('canvas')).not.toBeNull();
+        handle.detach();
+        expect(document.querySelector('canvas')).toBeNull();
+    });
+
     it('opens suggestions on right-click over a misspelling, not left-click', async () => {
         const textarea = makeTextarea('helo');
         notesSpellCheckMock.mockResolvedValue([

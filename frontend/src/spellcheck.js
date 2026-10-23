@@ -22,6 +22,7 @@
 
 import { NotesSpellCheck } from '../wailsjs/go/main/WApp';
 import { showLocalMenu } from './popup_menu';
+import { disableNativeTextAssistance } from './text-input.js';
 
 const DEBOUNCE_MS = 800;
 
@@ -75,13 +76,14 @@ export function showSpellcheckSuggestionsPopup(anchorX, anchorY, misspelling, on
 // ─── Public API ──────────────────────────────────────────────────────────────
 
 /**
- * Attach spell-check to a textarea element.
+ * Attach spell-check to a textarea or single-line text input.
  *
- * @param {HTMLTextAreaElement} textarea
+ * @param {HTMLTextAreaElement|HTMLInputElement} textarea
  * @param {{ exclusions?: string[] }} [options]
  * @returns {{ detach(): void, setExclusions(words: string[]): void, check(): void }}
  */
 export function attachSpellCheck(textarea, options = {}) {
+    disableNativeTextAssistance(textarea);
     const onMisspellingsChange = typeof options.onMisspellingsChange === 'function'
         ? options.onMisspellingsChange
         : null;
@@ -190,7 +192,7 @@ export function attachSpellCheck(textarea, options = {}) {
         if (!misspellings.length) return [];
 
         const cs = getComputedStyle(textarea);
-        const isWrapping = !['nowrap', 'pre'].includes(cs.whiteSpace);
+        const isWrapping = textarea.tagName !== 'INPUT' && !['nowrap', 'pre'].includes(cs.whiteSpace);
 
         const mirror = document.createElement('div');
         mirror.style.cssText = buildMirrorCss(cs, isWrapping);

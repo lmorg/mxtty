@@ -81,6 +81,24 @@ describe('inputbox', () => {
         return event;
     }
 
+    it('disables native assistance on single-line prompts and string variables', async () => {
+        const { attachSpellCheck } = await import('./spellcheck');
+        attachSpellCheck.mockClear();
+        await openImageInputbox({
+            multiline: false,
+            variables: [{ name: 'path', label: 'Path', type: 'string', default: '/work' }],
+        });
+        const controls = document.querySelectorAll('.inputbox-input');
+        expect(controls).toHaveLength(2);
+        for (const control of controls) {
+            for (const [attribute, value] of [
+                ['autocomplete', 'off'], ['autocorrect', 'off'], ['autocapitalize', 'off'],
+                ['spellcheck', 'false'], ['writingsuggestions', 'false'],
+            ]) expect(control.getAttribute(attribute)).toBe(value);
+        }
+        expect(attachSpellCheck).not.toHaveBeenCalled();
+    });
+
     it('uses shared tooltips for actions, variable descriptions and image removal', async () => {
         await openImageInputbox({
             canSaveDraft: true, allowImagePaste: true, history: ['Previous query'],

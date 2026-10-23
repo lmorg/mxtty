@@ -1,4 +1,5 @@
 import { EventsOn } from '../wailsjs/runtime/runtime';
+import { disableNativeTextAssistance } from './text-input.js';
 import {
     CommandPaletteSelect,
     FilterStrings,
@@ -486,10 +487,7 @@ export function initTerminalPopupMenu(canvas) {
     listSearchInput.type = 'text';
     listSearchInput.className = 'tty-listbox-search-input';
     listSearchInput.placeholder = 'Filter...';
-    listSearchInput.setAttribute('autocomplete', 'off');
-    listSearchInput.setAttribute('autocorrect', 'off');
-    listSearchInput.setAttribute('autocapitalize', 'off');
-    listSearchInput.setAttribute('spellcheck', 'false');
+    disableNativeTextAssistance(listSearchInput);
     listSearchWrap.appendChild(listSearchInput);
 
     const listBody = document.createElement('div');

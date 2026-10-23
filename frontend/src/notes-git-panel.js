@@ -527,6 +527,7 @@ export function initNotesGitPanel(elements, api, options = {}) {
                 return;
             }
             elements.gitCommitMessage.value = '';
+            elements.gitCommitMessage.dispatchEvent(new Event('input', { bubbles: true }));
             if (options.notifyTransfer) {
                 options.notifyTransfer(output, 'Commit created');
             } else {

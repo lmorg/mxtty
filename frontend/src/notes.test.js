@@ -1251,6 +1251,20 @@ describe('notes rendering', () => {
         }, { timeout: 2000 });
     });
 
+    it('disables native assistance on filters and attaches custom spellchecking only to commit prose', async () => {
+        await importNotesModule();
+        const ids = ['notes-tools-git-commit-message', 'notes-ai-settings-tools-filter', 'notes-ai-settings-mcp-filter', 'notes-modal-input', 'notes-find-input'];
+        for (const id of ids) {
+            const control = document.getElementById(id);
+            for (const [attribute, value] of [
+                ['autocomplete', 'off'], ['autocorrect', 'off'], ['autocapitalize', 'off'],
+                ['spellcheck', 'false'], ['writingsuggestions', 'false'],
+            ]) expect(control.getAttribute(attribute)).toBe(value);
+            const attached = attachSpellCheck.mock.calls.some(([target]) => target === control);
+            expect(attached).toBe(id === 'notes-tools-git-commit-message');
+        }
+    });
+
     it('prints the complete Markdown View without mutating the live preview', async () => {
         const source = '---\ntitle: Metadata\n---\n# Entire document\n\n' + 'Paragraph below the viewport.\n\n'.repeat(100) + 'Last paragraph';
         listFilesMock.mockResolvedValue(['$NOTES/print.md']);
@@ -7923,6 +7937,16 @@ describe('notes rendering', () => {
             await flushPromises();
 
             expect(document.getElementById('notes-modal-title').textContent).toBe('Create graph');
+            const titleInput = document.querySelector('.notes-graph-text-title');
+            const checkerIndex = attachSpellCheck.mock.calls.findIndex(([target]) => target === titleInput);
+            expect(checkerIndex).toBeGreaterThanOrEqual(0);
+            const titleChecker = attachSpellCheck.mock.results[checkerIndex].value;
+            for (const control of document.querySelectorAll('#notes-modal-body input[type="text"], #notes-modal-body input[type="search"]')) {
+                expect(control.getAttribute('autocorrect')).toBe('off');
+                expect(control.getAttribute('writingsuggestions')).toBe('false');
+                expect(control.getAttribute('spellcheck')).toBe('false');
+                expect(attachSpellCheck.mock.calls.some(([target]) => target === control)).toBe(control === titleInput);
+            }
             expect(document.querySelector('#notes-modal-title h3')?.textContent).toBe('Create graph');
             expect(getNotesRenderedStyles()).toMatch(/\.notes-graph-options-list\s*\{[^}]*height:\s*190px;[^}]*min-height:\s*190px;[^}]*max-height:\s*190px;/s);
             expect(document.querySelector('#notes-modal-body .notes-graph-dropdown')?.textContent.trim()).toContain('Line');
@@ -7959,6 +7983,7 @@ describe('notes rendering', () => {
             expect(graphModal.dataset.open).toBe('true');
             graphModal.dispatchEvent(new MouseEvent('click', { bubbles: true }));
             expect(graphModal.dataset.open).toBe('false');
+            expect(titleChecker.detach).toHaveBeenCalledOnce();
         });
 
         it('persists a graph and intersects selected rows with SQL-filtered rows', async () => {

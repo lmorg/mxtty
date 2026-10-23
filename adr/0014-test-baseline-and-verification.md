@@ -21,6 +21,10 @@ failures are fixed.
 
 ### Latest verification
 
+On 2026-10-24, the full frontend suite passed all 609 tests across 23 files after
+the native text-assistance and single-line spellchecker changes. The production
+frontend build also succeeded; its existing chunk-size notices remain warnings.
+
 On 2026-10-23, `npm run test:run -- --reporter=dot` passed all 605 tests across
 23 files. `npm run build` succeeded and `npm ls --depth=0` reported a valid
 dependency tree. The bundle-size notices are warnings, not build failures.

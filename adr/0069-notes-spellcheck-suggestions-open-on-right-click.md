@@ -28,6 +28,27 @@ gesture only when the pointer is over a spelling underline.
   only for a misspelling, before the general editor menu. Left mouse-down and
   click remain untouched; dispose the listener with the editor adapter.
 
+### Native Text Assistance (2026-10-24)
+
+- Use `frontend/src/text-input.js` to disable browser/OS autocomplete,
+  autocorrection, capitalization, native spellchecking, and writing suggestions.
+  Apply the existing Grammarly opt-out attributes through the same helper.
+- Notes initializes its static text controls through the shared helper. Dynamic
+  graph fields, worktree paths, editable table cells, inputboxes and string
+  variables, JSON/XML inline editors, Swagger request fields, and popup filters
+  apply it when created or rebuilt.
+- `attachSpellCheck` also applies the policy and supports single-line inputs
+  without wrapping their measurement mirror. Commit messages and graph titles
+  use the application's checker, as do the existing supported editor and
+  multiline prompt surfaces.
+- Filters, paths, structured keys/values, single-line generic prompts, and
+  variable controls do not gain dictionary checking merely because native
+  assistance is disabled. These fields can contain syntax or identifiers rather
+  than prose.
+- Detach the graph-title checker before removing its temporary form. The commit
+  field persists with the Notes panel; when a commit clears its value, emit an
+  input event so its checker and other input listeners refresh.
+
 ## Consequences
 
 Ordinary left-clicks remain available for editing; misspellings expose their
@@ -36,6 +57,7 @@ spelling hit and pass-through behavior elsewhere.
 
 ## Reference
 
+- `frontend/src/text-input.js` - native text-assistance policy
 - `frontend/src/spellcheck.js`
 - `frontend/src/spellcheck.test.js`
 - `frontend/src/notes.js` - general editor context menu
